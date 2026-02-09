@@ -120,6 +120,56 @@ As a **Portfolio Owner**, I want to discover related entities from what I click 
   - supports manual refresh
   - protects cached data equivalently to any other user data
 - **FR-013**: System MUST be operable as a **standalone tool** (not embedded into the main Alkemio UI), while using Alkemio identity for access.
+- **FR-014**: System SHOULD compute and display basic network metrics (at minimum: total nodes, total edges, average degree, density).
+- **FR-015**: System SHOULD provide “insight shortcuts” that can highlight at minimum: super-connectors and isolated nodes.
+- **FR-016**: System SHOULD allow exporting the current graph dataset (and optionally computed insights/metrics) as a JSON file for offline analysis.
+
+### Non-Functional Requirements
+
+- **NFR-001 (Security/Privacy)**: System MUST treat all acquired and cached Alkemio-derived data as sensitive user data.
+- **NFR-002 (Secrets Handling)**: System MUST NOT log authentication secrets or bearer tokens (even at debug level).
+- **NFR-003 (Access Control)**: System MUST apply access checks at query-time and/or cache-read-time such that stale caches cannot re-introduce unauthorized data.
+- **NFR-004 (Performance)**: System SHOULD remain interactive for “large graphs” by adapting layout/physics and throttling rendering updates when node/edge counts are high.
+- **NFR-005 (Resilience)**: System MUST degrade gracefully when optional fields are missing (e.g., location, avatar, URLs) and when map assets fail to load.
+- **NFR-006 (Accessibility)**: System SHOULD provide baseline accessibility for core interactions (keyboard navigation to nodes, focus states, readable contrast, and ARIA labeling for controls).
+
+### Technical Requirements (Legacy Learnings)
+
+The legacy reference project (https://github.com/alkem-io/analytics-playground) demonstrates a decoupled approach:
+
+1. **Acquire** raw data from Alkemio (GraphQL)
+2. **Transform** raw data into a display-friendly graph JSON
+3. **Display** the graph in a browser with interactive controls and optional map overlay
+
+This spec does not mandate the same repo/module split, but it does inherit a few concrete constraints and proven patterns.
+
+#### Backend/API Integration
+
+- **TR-001**: System MUST integrate with Alkemio via GraphQL and support a non-interactive/private GraphQL endpoint where applicable.
+- **TR-002**: System MUST support auth flows that yield a bearer token usable for GraphQL requests (using Alkemio identity; implementation may vary by environment).
+- **TR-003**: System SHOULD generate typed API clients (or otherwise enforce strict contracts) to reduce schema drift and runtime errors.
+
+#### Data Pipeline & Formats
+
+- **TR-004**: System SHOULD keep acquisition/transformation concerns separable from visualization (e.g., a service layer or job that produces a stable graph dataset consumed by the UI).
+- **TR-005**: System MUST define a versioned graph dataset format that is JSON-serializable and stable across releases.
+- **TR-006**: System SHOULD include “scope grouping” on edges/nodes so the UI can filter/cluster by selected L0 Space context.
+
+**Legacy-compatible graph dataset shape (illustrative)**:
+- `nodes`: `spacesL0`, `spacesL1`, `spacesL2`, `contributors`
+- `edges`: list of `{ sourceID, targetID, type, weight?, group? }`
+
+#### Maps & Geospatial Overlay
+
+- **TR-007**: System MUST support GeoJSON basemaps for map overlay mode.
+- **TR-008**: System MUST support selecting among multiple basemaps and expanding the set over time.
+- **TR-009**: System SHOULD support “fixing” nodes to real-world coordinates when location is available (and not break when it is not).
+- **TR-010 (Licensing)**: System MUST ensure basemap assets are properly licensed for production use (legacy project uses third-party vector sources).
+
+#### Visualization & Interaction Patterns
+
+- **TR-011**: System SHOULD expose basic network metrics (e.g., node/edge counts, average degree, density) to aid portfolio-level insight.
+- **TR-012**: System SHOULD support highlighting derived “insights” such as super-connectors, bridge connectors, isolated nodes, and geographic clusters.
 
 ### Graph Schema (First Pass)
 
