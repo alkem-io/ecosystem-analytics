@@ -20,7 +20,72 @@ This repo intentionally splits “what the product must do” from “what the U
 - Engineers implement the feature to satisfy FR/NFR/TR and acceptance scenarios in this spec.
 - The UI layer is then implemented/styled to match the design brief (including the export-derived token values, fixed widths/heights, animations, and loading step labels).
 - “Pixel-perfect” verification should be done by screenshot comparison against the brief’s described states (or automated visual regression where feasible).
+## End-to-End User Flow
 
+The tool follows a linear pipeline inherited from the legacy project ([analytics-playground](https://github.com/alkem-io/analytics-playground)). Almost everything in the Figma prototype covers the **Display** phase; the **Acquire** phase has a user-facing Space selection screen; the **Transform** phase is invisible to the user except for a loading overlay.
+
+```
+┌─────────────────────────────────────────────────────────────────────┐
+│                        USER JOURNEY                                │
+│                                                                    │
+│  ┌──────────┐    ┌──────────┐    ┌───────────┐    ┌─────────────┐  │
+│  │  1. AUTH  │───▶│2. SELECT │───▶│ 3. LOAD   │───▶│ 4. EXPLORE  │  │
+│  │  (Login)  │    │ (Acquire)│    │(Transform)│    │  (Display)  │  │
+│  └──────────┘    └──────────┘    └───────────┘    └─────────────┘  │
+│                                                                    │
+│  Alkemio ID      Pick L0         Loading overlay   Interactive     │
+│  gate            Spaces          with step labels  graph + tools   │
+└─────────────────────────────────────────────────────────────────────┘
+```
+
+### Phase 1 — Authenticate (Login)
+
+| Aspect | Detail |
+| --- | --- |
+| **What the user does** | Opens the tool and signs in with their Alkemio credentials. |
+| **What the system does** | Validates the identity against Alkemio's auth service and obtains a bearer token for subsequent API calls. |
+| **UI screen** | Login / Identity Gate (design brief Screen A). |
+| **Success condition** | User is authenticated; the system has a valid token. |
+| **Failure path** | Auth error → stay on login with an error message; no data is fetched. |
+
+### Phase 2 — Select Spaces (Acquire — user-facing part)
+
+| Aspect | Detail |
+| --- | --- |
+| **What the user does** | Sees the list of L0 Spaces they are a member of, selects one or more, and clicks "Generate Graph". |
+| **What the system does** | Presents only the Spaces the user is authorized to access (based on the token). Records the selection for the next phase. |
+| **UI screen** | Space Selector (design brief Screen B). |
+| **Success condition** | At least one Space is selected; the user triggers graph generation. |
+| **Failure path** | No memberships → empty state with guidance ("Request access / Join a Space"). |
+
+### Phase 3 — Load & Transform (Acquire + Transform — system-facing)
+
+| Aspect | Detail |
+| --- | --- |
+| **What the user does** | Watches a loading overlay with progressive step labels. |
+| **What the system does** | **3a. Check cache** — For each selected Space, check if a recent cached dataset exists. Reuse cached data where available; fetch only what is missing or stale. **3b. Acquire** — Fetch raw data from Alkemio via GraphQL for any uncached/stale Spaces. **3c. Transform** — Convert raw API responses into the versioned graph dataset format (nodes + edges + metadata). |
+| **UI screen** | Loading overlay (design brief Screen C overlay: "Acquiring Data" → "Clustering Entities" → "Rendering Graph"). |
+| **Success condition** | A complete graph dataset is ready for display. |
+| **Failure path** | Partial failure → display what was successfully acquired/cached; surface an error notice for failed Spaces. Total failure → return to Space Selector with an error message. |
+
+### Phase 4 — Explore (Display)
+
+| Aspect | Detail |
+| --- | --- |
+| **What the user does** | Interacts with the graph: cluster mode switching, search, filter, node selection + details drawer, map overlay, and optionally expands the graph by adding related Spaces. |
+| **What the system does** | Renders the interactive force graph; responds to user interactions in real time; stores the current dataset in cache for future sessions. |
+| **UI screen** | Graph Explorer (design brief Screen C — full explorer layout). |
+| **Success condition** | User can answer portfolio-level questions (see Success Criteria). |
+| **Re-entry points** | **Refresh** (returns to Phase 3 for the same selection). **Add Space** from the details drawer (triggers a mini Phase 3 for the new Space, then merges into the current graph). **Back to Space Selector** (returns to Phase 2). |
+
+### Pipeline ↔ UI Mapping (summary)
+
+| Pipeline stage | User sees | System work |
+| --- | --- | --- |
+| Auth | Login screen | Alkemio identity verification, token acquisition |
+| Acquire | Space selector + first part of loading overlay ("Acquiring Data") | GraphQL queries scoped to selected Spaces; cache check |
+| Transform | Loading overlay ("Clustering Entities") | Raw data → graph dataset conversion, clustering prep |
+| Display | Loading overlay final step ("Rendering Graph") then full explorer | Force graph layout, rendering, interaction handling |
 ## User Scenarios & Testing *(mandatory)*
 
 <!--
