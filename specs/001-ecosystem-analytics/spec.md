@@ -34,8 +34,9 @@ As a **Portfolio Owner**, I want to select one or more top-level Spaces I’m a 
 2. **Given** I have selected at least one L0 Space, **When** I choose “Generate/Load Graph”, **Then** an interactive graph is displayed with clearly distinguishable node types and relationship types.
 3. **Given** the graph is displayed, **When** I change “Cluster by” between **Space** and **Organization**, **Then** the layout reorganizes into readable clusters while preserving highlighted selections and the graph remains explorable.
 4. **Given** the graph is displayed, **When** I zoom/pan and drag nodes, **Then** the graph responds immediately and maintains a stable, usable layout.
-5. **Given** the graph is displayed, **When** I search for an entity (Space, Organization, Person), **Then** matching nodes are highlighted and non-matching nodes/edges are visually de-emphasized.
-6. **Given** I click a node, **When** the details panel opens, **Then** I can see key metadata (name, type, role in selected Spaces, and a link to open the entity in Alkemio when applicable).
+5. **Given** the graph is displayed, **When** I search for an entity (Space, Organization, Person), **Then** the graph updates to make matches easy to find (e.g., filter the canvas to matching nodes and their links, or highlight matches while dimming non-matches).
+6. **Given** I click a node, **When** the details panel opens, **Then** I can see key metadata (name, type, level/type badges, connection counts, and a link/action to open the entity in Alkemio when applicable).
+7. **Given** I generate/load a graph dataset, **When** acquisition/transformation/rendering is in progress, **Then** the UI shows a progressive loading overlay with clear step labels (e.g., “Acquiring Data”, “Clustering Entities”, “Rendering Graph”).
 
 ---
 
@@ -103,12 +104,12 @@ As a **Portfolio Owner**, I want to discover related entities from what I click 
 - **FR-001**: System MUST authenticate users using **Alkemio identities**.
 - **FR-002**: System MUST only allow users to select Spaces from the set of **L0 Spaces where they are a member**.
 - **FR-003**: System MUST allow users to select one or more L0 Spaces and generate/load a graph dataset for the selection.
-- **FR-004**: System MUST render an interactive network visualization supporting at minimum: zoom, pan, drag, node selection, and a details panel.
+- **FR-004**: System MUST render an interactive network visualization supporting at minimum: zoom, pan, drag, node selection, and a slide-in details panel/drawer.
 - **FR-005**: System MUST support at least two clustering modes: **Cluster by Space** and **Cluster by Organization**.
 - **FR-006**: System MUST support filtering controls that can hide/show at least: People nodes and Organization nodes.
-- **FR-007**: System MUST support search that highlights matching nodes and visually de-emphasizes non-matches.
+- **FR-007**: System MUST support search that makes matching nodes easy to find (e.g., by filtering to matches or by highlighting matches and de-emphasizing non-matches).
 - **FR-008**: System MUST provide a **map overlay mode** where the graph can be displayed on top of a selectable map.
-- **FR-009**: System MUST provide a selection of **4–5 predefined maps** and allow the selection set to be expanded over time.
+- **FR-009**: System MUST provide a selection of predefined maps (at minimum: World, Europe, Netherlands) and allow the selection set to be expanded over time.
 - **FR-010**: System MUST define and adhere to a clear **graph schema** that specifies:
   - node types
   - edge types
@@ -123,6 +124,8 @@ As a **Portfolio Owner**, I want to discover related entities from what I click 
 - **FR-014**: System SHOULD compute and display basic network metrics (at minimum: total nodes, total edges, average degree, density).
 - **FR-015**: System SHOULD provide “insight shortcuts” that can highlight at minimum: super-connectors and isolated nodes.
 - **FR-016**: System SHOULD allow exporting the current graph dataset (and optionally computed insights/metrics) as a JSON file for offline analysis.
+
+- **FR-017**: System MUST provide clear progressive loading states during graph generation (e.g., a modal/overlay indicating acquisition/transformation/rendering steps).
 
 ### Non-Functional Requirements
 

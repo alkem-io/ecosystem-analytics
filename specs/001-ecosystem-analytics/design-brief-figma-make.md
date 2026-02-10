@@ -4,6 +4,8 @@
 
 **Important constraint**: Data can be fake, but interactions must feel real (drag/zoom, animated clustering changes, selection highlight, details drawer, progressive loading states).
 
+**Pixel-perfect constraint**: Recreate the exported prototype UI precisely (spacing, type scale, colors, shadows). The exported prototype uses the **Inter** font and a tokenized theme (CSS variables like `--background`, `--foreground`, `--primary`, `--text-*`, `--radius`, `--elevation-sm`).
+
 ---
 
 ## 1) Primary User
@@ -20,8 +22,13 @@ Key questions to support:
 ## 2) Prototype Structure (Screens / Frames)
 
 ### Screen A — Login / Identity Gate
-- Minimal login screen with “Sign in with Alkemio” primary CTA.
-- Secondary text: “This is a standalone tool. Your Alkemio account controls access.”
+- Centered login card for Ecosystem Analytics.
+- Header: “Ecosystem Analytics” + “by Alkemio”.
+- Card title: “Welcome, Alex”.
+- Body copy: “This is a standalone tool. Your Alkemio account controls access to sensitive data.”
+- Security note: “You'll only see Spaces and connections you are authorized to access as a Portfolio Owner.”
+- Primary CTA: “Sign in with Alkemio”.
+- Footer meta: `v1.2.0 · Build 8923`.
 - After sign-in, go to Space selection.
 
 **States**:
@@ -29,21 +36,30 @@ Key questions to support:
 - Loading
 - Error (auth failed)
 
+**Loading label**: “Authenticating...”
+
 ### Screen B — Space Selection (L0 only)
-- Title: “Select top-level Spaces (L0) to analyze”
-- Description: “You must be a member of a Space to include it.”
-- Component: searchable multi-select list (checkbox list or tokenized multi-select).
+- Title: “Select Top-Level Spaces”
+- Description: “Choose the L0 spaces you want to include in your network graph.”
+- Container: a single card with fixed height (600px) containing search + list + footer.
+- Search input placeholder: “Search spaces...”.
+- Actions: “Select All” and “Clear”.
+- Access note: “Showing only spaces where you have Member or Lead access.”
+- List is a checkbox multi-select.
 - Each Space row shows:
   - Space name
-  - Privacy badge (Public/Private)
-  - Role badge (Member/Lead)
-  - Optional: last activity timestamp or “health” indicator (fake)
+  - Role badge for Lead
+  - Privacy indicator (Public/Private)
+  - Activity (“Active {x} ago”)
+  - Health badge (High/Medium/Low)
 
 **Primary CTA**: “Generate graph”
 
 **Secondary actions**:
-- “Load last selection”
-- “Clear selection”
+- “Load Last Selection” (stub)
+- “Clear” (clears current selection)
+
+**Footer note**: “We'll reuse cached data when available.”
 
 **Empty state**:
 - If no memberships: show guidance + link-styled CTA “Request access / Join a Space” (non-functional).
@@ -52,28 +68,19 @@ Key questions to support:
 A full-screen-ish analytics layout:
 
 **Top bar**
-- Left: breadcrumb: “Ecosystem Analytics / Portfolio Network”
-- Center: Search input (typeahead feel)
-- Right: “Refresh data” button + “Last updated: …” timestamp
+- Height: 48px.
+- Left: back button to return to the Alkemio platform (“Alkemio”), then breadcrumb: “Ecosystem Analytics › Portfolio Network”.
+- Center/right: search input (desktop), placeholder “Search nodes...”.
+- Right: refresh icon button (spins while loading), “Last sync” time (hh:mm), and a user avatar.
 
 **Left panel (Controls)**
-- Space scope selector: shows selected L0 Spaces as removable chips
-- Cluster mode dropdown:
-  - Cluster by Space (default)
-  - Cluster by Organization
-- Filters (toggle switches):
-  - Show People
-  - Show Organizations
-  - Show Subspaces
-  - Show only Leads (optional)
-- Graph controls:
-  - Zoom in / out
-  - Fit to view
-  - Reset layout
-- Map mode controls:
-  - Toggle “Show map overlay”
-  - Map dropdown (4–5 presets)
-  - Toggle “Pin nodes with location to map” (optional)
+- Width: 240px (desktop only).
+- Scope: selected L0 Spaces shown as chips; “+ Add” button (stub).
+- Clustering: two buttons — Space (default) and Org.
+- Filters: switches for People and Organizations; display counts in labels.
+- Legend: edge types plus activity indicator (high vs low activity styling).
+- Map overlay (bottom): toggle plus region selector.
+  - Presets: World, Europe, Netherlands.
 
 **Main canvas (Graph)**
 - A clustered force graph that visibly moves/settles.
@@ -86,19 +93,24 @@ A full-screen-ish analytics layout:
   - Role edges (Member/Lead): thicker or color-coded, with subtle legend
 
 **Right panel (Details drawer)**
-- Appears when a node is clicked.
-- Shows:
-  - Node title + type badge
-  - Mini “stats” row (counts)
-  - List of connected entities (tabs: Neighbors / Spaces / Orgs / People)
-  - CTA: “Add connected Space to graph” (only for accessible spaces)
-  - CTA: “Open in Alkemio” (link-styled; non-functional)
+- Slide-in drawer from the right.
+- Width: 320px.
+- Header: icon/thumbnail, title, type badge, optional level badge (e.g., L0/L1).
+- Connection summary: counts for Spaces/Orgs/People.
+- Direct connections list (clicking an item selects it).
+- Suggested to Add list:
+  - Accessible items show an “Add” button.
+  - Inaccessible items show “Locked” and are visually disabled.
+- Metadata section (ID, Status, Group).
+- Footer actions:
+  - “Open in Alkemio” (shown for Space nodes)
+  - “Share Report” (stub)
 
 **Overlay / modal**
-- “Loading data…” progress overlay with stepper feel:
-  - Acquire
-  - Transform
-  - Load
+- Loading overlay with step labels:
+  - “Acquiring Data”
+  - “Clustering Entities”
+  - “Rendering Graph”
 
 ---
 
@@ -129,11 +141,8 @@ A full-screen-ish analytics layout:
   - Clears selection and restores full opacity.
 
 ### Search
-- Typing highlights matching nodes (by display name).
-- When a match exists:
-  - Matches are highlighted.
-  - Non-matches are dimmed.
-  - Optional: auto-pan/zoom to first match.
+- Search is optimized for quick discovery.
+- Exported prototype behavior: filter visible nodes to matches (and their remaining links), rather than only dimming.
 
 ### Filters
 - Toggling node-type filters updates the canvas immediately.
@@ -200,12 +209,10 @@ Include deliberate patterns:
 
 ## 6) Map Presets (Prototype)
 
-Provide 4–5 selectable maps, e.g.:
+Provide the preset maps present in the export:
 - World
 - Europe
-- Netherlands (regions)
-- Ireland (counties)
-- (Optional) Custom/Blank grid map
+- Netherlands
 
 Map selection should update immediately.
 
