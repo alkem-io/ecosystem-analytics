@@ -5,6 +5,22 @@
 **Status**: Draft  
 **Input**: Stakeholder call transcript + notes (Portfolio Owner–focused interactive network visualization; L0 space selection; clustering + map overlay; separate tool using Alkemio identities; protected caching; clear node/edge schema).
 
+## Design Source of Truth (How to Use Spec vs Design Brief)
+
+This repo intentionally splits “what the product must do” from “what the UI must look/feel like”.
+
+- This document ([specs/001-ecosystem-analytics/spec.md](specs/001-ecosystem-analytics/spec.md)) is the **requirements + acceptance criteria** source of truth.
+- The design brief ([specs/001-ecosystem-analytics/design-brief-figma-make.md](specs/001-ecosystem-analytics/design-brief-figma-make.md)) is the **pixel-perfect UI contract** source of truth (copy, layout constants, tokens, and the “UI Contract (Export-Derived)” appendix).
+
+**Conflict rule**:
+- If there is a discrepancy in **visual design, spacing, typography, tokens, exact microcopy, or component sizing**, the design brief wins.
+- If there is a discrepancy in **feature behavior, permissions/access control, caching rules, data schema, or acceptance scenarios**, this spec wins.
+
+**How the design brief will be used to build**:
+- Engineers implement the feature to satisfy FR/NFR/TR and acceptance scenarios in this spec.
+- The UI layer is then implemented/styled to match the design brief (including the export-derived token values, fixed widths/heights, animations, and loading step labels).
+- “Pixel-perfect” verification should be done by screenshot comparison against the brief’s described states (or automated visual regression where feasible).
+
 ## User Scenarios & Testing *(mandatory)*
 
 <!--
@@ -135,6 +151,8 @@ As a **Portfolio Owner**, I want to discover related entities from what I click 
 - **NFR-004 (Performance)**: System SHOULD remain interactive for “large graphs” by adapting layout/physics and throttling rendering updates when node/edge counts are high.
 - **NFR-005 (Resilience)**: System MUST degrade gracefully when optional fields are missing (e.g., location, avatar, URLs) and when map assets fail to load.
 - **NFR-006 (Accessibility)**: System SHOULD provide baseline accessibility for core interactions (keyboard navigation to nodes, focus states, readable contrast, and ARIA labeling for controls).
+
+- **NFR-007 (UI Fidelity)**: System MUST match the UI defined in the design brief, including the export-derived theme tokens, typography (Inter), fixed layout constants (e.g., panel/drawer sizes), and progressive loading copy, to minimize pixel drift.
 
 ### Technical Requirements (Legacy Learnings)
 
