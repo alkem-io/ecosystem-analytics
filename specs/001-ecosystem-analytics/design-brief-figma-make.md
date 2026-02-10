@@ -24,17 +24,26 @@ Key questions to support:
 ### Screen A — Login / Identity Gate
 - Centered login card for Ecosystem Analytics.
 - Header: “Ecosystem Analytics” + “by Alkemio”.
-- Card title: “Welcome, Alex”.
-- Body copy: “This is a standalone tool. Your Alkemio account controls access to sensitive data.”
-- Security note: “You'll only see Spaces and connections you are authorized to access as a Portfolio Owner.”
-- Primary CTA: “Sign in with Alkemio”.
+- Card title: "Welcome" (or "Welcome, Alex" if a returning user's name is known from a previous session; otherwise just "Welcome").
+- Body copy: "This is a standalone tool. Your Alkemio account controls access to sensitive data."
+- Security note: "You'll only see Spaces and connections you are authorized to access as a Portfolio Owner."
+
+**Login form fields** (the Figma prototype shows a single "Sign in with Alkemio" button; the production implementation MUST use a real credential form):
+- **Email field**: standard text input, placeholder "Email address", type `email`.
+- **Password field**: password input, placeholder "Password", type `password`.
+- **Primary CTA**: "Sign in" button (full-width within the card).
+- Optional future enhancement: "Sign in with Alkemio" SSO button below the form, separated by an "or" divider.
+
 - Footer meta: `v1.2.0 · Build 8923`.
-- After sign-in, go to Space selection.
+- After successful sign-in, transition to Space selection.
+
+> **⚠ Prototype vs Production**: The Figma prototype uses a one-click "Sign in with Alkemio" button with mock auth. In the production tool, this MUST be replaced with real email + password fields that authenticate against the Alkemio auth service. No credentials should ever be stored in files or environment variables.
 
 **States**:
-- Default
-- Loading
-- Error (auth failed)
+- Default (form empty, CTA disabled until both fields have input)
+- Loading ("Authenticating..." — CTA shows spinner, fields disabled)
+- Error (auth failed — inline error message below the form: "Invalid email or password. Please try again."; fields re-enabled)
+- Validation error (e.g., empty email or password — inline field-level error hints)
 
 **Loading label**: “Authenticating...”
 

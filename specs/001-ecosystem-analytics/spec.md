@@ -86,6 +86,58 @@ The tool follows a linear pipeline inherited from the legacy project ([analytics
 | Acquire | Space selector + first part of loading overlay ("Acquiring Data") | GraphQL queries scoped to selected Spaces; cache check |
 | Transform | Loading overlay ("Clustering Entities") | Raw data → graph dataset conversion, clustering prep |
 | Display | Loading overlay final step ("Rendering Graph") then full explorer | Force graph layout, rendering, interaction handling |
+
+## Data Integration (Real Data from Alkemio)
+
+> **The Figma prototype ships with fake/mock data. The production tool MUST fetch live data from Alkemio.**
+
+This section captures the concrete integration requirements derived from the legacy reference project ([analytics-playground](https://github.com/alkem-io/analytics-playground)) and the user's explicit requirement for an **in-browser login screen**.
+
+### 1. Authentication — In-Browser Login (No File-Based Credentials)
+
+The legacy project stores credentials in a `.env` file (`AUTH_ADMIN_EMAIL`, `AUTH_ADMIN_PASSWORD`) and authenticates server-side via `@alkemio/client-lib`. **This model is explicitly rejected for the new tool.**
+
+| Requirement | Detail |
+| --- | --- |
+| **In-browser login form** | The tool MUST present a login screen (Screen A) with email and password fields. The user enters their Alkemio credentials directly in the UI. |
+| **No `.env` / config-file credentials** | Credentials MUST NOT be read from environment variables, `.env` files, config files, or any mechanism outside the user's direct input in the browser. |
+| **Credential handling** | Credentials are submitted over HTTPS to Alkemio's auth endpoint and are never persisted to disk, local storage, or logs. |
+| **Bearer token acquisition** | On successful auth, the system obtains a bearer token (JWT) for subsequent GraphQL requests. The token is held in memory for the session. |
+| **Token lifecycle** | The system MUST handle token expiry gracefully (re-prompt login or refresh if supported). |
+| **Auth library reference** | The legacy project uses `@alkemio/client-lib` (`AlkemioClient.enableAuthentication()` → `apiToken`). The new tool MAY use the same library or implement equivalent browser-compatible auth against the same Alkemio auth service. |
+| **Auth failure UX** | On failure, the login screen shows an inline error message and the user can retry. No data is fetched until auth succeeds. |
+
+### 2. Data Acquisition — GraphQL Queries (Acquire Phase)
+
+Once authenticated, the tool fetches real data from Alkemio's GraphQL API. The legacy project demonstrates the following proven query patterns:
+
+| Query | SDK method (legacy) | Purpose | Notes |
+| --- | --- | --- | --- |
+| **My Space memberships** | `sdkClient.mySpacesHierarchical()` | Get the L0 Spaces the authenticated user is a member of, including the full L0→L1→L2 hierarchy and community role sets. | This is the **primary** query for populating the Space Selector (Phase 2). |
+| **Space by nameID** | `sdkClient.spaceByName({ nameId })` | Fetch a specific Space by its `nameID`, including subspaces and role sets. | Used when expanding the graph by adding a known Space (Phase 4 re-entry). |
+| **Users by IDs** | `sdkClient.usersByIDs({ ids })` | Batch-fetch user profile details (displayName, avatar, location, URL) for all contributor IDs collected from role sets. | Essential for populating contributor nodes in the graph. |
+| **Organization by ID** | `sdkClient.organizationByID({ id })` | Fetch a single organization's profile details. | Called per unique org ID from role sets. |
+| **Current user** | `sdkClient.me()` | Verify authentication and retrieve the current user's profile. | Used to confirm auth succeeded and to display the user's name. |
+
+**GraphQL endpoint**: The legacy project targets `{server}/api/private/non-interactive/graphql`. The new tool should use the appropriate Alkemio GraphQL endpoint for browser-based authenticated requests (which may differ — e.g., a public interactive endpoint with bearer auth).
+
+**Typed API clients**: The legacy project uses `@graphql-codegen/cli` to generate typed SDK methods from `.graphql` query files. The new tool SHOULD follow the same pattern (TR-003) to prevent schema drift.
+
+### 3. Data Transformation (Transform Phase)
+
+The raw API responses must be transformed into the graph dataset format defined in the Graph Schema section. The legacy project's `AlkemioGraphTransformer` demonstrates:
+
+- **Contributor extraction**: Traverse each Space's `community.roleSet` to collect `memberUsers`, `leadUsers`, `memberOrganizations`, `leadOrganizations` and resolve their full profiles.
+- **Node creation**: Map Spaces (L0/L1/L2), Users, and Organizations into typed graph nodes with weights (`SPACE_L0=20, SPACE_L1=10, SPACE_L2=8, ORGANIZATION=5, USER=3`).
+- **Edge creation**: Create edges for parent→child (Space hierarchy), member, and lead relationships, tagged with the L0 Space scope group.
+- **Location enrichment**: User/Org profiles include `location.country`, `location.city`, and optional `geoLocation.latitude`/`geoLocation.longitude` for map overlay positioning.
+
+### 4. No Mock Data in Production
+
+- The Figma prototype's fake space names, contributor names, and graph structures MUST NOT appear in the production build.
+- The tool MUST fetch all displayed data from the Alkemio API in real time (or from cache, per FR-012).
+- A "no data" empty state must be shown when the API returns no accessible Spaces, rather than falling back to fake data.
+
 ## User Scenarios & Testing *(mandatory)*
 
 <!--
@@ -182,7 +234,7 @@ As a **Portfolio Owner**, I want to discover related entities from what I click 
 
 ### Functional Requirements
 
-- **FR-001**: System MUST authenticate users using **Alkemio identities**.
+- **FR-001**: System MUST authenticate users using **Alkemio identities** via an **in-browser login form** (email + password fields). Credentials MUST NOT be supplied via `.env` files, config files, environment variables, or any other mechanism outside of direct user input in the browser UI.
 - **FR-002**: System MUST only allow users to select Spaces from the set of **L0 Spaces where they are a member**.
 - **FR-003**: System MUST allow users to select one or more L0 Spaces and generate/load a graph dataset for the selection.
 - **FR-004**: System MUST render an interactive network visualization supporting at minimum: zoom, pan, drag, node selection, and a slide-in details panel/drawer.
@@ -207,6 +259,8 @@ As a **Portfolio Owner**, I want to discover related entities from what I click 
 - **FR-016**: System SHOULD allow exporting the current graph dataset (and optionally computed insights/metrics) as a JSON file for offline analysis.
 
 - **FR-017**: System MUST provide clear progressive loading states during graph generation (e.g., a modal/overlay indicating acquisition/transformation/rendering steps).
+- **FR-018**: System MUST fetch and display **real data from the Alkemio platform** via its GraphQL API. Mock/fake data from the Figma prototype MUST NOT appear in the production build.
+- **FR-019**: System MUST acquire Space hierarchies, contributor profiles (users and organizations), and community role sets from the Alkemio API using the authenticated user's bearer token, respecting the user's actual membership and access rights.
 
 ### Non-Functional Requirements
 
@@ -232,7 +286,7 @@ This spec does not mandate the same repo/module split, but it does inherit a few
 #### Backend/API Integration
 
 - **TR-001**: System MUST integrate with Alkemio via GraphQL and support a non-interactive/private GraphQL endpoint where applicable.
-- **TR-002**: System MUST support auth flows that yield a bearer token usable for GraphQL requests (using Alkemio identity; implementation may vary by environment).
+- **TR-002**: System MUST support an **interactive browser-based auth flow** that yields a bearer token usable for GraphQL requests. The user enters credentials in the UI (not via `.env` files or server-side config). The auth flow should be compatible with `@alkemio/client-lib` or an equivalent browser-compatible mechanism against Alkemio's auth service.
 - **TR-003**: System SHOULD generate typed API clients (or otherwise enforce strict contracts) to reduce schema drift and runtime errors.
 
 #### Data Pipeline & Formats

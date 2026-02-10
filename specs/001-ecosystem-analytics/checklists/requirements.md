@@ -33,9 +33,14 @@
 ## Coverage Checks (FR/NFR/TR)
 
 - [x] FR-014..FR-016 are present (metrics, insight shortcuts, JSON export)
+- [x] FR-018..FR-019 are present (real data from Alkemio API, live GraphQL acquisition — no mock data in production)
+- [x] FR-001 explicitly mandates in-browser login form (no .env / config-file credentials)
 - [x] NFRs include: secrets handling (no token logging), cache access control, resilience to missing fields/map failures
 - [x] TRs include: GraphQL integration + bearer token auth, separable acquire/transform vs display concerns, versioned JSON dataset
+- [x] TR-002 explicitly mandates interactive browser-based auth (not server-side .env)
 - [x] Maps requirements include GeoJSON and licensing validation
+- [x] Data Integration section documents legacy GraphQL query patterns (mySpacesHierarchical, spaceByName, usersByIDs, organizationByID)
+- [x] Design brief Screen A updated to describe real email+password form (not decorative SSO button)
 
 ## Notes
 
