@@ -246,6 +246,8 @@ All without feeling like the UI is “static screenshots”.
 
 This appendix is extracted from the Figma Make export implementation (React/Tailwind + CSS variables). Treat it as a *contract* for pixel-level fidelity.
 
+**Component primitives**: The export is built using Tailwind + shadcn/ui-style primitives (e.g., Button, Card, Input, Badge, Switch, Select, ScrollArea, Separator, Avatar). For pixel-perfect reproduction, prefer using the same component approach rather than re-inventing primitives.
+
 ### 9.1 Font Loading (Critical)
 
 The export uses `font-family: 'Inter', sans-serif` throughout, but **does not bundle Inter font files** (no `.woff/.woff2/.ttf/.otf` assets were found, and `fonts.css` was empty). To avoid pixel drift:
