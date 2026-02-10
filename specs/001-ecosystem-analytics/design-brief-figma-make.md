@@ -395,3 +395,44 @@ These are the base element styles used by the export when a Tailwind `text-*` cl
   - opacity: active 0.65; otherwise 0.12 (dimmed: 0.03)
 - Activity flow (when `activity > 0` and not dimmed): animated dashed stroke using `@keyframes edgeFlow { to { stroke-dashoffset: -60; } }`.
 
+### 9.6 AI Implementation & Pixel-Perfect Verification
+
+In this project the “engineers” may be AI agents. That’s OK, but it increases the importance of objective acceptance checks.
+
+**Definition of done (UI fidelity)**
+
+- The built UI matches this design brief’s **layout constants**, **tokens**, and **microcopy**.
+- Inter is actually loaded (see 9.1) so typography metrics match.
+
+**Required visual regression snapshots (minimum set)**
+
+Capture screenshots at a consistent viewport and theme so results are comparable.
+
+- Viewport: **1440×900** (desktop). Theme: **light mode**.
+- Screen A (Login): default state.
+- Screen A (Login): loading state with label “Authenticating...”.
+- Screen B (Space selection):
+  - default (no search)
+  - with search text entered (“Search spaces...”) and empty-result state (“No spaces found matching …”).
+- Screen C (Explorer):
+  - base graph visible with left panel present
+  - details drawer open (selected node)
+  - map overlay enabled with region selector visible
+- Loading overlay: each step label rendered at least once:
+  - “Acquiring Data”
+  - “Clustering Entities”
+  - “Rendering Graph”
+
+**Tolerance guidance**
+
+- Aim for strict pixel matching. If the tooling supports thresholds, use a very small threshold and document it (fonts and subpixel AA can cause tiny diffs across OS/browser versions).
+- If strict matching is unreliable across environments, prefer running snapshots in a fixed environment (pinned browser version, consistent rendering settings) rather than loosening thresholds.
+
+**Behavioral checks to pair with snapshots**
+
+In addition to images, keep at least a few functional assertions so the UI doesn’t “look right but behave wrong”:
+
+- Search changes visible nodes (filters to matches rather than only dimming).
+- Selecting a node opens the drawer; clicking empty canvas clears selection.
+- Refresh triggers the progressive loading overlay.
+
