@@ -239,3 +239,159 @@ A stakeholder can:
 - Toggle map overlay and switch maps
 
 All without feeling like the UI is “static screenshots”.
+
+---
+
+## 9) UI Contract (Export-Derived, Pixel-Perfect)
+
+This appendix is extracted from the Figma Make export implementation (React/Tailwind + CSS variables). Treat it as a *contract* for pixel-level fidelity.
+
+### 9.1 Font Loading (Critical)
+
+The export uses `font-family: 'Inter', sans-serif` throughout, but **does not bundle Inter font files** (no `.woff/.woff2/.ttf/.otf` assets were found, and `fonts.css` was empty). To avoid pixel drift:
+
+- The implementation MUST explicitly load Inter (and required weights) at runtime.
+- Minimum weights observed in styles: **400, 500, 600, 700, 800**.
+- Acceptable approaches:
+  - Self-host Inter with `@font-face` (preferred for production parity and offline dev).
+  - Webfont import (OK for prototype), e.g. Google Fonts or the official Inter CSS distribution.
+
+### 9.2 Theme Tokens (CSS Variables)
+
+**Typography scale**
+
+| Token | Value |
+| --- | ---: |
+| `--font-size` | 16px |
+| `--text-4xl` | 48px |
+| `--text-3xl` | 30px |
+| `--text-2xl` | 24px |
+| `--text-xl` | 20px |
+| `--text-base` | 16px |
+| `--text-sm` | 14px |
+
+**Core colors (Light)**
+
+| Token | Value |
+| --- | --- |
+| `--background` | rgba(255,255,255,1) |
+| `--foreground` | rgba(29,56,74,1) |
+| `--card` | rgba(255,255,255,1) |
+| `--muted` / `--accent` / `--secondary` | rgba(241,245,249,1) |
+| `--muted-foreground` | rgba(100,116,139,1) |
+| `--primary` | rgba(29,56,74,1) |
+| `--primary-foreground` | rgba(255,255,255,1) |
+| `--border` | rgba(226,232,240,1) |
+| `--ring` | rgba(29,56,74,0.5) |
+| `--destructive` | rgba(239,68,68,1) |
+
+**Core colors (Dark)**
+
+| Token | Value |
+| --- | --- |
+| `--background` | rgba(29,56,74,1) |
+| `--foreground` | rgba(255,255,255,1) |
+| `--card` | rgba(30,41,59,1) |
+| `--muted` / `--accent` / `--secondary` | rgba(51,65,85,1) |
+| `--muted-foreground` | rgba(148,163,184,1) |
+| `--primary` | rgba(255,255,255,1) |
+| `--primary-foreground` | rgba(29,56,74,1) |
+| `--border` | rgba(51,65,85,1) |
+| `--ring` | rgba(226,232,240,0.5) |
+| `--destructive` | rgba(220,38,38,1) |
+
+**Chart palette**
+
+| Token | Light | Dark |
+| --- | --- | --- |
+| `--chart-1` | rgba(29,56,74,1) | rgba(255,255,255,1) |
+| `--chart-2` | rgba(100,116,139,1) | rgba(203,213,225,1) |
+| `--chart-3` | rgba(148,163,184,1) | rgba(148,163,184,1) |
+| `--chart-4` | rgba(203,213,225,1) | rgba(100,116,139,1) |
+| `--chart-5` | rgba(241,245,249,1) | rgba(71,85,105,1) |
+
+**Radius + elevation**
+
+| Token | Value |
+| --- | --- |
+| `--radius` | 6px |
+| `--elevation-sm` | `0px 4px 6px 0px rgba(0,0,0,0.09)` |
+
+### 9.3 Base Typography Rules (from tokens)
+
+These are the base element styles used by the export when a Tailwind `text-*` class is not present:
+
+- `h1`: 48px, weight 800, line-height 1
+- `h2`: 30px, weight 600, line-height 1.2
+- `h3`: 24px, weight 600, line-height 1.33
+- `h4`: 20px, weight 600, line-height 1.4
+- `p`: 16px, weight 400, line-height 1.75
+- `label`: 14px, weight 500, line-height 1.43
+- `button`: 16px, weight 500, line-height 1.5
+- `input`: 16px, weight 400, line-height 1.5
+
+### 9.4 Layout + Component Constants
+
+**Login / Identity gate**
+
+- App background: `var(--background)`; all typography: Inter.
+- Logo tile: 64×64 (`w-16 h-16`), `rounded-2xl`, `box-shadow: var(--elevation-sm)`, background `var(--primary)`.
+- Login card max width: Tailwind `max-w-md` (448px); border: `2px solid var(--border)`; shadow: `var(--elevation-sm)`.
+
+**Space selector**
+
+- Container max width: Tailwind `max-w-3xl` (768px).
+- Selector card fixed height: **600px**; border: `2px solid var(--border)`; shadow: `var(--elevation-sm)`.
+- Access note banner:
+  - font size: 11px
+  - background: `color-mix(in srgb, var(--primary) 5%, var(--background))`
+  - border: `1px solid color-mix(in srgb, var(--primary) 12%, transparent)`
+- Row selection highlight uses `color-mix(in srgb, var(--primary) 5%, var(--background))` and selected border `color-mix(in srgb, var(--primary) 30%, transparent)`.
+- Primary CTA minimum width: Tailwind `min-w-[140px]`.
+
+**Graph explorer**
+
+- Top bar: height **48px** (`h-12`), `border-bottom: 1px solid var(--border)`, shadow `0 1px 3px rgba(0,0,0,0.04)`.
+- Left controls panel (desktop): width **240px**, padding 16px, `gap: 20px`, background `var(--card)`.
+- Search pill (top bar): width 220px; input height 32px; `border-radius: 999px`; background `var(--muted)`; left icon inset 10px.
+- Graph controls overlay: bottom/left offset 20px (`bottom-5 left-5`), padding 4px, `backdrop-filter: blur(8px)`.
+- Loading overlay:
+  - backdrop: `color-mix(in srgb, var(--background) 70%, transparent)` + blur(6px)
+  - modal: `padding: 32px 40px`, `min-width: 300px`, border `1px solid var(--border)`, shadow `0 8px 32px rgba(0,0,0,0.12)`, radius `calc(var(--radius) + 4px)`.
+- Details drawer:
+  - width **320px**, slide transform `translateX(100%) → 0`
+  - transition: `transform 0.4s cubic-bezier(0.32, 0.72, 0, 1)`
+  - active shadow: `-4px 0 24px rgba(0,0,0,0.08)`.
+
+### 9.5 Graph Visual Contract (Force Graph)
+
+**Node sizing + hit area**
+
+- Base sizes:
+  - Space L0: 64px
+  - Space L1: 42px
+  - Space L2: 34px
+  - Organization: 44px
+  - Person: 34px
+- Node hit padding: **14px** (hit area is `size + 28px`).
+
+**Node visuals**
+
+- Default node shadow: `0 2px 8px rgba(0,0,0,0.08)`.
+- Highlight (selected/hover/neighbor): `0 0 0 3px var(--primary), 0 4px 20px rgba(0,0,0,0.15)` + `border: 2px solid var(--primary)`.
+- Label rules:
+  - shown when highlighted OR (Space L0) OR Organization
+  - base label font: 11px; selected label uses `var(--text-sm)` (14px)
+  - label background: selected `var(--primary)`; otherwise `var(--background)`
+  - label border: selected none; otherwise `1px solid var(--border)`
+  - label shadow: `var(--elevation-sm)`.
+
+**Edge visuals + activity animation**
+
+- Curved edges (quadratic bezier) with curvature 0.15 for short links (<100px) else 0.08.
+- Base edge (when no activity flow):
+  - color: inactive `var(--muted-foreground)`, active `var(--primary)`
+  - width: parent-child 2, lead 1.8, member 1.2, active 3
+  - opacity: active 0.65; otherwise 0.12 (dimmed: 0.03)
+- Activity flow (when `activity > 0` and not dimmed): animated dashed stroke using `@keyframes edgeFlow { to { stroke-dashoffset: -60; } }`.
+
