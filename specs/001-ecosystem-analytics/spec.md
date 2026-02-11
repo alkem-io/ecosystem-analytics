@@ -20,6 +20,12 @@ This repo intentionally splits “what the product must do” from “what the U
 - Engineers implement the feature to satisfy FR/NFR/TR and acceptance scenarios in this spec.
 - The UI layer is then implemented/styled to match the design brief (including the export-derived token values, fixed widths/heights, animations, and loading step labels).
 - “Pixel-perfect” verification should be done by screenshot comparison against the brief’s described states (or automated visual regression where feasible).
+## Clarifications
+
+### Session 2026-02-10
+
+- Q: Does the tool need a backend, or is it a pure client-side SPA? → A: Thin BFF (Backend-for-Frontend). A lightweight server-side layer proxies Alkemio auth and GraphQL calls, avoiding CORS issues and keeping credentials off the client.
+
 ## End-to-End User Flow
 
 The tool follows a linear pipeline inherited from the legacy project ([analytics-playground](https://github.com/alkem-io/analytics-playground)). Almost everything in the Figma prototype covers the **Display** phase; the **Acquire** phase has a user-facing Space selection screen; the **Transform** phase is invisible to the user except for a loading overlay.
@@ -224,6 +230,7 @@ As a **Portfolio Owner**, I want to discover related entities from what I click 
 - Map overlay is valuable but **secondary**; the tool must remain usable when most entities have missing location data.
 - Caching is initially **per-user**; later iterations may introduce shared caching for identical datasets.
 - This tool is a **standalone experience** (separate from the main Alkemio UI), but it depends on Alkemio as the source of truth for memberships and entity metadata.
+- The architecture uses a **thin BFF (Backend-for-Frontend)** pattern: a lightweight server proxies auth + GraphQL calls to Alkemio, while all visualization and interaction logic runs in the browser (SPA).
 
 ## Requirements *(mandatory)*
 
@@ -286,7 +293,7 @@ This spec does not mandate the same repo/module split, but it does inherit a few
 #### Backend/API Integration
 
 - **TR-001**: System MUST integrate with Alkemio via GraphQL and support a non-interactive/private GraphQL endpoint where applicable.
-- **TR-002**: System MUST support an **interactive browser-based auth flow** that yields a bearer token usable for GraphQL requests. The user enters credentials in the UI (not via `.env` files or server-side config). The auth flow should be compatible with `@alkemio/client-lib` or an equivalent browser-compatible mechanism against Alkemio's auth service.
+- **TR-002**: System MUST support an **interactive browser-based auth flow** that yields a bearer token usable for GraphQL requests. The user enters credentials in the UI (not via `.env` files or server-side config). A **thin BFF (Backend-for-Frontend) layer** proxies the credentials to Alkemio's auth service server-side, avoiding CORS restrictions and keeping secrets off the client. The BFF may use `@alkemio/client-lib` or an equivalent mechanism.
 - **TR-003**: System SHOULD generate typed API clients (or otherwise enforce strict contracts) to reduce schema drift and runtime errors.
 
 #### Data Pipeline & Formats
@@ -309,8 +316,7 @@ This spec does not mandate the same repo/module split, but it does inherit a few
 #### Visualization & Interaction Patterns
 
 - **TR-011**: System SHOULD expose basic network metrics (e.g., node/edge counts, average degree, density) to aid portfolio-level insight.
-- **TR-012**: System SHOULD support highlighting derived “insights” such as super-connectors, bridge connectors, isolated nodes, and geographic clusters.
-
+- **TR-012**: System SHOULD support highlighting derived “insights” such as super-connectors, bridge connectors, isolated nodes, and geographic clusters.- **TR-013**: System MUST include a **thin BFF (Backend-for-Frontend) server** that: (a) proxies authentication requests to Alkemio's auth service, (b) forwards GraphQL queries with the bearer token, and (c) optionally hosts the SPA static assets. The BFF MUST NOT store user credentials beyond the lifetime of a single auth request.
 ### Graph Schema (First Pass)
 
 The specification requires a clear, documented schema so that acquisition, transformation, and visualization can evolve independently.
