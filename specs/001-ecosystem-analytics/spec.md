@@ -316,7 +316,8 @@ This spec does not mandate the same repo/module split, but it does inherit a few
 #### Visualization & Interaction Patterns
 
 - **TR-011**: System SHOULD expose basic network metrics (e.g., node/edge counts, average degree, density) to aid portfolio-level insight.
-- **TR-012**: System SHOULD support highlighting derived “insights” such as super-connectors, bridge connectors, isolated nodes, and geographic clusters.- **TR-013**: System MUST include a **thin BFF (Backend-for-Frontend) server** that: (a) proxies authentication requests to Alkemio's auth service, (b) forwards GraphQL queries with the bearer token, and (c) optionally hosts the SPA static assets. The BFF MUST NOT store user credentials beyond the lifetime of a single auth request.
+- **TR-012**: System SHOULD support highlighting derived "insights" such as super-connectors, bridge connectors, isolated nodes, and geographic clusters.
+- **TR-013**: System MUST include a **thin BFF (Backend-for-Frontend) server** that: (a) proxies authentication requests to Alkemio's auth service, (b) forwards GraphQL queries with the bearer token, and (c) optionally hosts the SPA static assets. The BFF MUST NOT store user credentials beyond the lifetime of a single auth request.
 ### Graph Schema (First Pass)
 
 The specification requires a clear, documented schema so that acquisition, transformation, and visualization can evolve independently.
