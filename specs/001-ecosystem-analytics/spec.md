@@ -3,7 +3,7 @@
 **Feature Branch**: `001-ecosystem-analytics`  
 **Created**: February 9, 2026  
 **Status**: Draft  
-**Input**: Stakeholder call transcript + notes (Portfolio Owner–focused interactive network visualization; L0 space selection; clustering + map overlay; separate tool using Alkemio identities; protected caching; clear node/edge schema).
+**Input**: Product requirements and design brief for the ecosystem analytics tool.
 
 ## Design Source of Truth (How to Use Spec vs Design Brief)
 
@@ -20,15 +20,25 @@ This repo intentionally splits “what the product must do” from “what the U
 - Engineers implement the feature to satisfy FR/NFR/TR and acceptance scenarios in this spec.
 - The UI layer is then implemented/styled to match the design brief (including the export-derived token values, fixed widths/heights, animations, and loading step labels).
 - “Pixel-perfect” verification should be done by screenshot comparison against the brief’s described states (or automated visual regression where feasible).
+
 ## Clarifications
 
 ### Session 2026-02-10
 
 - Q: Does the tool need a backend, or is it a pure client-side SPA? → A: Thin BFF (Backend-for-Frontend). A lightweight server-side layer proxies Alkemio auth and GraphQL calls, avoiding CORS issues and keeping credentials off the client.
 
+### Session 2026-02-11
+
+- Q: How should the frontend authenticate to the ecosystem analytics server after Alkemio login? → A: Use a bearer token held in memory and sent on each API request.
+- Q: Where should cached datasets live? → A: Server-side persistent store (db or object storage), per-user scoped.
+- Q: What cache expiration strategy should be used? → A: Fixed TTL (24h) with manual refresh.
+- Q: How should cache keys be structured? → A: Per-user, per-space cached datasets, enabling partial reuse across different selections.
+- Q: Should the server API surface be defined now? → A: No, defer API details to planning.
+- Q: Should the hosting model be defined now? → A: Server and SPA are deployed together under the same primary domain.
+
 ## End-to-End User Flow
 
-The tool follows a linear pipeline inherited from the legacy project ([analytics-playground](https://github.com/alkem-io/analytics-playground)). Almost everything in the Figma prototype covers the **Display** phase; the **Acquire** phase has a user-facing Space selection screen; the **Transform** phase is invisible to the user except for a loading overlay.
+The tool follows a linear pipeline. Almost everything in the Figma prototype covers the **Display** phase; the **Acquire** phase has a user-facing Space selection screen; the **Transform** phase is invisible to the user except for a loading overlay.
 
 ```
 ┌─────────────────────────────────────────────────────────────────────┐
@@ -36,7 +46,7 @@ The tool follows a linear pipeline inherited from the legacy project ([analytics
 │                                                                    │
 │  ┌──────────┐    ┌──────────┐    ┌───────────┐    ┌─────────────┐  │
 │  │  1. AUTH  │───▶│2. SELECT │───▶│ 3. LOAD   │───▶│ 4. EXPLORE  │  │
-│  │  (Login)  │    │ (Acquire)│    │(Transform)│    │  (Display)  │  │
+│  │ (Redirect)│    │ (Acquire)│    │(Transform)│    │  (Display)  │  │
 │  └──────────┘    └──────────┘    └───────────┘    └─────────────┘  │
 │                                                                    │
 │  Alkemio ID      Pick L0         Loading overlay   Interactive     │
@@ -44,15 +54,15 @@ The tool follows a linear pipeline inherited from the legacy project ([analytics
 └─────────────────────────────────────────────────────────────────────┘
 ```
 
-### Phase 1 — Authenticate (Login)
+### Phase 1 — Authenticate (Redirect)
 
 | Aspect | Detail |
 | --- | --- |
-| **What the user does** | Opens the tool and signs in with their Alkemio credentials. |
-| **What the system does** | Validates the identity against Alkemio's auth service and obtains a bearer token for subsequent API calls. |
-| **UI screen** | Login / Identity Gate (design brief Screen A). |
+| **What the user does** | Opens the tool and is redirected to the main Alkemio site to sign in, then returns to the tool. |
+| **What the system does** | Redirects to Alkemio's auth flow, then reads the authenticated context on return and obtains a bearer token for subsequent API calls. |
+| **UI screen** | Identity Gate (design brief Screen A) with a “Continue to Alkemio” redirect. |
 | **Success condition** | User is authenticated; the system has a valid token. |
-| **Failure path** | Auth error → stay on login with an error message; no data is fetched. |
+| **Failure path** | Auth error → stay on the identity gate with an error message; no data is fetched. |
 
 ### Phase 2 — Select Spaces (Acquire — user-facing part)
 
@@ -88,7 +98,7 @@ The tool follows a linear pipeline inherited from the legacy project ([analytics
 
 | Pipeline stage | User sees | System work |
 | --- | --- | --- |
-| Auth | Login screen | Alkemio identity verification, token acquisition |
+| Auth | Identity gate (redirect) | Alkemio identity verification, token acquisition |
 | Acquire | Space selector + first part of loading overlay ("Acquiring Data") | GraphQL queries scoped to selected Spaces; cache check |
 | Transform | Loading overlay ("Clustering Entities") | Raw data → graph dataset conversion, clustering prep |
 | Display | Loading overlay final step ("Rendering Graph") then full explorer | Force graph layout, rendering, interaction handling |
@@ -97,25 +107,27 @@ The tool follows a linear pipeline inherited from the legacy project ([analytics
 
 > **The Figma prototype ships with fake/mock data. The production tool MUST fetch live data from Alkemio.**
 
-This section captures the concrete integration requirements derived from the legacy reference project ([analytics-playground](https://github.com/alkem-io/analytics-playground)) and the user's explicit requirement for an **in-browser login screen**.
+This section captures the concrete integration requirements and the user's requirement for a **redirect-based Alkemio login**.
 
-### 1. Authentication — In-Browser Login (No File-Based Credentials)
+### 1. Authentication — Redirect-Based Login (No File-Based Credentials)
 
-The legacy project stores credentials in a `.env` file (`AUTH_ADMIN_EMAIL`, `AUTH_ADMIN_PASSWORD`) and authenticates server-side via `@alkemio/client-lib`. **This model is explicitly rejected for the new tool.**
+A reference implementation stores credentials in a `.env` file (`AUTH_ADMIN_EMAIL`, `AUTH_ADMIN_PASSWORD`) and authenticates server-side via `@alkemio/client-lib`. **This model is explicitly rejected for the new tool.**
 
 | Requirement | Detail |
 | --- | --- |
-| **In-browser login form** | The tool MUST present a login screen (Screen A) with email and password fields. The user enters their Alkemio credentials directly in the UI. |
-| **No `.env` / config-file credentials** | Credentials MUST NOT be read from environment variables, `.env` files, config files, or any mechanism outside the user's direct input in the browser. |
-| **Credential handling** | Credentials are submitted over HTTPS to Alkemio's auth endpoint and are never persisted to disk, local storage, or logs. |
+| **Redirect-based login** | The tool MUST present an identity gate (Screen A) that redirects the user to the main Alkemio site to authenticate, then returns to the tool. |
+| **Same primary domain** | The tool MUST be hosted on the same primary domain as Alkemio (or a subdomain that preserves the auth context) so the authenticated session can be picked up on return. |
+| **No `.env` / config-file credentials** | Credentials MUST NOT be read from environment variables, `.env` files, config files, or any mechanism outside the Alkemio login flow. `.env` is permitted only for server deployment parameters that do not include user credentials. |
+| **Credential handling** | User credentials MUST NOT be handled or stored by this tool; they are entered only on Alkemio and never persisted to disk, local storage, or logs within this project. |
 | **Bearer token acquisition** | On successful auth, the system obtains a bearer token (JWT) for subsequent GraphQL requests. The token is held in memory for the session. |
+| **Frontend-to-server auth** | The React frontend authenticates to the ecosystem analytics server using a bearer token held in memory and sent with each API request; the token is not persisted in storage. |
 | **Token lifecycle** | The system MUST handle token expiry gracefully (re-prompt login or refresh if supported). |
 | **Auth library reference** | The legacy project uses `@alkemio/client-lib` (`AlkemioClient.enableAuthentication()` → `apiToken`). The new tool MAY use the same library or implement equivalent browser-compatible auth against the same Alkemio auth service. |
-| **Auth failure UX** | On failure, the login screen shows an inline error message and the user can retry. No data is fetched until auth succeeds. |
+| **Auth failure UX** | On failure, the identity gate shows an inline error message and offers a retry. No data is fetched until auth succeeds. |
 
 ### 2. Data Acquisition — GraphQL Queries (Acquire Phase)
 
-Once authenticated, the tool fetches real data from Alkemio's GraphQL API. The legacy project demonstrates the following proven query patterns:
+Once authenticated, the tool fetches real data from Alkemio's GraphQL API. A reference implementation demonstrates the following proven query patterns:
 
 | Query | SDK method (legacy) | Purpose | Notes |
 | --- | --- | --- | --- |
@@ -125,13 +137,13 @@ Once authenticated, the tool fetches real data from Alkemio's GraphQL API. The l
 | **Organization by ID** | `sdkClient.organizationByID({ id })` | Fetch a single organization's profile details. | Called per unique org ID from role sets. |
 | **Current user** | `sdkClient.me()` | Verify authentication and retrieve the current user's profile. | Used to confirm auth succeeded and to display the user's name. |
 
-**GraphQL endpoint**: The legacy project targets `{server}/api/private/non-interactive/graphql`. The new tool should use the appropriate Alkemio GraphQL endpoint for browser-based authenticated requests (which may differ — e.g., a public interactive endpoint with bearer auth).
+**GraphQL endpoint**: A reference implementation targets `{server}/api/private/non-interactive/graphql`. The new tool should use the appropriate Alkemio GraphQL endpoint for browser-based authenticated requests (which may differ — e.g., a public interactive endpoint with bearer auth).
 
-**Typed API clients**: The legacy project uses `@graphql-codegen/cli` to generate typed SDK methods from `.graphql` query files. The new tool SHOULD follow the same pattern (TR-003) to prevent schema drift.
+**Typed API clients**: A reference implementation uses `@graphql-codegen/cli` to generate typed SDK methods from `.graphql` query files. The new tool SHOULD follow the same pattern (TR-003) to prevent schema drift.
 
 ### 3. Data Transformation (Transform Phase)
 
-The raw API responses must be transformed into the graph dataset format defined in the Graph Schema section. The legacy project's `AlkemioGraphTransformer` demonstrates:
+The raw API responses must be transformed into the graph dataset format defined in the Graph Schema section. A reference `AlkemioGraphTransformer` demonstrates:
 
 - **Contributor extraction**: Traverse each Space's `community.roleSet` to collect `memberUsers`, `leadUsers`, `memberOrganizations`, `leadOrganizations` and resolve their full profiles.
 - **Node creation**: Map Spaces (L0/L1/L2), Users, and Organizations into typed graph nodes with weights (`SPACE_L0=20, SPACE_L1=10, SPACE_L2=8, ORGANIZATION=5, USER=3`).
@@ -228,9 +240,10 @@ As a **Portfolio Owner**, I want to discover related entities from what I click 
 - The first release targets **L0 Space selection only**; L1/L2 are included as child context once a L0 Space is selected.
 - Users must be authenticated and authorized via **Alkemio identity**, and Space eligibility is based on current membership.
 - Map overlay is valuable but **secondary**; the tool must remain usable when most entities have missing location data.
-- Caching is initially **per-user**; later iterations may introduce shared caching for identical datasets.
+- Caching is initially **per-user** and stored server-side in a persistent store; datasets are cached per Space to enable partial reuse across selections; later iterations may introduce shared caching for identical datasets.
 - This tool is a **standalone experience** (separate from the main Alkemio UI), but it depends on Alkemio as the source of truth for memberships and entity metadata.
-- The architecture uses a **thin BFF (Backend-for-Frontend)** pattern: a lightweight server proxies auth + GraphQL calls to Alkemio, while all visualization and interaction logic runs in the browser (SPA).
+- The repository is set up for **two projects**: a server that proxies auth + GraphQL calls to Alkemio and manages caching, and a React SPA that interacts only with the ecosystem analytics server.
+- The server and SPA are deployed together under the same primary domain to support the auth redirect flow.
 
 ## Requirements *(mandatory)*
 
@@ -241,9 +254,10 @@ As a **Portfolio Owner**, I want to discover related entities from what I click 
 
 ### Functional Requirements
 
-- **FR-001**: System MUST authenticate users using **Alkemio identities** via an **in-browser login form** (email + password fields). Credentials MUST NOT be supplied via `.env` files, config files, environment variables, or any other mechanism outside of direct user input in the browser UI.
+- **FR-001**: System MUST authenticate users using **Alkemio identities** via a **redirect to the main Alkemio site** and pick up the authenticated context on return. Credentials MUST NOT be supplied via `.env` files, config files, environment variables, or any other mechanism within this tool.
 - **FR-002**: System MUST only allow users to select Spaces from the set of **L0 Spaces where they are a member**.
 - **FR-003**: System MUST allow users to select one or more L0 Spaces and generate/load a graph dataset for the selection.
+- **FR-003a**: The maximum number of Spaces that can be queried MUST be configurable on the server.
 - **FR-004**: System MUST render an interactive network visualization supporting at minimum: zoom, pan, drag, node selection, and a slide-in details panel/drawer.
 - **FR-005**: System MUST support at least two clustering modes: **Cluster by Space** and **Cluster by Organization**.
 - **FR-006**: System MUST support filtering controls that can hide/show at least: People nodes and Organization nodes.
@@ -255,11 +269,13 @@ As a **Portfolio Owner**, I want to discover related entities from what I click 
   - edge types
   - required vs optional metadata for nodes and edges
 - **FR-011**: System MUST enforce access control such that users can only view and load data they are authorized to access.
-- **FR-012**: System MUST store and reuse cached acquired/transformed results in a way that:
+- **FR-012**: System MUST store and reuse cached acquired/transformed results server-side in a persistent per-user store in a way that:
   - reduces repeated backend requests
   - shows data freshness (“last updated”)
   - supports manual refresh
   - protects cached data equivalently to any other user data
+- **FR-012a**: Cached datasets MUST expire after a fixed TTL of 24 hours unless manually refreshed earlier.
+- **FR-012b**: Cache entries MUST be stored per user and per Space, enabling partial reuse when a user requests overlapping Space selections; Space data MUST NOT be shared across users.
 - **FR-013**: System MUST be operable as a **standalone tool** (not embedded into the main Alkemio UI), while using Alkemio identity for access.
 - **FR-014**: System SHOULD compute and display basic network metrics (at minimum: total nodes, total edges, average degree, density).
 - **FR-015**: System SHOULD provide “insight shortcuts” that can highlight at minimum: super-connectors and isolated nodes.
@@ -268,21 +284,23 @@ As a **Portfolio Owner**, I want to discover related entities from what I click 
 - **FR-017**: System MUST provide clear progressive loading states during graph generation (e.g., a modal/overlay indicating acquisition/transformation/rendering steps).
 - **FR-018**: System MUST fetch and display **real data from the Alkemio platform** via its GraphQL API. Mock/fake data from the Figma prototype MUST NOT appear in the production build.
 - **FR-019**: System MUST acquire Space hierarchies, contributor profiles (users and organizations), and community role sets from the Alkemio API using the authenticated user's bearer token, respecting the user's actual membership and access rights.
+- **FR-020**: The React frontend MUST interact only with the ecosystem analytics server (never directly with Alkemio) to prevent production side effects.
 
 ### Non-Functional Requirements
 
 - **NFR-001 (Security/Privacy)**: System MUST treat all acquired and cached Alkemio-derived data as sensitive user data.
 - **NFR-002 (Secrets Handling)**: System MUST NOT log authentication secrets or bearer tokens (even at debug level).
+- **NFR-002a (Credentials Storage)**: System MUST NOT store user credentials at any point; credentials are only entered on Alkemio and never persisted by this tool.
 - **NFR-003 (Access Control)**: System MUST apply access checks at query-time and/or cache-read-time such that stale caches cannot re-introduce unauthorized data.
-- **NFR-004 (Performance)**: System SHOULD remain interactive for “large graphs” by adapting layout/physics and throttling rendering updates when node/edge counts are high.
+- **NFR-004 (Performance)**: Performance is not a consideration for the first version; no specific interactivity or scale targets are required.
 - **NFR-005 (Resilience)**: System MUST degrade gracefully when optional fields are missing (e.g., location, avatar, URLs) and when map assets fail to load.
 - **NFR-006 (Accessibility)**: System SHOULD provide baseline accessibility for core interactions (keyboard navigation to nodes, focus states, readable contrast, and ARIA labeling for controls).
 
 - **NFR-007 (UI Fidelity)**: System MUST match the UI defined in the design brief, including the export-derived theme tokens, typography (Inter), fixed layout constants (e.g., panel/drawer sizes), and progressive loading copy, to minimize pixel drift.
 
-### Technical Requirements (Legacy Learnings)
+### Technical Requirements
 
-The legacy reference project (https://github.com/alkem-io/analytics-playground) demonstrates a decoupled approach:
+A reference implementation (https://github.com/alkem-io/analytics-playground) demonstrates a decoupled approach:
 
 1. **Acquire** raw data from Alkemio (GraphQL)
 2. **Transform** raw data into a display-friendly graph JSON
@@ -293,7 +311,7 @@ This spec does not mandate the same repo/module split, but it does inherit a few
 #### Backend/API Integration
 
 - **TR-001**: System MUST integrate with Alkemio via GraphQL and support a non-interactive/private GraphQL endpoint where applicable.
-- **TR-002**: System MUST support an **interactive browser-based auth flow** that yields a bearer token usable for GraphQL requests. The user enters credentials in the UI (not via `.env` files or server-side config). A **thin BFF (Backend-for-Frontend) layer** proxies the credentials to Alkemio's auth service server-side, avoiding CORS restrictions and keeping secrets off the client. The BFF may use `@alkemio/client-lib` or an equivalent mechanism.
+- **TR-002**: System MUST support a **redirect-based browser auth flow** that yields a bearer token usable for GraphQL requests. The user authenticates on the main Alkemio site, and this tool picks up the authenticated context on return. A **thin BFF (Backend-for-Frontend) layer** proxies GraphQL requests server-side, avoiding CORS restrictions and keeping secrets off the client. The BFF MUST NOT handle or store user credentials.
 - **TR-003**: System SHOULD generate typed API clients (or otherwise enforce strict contracts) to reduce schema drift and runtime errors.
 
 #### Data Pipeline & Formats
@@ -302,7 +320,7 @@ This spec does not mandate the same repo/module split, but it does inherit a few
 - **TR-005**: System MUST define a versioned graph dataset format that is JSON-serializable and stable across releases.
 - **TR-006**: System SHOULD include “scope grouping” on edges/nodes so the UI can filter/cluster by selected L0 Space context.
 
-**Legacy-compatible graph dataset shape (illustrative)**:
+**Graph dataset shape (illustrative)**:
 - `nodes`: `spacesL0`, `spacesL1`, `spacesL2`, `contributors`
 - `edges`: list of `{ sourceID, targetID, type, weight?, group? }`
 
@@ -316,7 +334,11 @@ This spec does not mandate the same repo/module split, but it does inherit a few
 #### Visualization & Interaction Patterns
 
 - **TR-011**: System SHOULD expose basic network metrics (e.g., node/edge counts, average degree, density) to aid portfolio-level insight.
-- **TR-012**: System SHOULD support highlighting derived “insights” such as super-connectors, bridge connectors, isolated nodes, and geographic clusters.- **TR-013**: System MUST include a **thin BFF (Backend-for-Frontend) server** that: (a) proxies authentication requests to Alkemio's auth service, (b) forwards GraphQL queries with the bearer token, and (c) optionally hosts the SPA static assets. The BFF MUST NOT store user credentials beyond the lifetime of a single auth request.
+- **TR-012**: System SHOULD support highlighting derived “insights” such as super-connectors, bridge connectors, isolated nodes, and geographic clusters.
+- **TR-013**: System MUST include a **thin BFF (Backend-for-Frontend) server** that: (a) handles the auth redirect/callback exchange as needed, (b) forwards GraphQL queries with the bearer token, and (c) optionally hosts the SPA static assets. The BFF MUST NOT handle or store user credentials.
+- **TR-014**: The repository MUST contain two separate applications: (a) an ecosystem analytics server that interacts with the Alkemio GraphQL API on behalf of the user, including caching/storage, and (b) a React frontend that communicates with the ecosystem analytics server (not directly with Alkemio).
+- **TR-015**: The React frontend MUST authenticate to the ecosystem analytics server using a bearer token held in memory and sent on each API request; the token MUST NOT be persisted in storage.
+
 ### Graph Schema (First Pass)
 
 The specification requires a clear, documented schema so that acquisition, transformation, and visualization can evolve independently.
@@ -333,13 +355,16 @@ The specification requires a clear, documented schema so that acquisition, trans
 - Member (person/org participates in space)
 - Lead (person/org leads space)
 
-**Minimum node metadata (v1)**:
+**Actor metadata (v1)**:
+All node types represent actors and MUST share this common metadata.
+
+**Required actor metadata**:
 - ID (stable)
 - Type
 - Display name/label
 
-**Optional node metadata (v1)**:
-- Avatar/logo (for people/org)
+**Optional actor metadata**:
+- Avatar/logo
 - URL (to open in Alkemio)
 - Location (country/city + coordinates when available)
 
@@ -377,8 +402,8 @@ The specification requires a clear, documented schema so that acquisition, trans
 
 ### Measurable Outcomes
 
-- **SC-001**: A Portfolio Owner can generate a graph for 1–3 L0 Spaces and reach an interactive view in under 60 seconds on first load.
-- **SC-002**: With cached data available, a Portfolio Owner can reach an interactive view for the same selection in under 10 seconds.
+- **SC-001**: A Portfolio Owner can generate a graph for 2–5 L0 Spaces and reach an interactive view on first load.
+- **SC-002**: With cached data available, a Portfolio Owner can reach an interactive view for the same selection without triggering a full re-fetch.
 - **SC-003**: At least 90% of test users can complete the core exploration tasks (cluster mode switch, search, open details, toggle map) without assistance within 3 minutes.
 - **SC-004**: In testing, the tool never displays Spaces outside the user’s accessible membership set (0 verified permission leaks).
 - **SC-005**: For repeated exploration of the same selection, the tool does not re-fetch full datasets unless the user triggers refresh (verified by behavior/log review).
