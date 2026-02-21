@@ -1,0 +1,366 @@
+openapi: 3.1.0
+info:
+  title: Ecosystem Analytics BFF API
+  version: 1.0.0
+  description: |
+    Backend-for-Frontend API for the Ecosystem Analytics Portfolio Network Explorer.
+    The frontend communicates exclusively with this API (FR-020).
+    All endpoints (except /auth/*) require a valid session token via Bearer auth.
+
+servers:
+  - url: /api
+    description: Same-domain BFF
+
+security:
+  - bearerAuth: []
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      description: Session token issued by the BFF after auth callback
+
+  schemas:
+    SpaceSelectionItem:
+      type: object
+      required: [id, nameId, displayName, role, visibility]
+      properties:
+        id:
+          type: string
+          description: L0 Space UUID
+        nameId:
+          type: string
+          description: Space nameID
+        displayName:
+          type: string
+        role:
+          type: string
+          enum: [MEMBER, LEAD]
+          description: User's highest role in this Space
+        visibility:
+          type: string
+          enum: [PUBLIC, PRIVATE]
+
+    GraphGenerationRequest:
+      type: object
+      required: [spaceIds]
+      properties:
+        spaceIds:
+          type: array
+          items:
+            type: string
+          minItems: 1
+          description: Selected L0 Space IDs
+        forceRefresh:
+          type: boolean
+          default: false
+          description: Bypass cache and re-fetch all data
+
+    GraphLocation:
+      type: object
+      properties:
+        country:
+          type: string
+          nullable: true
+        city:
+          type: string
+          nullable: true
+        latitude:
+          type: number
+          nullable: true
+        longitude:
+          type: number
+          nullable: true
+
+    GraphNode:
+      type: object
+      required: [id, type, displayName, weight, scopeGroups]
+      properties:
+        id:
+          type: string
+        type:
+          type: string
+          enum: [SPACE_L0, SPACE_L1, SPACE_L2, ORGANIZATION, USER]
+        displayName:
+          type: string
+        weight:
+          type: number
+        avatarUrl:
+          type: string
+          nullable: true
+        url:
+          type: string
+          nullable: true
+        location:
+          $ref: "#/components/schemas/GraphLocation"
+        scopeGroups:
+          type: array
+          items:
+            type: string
+        nameId:
+          type: string
+          nullable: true
+        tagline:
+          type: string
+          nullable: true
+
+    GraphEdge:
+      type: object
+      required: [sourceId, targetId, type, weight]
+      properties:
+        sourceId:
+          type: string
+        targetId:
+          type: string
+        type:
+          type: string
+          enum: [CHILD, MEMBER, LEAD]
+        weight:
+          type: number
+        scopeGroup:
+          type: string
+          nullable: true
+
+    GraphMetrics:
+      type: object
+      required: [totalNodes, totalEdges, averageDegree, density]
+      properties:
+        totalNodes:
+          type: integer
+        totalEdges:
+          type: integer
+        averageDegree:
+          type: number
+        density:
+          type: number
+
+    GraphDataset:
+      type: object
+      required: [version, generatedAt, spaces, nodes, edges, metrics]
+      properties:
+        version:
+          type: string
+          example: "1.0.0"
+        generatedAt:
+          type: string
+          format: date-time
+        spaces:
+          type: array
+          items:
+            type: string
+          description: L0 Space IDs included
+        nodes:
+          type: array
+          items:
+            $ref: "#/components/schemas/GraphNode"
+        edges:
+          type: array
+          items:
+            $ref: "#/components/schemas/GraphEdge"
+        metrics:
+          $ref: "#/components/schemas/GraphMetrics"
+
+    GraphProgress:
+      type: object
+      required: [step, spacesTotal, spacesCompleted]
+      properties:
+        step:
+          type: string
+          enum: [acquiring, transforming, ready]
+        spacesTotal:
+          type: integer
+        spacesCompleted:
+          type: integer
+
+    UserProfile:
+      type: object
+      required: [id, displayName]
+      properties:
+        id:
+          type: string
+        displayName:
+          type: string
+        avatarUrl:
+          type: string
+          nullable: true
+
+    Error:
+      type: object
+      required: [error, message]
+      properties:
+        error:
+          type: string
+        message:
+          type: string
+
+paths:
+  /auth/login:
+    get:
+      summary: Initiate auth redirect
+      description: Redirects the user to Alkemio's login page (Ory Kratos browser flow).
+      security: []
+      responses:
+        "302":
+          description: Redirect to Alkemio login
+          headers:
+            Location:
+              schema:
+                type: string
+
+  /auth/callback:
+    get:
+      summary: Auth callback
+      description: |
+        Handles the return from Alkemio login. Exchanges the Kratos session for a
+        BFF session token. Redirects to the frontend with the token.
+      security: []
+      parameters:
+        - name: flow
+          in: query
+          schema:
+            type: string
+      responses:
+        "302":
+          description: Redirect to frontend with session established
+        "401":
+          description: Auth failed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /auth/me:
+    get:
+      summary: Get current user
+      description: Returns the authenticated user's profile. Used to verify auth status.
+      responses:
+        "200":
+          description: Authenticated user profile
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserProfile"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /auth/logout:
+    post:
+      summary: Log out
+      description: Destroys the BFF session and clears auth state.
+      responses:
+        "200":
+          description: Logged out successfully
+
+  /spaces:
+    get:
+      summary: List user's L0 Spaces
+      description: |
+        Returns the L0 Spaces where the authenticated user has MEMBER or LEAD access.
+        Used to populate the Space Selector (Screen B).
+      responses:
+        "200":
+          description: List of accessible L0 Spaces
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/SpaceSelectionItem"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /graph/generate:
+    post:
+      summary: Generate graph dataset
+      description: |
+        Acquires data for selected Spaces (using cache where available),
+        transforms to graph dataset, caches results, and returns the full dataset.
+        Respects server-configured max Spaces limit (FR-003a).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/GraphGenerationRequest"
+      responses:
+        "200":
+          description: Complete graph dataset
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GraphDataset"
+        "400":
+          description: Invalid request (e.g., too many spaces)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /graph/progress:
+    get:
+      summary: Check generation progress
+      description: |
+        Returns the current progress of an ongoing graph generation.
+        Can be polled or consumed as SSE for progressive loading UI.
+      responses:
+        "200":
+          description: Current progress
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GraphProgress"
+
+  /graph/export:
+    post:
+      summary: Export graph dataset as JSON
+      description: |
+        Returns the current graph dataset (optionally with metrics) as a
+        downloadable JSON file (FR-016).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [spaceIds]
+              properties:
+                spaceIds:
+                  type: array
+                  items:
+                    type: string
+                includeMetrics:
+                  type: boolean
+                  default: true
+      responses:
+        "200":
+          description: JSON file download
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GraphDataset"
+          headers:
+            Content-Disposition:
+              schema:
+                type: string
+                example: attachment; filename="ecosystem-graph-2026-02-21.json"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
