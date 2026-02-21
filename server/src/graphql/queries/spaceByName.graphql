@@ -1,0 +1,18 @@
+query spaceByName($nameId: NameID!) {
+  lookupByName {
+    space(NAMEID: $nameId) {
+      ...SpaceGraphInfoFragment
+      subspaces {
+        ...SpaceGraphInfoFragment
+        subspaces {
+          ...SpaceGraphInfoFragment
+        }
+      }
+      account {
+        host {
+          id
+        }
+      }
+    }
+  }
+}

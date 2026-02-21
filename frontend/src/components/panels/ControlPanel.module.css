@@ -1,0 +1,75 @@
+.panel {
+  width: var(--left-panel-width);
+  height: 100%;
+  background: var(--surface-raised);
+  border-right: 1px solid var(--border);
+  padding: 16px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+}
+
+.section {
+  padding: 12px 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.heading {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-muted);
+  margin: 0 0 8px;
+}
+
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.chip {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--primary);
+  background: #eff6ff;
+  padding: 4px 10px;
+  border-radius: var(--radius-full);
+}
+
+.legendItem {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  color: var(--text-secondary);
+  padding: 3px 0;
+}
+
+.dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.insightBtn {
+  display: block;
+  width: 100%;
+  font-size: 12px;
+  font-family: var(--font-family);
+  padding: 6px 10px;
+  margin-bottom: 4px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  color: var(--text-secondary);
+  text-align: left;
+}
+
+.insightBtn:hover {
+  background: #eff6ff;
+  color: var(--primary);
+}

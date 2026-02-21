@@ -23,16 +23,16 @@
 
 **Purpose**: Project initialization, monorepo structure, shared types
 
-- [ ] T001 Create root project structure with `server/` and `frontend/` directories per plan.md
-- [ ] T002 Initialize server project with Express, TypeScript, better-sqlite3, graphql-request, dotenv dependencies in `server/package.json`
-- [ ] T003 Initialize frontend project with React 18, Vite, D3 v7, TypeScript dependencies in `frontend/package.json`
-- [ ] T004 [P] Configure TypeScript for server in `server/tsconfig.json`
-- [ ] T005 [P] Configure TypeScript and Vite for frontend in `frontend/tsconfig.json` and `frontend/vite.config.ts` (include dev proxy for `/api` → `http://localhost:4000`)
-- [ ] T006 [P] Configure ESLint and Prettier for both projects in root `eslint.config.js` and `.prettierrc`
-- [ ] T007 [P] Create shared graph types (NodeType, EdgeType, GraphNode, GraphEdge, GraphDataset, GraphMetrics, NODE_WEIGHT, EDGE_WEIGHT) in `server/src/types/graph.ts` (frontend imports these via TypeScript path alias)
-- [ ] T008 [P] Create shared API types (SpaceSelectionItem, GraphGenerationRequest, GraphProgress, UserProfile, Error) in `server/src/types/api.ts` (frontend imports these via TypeScript path alias)
-- [ ] T009 [P] Create CSS custom properties theme from design brief tokens (--background, --foreground, --primary, --text-*, --radius, --elevation-sm, Inter font) in `frontend/src/styles/tokens.css`
-- [ ] T010 [P] Create server environment configuration loader in `server/src/config.ts` (ALKEMIO_SERVER_URL, ALKEMIO_GRAPHQL_ENDPOINT, ALKEMIO_KRATOS_PUBLIC_URL, PORT, SESSION_SECRET, MAX_SPACES_PER_QUERY, CACHE_TTL_HOURS)
+- [x] T001 Create root project structure with `server/` and `frontend/` directories per plan.md
+- [x] T002 Initialize server project with Express, TypeScript, better-sqlite3, graphql-request, dotenv dependencies in `server/package.json`
+- [x] T003 Initialize frontend project with React 18, Vite, D3 v7, TypeScript dependencies in `frontend/package.json`
+- [x] T004 [P] Configure TypeScript for server in `server/tsconfig.json`
+- [x] T005 [P] Configure TypeScript and Vite for frontend in `frontend/tsconfig.json` and `frontend/vite.config.ts` (include dev proxy for `/api` → `http://localhost:4000`)
+- [x] T006 [P] Configure ESLint and Prettier for both projects in root `eslint.config.js` and `.prettierrc`
+- [x] T007 [P] Create shared graph types (NodeType, EdgeType, GraphNode, GraphEdge, GraphDataset, GraphMetrics, NODE_WEIGHT, EDGE_WEIGHT) in `server/src/types/graph.ts` (frontend imports these via TypeScript path alias)
+- [x] T008 [P] Create shared API types (SpaceSelectionItem, GraphGenerationRequest, GraphProgress, UserProfile, Error) in `server/src/types/api.ts` (frontend imports these via TypeScript path alias)
+- [x] T009 [P] Create CSS custom properties theme from design brief tokens (--background, --foreground, --primary, --text-*, --radius, --elevation-sm, Inter font) in `frontend/src/styles/tokens.css`
+- [x] T010 [P] Create server environment configuration loader in `server/src/config.ts` (ALKEMIO_SERVER_URL, ALKEMIO_GRAPHQL_ENDPOINT, ALKEMIO_KRATOS_PUBLIC_URL, PORT, SESSION_SECRET, MAX_SPACES_PER_QUERY, CACHE_TTL_HOURS)
 
 ---
 
@@ -127,12 +127,12 @@
 
 **Independent Test**: Generate a graph for the same Spaces twice; verify the second load is faster and shows "last updated" timestamp. Verify manual refresh re-fetches all data.
 
-- [ ] T054 [US2] Add cache-aware logic to graph-service: return cached data with timestamps when fresh, fetch only stale/missing Spaces in `server/src/services/graph-service.ts`
-- [ ] T055 [US2] Add `lastUpdated` timestamp per Space to GraphDataset response in `server/src/types/graph.ts` and `server/src/services/graph-service.ts`
-- [ ] T056 [US2] Implement `forceRefresh` parameter handling (delete cache entries, re-fetch all) in `server/src/services/graph-service.ts`
-- [ ] T057 [US2] Display "last updated" timestamp in top bar (from dataset metadata) in `frontend/src/components/panels/TopBar.tsx`
-- [ ] T058 [US2] Implement refresh button behavior (spin icon, call generate with forceRefresh=true, update display) in `frontend/src/components/panels/TopBar.tsx`
-- [ ] T059 [US2] Display per-Space cache status (cached vs fresh-fetched) during loading overlay in `frontend/src/components/graph/LoadingOverlay.tsx`
+- [x] T05\1 [US2] Add cache-aware logic to graph-service: return cached data with timestamps when fresh, fetch only stale/missing Spaces in `server/src/services/graph-service.ts`
+- [x] T05\1 [US2] Add `lastUpdated` timestamp per Space to GraphDataset response in `server/src/types/graph.ts` and `server/src/services/graph-service.ts`
+- [x] T05\1 [US2] Implement `forceRefresh` parameter handling (delete cache entries, re-fetch all) in `server/src/services/graph-service.ts`
+- [x] T05\1 [US2] Display "last updated" timestamp in top bar (from dataset metadata) in `frontend/src/components/panels/TopBar.tsx`
+- [x] T05\1 [US2] Implement refresh button behavior (spin icon, call generate with forceRefresh=true, update display) in `frontend/src/components/panels/TopBar.tsx`
+- [x] T05\1 [US2] Display per-Space cache status (cached vs fresh-fetched) during loading overlay in `frontend/src/components/graph/LoadingOverlay.tsx`
 
 **Checkpoint**: US2 complete — second loads are fast, freshness is visible, refresh works.
 
@@ -144,13 +144,13 @@
 
 **Independent Test**: Click a person/org node, see related Spaces listed, add an accessible Space, verify graph updates with new data merged in.
 
-- [ ] T060 [US3] Implement related-Spaces lookup (given a user/org ID, find Spaces they belong to that are not in the current dataset) in `server/src/services/space-service.ts`
-- [ ] T061 [US3] Register `GET /api/spaces/:entityId/related` endpoint returning expandable Spaces in `server/src/routes/spaces.ts`
-- [ ] T062 [US3] Implement incremental graph merge (acquire + transform one new Space, merge nodes/edges into existing dataset, recompute metrics) in `server/src/services/graph-service.ts`
-- [ ] T063 [US3] Register `POST /api/graph/expand` endpoint (add a single Space to the current dataset) in `server/src/routes/graph.ts`
-- [ ] T064 [US3] Add "Related Spaces" section to details drawer (list Spaces connected to selected entity, show accessibility status) in `frontend/src/components/panels/DetailsDrawer.tsx`
-- [ ] T065 [US3] Implement "Add to graph" button per related Space (call /api/graph/expand, merge result into current dataset, re-render graph) in `frontend/src/components/panels/DetailsDrawer.tsx`
-- [ ] T066 [US3] Update scope chips in left panel when a Space is added to the graph in `frontend/src/components/panels/ControlPanel.tsx`
+- [x] T06\1 [US3] Implement related-Spaces lookup (given a user/org ID, find Spaces they belong to that are not in the current dataset) in `server/src/services/space-service.ts`
+- [x] T06\1 [US3] Register `GET /api/spaces/:entityId/related` endpoint returning expandable Spaces in `server/src/routes/spaces.ts`
+- [x] T06\1 [US3] Implement incremental graph merge (acquire + transform one new Space, merge nodes/edges into existing dataset, recompute metrics) in `server/src/services/graph-service.ts`
+- [x] T06\1 [US3] Register `POST /api/graph/expand` endpoint (add a single Space to the current dataset) in `server/src/routes/graph.ts`
+- [x] T06\1 [US3] Add "Related Spaces" section to details drawer (list Spaces connected to selected entity, show accessibility status) in `frontend/src/components/panels/DetailsDrawer.tsx`
+- [x] T06\1 [US3] Implement "Add to graph" button per related Space (call /api/graph/expand, merge result into current dataset, re-render graph) in `frontend/src/components/panels/DetailsDrawer.tsx`
+- [x] T06\1 [US3] Update scope chips in left panel when a Space is added to the graph in `frontend/src/components/panels/ControlPanel.tsx`
 
 **Checkpoint**: US3 complete — users can follow connections and expand the graph interactively.
 

@@ -1,0 +1,11 @@
+{
+  "type": "FeatureCollection",
+  "properties": { "note": "Placeholder — replace with Natural Earth data" },
+  "features": [
+    {
+      "type": "Feature",
+      "properties": { "name": "Europe" },
+      "geometry": { "type": "Polygon", "coordinates": [[[-10,35],[-10,71],[40,71],[40,35],[-10,35]]] }
+    }
+  ]
+}

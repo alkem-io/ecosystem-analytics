@@ -1,0 +1,17 @@
+fragment spaceAboutFragment on SpaceAbout {
+  id
+  profile {
+    id
+    displayName
+    tagline
+    location {
+      country
+      city
+      geoLocation {
+        latitude
+        longitude
+      }
+    }
+    url
+  }
+}

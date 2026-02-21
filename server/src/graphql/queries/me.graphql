@@ -1,0 +1,24 @@
+query me {
+  me {
+    user {
+      id
+      nameID
+      profile {
+        displayName
+        avatar: visual(type: AVATAR) {
+          uri
+        }
+        location {
+          country
+          city
+          geoLocation {
+            latitude
+            longitude
+          }
+        }
+        url
+      }
+      email
+    }
+  }
+}

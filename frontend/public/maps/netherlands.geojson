@@ -1,0 +1,11 @@
+{
+  "type": "FeatureCollection",
+  "properties": { "note": "Placeholder — replace with Natural Earth data" },
+  "features": [
+    {
+      "type": "Feature",
+      "properties": { "name": "Netherlands" },
+      "geometry": { "type": "Polygon", "coordinates": [[[3.37,51.35],[3.37,53.47],[7.21,53.47],[7.21,51.35],[3.37,51.35]]] }
+    }
+  ]
+}
