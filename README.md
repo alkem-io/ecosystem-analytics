@@ -52,7 +52,54 @@ Open http://localhost:5173 in your browser.
 
 ### 4. Login
 
-Click "Sign in with Alkemio" to authenticate via the Ory Kratos browser flow. After login you'll be redirected back with a session token.
+See [Authentication](#authentication) below for details on the two auth modes.
+
+For local development, `DEV_AUTH_BYPASS=true` is set in `.env.default`, so the login page will show an email/password form. Enter your Alkemio credentials — they are sent to the BFF which authenticates against Kratos directly (API flow). Your credentials are never stored.
+
+## Authentication
+
+The tool supports two authentication modes. In both cases the user authenticates with their **Alkemio identity** — credentials are never stored by this tool.
+
+### Production — SSO redirect (Kratos browser flow)
+
+In production the tool is deployed on the **same primary domain** as Alkemio. The login flow is:
+
+```
+User clicks "Sign in with Alkemio"
+  → GET /api/auth/login
+  → 302 redirect to Kratos /self-service/login/browser?return_to=<callback>
+  → User authenticates on the Alkemio domain (SSO / OIDC)
+  → Kratos redirects back to GET /api/auth/callback
+  → BFF validates Kratos session, issues a bearer token
+  → Frontend receives token, stores in memory (never persisted)
+```
+
+The `return_to` callback URL works because the tool and Alkemio share the same domain, so it is whitelisted by Kratos automatically.
+
+### Local development — API flow (`DEV_AUTH_BYPASS=true`)
+
+Alkemio's Kratos instance does not whitelist `localhost` in its `return_to` URLs, so the SSO redirect fails during local development. Setting `DEV_AUTH_BYPASS=true` in `server/.env` enables a dev-only endpoint:
+
+```
+User enters email + password in the login form
+  → POST /api/auth/dev-login { email, password }
+  → BFF calls Kratos /self-service/login/api (no browser redirect)
+  → Kratos validates credentials, returns session token
+  → BFF issues a bearer token
+  → Frontend receives token, stores in memory
+```
+
+The login page auto-detects which mode is available and shows the appropriate UI (SSO button vs. email/password form with a "Dev mode" badge).
+
+**Important**: `DEV_AUTH_BYPASS` must **never** be enabled in production. The dev-login endpoint returns 404 when the flag is not set.
+
+### Bearer token lifecycle
+
+- Issued by the BFF after successful authentication (either flow)
+- Held in memory only (FR-001 / TR-015) — never written to localStorage, cookies, or disk
+- Sent as `Authorization: Bearer <token>` on every API request
+- 24-hour TTL — after expiry the user is redirected back to the login page
+- Contains the Kratos session cookies needed for proxying GraphQL requests to Alkemio
 
 ## Usage
 
