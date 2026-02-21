@@ -1,5 +1,4 @@
 import type { AcquiredData, RawUser, RawOrganization } from '../services/acquire-service.js';
-import type { RawSpace } from '../services/space-service.js';
 import {
   type GraphNode,
   type GraphEdge,
@@ -9,6 +8,33 @@ import {
   NODE_WEIGHT,
   EDGE_WEIGHT,
 } from '../types/graph.js';
+
+/** Common shape for any space level (L0/L1/L2) used by the transformer */
+interface SpaceLike {
+  id: string;
+  nameID: string;
+  about: {
+    profile: {
+      displayName: string;
+      tagline?: string;
+      url: string;
+      location?: {
+        country?: string;
+        city?: string;
+        geoLocation: { latitude?: number; longitude?: number };
+      };
+    };
+  };
+  community: {
+    roleSet: {
+      memberUsers: Array<{ id: string }>;
+      memberOrganizations: Array<{ id: string }>;
+      leadOrganizations: Array<{ id: string }>;
+      leadUsers: Array<{ id: string }>;
+    };
+  };
+  subspaces?: SpaceLike[];
+}
 
 export interface TransformResult {
   nodes: GraphNode[];
@@ -60,7 +86,7 @@ export function transformToGraph(data: AcquiredData): TransformResult {
 }
 
 function addSpaceNode(
-  space: RawSpace,
+  space: SpaceLike,
   type: NodeType,
   scopeGroups: string[],
   nodes: GraphNode[],
@@ -103,7 +129,7 @@ function addSpaceNode(
 }
 
 function addContributorEdges(
-  space: RawSpace,
+  space: SpaceLike,
   scopeGroup: string,
   data: AcquiredData,
   nodes: GraphNode[],
@@ -204,7 +230,7 @@ function ensureOrgNode(
 }
 
 function extractLocation(
-  loc?: { country?: string; city?: string; geoLocation?: { latitude: number; longitude: number } },
+  loc?: { country?: string; city?: string; geoLocation?: { latitude?: number; longitude?: number } },
 ): GraphLocation | null {
   if (!loc) return null;
   if (!loc.country && !loc.city && !loc.geoLocation) return null;

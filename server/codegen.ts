@@ -1,4 +1,7 @@
 import { CodegenConfig } from '@graphql-codegen/cli';
+import dotenv from 'dotenv';
+
+dotenv.config();
 
 const config: CodegenConfig = {
   schema: process.env.ALKEMIO_GRAPHQL_ENDPOINT || 'http://localhost:3000/graphql',
