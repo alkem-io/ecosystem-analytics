@@ -1,0 +1,23 @@
+query organizationByID($id: UUID!) {
+  lookup {
+    organization(ID: $id) {
+      id
+      nameID
+      profile {
+        displayName
+        avatar: visual(type: AVATAR) {
+          uri
+        }
+        location {
+          country
+          city
+          geoLocation {
+            latitude
+            longitude
+          }
+        }
+        url
+      }
+    }
+  }
+}

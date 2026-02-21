@@ -1,0 +1,17 @@
+fragment communityRolesFragment on Community {
+  id
+  roleSet {
+    memberUsers: usersInRole(role: MEMBER) {
+      id
+    }
+    memberOrganizations: organizationsInRole(role: MEMBER) {
+      id
+    }
+    leadOrganizations: organizationsInRole(role: LEAD) {
+      id
+    }
+    leadUsers: usersInRole(role: LEAD) {
+      id
+    }
+  }
+}

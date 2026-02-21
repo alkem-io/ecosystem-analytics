@@ -1,0 +1,80 @@
+/* Design tokens from the Ecosystem Analytics design brief */
+/* Source of truth: specs/001-ecosystem-analytics/design-brief-figma-make.md */
+
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+
+:root {
+  /* Typography */
+  --font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+
+  /* Colors — Base */
+  --background: #ffffff;
+  --foreground: #0a0a0a;
+  --primary: #2563eb;
+  --primary-hover: #1d4ed8;
+  --primary-foreground: #ffffff;
+
+  /* Colors — Text */
+  --text-primary: #0a0a0a;
+  --text-secondary: #6b7280;
+  --text-muted: #9ca3af;
+  --text-inverse: #ffffff;
+
+  /* Colors — Surface */
+  --surface: #f9fafb;
+  --surface-raised: #ffffff;
+  --border: #e5e7eb;
+  --border-focus: #2563eb;
+
+  /* Colors — Semantic */
+  --success: #16a34a;
+  --warning: #eab308;
+  --error: #dc2626;
+  --info: #2563eb;
+
+  /* Colors — Node types */
+  --node-space-l0: #2563eb;
+  --node-space-l1: #3b82f6;
+  --node-space-l2: #60a5fa;
+  --node-organization: #8b5cf6;
+  --node-user: #6b7280;
+
+  /* Colors — Edge types */
+  --edge-child: #d1d5db;
+  --edge-member: #93c5fd;
+  --edge-lead: #c4b5fd;
+
+  /* Spacing & Layout */
+  --radius: 8px;
+  --radius-sm: 4px;
+  --radius-lg: 12px;
+  --radius-full: 9999px;
+
+  /* Elevation */
+  --elevation-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+  --elevation-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.1);
+  --elevation-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -4px rgba(0, 0, 0, 0.1);
+
+  /* Layout constants (from design brief) */
+  --top-bar-height: 48px;
+  --left-panel-width: 240px;
+  --details-drawer-width: 320px;
+  --space-selector-card-height: 600px;
+}
+
+/* Base reset */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: var(--font-family);
+  color: var(--text-primary);
+  background-color: var(--background);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}

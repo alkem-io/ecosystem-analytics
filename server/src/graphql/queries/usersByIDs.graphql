@@ -1,0 +1,21 @@
+query usersByIDs($ids: [UUID!]!) {
+  users(IDs: $ids) {
+    id
+    nameID
+    profile {
+      displayName
+      avatar: visual(type: AVATAR) {
+        uri
+      }
+      location {
+        country
+        city
+        geoLocation {
+          latitude
+          longitude
+        }
+      }
+      url
+    }
+  }
+}
