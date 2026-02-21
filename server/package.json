@@ -1,6 +1,6 @@
 {
   "name": "ecosystem-analytics-server",
-  "version": "1.0.0",
+  "version": "0.1.0",
   "description": "BFF server for Ecosystem Analytics — proxies auth + GraphQL to Alkemio, manages caching",
   "private": true,
   "type": "module",

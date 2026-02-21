@@ -1,50 +1,88 @@
-# [PROJECT_NAME] Constitution
-<!-- Example: Spec Constitution, TaskFlow Constitution, etc. -->
+<!--
+Sync Impact Report
+- Version change: 0.0.0 → 1.0.0
+- Added principles: I–VI (all new)
+- Added sections: Security Requirements, Development Workflow
+- Removed sections: none (template placeholders replaced)
+- Templates requiring updates: ⚠ pending (plan-template.md, spec-template.md, tasks-template.md — no changes needed at this time, principles align with existing spec)
+- Follow-up TODOs: none
+-->
+
+# Ecosystem Analytics Constitution
 
 ## Core Principles
 
-### [PRINCIPLE_1_NAME]
-<!-- Example: I. Library-First -->
-[PRINCIPLE_1_DESCRIPTION]
-<!-- Example: Every feature starts as a standalone library; Libraries must be self-contained, independently testable, documented; Clear purpose required - no organizational-only libraries -->
+### I. SSO-Only Authentication
 
-### [PRINCIPLE_2_NAME]
-<!-- Example: II. CLI Interface -->
-[PRINCIPLE_2_DESCRIPTION]
-<!-- Example: Every library exposes functionality via CLI; Text in/out protocol: stdin/args → stdout, errors → stderr; Support JSON + human-readable formats -->
+- Users MUST authenticate exclusively via redirect-based SSO on the Alkemio domain (Ory Kratos browser flow).
+- Credentials MUST NOT be entered in, handled by, or stored by this tool — not in `.env` files, config files, environment variables, local storage, or logs.
+- The BFF proxies the authenticated context (Kratos session cookies) to the Alkemio GraphQL API on behalf of the user.
+- A dev-only bypass (`DEV_AUTH_BYPASS=true`, Kratos API flow) MAY exist for local development where the SSO redirect is not feasible, but it MUST NOT be enabled in production.
+- Bearer tokens MUST be held in frontend memory only and MUST NOT be persisted to any storage mechanism.
 
-### [PRINCIPLE_3_NAME]
-<!-- Example: III. Test-First (NON-NEGOTIABLE) -->
-[PRINCIPLE_3_DESCRIPTION]
-<!-- Example: TDD mandatory: Tests written → User approved → Tests fail → Then implement; Red-Green-Refactor cycle strictly enforced -->
+### II. Typed GraphQL Contract
 
-### [PRINCIPLE_4_NAME]
-<!-- Example: IV. Integration Testing -->
-[PRINCIPLE_4_DESCRIPTION]
-<!-- Example: Focus areas requiring integration tests: New library contract tests, Contract changes, Inter-service communication, Shared schemas -->
+- All GraphQL interactions with the Alkemio API MUST use the codegen-generated typed SDK (`getSdk` from `@graphql-codegen/cli`).
+- Hand-written raw GraphQL query strings MUST NOT appear in service code.
+- `.graphql` files in `src/graphql/queries/` and `src/graphql/fragments/` are the single source of truth for query shapes.
+- `pnpm run codegen` regenerates the TypeScript SDK from the live Alkemio schema; it MUST be re-run whenever `.graphql` files change.
+- The codegen endpoint is configured via `ALKEMIO_GRAPHQL_ENDPOINT` in `server/.env`.
 
-### [PRINCIPLE_5_NAME]
-<!-- Example: V. Observability, VI. Versioning & Breaking Changes, VII. Simplicity -->
-[PRINCIPLE_5_DESCRIPTION]
-<!-- Example: Text I/O ensures debuggability; Structured logging required; Or: MAJOR.MINOR.BUILD format; Or: Start simple, YAGNI principles -->
+### III. BFF Boundary
 
-## [SECTION_2_NAME]
-<!-- Example: Additional Constraints, Security Requirements, Performance Standards, etc. -->
+- The React frontend MUST NOT communicate directly with the Alkemio platform — all data flows through the Express BFF server.
+- The BFF handles: (a) auth redirect/callback or dev-login exchange, (b) GraphQL query relay with Kratos session cookies, (c) per-user per-Space caching, (d) static asset serving in production.
+- This boundary prevents CORS issues, keeps secrets off the client, and avoids unintended production side effects on the Alkemio platform.
 
-[SECTION_2_CONTENT]
-<!-- Example: Technology stack requirements, compliance standards, deployment policies, etc. -->
+### IV. Data Sensitivity
 
-## [SECTION_3_NAME]
-<!-- Example: Development Workflow, Review Process, Quality Gates, etc. -->
+- All Alkemio-derived data (graph datasets, user profiles, organisation profiles, community roles) MUST be treated as sensitive user data.
+- Cache entries MUST be scoped per-user and per-Space; data MUST NOT leak across users.
+- Bearer tokens, session cookies, and Kratos session tokens MUST NOT be logged at any level (including debug).
+- SQL queries MUST use parameterised statements; no string interpolation of user-supplied values.
+- Cache access-control MUST be verified at read time — stale caches MUST NOT re-introduce unauthorised data.
 
-[SECTION_3_CONTENT]
-<!-- Example: Code review requirements, testing gates, deployment approval process, etc. -->
+### V. Graceful Degradation
+
+- The system MUST degrade gracefully when optional data fields are missing (location, avatar, tagline, URLs).
+- No missing optional field SHOULD cause a crash, blank screen, or broken layout.
+- When external assets fail to load (map basemaps, avatars), the UI MUST display a meaningful fallback (e.g., "Map unavailable" text, placeholder icon).
+- Error states MUST be user-friendly with clear messaging and recovery paths (e.g., "Back to Space Selector").
+
+### VI. Design Fidelity
+
+- The UI MUST match the design brief (`specs/001-ecosystem-analytics/design-brief-figma-make.md`), which is the pixel-perfect contract.
+- Theme tokens, typography (Inter), fixed layout constants (panel widths, drawer sizes, top bar height), and progressive loading copy are defined in the design brief.
+- **Conflict rule**: discrepancies in visual design, spacing, typography, or tokens defer to the design brief; discrepancies in feature behaviour, access control, caching, or data schema defer to the spec.
+
+## Security Requirements
+
+- No user credentials in `.env` — only server deployment parameters (Alkemio URLs, port, cache TTL).
+- `DEV_AUTH_BYPASS` MUST NOT be set to `true` in any production or staging deployment.
+- The dev-login endpoint (`POST /api/auth/dev-login`) MUST return 404 when `DEV_AUTH_BYPASS` is not enabled.
+- All SQL uses parameterised queries via better-sqlite3 prepared statements.
+- Cache entries are keyed by `(user_id, space_id)` — every read verifies the requesting user matches the cache owner.
+- The `max_spaces_per_query` limit MUST be enforced server-side to prevent excessive resource consumption.
+- Bearer tokens have a 24-hour TTL; expired tokens MUST be rejected and the user redirected to login.
+
+## Development Workflow
+
+- **Package manager**: pnpm (>= 9). No npm or yarn lock files.
+- **Repository structure**: two separate applications — `server/` (Express BFF) and `frontend/` (React SPA). Shared types live in `server/src/types/` and are imported by the frontend via TypeScript path alias.
+- **TypeScript strict mode**: `tsc --noEmit` MUST pass on both `server/` and `frontend/` before any merge to the main branch.
+- **Codegen workflow**: when `.graphql` query or fragment files are added or modified, run `pnpm run codegen` in `server/` to regenerate the typed SDK. Generated files (`src/graphql/generated/`) MUST be committed.
+- **Frontend tooling**: Vite for dev server and production builds. CSS Modules for component styles. Design tokens as CSS custom properties in `styles/tokens.css`.
+- **Dev servers**: `pnpm run dev` in `server/` (port 4000, tsx watch) and `frontend/` (port 5173, Vite with `/api` proxy to :4000).
+- **Production build**: `pnpm run build` in both packages. The server serves frontend static files from `frontend/dist/` when `NODE_ENV=production`.
 
 ## Governance
-<!-- Example: Constitution supersedes all other practices; Amendments require documentation, approval, migration plan -->
 
-[GOVERNANCE_RULES]
-<!-- Example: All PRs/reviews must verify compliance; Complexity must be justified; Use [GUIDANCE_FILE] for runtime development guidance -->
+- This constitution is the authoritative source for project-wide engineering principles and constraints.
+- All code changes (PRs, reviews) MUST be verified against these principles before merge.
+- Amendments to this constitution require:
+  1. A documented rationale for the change.
+  2. A version bump following semantic versioning (MAJOR for principle removals/redefinitions, MINOR for additions, PATCH for clarifications).
+  3. An updated Sync Impact Report (HTML comment at top of this file).
+- The feature spec (`specs/001-ecosystem-analytics/spec.md`) contains the detailed functional, non-functional, and technical requirements. This constitution captures the overarching principles that govern how those requirements are implemented.
 
-**Version**: [CONSTITUTION_VERSION] | **Ratified**: [RATIFICATION_DATE] | **Last Amended**: [LAST_AMENDED_DATE]
-<!-- Example: Version: 2.1.1 | Ratified: 2025-06-13 | Last Amended: 2025-07-16 -->
+**Version**: 1.0.0 | **Ratified**: 2026-02-21 | **Last Amended**: 2026-02-21

@@ -1,6 +1,6 @@
 {
   "name": "ecosystem-analytics-frontend",
-  "version": "1.0.0",
+  "version": "0.1.0",
   "description": "React SPA for Ecosystem Analytics — interactive portfolio network explorer",
   "private": true,
   "type": "module",
