@@ -139,7 +139,7 @@ export default function LoginPage({ onLogin }: Props) {
         </div>
 
         <div className={styles.footer}>
-          <span className={styles.version}>v0.1.0</span>
+          <span className={styles.version}>v{__APP_VERSION__}</span>
         </div>
       </div>
     </div>
