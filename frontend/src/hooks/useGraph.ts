@@ -8,7 +8,7 @@ export function useGraph() {
   const [progress, setProgress] = useState<GraphProgress | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const pollRef = useRef<ReturnType<typeof setInterval>>();
+  const pollRef = useRef<ReturnType<typeof setInterval>>(null);
 
   const generate = useCallback(async (spaceIds: string[], forceRefresh = false) => {
     setLoading(true);

@@ -42,7 +42,7 @@ export default function ForceGraph({
   highlightedNodeIds = [],
 }: Props) {
   const svgRef = useRef<SVGSVGElement>(null);
-  const simulationRef = useRef<d3.Simulation<SimNode, SimLink>>();
+  const simulationRef = useRef<d3.Simulation<SimNode, SimLink>>(null);
 
   const renderGraph = useCallback(() => {
     const svg = d3.select(svgRef.current);

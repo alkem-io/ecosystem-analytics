@@ -8,15 +8,18 @@ import { loadConfig } from '../config.js';
  * to the Alkemio login page. After successful auth, Kratos redirects
  * back to the callback URL.
  *
- * Reference: alkemio/client-web Kratos browser-flow integration.
+ * FR-001: Redirect-based SSO — credentials are NEVER entered in this tool.
+ *
+ * In production the tool is deployed on the same primary domain as Alkemio,
+ * so the return_to URL is whitelisted automatically. For local development
+ * the Alkemio Kratos instance must whitelist the PUBLIC_URL, or
+ * DEV_AUTH_BYPASS=true can be set to skip SSO (see /api/auth/dev-login).
  */
 export async function loginHandler(_req: Request, res: Response) {
   const config = loadConfig();
   const kratosUrl = config.alkemioKratosPublicUrl;
 
-  // Initiate a Kratos browser login flow
-  // The return_to URL brings the user back to our callback endpoint
-  const callbackUrl = `${config.alkemioServerUrl}/api/auth/callback`;
+  const callbackUrl = `${config.publicUrl}/api/auth/callback`;
   const loginUrl = `${kratosUrl}/self-service/login/browser?return_to=${encodeURIComponent(callbackUrl)}`;
 
   res.redirect(loginUrl);

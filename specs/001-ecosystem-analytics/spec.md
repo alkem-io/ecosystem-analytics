@@ -254,7 +254,7 @@ As a **Portfolio Owner**, I want to discover related entities from what I click 
 
 ### Functional Requirements
 
-- **FR-001**: System MUST authenticate users using **Alkemio identities** via a **redirect to the main Alkemio site** and pick up the authenticated context on return. Credentials MUST NOT be supplied via `.env` files, config files, environment variables, or any other mechanism within this tool.
+- **FR-001**: System MUST authenticate users using **Alkemio identities** via a **redirect to the main Alkemio site** (SSO / OIDC) and pick up the authenticated context on return. Credentials MUST NOT be entered in this tool's UI, nor supplied via `.env` files, config files, environment variables, or any other mechanism. The user MUST only ever enter credentials on the Alkemio domain. A dev-only bypass (`DEV_AUTH_BYPASS`) MAY be provided for local development where the SSO redirect is not feasible, but it MUST NOT be enabled in production.
 - **FR-002**: System MUST only allow users to select Spaces from the set of **L0 Spaces where they are a member**.
 - **FR-003**: System MUST allow users to select one or more L0 Spaces and generate/load a graph dataset for the selection.
 - **FR-003a**: The maximum number of Spaces that can be queried MUST be configurable on the server.
