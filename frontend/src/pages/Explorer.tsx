@@ -9,6 +9,7 @@ import ControlPanel from '../components/panels/ControlPanel.js';
 import DetailsDrawer from '../components/panels/DetailsDrawer.js';
 import MetricsBar from '../components/panels/MetricsBar.js';
 import type { MapRegion } from '../components/map/MapOverlay.js';
+import HoverCard from '../components/graph/HoverCard.js';
 import type { GraphNode } from '@server/types/graph.js';
 import { api } from '../services/api.js';
 import styles from './Explorer.module.css';
@@ -32,6 +33,7 @@ export default function Explorer({ onLogout }: ExplorerProps) {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedNode, setSelectedNode] = useState<GraphNode | null>(null);
   const [hoveredNode, setHoveredNode] = useState<GraphNode | null>(null);
+  const [hoverPos, setHoverPos] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
   const [highlightedNodeIds, setHighlightedNodeIds] = useState<string[]>([]);
   const [mapRegion, setMapRegion] = useState<MapRegion>('europe');
   const [showMap, setShowMap] = useState(false);
@@ -92,8 +94,9 @@ export default function Explorer({ onLogout }: ExplorerProps) {
     setHighlightedNodeIds([]);
   }, []);
 
-  const handleNodeHover = useCallback((node: GraphNode | null) => {
+  const handleNodeHover = useCallback((node: GraphNode | null, position?: { x: number; y: number }) => {
     setHoveredNode(node);
+    if (position) setHoverPos(position);
   }, []);
 
   const handleExport = useCallback(async () => {
@@ -185,14 +188,20 @@ export default function Explorer({ onLogout }: ExplorerProps) {
           )}
           {loading && <LoadingOverlay progress={progress} />}
         </div>
-        {(selectedNode || hoveredNode) && dataset && (
+        {selectedNode && dataset && (
           <DetailsDrawer
-            node={(selectedNode || hoveredNode)!}
+            node={selectedNode}
             dataset={dataset}
             onClose={() => { setSelectedNode(null); setHoveredNode(null); }}
             onExpandSpace={handleExpandSpace}
-            isPreview={!selectedNode && !!hoveredNode}
+            onNodeSelect={handleNodeClick}
+            showPeople={showPeople}
+            showOrganizations={showOrganizations}
+            showSpaces={showSpaces}
           />
+        )}
+        {hoveredNode && !selectedNode && dataset && (
+          <HoverCard node={hoveredNode} dataset={dataset} x={hoverPos.x} y={hoverPos.y} />
         )}
       </div>
       {dataset && <MetricsBar metrics={dataset.metrics} />}

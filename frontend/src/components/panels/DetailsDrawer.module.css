@@ -196,3 +196,101 @@
 .addBtn:hover {
   background: #eff6ff;
 }
+
+/* Direct Connections */
+.connectionsSection {
+  border-top: 1px solid var(--border);
+  padding-top: 16px;
+}
+
+.connectionsHeading {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-muted);
+  margin: 0 0 10px;
+}
+
+.connectionsList {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.connectionItem {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 8px;
+  border-radius: var(--radius-sm);
+  transition: background 0.15s;
+  cursor: pointer;
+}
+
+.connectionItem:hover {
+  background: rgba(0, 0, 0, 0.03);
+}
+
+.connectionLeft {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.connectionAvatar {
+  width: 28px;
+  height: 28px;
+  border-radius: var(--radius-full);
+  object-fit: cover;
+  flex-shrink: 0;
+}
+
+.connectionAvatarPlaceholder {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #e5e7eb;
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.connectionName {
+  font-size: 13px;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.edgeBadge {
+  font-size: 10px;
+  font-weight: 500;
+  text-transform: lowercase;
+  padding: 2px 8px;
+  border-radius: var(--radius-full);
+  flex-shrink: 0;
+  background: #f3f4f6;
+  color: var(--text-secondary);
+  border: 1px solid #e5e7eb;
+}
+
+.edgeBadge_child {
+  background: #eff6ff;
+  color: #2563eb;
+  border-color: #bfdbfe;
+}
+
+.edgeBadge_member {
+  background: #f3f4f6;
+  color: #6b7280;
+  border-color: #e5e7eb;
+}
+
+.edgeBadge_lead {
+  background: #fef9c3;
+  color: #a16207;
+  border-color: #fde68a;
+}
