@@ -1,8 +1,11 @@
 import { createAlkemioSdk } from '../graphql/client.js';
 import { getLogger } from '../logging/logger.js';
+import { getCacheEntry, setCacheEntry } from '../cache/cache-service.js';
 import type { Sdk } from '../graphql/generated/graphql.js';
 import type { SpaceByNameQuery } from '../graphql/generated/alkemio-schema.js';
 import type { SpaceSelectionItem } from '../types/api.js';
+
+const SPACES_CACHE_KEY = '__spaces__';
 
 /**
  * Fetches the user's L0 Space memberships from Alkemio.
@@ -31,11 +34,31 @@ export async function listUserSpaces(bearerToken: string): Promise<SpaceSelectio
   });
 
   // Lead spaces first, then alphabetical by name
-  return spaces.sort((a, b) => {
+  const sorted = spaces.sort((a, b) => {
     if (a.role === 'LEAD' && b.role !== 'LEAD') return -1;
     if (a.role !== 'LEAD' && b.role === 'LEAD') return 1;
     return a.displayName.localeCompare(b.displayName);
   });
+
+  // Update server-side cache
+  if (currentUserId) {
+    setCacheEntry(currentUserId, SPACES_CACHE_KEY, JSON.stringify(sorted));
+  }
+
+  return sorted;
+}
+
+/**
+ * Returns cached spaces list if available, otherwise fetches fresh.
+ */
+export async function listUserSpacesCached(userId: string, bearerToken: string): Promise<SpaceSelectionItem[]> {
+  const cached = getCacheEntry(userId, SPACES_CACHE_KEY);
+  if (cached) {
+    getLogger().info(`Returning cached spaces for user ${userId}`, { context: 'Spaces' });
+    return JSON.parse(cached.datasetJson);
+  }
+
+  return listUserSpaces(bearerToken);
 }
 
 /**

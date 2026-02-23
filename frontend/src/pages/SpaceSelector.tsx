@@ -7,8 +7,12 @@ import styles from './SpaceSelector.module.css';
  * Screen B — Space Selector
  * Design reference: design-brief-figma-make.md Screen B
  */
-export default function SpaceSelector() {
-  const { spaces, loading, error } = useSpaces();
+interface SpaceSelectorProps {
+  onLogout: () => void;
+}
+
+export default function SpaceSelector({ onLogout }: SpaceSelectorProps) {
+  const { spaces, loading, error, reload } = useSpaces();
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [search, setSearch] = useState('');
   const navigate = useNavigate();
@@ -61,7 +65,10 @@ export default function SpaceSelector() {
     <div className={styles.container}>
       <div className={styles.card}>
         <div className={styles.header}>
-          <h1 className={styles.title}>Select Top-Level Spaces</h1>
+          <div className={styles.headerRow}>
+            <h1 className={styles.title}>Select Top-Level Spaces</h1>
+            <button className={styles.logoutBtn} onClick={onLogout}>Logout</button>
+          </div>
           <p className={styles.description}>
             Choose the L0 spaces you want to include in your network graph.
           </p>
@@ -83,6 +90,9 @@ export default function SpaceSelector() {
           </button>
           <button className={styles.actionBtn} onClick={clearAll}>
             Clear
+          </button>
+          <button className={styles.actionBtn} onClick={reload} title="Refresh spaces list">
+            &#x21bb; Refresh
           </button>
           <span className={styles.accessNote}>
             Showing only spaces where you have Member or Lead access.

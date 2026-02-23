@@ -1,17 +1,22 @@
 import { Router, Request, Response } from 'express';
 import { authMiddleware } from '../auth/middleware.js';
-import { listUserSpaces, findRelatedSpaces } from '../services/space-service.js';
+import { resolveUser } from '../auth/resolve-user.js';
+import { listUserSpaces, listUserSpacesCached, findRelatedSpaces } from '../services/space-service.js';
 import { getLogger } from '../logging/logger.js';
 
 const logger = getLogger();
 
 export const spacesRouter = Router();
 spacesRouter.use(authMiddleware);
+spacesRouter.use(resolveUser);
 
 // GET /api/spaces — List user's L0 Spaces
 spacesRouter.get('/', async (req: Request, res: Response) => {
   try {
-    const spaces = await listUserSpaces(req.auth!.bearerToken);
+    const refresh = req.query.refresh === 'true';
+    const spaces = refresh
+      ? await listUserSpaces(req.auth!.bearerToken)
+      : await listUserSpacesCached(req.auth!.userId!, req.auth!.bearerToken);
     res.json(spaces);
   } catch (err) {
     logger.error(`Failed to list spaces: ${(err as Error).message}`, { context: 'Spaces' });

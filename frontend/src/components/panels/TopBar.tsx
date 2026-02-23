@@ -9,9 +9,11 @@ interface Props {
   onRefresh: () => void;
   refreshing: boolean;
   onExport?: () => void;
+  onLogout?: () => void;
+  children?: React.ReactNode;
 }
 
-export default function TopBar({ searchQuery, onSearchChange, lastSync, onRefresh, refreshing, onExport }: Props) {
+export default function TopBar({ searchQuery, onSearchChange, lastSync, onRefresh, refreshing, onExport, onLogout, children }: Props) {
   const navigate = useNavigate();
 
   const syncTime = lastSync
@@ -28,6 +30,7 @@ export default function TopBar({ searchQuery, onSearchChange, lastSync, onRefres
         <span className={styles.breadcrumb}>Ecosystem Analytics</span>
         <span className={styles.separator}>&rsaquo;</span>
         <span className={styles.breadcrumb}>Portfolio Network</span>
+        {children}
       </div>
 
       <div className={styles.right}>
@@ -46,6 +49,11 @@ export default function TopBar({ searchQuery, onSearchChange, lastSync, onRefres
           </button>
         )}
         {syncTime && <span className={styles.syncTime}>Last sync {syncTime}</span>}
+        {onLogout && (
+          <button className={styles.logoutBtn} onClick={onLogout} aria-label="Log out">
+            Logout
+          </button>
+        )}
       </div>
     </div>
   );

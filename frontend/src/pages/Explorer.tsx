@@ -1,6 +1,7 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useGraph } from '../hooks/useGraph.js';
+import { useSpaces } from '../hooks/useSpaces.js';
 import ForceGraph from '../components/graph/ForceGraph.js';
 import LoadingOverlay from '../components/graph/LoadingOverlay.js';
 import TopBar from '../components/panels/TopBar.js';
@@ -18,7 +19,11 @@ import styles from './Explorer.module.css';
  * Screen C — Graph Explorer
  * Design reference: design-brief-figma-make.md Screen C
  */
-export default function Explorer() {
+interface ExplorerProps {
+  onLogout: () => void;
+}
+
+export default function Explorer({ onLogout }: ExplorerProps) {
   const location = useLocation();
   const navigate = useNavigate();
   const { dataset, progress, loading, error, generate } = useGraph();
@@ -45,6 +50,12 @@ export default function Explorer() {
   }, []); // Run once on mount
 
   const [activeSpaceIds, setActiveSpaceIds] = useState<string[]>(spaceIds || []);
+  const { spaces } = useSpaces();
+
+  const availableSpaces = useMemo(
+    () => spaces.filter((s) => !activeSpaceIds.includes(s.nameId)),
+    [spaces, activeSpaceIds],
+  );
 
   const handleRefresh = useCallback(() => {
     if (activeSpaceIds.length > 0) generate(activeSpaceIds, true);
@@ -101,7 +112,23 @@ export default function Explorer() {
         onRefresh={handleRefresh}
         refreshing={loading}
         onExport={dataset ? handleExport : undefined}
-      />
+        onLogout={onLogout}
+      >
+        {availableSpaces.length > 0 && (
+          <select
+            className={styles.addSpaceSelect}
+            value=""
+            onChange={(e) => {
+              if (e.target.value) handleExpandSpace(e.target.value);
+            }}
+          >
+            <option value="" disabled>+ Add Space</option>
+            {availableSpaces.map((s) => (
+              <option key={s.nameId} value={s.nameId}>{s.displayName}</option>
+            ))}
+          </select>
+        )}
+      </TopBar>
       <div className={styles.main}>
         {dataset && (
           <ControlPanel
