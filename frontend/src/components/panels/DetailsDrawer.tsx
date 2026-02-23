@@ -125,12 +125,20 @@ export default function DetailsDrawer({ node, dataset, onClose, onExpandSpace, i
       {/* Full details only shown when not in preview (hover) mode */}
       {!isPreview && (
         <>
-          {node.location && (node.location.city || node.location.country) && (
-            <div className={styles.detail}>
-              <span className={styles.detailLabel}>Location</span>
-              <span>{[node.location.city, node.location.country].filter(Boolean).join(', ') || '—'}</span>
-            </div>
-          )}
+          <div className={styles.detail}>
+            <span className={styles.detailLabel}>Location</span>
+            <span>
+              {node.location && (node.location.city || node.location.country)
+                ? <>
+                    {[node.location.city, node.location.country].filter(Boolean).join(', ')}
+                    {node.location.latitude != null && node.location.longitude != null && (
+                      <> ({node.location.latitude.toFixed(4)}, {node.location.longitude.toFixed(4)})</>
+                    )}
+                  </>
+                : <em>&lt;not set&gt;</em>
+              }
+            </span>
+          </div>
 
           {node.url && (
             <a href={node.url} target="_blank" rel="noopener noreferrer" className={styles.link}>
