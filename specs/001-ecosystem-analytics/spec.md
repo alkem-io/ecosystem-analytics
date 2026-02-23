@@ -58,15 +58,15 @@ The tool follows a linear pipeline. Almost everything in the Figma prototype cov
 └─────────────────────────────────────────────────────────────────────┘
 ```
 
-### Phase 1 — Authenticate (Direct with Alkemio via Popup)
+### Phase 1 — Authenticate (Username/Password via BFF)
 
 | Aspect | Detail |
 | --- | --- |
-| **What the user does** | Opens the tool and clicks “Sign in with Alkemio”. A popup window opens showing the Alkemio/Kratos login page. The user authenticates (password or OIDC provider) in the popup. The popup closes and the tool is ready. |
-| **What the system does** | The **frontend** opens a popup to the Alkemio Kratos login page (browser flow). After successful authentication, the popup obtains a tokenized session (JWT) via Kratos's `/sessions/whoami?tokenize_as=...` endpoint, then sends it to the parent window via `postMessage`. The frontend stores the JWT in memory and sends it as a `Bearer` token to the BFF with every API request. The BFF forwards it to the Alkemio GraphQL API. |
-| **UI screen** | Identity Gate (design brief Screen A) with a “Sign in with Alkemio” action. |
-| **Success condition** | User is authenticated; the frontend holds a valid JWT in memory. |
-| **Failure path** | Auth error or popup blocked → stay on the identity gate with an error message; no data is fetched. |
+| **What the user does** | Opens the tool and enters their Alkemio email and password. |
+| **What the system does** | The frontend sends credentials to the BFF (`POST /api/auth/login`). The BFF authenticates against Alkemio's Kratos using the non-interactive API flow (`/self-service/login/api`), obtains a `session_token`, and returns it to the frontend. The frontend stores the token in memory and sends it as a `Bearer` token to the BFF with every subsequent API request. The BFF forwards the token to the Alkemio GraphQL API. |
+| **UI screen** | Identity Gate (design brief Screen A) with email/password form and “Sign in with Alkemio” button. |
+| **Success condition** | User is authenticated; the frontend holds a valid session token in memory. |
+| **Failure path** | Auth error → stay on the identity gate with an error message; no data is fetched. |
 
 ### Phase 2 — Select Spaces (Acquire — user-facing part)
 
@@ -102,7 +102,7 @@ The tool follows a linear pipeline. Almost everything in the Figma prototype cov
 
 | Pipeline stage | User sees | System work |
 | --- | --- | --- |
-| Auth | Identity gate (popup to Alkemio) | Frontend-direct Alkemio auth via popup (Kratos/OIDC), JWT held in memory |
+| Auth | Identity gate (email/password form) | BFF authenticates with Kratos API flow, session token held in memory |
 | Acquire | Space selector + first part of loading overlay ("Acquiring Data") | GraphQL queries scoped to selected Spaces; cache check |
 | Transform | Loading overlay ("Clustering Entities") | Raw data → graph dataset conversion, clustering prep |
 | Display | Loading overlay final step ("Rendering Graph") then full explorer | Force graph layout, rendering, interaction handling |
@@ -113,21 +113,20 @@ The tool follows a linear pipeline. Almost everything in the Figma prototype cov
 
 This section captures the concrete integration requirements and the user's requirement for a **redirect-based Alkemio login**.
 
-### 1. Authentication — Frontend-Direct Login (No File-Based Credentials)
+### 1. Authentication — Username/Password via Kratos API Flow
 
-A reference implementation stores credentials in a `.env` file (`AUTH_ADMIN_EMAIL`, `AUTH_ADMIN_PASSWORD`) and authenticates server-side via `@alkemio/client-lib`. **This model is explicitly rejected for the new tool.**
+A reference implementation (`analytics-playground`) authenticates using `@alkemio/client-lib`, which sends credentials to Kratos's non-interactive API flow and receives a `session_token`. This tool follows the same pattern.
 
 | Requirement | Detail |
 | --- | --- |
-| **Frontend-direct auth** | The **frontend** MUST authenticate the user directly with the Alkemio platform (Kratos/OIDC browser flow) via a **popup window**. The BFF server is NOT involved in the auth handshake. |
-| **Popup-based login** | The tool MUST present an identity gate (Screen A). Clicking "Sign in with Alkemio" opens a popup to the Alkemio Kratos login page. After successful authentication, the popup obtains a tokenized session JWT via Kratos's session tokenization endpoint and sends it to the parent window via `postMessage`. |
-| **No `.env` / config-file credentials** | Credentials MUST NOT be read from environment variables, `.env` files, config files, or any mechanism outside the Alkemio login flow. `.env` is permitted only for server deployment parameters that do not include user credentials. |
-| **Credential handling** | User credentials MUST NOT be handled or stored by this tool; they are entered only on Alkemio and never persisted to disk, local storage, or logs within this project. |
-| **Bearer token acquisition** | On successful auth, the popup obtains a tokenized JWT from Kratos's `/sessions/whoami?tokenize_as=...` endpoint and sends it to the parent window. The frontend holds this JWT in memory for the session. |
-| **Token forwarding to BFF** | The React frontend sends the Alkemio-issued JWT with every request to the BFF server. The BFF forwards this token as an `Authorization` header to the Alkemio GraphQL API. The BFF does NOT issue its own tokens. |
-| **Token lifecycle** | The system MUST handle token expiry gracefully (re-prompt login or refresh if supported). |
-| **Auth library reference** | The legacy project uses `@alkemio/client-lib` (`AlkemioClient.enableAuthentication()` → `apiToken`). The new tool MAY use the same library or implement equivalent browser-compatible auth against the same Alkemio auth service. |
-| **Auth failure UX** | On failure, the identity gate shows an inline error message and offers a retry. No data is fetched until auth succeeds. |
+| **Login form** | The tool MUST present an identity gate (Screen A) with an email/password form. Credentials are sent to the BFF (`POST /api/auth/login`), which authenticates against Alkemio's Kratos using the API flow (`/self-service/login/api`). |
+| **No `.env` / config-file credentials** | User credentials MUST NOT be read from environment variables, `.env` files, or config files. `.env` is permitted only for server deployment parameters (Alkemio URLs, Kratos endpoint, etc.) that do not include user credentials. |
+| **Credential handling** | User credentials are sent from the frontend to the BFF for the initial Kratos authentication exchange only. The BFF MUST NOT store or log credentials. Credentials are never persisted to disk, local storage, or logs. |
+| **Session token acquisition** | On successful Kratos authentication, the BFF returns the Kratos `session_token` to the frontend. The frontend holds this token in memory for the session. |
+| **Token forwarding** | The React frontend sends the Kratos session token as `Authorization: Bearer` with every request to the BFF. The BFF forwards this token to the Alkemio GraphQL API. |
+| **Token lifecycle** | The system MUST handle token expiry gracefully (re-prompt login on 401). |
+| **Auth library reference** | The reference project uses `@alkemio/client-lib` (`AlkemioClient.enableAuthentication()` → `apiToken`). This tool implements the same Kratos API flow directly. |
+| **Auth failure UX** | On failure, the identity gate shows an inline error message and the user can retry. No data is fetched until auth succeeds. |
 
 ### 2. Data Acquisition — GraphQL Queries (Acquire Phase)
 
@@ -246,9 +245,9 @@ As a **Portfolio Owner**, I want to discover related entities from what I click 
 - Map overlay is valuable but **secondary**; the tool must remain usable when most entities have missing location data.
 - Caching is initially **per-user** and stored server-side in a persistent store; datasets are cached per Space to enable partial reuse across selections; later iterations may introduce shared caching for identical datasets.
 - This tool is a **standalone experience** (separate from the main Alkemio UI), but it depends on Alkemio as the source of truth for memberships and entity metadata.
-- The repository is set up for **two projects**: a server (BFF) that relays GraphQL calls to Alkemio (forwarding the frontend-provided bearer token) and manages caching, and a React SPA that authenticates directly with Alkemio and uses the BFF for all data operations.
-- The frontend must be able to reach the Alkemio auth endpoints (Kratos/OIDC) directly from the browser. Deployment must allow this (same domain, subdomain, or CORS-enabled).
-- **Infrastructure dependency (Kratos session tokenization)**: The popup auth flow requires Kratos to be configured with session tokenization so that `/sessions/whoami?tokenize_as=<template>` returns a signed JWT. This requires: (a) a JWKS key file for signing, (b) a JsonNet claims mapper that embeds the Kratos `Session` object in the JWT, (c) a tokenizer template entry in `kratos.yml` under `session.whoami.tokenizer.templates`. The Alkemio server already has `getSessionFromJwt()` infrastructure to consume such JWTs. Kratos v1.x supports this feature. **If tokenization is not available**, an alternative is a thin session-bridge page hosted on the Alkemio domain that calls `toSession()` with the session cookie and relays identity info via `postMessage` — but this is less secure (unsigned data, no short-lived TTL).
+- The repository is set up for **two projects**: a server (BFF) that handles authentication (Kratos API flow), relays GraphQL calls to Alkemio, and manages caching; and a React SPA that communicates exclusively with the BFF.
+- The BFF must be able to reach the Alkemio Kratos public endpoint and the Alkemio GraphQL endpoint.
+- **Future enhancement**: If redirect-based SSO (no credential entry) is desired in future, Kratos session tokenization would be needed. See `KRATOS-TOKENIZATION.md` for details. The current approach uses Kratos API flow (username/password) which works without additional infrastructure configuration.
 
 ## Requirements *(mandatory)*
 
@@ -259,7 +258,7 @@ As a **Portfolio Owner**, I want to discover related entities from what I click 
 
 ### Functional Requirements
 
-- **FR-001**: The **frontend** MUST authenticate users directly with the **Alkemio platform** via a redirect-based browser flow (Kratos / OIDC). The BFF server MUST NOT mediate the authentication handshake. The obtained bearer token is held in frontend memory and forwarded to the BFF, which relays it to the Alkemio GraphQL API. Credentials MUST NOT be entered in this tool's UI, nor supplied via `.env` files, config files, environment variables, or any other mechanism. The user MUST only ever enter credentials on the Alkemio domain. A dev-only bypass (`DEV_AUTH_BYPASS`) MAY be provided for local development where the SSO redirect is not feasible, but it MUST NOT be enabled in production.
+- **FR-001**: System MUST authenticate users using their **Alkemio credentials** (email and password). The frontend presents a login form; credentials are sent to the BFF, which authenticates against Alkemio's Kratos identity service using the non-interactive API flow. The BFF returns a Kratos `session_token` to the frontend, which holds it in memory and sends it as a `Bearer` token with every subsequent BFF request. The BFF forwards this token to the Alkemio GraphQL API. Credentials MUST NOT be stored by this tool — they are used only for the initial Kratos authentication exchange. User credentials MUST NOT be logged at any level.
 - **FR-002**: System MUST only allow users to select Spaces from the set of **L0 Spaces where they are a member**.
 - **FR-003**: System MUST allow users to select one or more L0 Spaces and generate/load a graph dataset for the selection.
 - **FR-003a**: The maximum number of Spaces that can be queried MUST be configurable on the server.
@@ -289,7 +288,7 @@ As a **Portfolio Owner**, I want to discover related entities from what I click 
 - **FR-017**: System MUST provide clear progressive loading states during graph generation (e.g., a modal/overlay indicating acquisition/transformation/rendering steps).
 - **FR-018**: System MUST fetch and display **real data from the Alkemio platform** via its GraphQL API. Mock/fake data from the Figma prototype MUST NOT appear in the production build.
 - **FR-019**: System MUST acquire Space hierarchies, contributor profiles (users and organizations), and community role sets from the Alkemio API using the authenticated user's bearer token, respecting the user's actual membership and access rights.
-- **FR-020**: The React frontend MUST NOT communicate directly with the Alkemio **GraphQL API** for data acquisition or visualisation — all data operations MUST flow through the BFF server. The frontend IS allowed to access **public Alkemio APIs** directly for: (a) authentication (Kratos/OIDC browser flow via popup), (b) platform configuration/discovery endpoints. The frontend MUST NOT issue GraphQL queries against the Alkemio API.
+- **FR-020**: The React frontend MUST NOT communicate directly with the Alkemio **GraphQL API** — all data operations MUST flow through the BFF server. Authentication is also mediated by the BFF (Kratos API flow). The frontend communicates exclusively with the BFF.
 
 ### Non-Functional Requirements
 
@@ -316,7 +315,7 @@ This spec does not mandate the same repo/module split, but it does inherit a few
 #### Backend/API Integration
 
 - **TR-001**: System MUST integrate with Alkemio via GraphQL and support a non-interactive/private GraphQL endpoint where applicable.
-- **TR-002**: The **frontend** MUST authenticate users directly with the Alkemio platform via a redirect-based browser flow (Kratos / OIDC) that yields a bearer token. The frontend holds this token in memory and sends it with every request to the BFF. The **BFF** receives the Alkemio-issued bearer token from the frontend and forwards it as an `Authorization` header to the Alkemio GraphQL API. The BFF does NOT handle login redirects, callbacks, or session cookie exchange — it is a stateless token relay for GraphQL queries. The BFF MUST NOT handle or store user credentials.
+- **TR-002**: The **BFF** MUST authenticate users against Alkemio's Kratos identity service using the non-interactive API flow (`/self-service/login/api`). The frontend sends credentials to `POST /api/auth/login`; the BFF exchanges them for a Kratos `session_token` and returns it to the frontend. The frontend holds this token in memory and sends it as `Authorization: Bearer` with every request. The BFF forwards the token to the Alkemio GraphQL API. The BFF MUST NOT store or log user credentials.
 - **TR-003**: System SHOULD generate typed API clients (or otherwise enforce strict contracts) to reduce schema drift and runtime errors.
 
 #### Data Pipeline & Formats
@@ -340,9 +339,9 @@ This spec does not mandate the same repo/module split, but it does inherit a few
 
 - **TR-011**: System SHOULD expose basic network metrics (e.g., node/edge counts, average degree, density) to aid portfolio-level insight.
 - **TR-012**: System SHOULD support highlighting derived “insights” such as super-connectors, bridge connectors, isolated nodes, and geographic clusters.
-- **TR-013**: System MUST include a **thin BFF (Backend-for-Frontend) server** that: (a) receives the Alkemio-issued bearer token from the frontend and forwards it to the Alkemio GraphQL API, (b) manages per-user per-Space caching, and (c) optionally hosts the SPA static assets. The BFF does NOT handle authentication flows (login, callback, session exchange) — authentication is performed directly by the frontend. The BFF MUST NOT handle or store user credentials.
+- **TR-013**: System MUST include a **thin BFF (Backend-for-Frontend) server** that: (a) authenticates users against Alkemio's Kratos via the non-interactive API flow, (b) forwards the Kratos session token to the Alkemio GraphQL API on behalf of the user, (c) manages per-user per-Space caching, and (d) optionally hosts the SPA static assets. The BFF MUST NOT store or log user credentials.
 - **TR-014**: The repository MUST contain two separate applications: (a) an ecosystem analytics server that interacts with the Alkemio GraphQL API on behalf of the user, including caching/storage, and (b) a React frontend that communicates with the ecosystem analytics server (not directly with Alkemio).
-- **TR-015**: The React frontend MUST obtain a bearer token directly from the Alkemio platform (Kratos/OIDC) and hold it in memory. This same Alkemio-issued token is sent with each request to the BFF, which forwards it to the Alkemio GraphQL API. The token MUST NOT be persisted in storage.
+- **TR-015**: The React frontend MUST hold the Kratos session token in memory and send it as `Authorization: Bearer` with each request to the BFF. The token is obtained from the BFF's login endpoint. The token MUST NOT be persisted in storage (localStorage, sessionStorage, cookies, or disk).
 - **TR-016**: All GraphQL interactions with the Alkemio API MUST use code generated by `@graphql-codegen/cli` (typed SDK via `getSdk`). Hand-written raw GraphQL query strings MUST NOT be used in service code. The codegen configuration (`codegen.ts`) reads `.graphql` files from `src/graphql/queries/` and `src/graphql/fragments/` and generates typed operations and SDK functions.
 
 ### Graph Schema (First Pass)

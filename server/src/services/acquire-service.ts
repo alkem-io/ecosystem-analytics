@@ -1,3 +1,4 @@
+import { getLogger } from '../logging/logger.js';
 import { createAlkemioSdk } from '../graphql/client.js';
 import { fetchSpaceByName, type RawSpace } from './space-service.js';
 import type { UsersByIDsQuery, OrganizationByIdQuery } from '../graphql/generated/alkemio-schema.js';
@@ -24,6 +25,7 @@ export async function acquireSpaces(
   bearerToken: string,
   spaceNameIds: string[],
 ): Promise<AcquiredData> {
+  const logger = getLogger();
   const sdk = createAlkemioSdk(bearerToken);
 
   const spacesL0: AcquiredData['spacesL0'] = [];
@@ -31,13 +33,19 @@ export async function acquireSpaces(
   const orgIds = new Set<string>();
 
   for (const nameId of spaceNameIds) {
+    logger.info(`Acquiring space data: ${nameId}`, { context: 'Acquire' });
     const result = await fetchSpaceByName(sdk, nameId);
     const space = result.lookupByName.space;
-    if (!space) continue;
+    if (!space) {
+      logger.warn(`Space not found: ${nameId}`, { context: 'Acquire' });
+      continue;
+    }
 
     spacesL0.push({ space, nameId });
     collectContributorIds(space, userIds, orgIds);
   }
+
+  logger.info(`Acquired ${spacesL0.length} space(s), found ${userIds.size} users and ${orgIds.size} organizations`, { context: 'Acquire' });
 
   // Batch-fetch user profiles
   const users = new Map<string, RawUser>();
@@ -57,7 +65,7 @@ export async function acquireSpaces(
         organizations.set(id, data.lookup.organization);
       }
     } catch {
-      console.warn(`Failed to fetch organization ${id}, skipping`);
+      getLogger().warn(`Failed to fetch organization ${id}, skipping`, { context: 'Acquire' });
     }
   }
 

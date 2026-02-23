@@ -1,19 +1,17 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { setToken, openAuthPopup } from '../services/auth.js';
+import { setToken } from '../services/auth.js';
 import styles from './LoginPage.module.css';
 
 /**
  * Screen A — Identity Gate
  *
- * Opens a popup to Alkemio's Kratos login page. After successful auth,
- * the popup sends back a JWT via postMessage. The JWT is stored in memory
- * and used as a Bearer token for all BFF requests.
+ * Email/password form that authenticates via the BFF's Kratos API flow.
+ * Credentials are sent to POST /api/auth/login, which authenticates
+ * against Alkemio's Kratos and returns a session token.
  *
  * Design reference: design-brief-figma-make.md Screen A.
  */
-
-const ALKEMIO_URL = import.meta.env.VITE_ALKEMIO_URL || 'https://alkem.io';
 
 interface Props {
   onLogin?: () => void;
@@ -21,20 +19,35 @@ interface Props {
 
 export default function LoginPage({ onLogin }: Props) {
   const navigate = useNavigate();
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const handleLogin = async () => {
+  const handleLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
     setLoading(true);
     setError(null);
 
     try {
-      const token = await openAuthPopup(ALKEMIO_URL);
-      setToken(token);
+      const res = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        setError(data.message || 'Login failed');
+        return;
+      }
+
+      setToken(data.token);
       onLogin?.();
       navigate('/spaces');
-    } catch (err) {
-      setError((err as Error).message);
+    } catch {
+      setError('Unable to reach authentication service');
     } finally {
       setLoading(false);
     }
@@ -51,22 +64,45 @@ export default function LoginPage({ onLogin }: Props) {
         <div className={styles.body}>
           <h2 className={styles.welcome}>Welcome</h2>
           <p className={styles.description}>
-            This is a standalone tool. Your Alkemio account controls access to sensitive data.
+            Sign in with your Alkemio account to explore your portfolio.
           </p>
-
           <p className={styles.security}>
-            You'll only see Spaces and connections you are authorized to access as a Portfolio Owner.
+            Currently only username/password Alkemio identities are supported. SSO/OIDC login (Microsoft, LinkedIn, etc.) is not yet available.
           </p>
 
-          {error && <p className={styles.error}>{error}</p>}
+          <form onSubmit={handleLogin}>
+            <input
+              type="email"
+              className={styles.input}
+              placeholder="Email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              required
+              autoComplete="email"
+              aria-label="Email address"
+            />
 
-          <button
-            className={styles.cta}
-            onClick={handleLogin}
-            disabled={loading}
-          >
-            {loading ? 'Signing in...' : 'Sign in with Alkemio'}
-          </button>
+            <input
+              type="password"
+              className={styles.input}
+              placeholder="Password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              required
+              autoComplete="current-password"
+              aria-label="Password"
+            />
+
+            {error && <p className={styles.error}>{error}</p>}
+
+            <button
+              type="submit"
+              className={styles.cta}
+              disabled={loading}
+            >
+              {loading ? 'Signing in...' : 'Sign in with Alkemio'}
+            </button>
+          </form>
         </div>
 
         <div className={styles.footer}>

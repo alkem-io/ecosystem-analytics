@@ -3,8 +3,11 @@ import { transformToGraph } from '../transform/transformer.js';
 import { computeMetrics } from '../transform/metrics.js';
 import { computeInsights } from '../transform/insights.js';
 import { getCacheEntry, setCacheEntry, invalidateCache } from '../cache/cache-service.js';
+import { getLogger } from '../logging/logger.js';
 import type { GraphDataset, GraphNode, GraphEdge, SpaceCacheInfo } from '../types/graph.js';
 import type { GraphGenerationRequest, GraphProgress } from '../types/api.js';
+
+const logger = getLogger();
 
 // In-memory progress tracking per user
 const progressMap = new Map<string, GraphProgress>();
@@ -20,8 +23,11 @@ export async function generateGraph(
 ): Promise<GraphDataset> {
   const { spaceIds, forceRefresh } = request;
 
+  logger.info(`Graph generation requested for spaces [${spaceIds.join(', ')}] by user ${userId}`, { context: 'Graph' });
+
   // If force refresh, invalidate all cache entries for these spaces
   if (forceRefresh) {
+    logger.info(`Force refresh: invalidating cache for spaces [${spaceIds.join(', ')}]`, { context: 'Graph' });
     invalidateCache(userId, spaceIds);
   }
 
@@ -56,13 +62,16 @@ export async function generateGraph(
     spacesCompleted: spaceIds.length - spacesToFetch.length,
   });
 
+  if (cachedNodes.length > 0) {
+    logger.info(`Loaded ${cachedNodes.length} nodes from cache for ${spaceIds.length - spacesToFetch.length} space(s)`, { context: 'Graph' });
+  }
+
   // Acquire missing spaces
   let freshNodes: GraphNode[] = [];
   let freshEdges: GraphEdge[] = [];
 
   if (spacesToFetch.length > 0) {
-    // For now, we use spaceIds as nameIds (they should be nameIDs)
-    // In production, we'd look up the nameID from the space ID
+    logger.info(`Fetching ${spacesToFetch.length} space(s) from Alkemio: [${spacesToFetch.join(', ')}]`, { context: 'Graph' });
     const acquired = await acquireSpaces(bearerToken, spacesToFetch);
 
     setProgress(userId, {
@@ -75,14 +84,14 @@ export async function generateGraph(
     freshNodes = transformed.nodes;
     freshEdges = transformed.edges;
 
-    // Cache each space's partial dataset
+    // Cache each space's partial dataset (keyed by nameId to match frontend request keys)
     for (const { space, nameId } of acquired.spacesL0) {
       const partialNodes = transformed.nodes.filter((n) => n.scopeGroups.includes(space.id));
       const partialEdges = transformed.edges.filter((e) => e.scopeGroup === space.id);
-      setCacheEntry(userId, space.id, JSON.stringify({ nodes: partialNodes, edges: partialEdges, nameId }));
+      setCacheEntry(userId, nameId, JSON.stringify({ nodes: partialNodes, edges: partialEdges, nameId }));
 
       cacheInfo.push({
-        spaceId: space.id,
+        spaceId: nameId,
         lastUpdated: new Date().toISOString(),
         fromCache: false,
       });
@@ -102,6 +111,8 @@ export async function generateGraph(
     spacesTotal: spaceIds.length,
     spacesCompleted: spaceIds.length,
   });
+
+  logger.info(`Graph generation complete: ${allNodes.length} nodes, ${allEdges.length} edges for user ${userId}`, { context: 'Graph' });
 
   return {
     version: '1.0.0',

@@ -1,4 +1,5 @@
 import { createAlkemioSdk } from '../graphql/client.js';
+import { getLogger } from '../logging/logger.js';
 import type { Sdk } from '../graphql/generated/graphql.js';
 import type { SpaceByNameQuery } from '../graphql/generated/alkemio-schema.js';
 import type { SpaceSelectionItem } from '../types/api.js';
@@ -12,8 +13,9 @@ export async function listUserSpaces(bearerToken: string): Promise<SpaceSelectio
 
   const { data } = await sdk.mySpacesHierarchical();
   const currentUserId = data.me.user?.id;
+  getLogger().info(`Listing spaces for user ${currentUserId} — ${data.me.spaceMembershipsHierarchical.length} space(s) found`, { context: 'Spaces' });
 
-  return data.me.spaceMembershipsHierarchical.map((membership) => {
+  const spaces = data.me.spaceMembershipsHierarchical.map((membership) => {
     const space = membership.space;
     const isLead = currentUserId
       ? space.community.roleSet.leadUsers.some((u) => u.id === currentUserId)
@@ -26,6 +28,13 @@ export async function listUserSpaces(bearerToken: string): Promise<SpaceSelectio
       role: isLead ? 'LEAD' : 'MEMBER',
       visibility: 'PUBLIC',
     } satisfies SpaceSelectionItem;
+  });
+
+  // Lead spaces first, then alphabetical by name
+  return spaces.sort((a, b) => {
+    if (a.role === 'LEAD' && b.role !== 'LEAD') return -1;
+    if (a.role !== 'LEAD' && b.role === 'LEAD') return 1;
+    return a.displayName.localeCompare(b.displayName);
   });
 }
 

@@ -28,12 +28,12 @@ export default function SpaceSelector() {
     });
   };
 
-  const selectAll = () => setSelected(new Set(filteredSpaces.map((s) => s.id)));
+  const selectAll = () => setSelected(new Set(filteredSpaces.map((s) => s.nameId)));
   const clearAll = () => setSelected(new Set());
 
   const handleGenerate = () => {
     if (selected.size === 0) return;
-    // Pass selected space IDs to explorer via URL state
+    // Pass selected space nameIDs to explorer via URL state
     navigate('/explorer', { state: { spaceIds: Array.from(selected) } });
   };
 
@@ -100,8 +100,8 @@ export default function SpaceSelector() {
               <label key={space.id} className={styles.spaceRow}>
                 <input
                   type="checkbox"
-                  checked={selected.has(space.id)}
-                  onChange={() => toggleSpace(space.id)}
+                  checked={selected.has(space.nameId)}
+                  onChange={() => toggleSpace(space.nameId)}
                 />
                 <span className={styles.spaceName}>{space.displayName}</span>
                 {space.role === 'LEAD' && <span className={styles.badge}>Lead</span>}

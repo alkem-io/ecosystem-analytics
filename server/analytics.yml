@@ -1,0 +1,20 @@
+## Ecosystem Analytics — Server Configuration
+## Values use ${ENV_VAR}:default syntax for env var substitution.
+
+alkemio:
+  server_url: ${ALKEMIO_SERVER_URL}:https://alkem.io
+  graphql_endpoint: ${ALKEMIO_GRAPHQL_ENDPOINT}:https://alkem.io/api/private/non-interactive/graphql
+
+server:
+  port: ${PORT}:4000
+
+logging:
+  level: ${LOG_LEVEL}:info
+  console_enabled: ${LOG_CONSOLE_ENABLED}:true
+  json: ${LOG_JSON}:false
+
+cache:
+  ttl_hours: ${CACHE_TTL_HOURS}:24
+
+limits:
+  max_spaces_per_query: ${MAX_SPACES_PER_QUERY}:10
