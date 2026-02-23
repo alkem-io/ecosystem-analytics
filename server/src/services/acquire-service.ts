@@ -21,10 +21,10 @@ export interface AcquiredData {
  * All queries use the codegen-generated SDK (TR-016).
  */
 export async function acquireSpaces(
-  kratosCookies: string,
+  bearerToken: string,
   spaceNameIds: string[],
 ): Promise<AcquiredData> {
-  const sdk = createAlkemioSdk(kratosCookies);
+  const sdk = createAlkemioSdk(bearerToken);
 
   const spacesL0: AcquiredData['spacesL0'] = [];
   const userIds = new Set<string>();

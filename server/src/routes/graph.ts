@@ -1,11 +1,13 @@
 import { Router, Request, Response } from 'express';
 import { authMiddleware } from '../auth/middleware.js';
+import { resolveUser } from '../auth/resolve-user.js';
 import { generateGraph, getProgress } from '../services/graph-service.js';
 import { loadConfig } from '../config.js';
 import type { GraphGenerationRequest } from '../types/api.js';
 
 export const graphRouter = Router();
 graphRouter.use(authMiddleware);
+graphRouter.use(resolveUser);
 
 // POST /api/graph/generate — Generate graph dataset
 graphRouter.post('/generate', async (req: Request, res: Response) => {
@@ -26,7 +28,7 @@ graphRouter.post('/generate', async (req: Request, res: Response) => {
       return;
     }
 
-    const dataset = await generateGraph(req.auth!.userId, req.auth!.kratosCookies, body);
+    const dataset = await generateGraph(req.auth!.userId!, req.auth!.bearerToken, body);
     res.json(dataset);
   } catch (err) {
     console.error('Graph generation failed:', (err as Error).message);
@@ -54,8 +56,7 @@ graphRouter.post('/expand', async (req: Request, res: Response) => {
       return;
     }
 
-    // Generate dataset including the new space
-    const dataset = await generateGraph(req.auth!.userId, req.auth!.kratosCookies, {
+    const dataset = await generateGraph(req.auth!.userId!, req.auth!.bearerToken, {
       spaceIds: allSpaceIds,
     });
     res.json(dataset);
@@ -75,7 +76,7 @@ graphRouter.post('/export', async (req: Request, res: Response) => {
       return;
     }
 
-    const dataset = await generateGraph(req.auth!.userId, req.auth!.kratosCookies, {
+    const dataset = await generateGraph(req.auth!.userId!, req.auth!.bearerToken, {
       spaceIds: body.spaceIds,
     });
 
@@ -91,6 +92,6 @@ graphRouter.post('/export', async (req: Request, res: Response) => {
 
 // GET /api/graph/progress — Check generation progress
 graphRouter.get('/progress', (req: Request, res: Response) => {
-  const progress = getProgress(req.auth!.userId);
+  const progress = getProgress(req.auth!.userId!);
   res.json(progress);
 });

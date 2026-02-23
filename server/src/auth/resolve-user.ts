@@ -1,13 +1,12 @@
-import { Request, Response } from 'express';
+import { Request, Response, NextFunction } from 'express';
 import { createAlkemioSdk } from '../graphql/client.js';
-import type { UserProfile } from '../types/api.js';
 
 /**
- * GET /api/auth/me
- * Queries Alkemio's `me` endpoint using the forwarded bearer token
- * and returns the authenticated user's profile.
+ * Middleware that resolves the authenticated user's ID by calling Alkemio's `me` query.
+ * Must run after authMiddleware. Populates req.auth.userId.
+ * Result is cached on the request object for the duration of the request.
  */
-export async function meHandler(req: Request, res: Response) {
+export async function resolveUser(req: Request, res: Response, next: NextFunction) {
   if (!req.auth?.bearerToken) {
     res.status(401).json({ error: 'UNAUTHORIZED', message: 'Not authenticated' });
     return;
@@ -23,13 +22,9 @@ export async function meHandler(req: Request, res: Response) {
       return;
     }
 
-    const profile: UserProfile = {
-      id: user.id,
-      displayName: user.profile?.displayName ?? 'Unknown',
-      avatarUrl: null,
-    };
-
-    res.json(profile);
+    req.auth.userId = user.id;
+    req.auth.userDisplayName = user.profile?.displayName;
+    next();
   } catch {
     res.status(401).json({ error: 'UNAUTHORIZED', message: 'Invalid or expired token' });
   }
