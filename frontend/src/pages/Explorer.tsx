@@ -8,7 +8,6 @@ import TopBar from '../components/panels/TopBar.js';
 import ControlPanel from '../components/panels/ControlPanel.js';
 import DetailsDrawer from '../components/panels/DetailsDrawer.js';
 import MetricsBar from '../components/panels/MetricsBar.js';
-import MapOverlay from '../components/map/MapOverlay.js';
 import type { MapRegion } from '../components/map/MapOverlay.js';
 import type { ClusterMode } from '../components/graph/clustering.js';
 import type { GraphNode } from '@server/types/graph.js';
@@ -34,8 +33,8 @@ export default function Explorer({ onLogout }: ExplorerProps) {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedNode, setSelectedNode] = useState<GraphNode | null>(null);
   const [highlightedNodeIds, setHighlightedNodeIds] = useState<string[]>([]);
-  const [mapRegion] = useState<MapRegion>('europe');
-  const [showMap] = useState(false);
+  const [mapRegion, setMapRegion] = useState<MapRegion>('europe');
+  const [showMap, setShowMap] = useState(false);
   const canvasRef = useRef<HTMLDivElement>(null);
 
   // Get spaceIds from navigation state
@@ -140,6 +139,10 @@ export default function Explorer({ onLogout }: ExplorerProps) {
             onTogglePeople={() => setShowPeople((p) => !p)}
             onToggleOrganizations={() => setShowOrganizations((p) => !p)}
             onHighlightNodes={setHighlightedNodeIds}
+            showMap={showMap}
+            onToggleMap={() => setShowMap((m) => !m)}
+            mapRegion={mapRegion}
+            onMapRegionChange={setMapRegion}
           />
         )}
         <div className={styles.canvas} ref={canvasRef}>
@@ -153,14 +156,10 @@ export default function Explorer({ onLogout }: ExplorerProps) {
               onNodeClick={handleNodeClick}
               selectedNodeId={selectedNode?.id || null}
               highlightedNodeIds={highlightedNodeIds}
+              showMap={showMap}
+              mapRegion={mapRegion}
             />
           )}
-          <MapOverlay
-            region={mapRegion}
-            width={canvasRef.current?.clientWidth || 800}
-            height={canvasRef.current?.clientHeight || 600}
-            visible={showMap}
-          />
           {loading && <LoadingOverlay progress={progress} />}
         </div>
         {selectedNode && dataset && (
