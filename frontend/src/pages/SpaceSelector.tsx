@@ -13,7 +13,15 @@ interface SpaceSelectorProps {
 
 export default function SpaceSelector({ onLogout }: SpaceSelectorProps) {
   const { spaces, loading, error, reload } = useSpaces();
-  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const SELECTION_KEY = 'alkemio_selected_spaces';
+  const [selected, setSelected] = useState<Set<string>>(() => {
+    try {
+      const saved = localStorage.getItem(SELECTION_KEY);
+      return saved ? new Set(JSON.parse(saved)) : new Set();
+    } catch {
+      return new Set();
+    }
+  });
   const [search, setSearch] = useState('');
   const navigate = useNavigate();
 
@@ -23,17 +31,20 @@ export default function SpaceSelector({ onLogout }: SpaceSelectorProps) {
     return spaces.filter((s) => s.displayName.toLowerCase().includes(q));
   }, [spaces, search]);
 
-  const toggleSpace = (id: string) => {
-    setSelected((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
-    });
+  const updateSelected = (next: Set<string>) => {
+    setSelected(next);
+    localStorage.setItem(SELECTION_KEY, JSON.stringify([...next]));
   };
 
-  const selectAll = () => setSelected(new Set(filteredSpaces.map((s) => s.nameId)));
-  const clearAll = () => setSelected(new Set());
+  const toggleSpace = (id: string) => {
+    const next = new Set(selected);
+    if (next.has(id)) next.delete(id);
+    else next.add(id);
+    updateSelected(next);
+  };
+
+  const selectAll = () => updateSelected(new Set(filteredSpaces.map((s) => s.nameId)));
+  const clearAll = () => updateSelected(new Set());
 
   const handleGenerate = () => {
     if (selected.size === 0) return;
