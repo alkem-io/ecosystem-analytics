@@ -1,7 +1,9 @@
 import { useRef, useEffect, useCallback } from 'react';
 import * as d3 from 'd3';
+import { geoMercator, geoPath } from 'd3-geo';
 import type { GraphDataset, GraphNode, GraphEdge } from '@server/types/graph.js';
 import { computeClusters, type ClusterMode } from './clustering.js';
+import type { MapRegion } from '../map/MapOverlay.js';
 import styles from './ForceGraph.module.css';
 
 const NODE_COLORS: Record<string, string> = {
@@ -10,6 +12,24 @@ const NODE_COLORS: Record<string, string> = {
   SPACE_L2: 'var(--node-space-l2)',
   ORGANIZATION: 'var(--node-organization)',
   USER: 'var(--node-user)',
+};
+
+const MAP_URLS: Record<MapRegion, string> = {
+  world: '/maps/world.geojson',
+  europe: '/maps/europe.geojson',
+  netherlands: '/maps/netherlands.geojson',
+};
+
+const MAP_CENTERS: Record<MapRegion, [number, number]> = {
+  world: [0, 20],
+  europe: [15, 50],
+  netherlands: [5.3, 52.2],
+};
+
+const MAP_SCALES: Record<MapRegion, number> = {
+  world: 120,
+  europe: 600,
+  netherlands: 5000,
 };
 
 interface Props {
@@ -21,6 +41,8 @@ interface Props {
   onNodeClick: (node: GraphNode) => void;
   selectedNodeId: string | null;
   highlightedNodeIds?: string[];
+  showMap?: boolean;
+  mapRegion?: MapRegion;
 }
 
 interface SimNode extends d3.SimulationNodeDatum {
@@ -40,6 +62,8 @@ export default function ForceGraph({
   onNodeClick,
   selectedNodeId,
   highlightedNodeIds = [],
+  showMap = false,
+  mapRegion = 'europe',
 }: Props) {
   const svgRef = useRef<SVGSVGElement>(null);
   const simulationRef = useRef<d3.Simulation<SimNode, SimLink>>(null);
@@ -102,6 +126,46 @@ export default function ForceGraph({
       g.attr('transform', event.transform);
     });
     svg.call(zoom as any);
+
+    // Build projection for geo-pinning
+    const projection = showMap
+      ? geoMercator()
+          .center(MAP_CENTERS[mapRegion])
+          .scale(MAP_SCALES[mapRegion])
+          .translate([width / 2, height / 2])
+      : null;
+
+    // Render map paths inside the zoom group (behind everything)
+    if (showMap && projection) {
+      const mapGroup = g.append('g').attr('class', 'map-layer');
+      const path = geoPath().projection(projection);
+
+      fetch(MAP_URLS[mapRegion])
+        .then((res) => {
+          if (!res.ok) throw new Error('Map not found');
+          return res.json();
+        })
+        .then((geojson) => {
+          mapGroup
+            .selectAll('path')
+            .data(geojson.features || [geojson])
+            .join('path')
+            .attr('d', path as any)
+            .attr('fill', '#e8ecf0')
+            .attr('stroke', '#c8cdd3')
+            .attr('stroke-width', 0.5);
+        })
+        .catch(() => {
+          mapGroup
+            .append('text')
+            .attr('x', width / 2)
+            .attr('y', height / 2)
+            .attr('text-anchor', 'middle')
+            .attr('fill', 'var(--text-muted)')
+            .attr('font-size', 14)
+            .text('Map unavailable');
+        });
+    }
 
     // Draw edges
     const linkSelection = g
@@ -167,6 +231,20 @@ export default function ForceGraph({
       .attr('fill', 'var(--text-secondary)')
       .attr('pointer-events', 'none');
 
+    // Precompute geo target positions for nodes with location data
+    const geoTargets = new Map<string, { x: number; y: number }>();
+    if (showMap && projection) {
+      for (const node of simNodes) {
+        const loc = node.data.location;
+        if (loc && loc.longitude != null && loc.latitude != null) {
+          const projected = projection([loc.longitude, loc.latitude]);
+          if (projected) {
+            geoTargets.set(node.data.id, { x: projected[0], y: projected[1] });
+          }
+        }
+      }
+    }
+
     // Force simulation
     const simulation = d3
       .forceSimulation(simNodes)
@@ -192,16 +270,30 @@ export default function ForceGraph({
             }
           }
         }
-      })
-      .on('tick', () => {
-        linkSelection
-          .attr('x1', (d) => (d.source as SimNode).x || 0)
-          .attr('y1', (d) => (d.source as SimNode).y || 0)
-          .attr('x2', (d) => (d.target as SimNode).x || 0)
-          .attr('y2', (d) => (d.target as SimNode).y || 0);
-
-        nodeSelection.attr('transform', (d) => `translate(${d.x || 0},${d.y || 0})`);
       });
+
+    // Geographic pinning force — pulls nodes with lat/long toward projected positions
+    if (showMap && geoTargets.size > 0) {
+      simulation.force('geo', (alpha: number) => {
+        for (const node of simNodes) {
+          const target = geoTargets.get(node.data.id);
+          if (target) {
+            node.vx = (node.vx || 0) + (target.x - (node.x || 0)) * alpha * 0.3;
+            node.vy = (node.vy || 0) + (target.y - (node.y || 0)) * alpha * 0.3;
+          }
+        }
+      });
+    }
+
+    simulation.on('tick', () => {
+      linkSelection
+        .attr('x1', (d) => (d.source as SimNode).x || 0)
+        .attr('y1', (d) => (d.source as SimNode).y || 0)
+        .attr('x2', (d) => (d.target as SimNode).x || 0)
+        .attr('y2', (d) => (d.target as SimNode).y || 0);
+
+      nodeSelection.attr('transform', (d) => `translate(${d.x || 0},${d.y || 0})`);
+    });
 
     simulationRef.current = simulation;
 
@@ -236,7 +328,7 @@ export default function ForceGraph({
         d.data.sourceId === selectedNodeId || d.data.targetId === selectedNodeId ? 0.8 : 0.05,
       );
     }
-  }, [dataset, clusterMode, showPeople, showOrganizations, searchQuery, selectedNodeId, highlightedNodeIds, onNodeClick]);
+  }, [dataset, clusterMode, showPeople, showOrganizations, searchQuery, selectedNodeId, highlightedNodeIds, onNodeClick, showMap, mapRegion]);
 
   useEffect(() => {
     renderGraph();
