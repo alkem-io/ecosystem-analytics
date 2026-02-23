@@ -45,11 +45,14 @@ export interface GraphNode {
   displayName: string;
   weight: number;
   avatarUrl: string | null;
+  bannerUrl: string | null;
   url: string | null;
   location: GraphLocation | null;
   scopeGroups: string[];
   nameId: string | null;
   tagline: string | null;
+  /** For L1/L2 spaces: the ID of the parent space */
+  parentSpaceId: string | null;
 }
 
 /** An edge in the graph dataset */

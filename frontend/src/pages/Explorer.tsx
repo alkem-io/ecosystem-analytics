@@ -9,7 +9,6 @@ import ControlPanel from '../components/panels/ControlPanel.js';
 import DetailsDrawer from '../components/panels/DetailsDrawer.js';
 import MetricsBar from '../components/panels/MetricsBar.js';
 import type { MapRegion } from '../components/map/MapOverlay.js';
-import type { ClusterMode } from '../components/graph/clustering.js';
 import type { GraphNode } from '@server/types/graph.js';
 import { api } from '../services/api.js';
 import styles from './Explorer.module.css';
@@ -27,11 +26,12 @@ export default function Explorer({ onLogout }: ExplorerProps) {
   const navigate = useNavigate();
   const { dataset, progress, loading, error, generate } = useGraph();
 
-  const [clusterMode, setClusterMode] = useState<ClusterMode>('space');
   const [showPeople, setShowPeople] = useState(true);
   const [showOrganizations, setShowOrganizations] = useState(true);
+  const [showSpaces, setShowSpaces] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedNode, setSelectedNode] = useState<GraphNode | null>(null);
+  const [hoveredNode, setHoveredNode] = useState<GraphNode | null>(null);
   const [highlightedNodeIds, setHighlightedNodeIds] = useState<string[]>([]);
   const [mapRegion, setMapRegion] = useState<MapRegion>('europe');
   const [showMap, setShowMap] = useState(false);
@@ -69,9 +69,31 @@ export default function Explorer({ onLogout }: ExplorerProps) {
     [activeSpaceIds, generate],
   );
 
+  const handleRemoveSpace = useCallback(
+    (spaceNodeId: string) => {
+      // Find the nameId for this L0 node so we can remove it from activeSpaceIds
+      const spaceNode = dataset?.nodes.find((n) => n.id === spaceNodeId);
+      const nameId = spaceNode?.nameId;
+      if (!nameId) return;
+      const updated = activeSpaceIds.filter((id) => id !== nameId);
+      if (updated.length === 0) {
+        navigate('/spaces');
+        return;
+      }
+      setActiveSpaceIds(updated);
+      setSelectedNode(null);
+      generate(updated);
+    },
+    [activeSpaceIds, dataset, generate, navigate],
+  );
+
   const handleNodeClick = useCallback((node: GraphNode) => {
     setSelectedNode((prev) => (prev?.id === node.id ? null : node));
     setHighlightedNodeIds([]);
+  }, []);
+
+  const handleNodeHover = useCallback((node: GraphNode | null) => {
+    setHoveredNode(node);
   }, []);
 
   const handleExport = useCallback(async () => {
@@ -132,28 +154,29 @@ export default function Explorer({ onLogout }: ExplorerProps) {
         {dataset && (
           <ControlPanel
             dataset={dataset}
-            clusterMode={clusterMode}
-            onClusterModeChange={setClusterMode}
             showPeople={showPeople}
             showOrganizations={showOrganizations}
+            showSpaces={showSpaces}
             onTogglePeople={() => setShowPeople((p) => !p)}
             onToggleOrganizations={() => setShowOrganizations((p) => !p)}
-            onHighlightNodes={setHighlightedNodeIds}
+            onToggleSpaces={() => setShowSpaces((p) => !p)}
             showMap={showMap}
             onToggleMap={() => setShowMap((m) => !m)}
             mapRegion={mapRegion}
             onMapRegionChange={setMapRegion}
+            onRemoveSpace={handleRemoveSpace}
           />
         )}
         <div className={styles.canvas} ref={canvasRef}>
           {dataset && (
             <ForceGraph
               dataset={dataset}
-              clusterMode={clusterMode}
               showPeople={showPeople}
               showOrganizations={showOrganizations}
+              showSpaces={showSpaces}
               searchQuery={searchQuery}
               onNodeClick={handleNodeClick}
+              onNodeHover={handleNodeHover}
               selectedNodeId={selectedNode?.id || null}
               highlightedNodeIds={highlightedNodeIds}
               showMap={showMap}
@@ -162,12 +185,13 @@ export default function Explorer({ onLogout }: ExplorerProps) {
           )}
           {loading && <LoadingOverlay progress={progress} />}
         </div>
-        {selectedNode && dataset && (
+        {(selectedNode || hoveredNode) && dataset && (
           <DetailsDrawer
-            node={selectedNode}
+            node={(selectedNode || hoveredNode)!}
             dataset={dataset}
-            onClose={() => setSelectedNode(null)}
+            onClose={() => { setSelectedNode(null); setHoveredNode(null); }}
             onExpandSpace={handleExpandSpace}
+            isPreview={!selectedNode && !!hoveredNode}
           />
         )}
       </div>

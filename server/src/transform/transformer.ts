@@ -23,16 +23,19 @@ interface SpaceLike {
         city?: string;
         geoLocation: { latitude?: number; longitude?: number };
       };
+      avatar?: { uri: string } | null;
+      banner?: { uri: string } | null;
+      bannerWide?: { uri: string } | null;
     };
   };
-  community: {
+  community?: {
     roleSet: {
       memberUsers: Array<{ id: string }>;
       memberOrganizations: Array<{ id: string }>;
       leadOrganizations: Array<{ id: string }>;
       leadUsers: Array<{ id: string }>;
     };
-  };
+  } | null;
   subspaces?: SpaceLike[];
 }
 
@@ -54,18 +57,18 @@ export function transformToGraph(data: AcquiredData): TransformResult {
     const l0ScopeGroup = space.id;
 
     // Add L0 Space node
-    addSpaceNode(space, NodeType.SPACE_L0, [l0ScopeGroup], nodes, nodeIds);
+    addSpaceNode(space, NodeType.SPACE_L0, [l0ScopeGroup], null, nodes, nodeIds);
 
     // Process L1 subspaces
     if (space.subspaces) {
       for (const l1 of space.subspaces) {
-        addSpaceNode(l1, NodeType.SPACE_L1, [l0ScopeGroup], nodes, nodeIds);
+        addSpaceNode(l1, NodeType.SPACE_L1, [l0ScopeGroup], space.id, nodes, nodeIds);
         edges.push(createEdge(space.id, l1.id, EdgeType.CHILD, l0ScopeGroup));
 
         // Process L2 subspaces
         if (l1.subspaces) {
           for (const l2 of l1.subspaces) {
-            addSpaceNode(l2, NodeType.SPACE_L2, [l0ScopeGroup], nodes, nodeIds);
+            addSpaceNode(l2, NodeType.SPACE_L2, [l0ScopeGroup], l1.id, nodes, nodeIds);
             edges.push(createEdge(l1.id, l2.id, EdgeType.CHILD, l0ScopeGroup));
 
             // Add contributor edges for L2
@@ -89,6 +92,7 @@ function addSpaceNode(
   space: SpaceLike,
   type: NodeType,
   scopeGroups: string[],
+  parentSpaceId: string | null,
   nodes: GraphNode[],
   nodeIds: Set<string>,
 ): void {
@@ -112,7 +116,8 @@ function addSpaceNode(
     type,
     displayName: profile.displayName,
     weight: NODE_WEIGHT[type],
-    avatarUrl: null,
+    avatarUrl: profile.avatar?.uri || null,
+    bannerUrl: profile.bannerWide?.uri || profile.banner?.uri || null,
     url: profile.url || null,
     location: location
       ? {
@@ -125,6 +130,7 @@ function addSpaceNode(
     scopeGroups,
     nameId: space.nameID,
     tagline: profile.tagline || null,
+    parentSpaceId,
   });
 }
 
@@ -136,7 +142,8 @@ function addContributorEdges(
   edges: GraphEdge[],
   nodeIds: Set<string>,
 ): void {
-  const roleSet = space.community.roleSet;
+  const roleSet = space.community?.roleSet;
+  if (!roleSet) return; // community may be null when user lacks access to this subspace
 
   // Member users
   for (const { id } of roleSet.memberUsers) {
@@ -188,11 +195,13 @@ function ensureUserNode(
     displayName: user?.profile?.displayName || 'Unknown User',
     weight: NODE_WEIGHT[NodeType.USER],
     avatarUrl: user?.profile?.avatar?.uri || null,
+    bannerUrl: null,
     url: user?.profile?.url || null,
     location,
     scopeGroups: [scopeGroup],
     nameId: user?.nameID || null,
     tagline: null,
+    parentSpaceId: null,
   });
 }
 
@@ -221,11 +230,13 @@ function ensureOrgNode(
     displayName: org?.profile?.displayName || 'Unknown Organization',
     weight: NODE_WEIGHT[NodeType.ORGANIZATION],
     avatarUrl: org?.profile?.avatar?.uri || null,
+    bannerUrl: null,
     url: org?.profile?.url || null,
     location,
     scopeGroups: [scopeGroup],
     nameId: org?.nameID || null,
     tagline: null,
+    parentSpaceId: null,
   });
 }
 

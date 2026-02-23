@@ -1,6 +1,6 @@
 import type { GraphNode } from '@server/types/graph.js';
 
-export type ClusterMode = 'space' | 'organization';
+export type ClusterMode = 'space' | 'people';
 
 export interface Cluster {
   id: string;
@@ -15,7 +15,7 @@ export function computeClusters(nodes: GraphNode[], mode: ClusterMode): Cluster[
   if (mode === 'space') {
     return clusterBySpace(nodes);
   }
-  return clusterByOrganization(nodes);
+  return clusterByPeople(nodes);
 }
 
 /** Cluster by L0 Space scope group */
@@ -43,49 +43,54 @@ function clusterBySpace(nodes: GraphNode[]): Cluster[] {
   return clusters;
 }
 
-/** Cluster by Organization membership */
-function clusterByOrganization(nodes: GraphNode[]): Cluster[] {
-  // For org clustering, we group users/spaces by which orgs they share edges with.
-  // Since we don't have edge info here, we cluster org nodes together with
-  // other nodes that share the same scope groups.
-  // A more complete implementation would take edges as input.
+/**
+ * Cluster by People — the most connected users become cluster anchors.
+ * Every non-user node (space, org) is assigned to the person it shares
+ * the most scope-group overlap with, giving a "who works where" view.
+ */
+function clusterByPeople(nodes: GraphNode[]): Cluster[] {
+  const userNodes = nodes.filter((n) => n.type === 'USER');
 
-  const orgNodes = nodes.filter((n) => n.type === 'ORGANIZATION');
+  // Rank users by number of scope groups (proxy for connectivity)
+  const ranked = [...userNodes].sort((a, b) => b.scopeGroups.length - a.scopeGroups.length);
+
+  // Take the top N as cluster anchors (max 20 to keep it readable)
+  const MAX_ANCHORS = 20;
+  const anchors = ranked.slice(0, MAX_ANCHORS);
+
   const groups = new Map<string, string[]>();
-
-  // Each org becomes a cluster center
-  for (const org of orgNodes) {
-    groups.set(org.id, [org.id]);
+  for (const anchor of anchors) {
+    groups.set(anchor.id, [anchor.id]);
   }
 
-  // Assign non-org nodes to the org cluster they share the most scope groups with
-  const nonOrgNodes = nodes.filter((n) => n.type !== 'ORGANIZATION');
-  for (const node of nonOrgNodes) {
-    let bestOrg: string | null = null;
+  // Users that didn't become anchors + all non-user nodes
+  const remaining = nodes.filter((n) => !groups.has(n.id));
+
+  for (const node of remaining) {
+    let bestAnchor: string | null = null;
     let bestOverlap = 0;
 
-    for (const org of orgNodes) {
-      const overlap = node.scopeGroups.filter((sg) => org.scopeGroups.includes(sg)).length;
+    for (const anchor of anchors) {
+      const overlap = node.scopeGroups.filter((sg) => anchor.scopeGroups.includes(sg)).length;
       if (overlap > bestOverlap) {
         bestOverlap = overlap;
-        bestOrg = org.id;
+        bestAnchor = anchor.id;
       }
     }
 
-    if (bestOrg) {
-      groups.get(bestOrg)!.push(node.id);
+    if (bestAnchor) {
+      groups.get(bestAnchor)!.push(node.id);
     } else {
-      // No matching org — put in "ungrouped"
       if (!groups.has('ungrouped')) groups.set('ungrouped', []);
       groups.get('ungrouped')!.push(node.id);
     }
   }
 
   return Array.from(groups).map(([id, nodeIds]) => {
-    const orgNode = orgNodes.find((n) => n.id === id);
+    const anchor = userNodes.find((n) => n.id === id);
     return {
       id,
-      label: orgNode?.displayName || 'Ungrouped',
+      label: anchor?.displayName || 'Ungrouped',
       nodeIds,
     };
   });
