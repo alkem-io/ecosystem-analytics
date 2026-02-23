@@ -15,7 +15,7 @@ const progressMap = new Map<string, GraphProgress>();
  */
 export async function generateGraph(
   userId: string,
-  kratosCookies: string,
+  bearerToken: string,
   request: GraphGenerationRequest,
 ): Promise<GraphDataset> {
   const { spaceIds, forceRefresh } = request;
@@ -63,7 +63,7 @@ export async function generateGraph(
   if (spacesToFetch.length > 0) {
     // For now, we use spaceIds as nameIds (they should be nameIDs)
     // In production, we'd look up the nameID from the space ID
-    const acquired = await acquireSpaces(kratosCookies, spacesToFetch);
+    const acquired = await acquireSpaces(bearerToken, spacesToFetch);
 
     setProgress(userId, {
       step: 'transforming',

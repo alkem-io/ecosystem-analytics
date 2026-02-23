@@ -5,17 +5,17 @@ Allowing the visualisation and analysis of ecosystem level connectivity and acti
 ## Architecture
 
 ```
-frontend/   React 18 + Vite + D3 v7 SPA
-server/     Express BFF (auth proxy, GraphQL relay, SQLite cache)
+frontend/   React 19 + Vite + D3 v7 SPA
+server/     Express BFF (GraphQL relay, SQLite cache)
 ```
 
-The frontend never talks to Alkemio directly. All requests go through the BFF server, which handles Ory Kratos authentication and proxies GraphQL queries.
+The frontend authenticates directly with the Alkemio platform (Kratos/OIDC via popup). All data operations (GraphQL queries, caching) go through the BFF server — the frontend never calls the Alkemio GraphQL API directly.
 
 ## Prerequisites
 
 - Node.js >= 20.9
 - pnpm >= 9
-- Access to an Alkemio instance (server URL, GraphQL endpoint, Kratos public URL)
+- Access to an Alkemio instance (server URL, GraphQL endpoint)
 
 ## Quick start
 
@@ -52,54 +52,51 @@ Open http://localhost:5173 in your browser.
 
 ### 4. Login
 
-See [Authentication](#authentication) below for details on the two auth modes.
+Click "Sign in with Alkemio" — a popup opens to the Alkemio login page. Authenticate with your Alkemio credentials (password or OIDC provider). The popup closes and you're ready to go.
 
-For local development, `DEV_AUTH_BYPASS=true` is set in `.env.default`, so the login page will show an email/password form. Enter your Alkemio credentials — they are sent to the BFF which authenticates against Kratos directly (API flow). Your credentials are never stored.
+To point at a different Alkemio instance, set `VITE_ALKEMIO_URL` before starting the frontend:
+
+```bash
+VITE_ALKEMIO_URL=https://dev.alkem.io pnpm run dev
+```
 
 ## Authentication
 
-The tool supports two authentication modes. In both cases the user authenticates with their **Alkemio identity** — credentials are never stored by this tool.
+The tool uses a **popup-based authentication flow**. Credentials are never entered in or stored by this tool.
 
-### Production — SSO redirect (Kratos browser flow)
-
-In production the tool is deployed on the **same primary domain** as Alkemio. The login flow is:
+### Flow
 
 ```
 User clicks "Sign in with Alkemio"
-  → GET /api/auth/login
-  → 302 redirect to Kratos /self-service/login/browser?return_to=<callback>
-  → User authenticates on the Alkemio domain (SSO / OIDC)
-  → Kratos redirects back to GET /api/auth/callback
-  → BFF validates Kratos session, issues a bearer token
-  → Frontend receives token, stores in memory (never persisted)
+  → Popup opens to Alkemio Kratos login page (browser flow)
+  → User authenticates (password or OIDC provider) on the Alkemio domain
+  → Popup obtains a tokenized JWT via /sessions/whoami?tokenize_as=...
+  → Popup sends JWT to parent window via postMessage
+  → Frontend stores JWT in memory (never persisted)
+  → JWT sent as Authorization: Bearer on every BFF request
+  → BFF forwards JWT to Alkemio GraphQL API
 ```
 
-The `return_to` callback URL works because the tool and Alkemio share the same domain, so it is whitelisted by Kratos automatically.
+### Prerequisites
 
-### Local development — API flow (`DEV_AUTH_BYPASS=true`)
+- **Kratos session tokenization** must be configured on the Alkemio infrastructure so that `/sessions/whoami?tokenize_as=<template>` returns a signed JWT.
+- The Alkemio server already supports JWT-based auth via its `getSessionFromJwt` path.
 
-Alkemio's Kratos instance does not whitelist `localhost` in its `return_to` URLs, so the SSO redirect fails during local development. Setting `DEV_AUTH_BYPASS=true` in `server/.env` enables a dev-only endpoint:
+### Token lifecycle
 
-```
-User enters email + password in the login form
-  → POST /api/auth/dev-login { email, password }
-  → BFF calls Kratos /self-service/login/api (no browser redirect)
-  → Kratos validates credentials, returns session token
-  → BFF issues a bearer token
-  → Frontend receives token, stores in memory
-```
-
-The login page auto-detects which mode is available and shows the appropriate UI (SSO button vs. email/password form with a "Dev mode" badge).
-
-**Important**: `DEV_AUTH_BYPASS` must **never** be enabled in production. The dev-login endpoint returns 404 when the flag is not set.
-
-### Bearer token lifecycle
-
-- Issued by the BFF after successful authentication (either flow)
+- Alkemio-issued JWT, obtained via Kratos session tokenization
 - Held in memory only (FR-001 / TR-015) — never written to localStorage, cookies, or disk
-- Sent as `Authorization: Bearer <token>` on every API request
-- 24-hour TTL — after expiry the user is redirected back to the login page
-- Contains the Kratos session cookies needed for proxying GraphQL requests to Alkemio
+- Sent as `Authorization: Bearer <jwt>` on every API request to the BFF
+- BFF forwards it as-is to the Alkemio GraphQL API — the BFF does not mint or validate tokens
+- On expiry or 401 response, the user is redirected back to the login page
+
+### Configuration
+
+| Variable | Where | Default | Description |
+| --- | --- | --- | --- |
+| `VITE_ALKEMIO_URL` | Frontend (env/CLI) | `https://alkem.io` | Alkemio instance URL for popup auth |
+| `ALKEMIO_SERVER_URL` | `server/.env` | (required) | Alkemio server base URL |
+| `ALKEMIO_GRAPHQL_ENDPOINT` | `server/.env` | (required) | Alkemio GraphQL endpoint for BFF relay |
 
 ## Usage
 
@@ -142,9 +139,9 @@ pnpm run codegen
 ```
 server/
   src/
-    auth/           Kratos login flow, callback, middleware, me, logout
+    auth/           Middleware (token extraction), resolve-user, /me handler
     cache/          SQLite per-user per-Space cache (better-sqlite3)
-    graphql/        Queries, fragments, client factory
+    graphql/        Queries, fragments, client factory (codegen SDK)
     routes/         /api/auth, /api/spaces, /api/graph
     services/       space-service, acquire-service, graph-service
     transform/      Graph transformer, metrics, insights
@@ -162,7 +159,7 @@ frontend/
       search/       SearchBar
     hooks/          useSpaces, useGraph
     pages/          LoginPage, SpaceSelector, Explorer
-    services/       auth (token management), api (fetch wrapper)
+    services/       auth (popup flow, token management), api (fetch wrapper)
     styles/         Design tokens (CSS custom properties)
   public/
     maps/           GeoJSON basemap files (placeholder)

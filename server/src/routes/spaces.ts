@@ -8,7 +8,7 @@ spacesRouter.use(authMiddleware);
 // GET /api/spaces — List user's L0 Spaces
 spacesRouter.get('/', async (req: Request, res: Response) => {
   try {
-    const spaces = await listUserSpaces(req.auth!.kratosCookies);
+    const spaces = await listUserSpaces(req.auth!.bearerToken);
     res.json(spaces);
   } catch (err) {
     console.error('Failed to list spaces:', (err as Error).message);
@@ -22,7 +22,7 @@ spacesRouter.get('/:entityId/related', async (req: Request, res: Response) => {
     const entityId = req.params.entityId as string;
     const raw = req.query.currentSpaceIds;
     const currentSpaceIds = (typeof raw === 'string' ? raw : '').split(',').filter(Boolean);
-    const related = await findRelatedSpaces(req.auth!.kratosCookies, entityId, currentSpaceIds);
+    const related = await findRelatedSpaces(req.auth!.bearerToken, entityId, currentSpaceIds);
     res.json(related);
   } catch (err) {
     console.error('Failed to find related spaces:', (err as Error).message);

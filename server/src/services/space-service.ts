@@ -7,8 +7,8 @@ import type { SpaceSelectionItem } from '../types/api.js';
  * Fetches the user's L0 Space memberships from Alkemio.
  * Uses the codegen-generated mySpacesHierarchical query (TR-016).
  */
-export async function listUserSpaces(kratosCookies: string): Promise<SpaceSelectionItem[]> {
-  const sdk = createAlkemioSdk(kratosCookies);
+export async function listUserSpaces(bearerToken: string): Promise<SpaceSelectionItem[]> {
+  const sdk = createAlkemioSdk(bearerToken);
 
   const { data } = await sdk.mySpacesHierarchical();
   const currentUserId = data.me.user?.id;
@@ -43,11 +43,11 @@ export async function fetchSpaceByName(sdk: Sdk, nameId: string) {
  * Used for graph expansion (US3).
  */
 export async function findRelatedSpaces(
-  kratosCookies: string,
+  bearerToken: string,
   entityId: string,
   currentSpaceIds: string[],
 ): Promise<SpaceSelectionItem[]> {
-  const allSpaces = await listUserSpaces(kratosCookies);
+  const allSpaces = await listUserSpaces(bearerToken);
   return allSpaces.filter((s) => !currentSpaceIds.includes(s.id));
 }
 

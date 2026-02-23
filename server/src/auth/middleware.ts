@@ -1,26 +1,28 @@
 import { Request, Response, NextFunction } from 'express';
 
-/** Decoded session from the bearer token */
-export interface AuthSession {
-  userId: string;
-  email: string;
-  displayName: string;
-  kratosCookies: string;
-  expiresAt: number;
+/** Auth context attached to each authenticated request */
+export interface AuthContext {
+  /** The raw Alkemio-issued bearer token, forwarded to the GraphQL API */
+  bearerToken: string;
+  /** User ID resolved via Alkemio /me query (populated by resolveUser middleware) */
+  userId?: string;
+  /** Display name resolved via Alkemio /me query */
+  userDisplayName?: string;
 }
 
-/** Extend Express Request with auth session */
+/** Extend Express Request with auth context */
 declare global {
   namespace Express {
     interface Request {
-      auth?: AuthSession;
+      auth?: AuthContext;
     }
   }
 }
 
 /**
- * Auth middleware — validates the bearer token and attaches the session to req.auth.
- * Tokens that are expired or malformed result in 401.
+ * Auth middleware — extracts the Alkemio-issued bearer token from the
+ * Authorization header and attaches it to req.auth. The BFF does NOT
+ * validate or decode the token; Alkemio's GraphQL API does that.
  */
 export function authMiddleware(req: Request, res: Response, next: NextFunction) {
   const authHeader = req.headers.authorization;
@@ -30,26 +32,12 @@ export function authMiddleware(req: Request, res: Response, next: NextFunction) 
     return;
   }
 
-  const token = authHeader.slice(7);
-
-  try {
-    const payload = JSON.parse(
-      Buffer.from(token, 'base64url').toString('utf-8'),
-    ) as AuthSession;
-
-    if (!payload.userId || !payload.expiresAt) {
-      res.status(401).json({ error: 'UNAUTHORIZED', message: 'Invalid token payload' });
-      return;
-    }
-
-    if (payload.expiresAt < Date.now()) {
-      res.status(401).json({ error: 'TOKEN_EXPIRED', message: 'Session has expired, please log in again' });
-      return;
-    }
-
-    req.auth = payload;
-    next();
-  } catch {
-    res.status(401).json({ error: 'UNAUTHORIZED', message: 'Invalid token' });
+  const bearerToken = authHeader.slice(7);
+  if (!bearerToken) {
+    res.status(401).json({ error: 'UNAUTHORIZED', message: 'Empty bearer token' });
+    return;
   }
+
+  req.auth = { bearerToken };
+  next();
 }
