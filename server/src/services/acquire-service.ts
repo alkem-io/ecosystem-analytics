@@ -34,10 +34,16 @@ export async function acquireSpaces(
 
   for (const nameId of spaceNameIds) {
     logger.info(`Acquiring space data: ${nameId}`, { context: 'Acquire' });
-    const result = await fetchSpaceByName(sdk, nameId);
-    const space = result.lookupByName.space;
+    let result;
+    try {
+      result = await fetchSpaceByName(sdk, nameId);
+    } catch (fetchErr) {
+      logger.warn(`Failed to fetch space "${nameId}", skipping: ${(fetchErr as Error).message}`, { context: 'Acquire' });
+      continue;
+    }
+    const space = result.lookupByName?.space;
     if (!space) {
-      logger.warn(`Space not found: ${nameId}`, { context: 'Acquire' });
+      logger.warn(`Space not found or fully restricted: ${nameId}`, { context: 'Acquire' });
       continue;
     }
 
@@ -74,14 +80,14 @@ export async function acquireSpaces(
 
 /** Common shape for collecting contributor IDs across space levels */
 interface SpaceWithCommunity {
-  community: {
+  community?: {
     roleSet: {
       memberUsers: Array<{ id: string }>;
       memberOrganizations: Array<{ id: string }>;
       leadOrganizations: Array<{ id: string }>;
       leadUsers: Array<{ id: string }>;
     };
-  };
+  } | null;
   subspaces?: SpaceWithCommunity[];
 }
 
@@ -91,11 +97,13 @@ function collectContributorIds(
   userIds: Set<string>,
   orgIds: Set<string>,
 ): void {
-  const roleSet = space.community.roleSet;
-  roleSet.memberUsers.forEach((u) => userIds.add(u.id));
-  roleSet.leadUsers.forEach((u) => userIds.add(u.id));
-  roleSet.memberOrganizations.forEach((o) => orgIds.add(o.id));
-  roleSet.leadOrganizations.forEach((o) => orgIds.add(o.id));
+  const roleSet = space.community?.roleSet;
+  if (roleSet) {
+    roleSet.memberUsers.forEach((u) => userIds.add(u.id));
+    roleSet.leadUsers.forEach((u) => userIds.add(u.id));
+    roleSet.memberOrganizations.forEach((o) => orgIds.add(o.id));
+    roleSet.leadOrganizations.forEach((o) => orgIds.add(o.id));
+  }
 
   if (space.subspaces) {
     for (const sub of space.subspaces) {

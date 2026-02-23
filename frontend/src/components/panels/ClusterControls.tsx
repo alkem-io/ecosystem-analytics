@@ -18,10 +18,10 @@ export default function ClusterControls({ mode, onChange }: Props) {
           Space
         </button>
         <button
-          className={`${styles.btn} ${mode === 'organization' ? styles.active : ''}`}
-          onClick={() => onChange('organization')}
+          className={`${styles.btn} ${mode === 'people' ? styles.active : ''}`}
+          onClick={() => onChange('people')}
         >
-          Org
+          People
         </button>
       </div>
     </div>

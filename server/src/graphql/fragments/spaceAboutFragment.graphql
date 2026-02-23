@@ -13,5 +13,14 @@ fragment spaceAboutFragment on SpaceAbout {
       }
     }
     url
+    avatar: visual(type: AVATAR) {
+      uri
+    }
+    banner: visual(type: BANNER) {
+      uri
+    }
+    bannerWide: visual(type: BANNER_WIDE) {
+      uri
+    }
   }
 }

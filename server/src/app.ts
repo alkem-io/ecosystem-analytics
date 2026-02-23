@@ -4,6 +4,7 @@ import path from 'path';
 import { authRouter } from './routes/auth.js';
 import { spacesRouter } from './routes/spaces.js';
 import { graphRouter } from './routes/graph.js';
+import { imageProxyRouter } from './routes/image-proxy.js';
 import { getLogger } from './logging/logger.js';
 import type { ApiError } from './types/api.js';
 
@@ -18,6 +19,7 @@ export function createApp() {
   app.use('/api/auth', authRouter);
   app.use('/api/spaces', spacesRouter);
   app.use('/api/graph', graphRouter);
+  app.use('/api/image-proxy', imageProxyRouter);
 
   // Health check
   app.get('/api/health', (_req, res) => {

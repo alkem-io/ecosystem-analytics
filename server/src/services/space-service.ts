@@ -64,10 +64,30 @@ export async function listUserSpacesCached(userId: string, bearerToken: string):
 /**
  * Fetches a specific space by nameID with full hierarchy and community data.
  * Returns the typed query result for the transformer.
+ *
+ * The Alkemio API may return partial errors when the user lacks permission on
+ * nested subspaces (FORBIDDEN_POLICY). We catch these and return whatever data
+ * is available, logging a warning for the skipped parts.
  */
 export async function fetchSpaceByName(sdk: Sdk, nameId: string) {
-  const { data } = await sdk.spaceByName({ nameId });
-  return data;
+  try {
+    const { data } = await sdk.spaceByName({ nameId });
+    return data;
+  } catch (err: unknown) {
+    // graphql-request throws ClientError which contains the partial response
+    const clientErr = err as { response?: { data?: unknown; errors?: Array<{ message: string; path?: string[] }> } };
+    if (clientErr.response?.data) {
+      const partialErrors = clientErr.response.errors || [];
+      for (const e of partialErrors) {
+        getLogger().warn(
+          `Partial auth error fetching space "${nameId}": ${e.message} (path: ${e.path?.join('.')})`,
+          { context: 'Spaces' },
+        );
+      }
+      return clientErr.response.data as SpaceByNameQuery;
+    }
+    throw err;
+  }
 }
 
 /**
