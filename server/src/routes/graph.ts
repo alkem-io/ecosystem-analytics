@@ -3,7 +3,10 @@ import { authMiddleware } from '../auth/middleware.js';
 import { resolveUser } from '../auth/resolve-user.js';
 import { generateGraph, getProgress } from '../services/graph-service.js';
 import { loadConfig } from '../config.js';
+import { getLogger } from '../logging/logger.js';
 import type { GraphGenerationRequest } from '../types/api.js';
+
+const logger = getLogger();
 
 export const graphRouter = Router();
 graphRouter.use(authMiddleware);
@@ -31,7 +34,7 @@ graphRouter.post('/generate', async (req: Request, res: Response) => {
     const dataset = await generateGraph(req.auth!.userId!, req.auth!.bearerToken, body);
     res.json(dataset);
   } catch (err) {
-    console.error('Graph generation failed:', (err as Error).message);
+    logger.error(`Graph generation failed: ${(err as Error).message}`, { context: 'Graph' });
     res.status(502).json({ error: 'GENERATION_FAILED', message: 'Failed to generate graph dataset' });
   }
 });
@@ -61,7 +64,7 @@ graphRouter.post('/expand', async (req: Request, res: Response) => {
     });
     res.json(dataset);
   } catch (err) {
-    console.error('Graph expansion failed:', (err as Error).message);
+    logger.error(`Graph expansion failed: ${(err as Error).message}`, { context: 'Graph' });
     res.status(502).json({ error: 'EXPANSION_FAILED', message: 'Failed to expand graph' });
   }
 });
@@ -85,7 +88,7 @@ graphRouter.post('/export', async (req: Request, res: Response) => {
     res.setHeader('Content-Type', 'application/json');
     res.json(dataset);
   } catch (err) {
-    console.error('Graph export failed:', (err as Error).message);
+    logger.error(`Graph export failed: ${(err as Error).message}`, { context: 'Graph' });
     res.status(502).json({ error: 'EXPORT_FAILED', message: 'Failed to export graph dataset' });
   }
 });

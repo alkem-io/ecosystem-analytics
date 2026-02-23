@@ -1,5 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import { createAlkemioSdk } from '../graphql/client.js';
+import { getLogger } from '../logging/logger.js';
 
 /**
  * Middleware that resolves the authenticated user's ID by calling Alkemio's `me` query.
@@ -24,6 +25,7 @@ export async function resolveUser(req: Request, res: Response, next: NextFunctio
 
     req.auth.userId = user.id;
     req.auth.userDisplayName = user.profile?.displayName;
+    getLogger().debug(`Resolved user: ${user.profile?.displayName} (${user.id})`, { context: 'Auth' });
     next();
   } catch {
     res.status(401).json({ error: 'UNAUTHORIZED', message: 'Invalid or expired token' });

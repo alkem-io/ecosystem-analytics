@@ -98,3 +98,20 @@
   color: var(--text-muted);
   white-space: nowrap;
 }
+
+.logoutBtn {
+  font-size: 12px;
+  font-family: var(--font-family);
+  padding: 6px 12px;
+  background: none;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  color: var(--text-secondary);
+}
+
+.logoutBtn:hover {
+  background: var(--surface);
+  color: var(--error);
+  border-color: var(--error);
+}

@@ -4,6 +4,7 @@ import path from 'path';
 import { authRouter } from './routes/auth.js';
 import { spacesRouter } from './routes/spaces.js';
 import { graphRouter } from './routes/graph.js';
+import { getLogger } from './logging/logger.js';
 import type { ApiError } from './types/api.js';
 
 export function createApp() {
@@ -40,7 +41,7 @@ export function createApp() {
       res: express.Response,
       _next: express.NextFunction,
     ) => {
-      console.error('Unhandled error:', err.message);
+      getLogger().error(`Unhandled error: ${err.message}`, { context: 'App' });
       const body: ApiError = {
         error: 'INTERNAL_ERROR',
         message: process.env.NODE_ENV === 'production' ? 'Internal server error' : err.message,

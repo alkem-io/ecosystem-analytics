@@ -1,26 +1,27 @@
 <!--
 Sync Impact Report
-- Version change: 1.0.0 → 2.1.0
-- Breaking change (2.0.0): Principle I redefined — auth moves from BFF-mediated to frontend-direct
-- Minor change (2.1.0): Principle I refined — popup flow with Kratos session tokenization; Principle III clarified — frontend may access public Alkemio APIs (auth, config) but NOT GraphQL for data
-- Updated principles: I (Frontend-Direct Authentication), III (BFF Boundary)
+- Version change: 1.0.0 → 3.0.0
+- Breaking change (2.0.0): Principle I redefined — auth moves from BFF-mediated SSO to frontend-direct popup
+- Breaking change (3.0.0): Principle I redefined again — auth moves to username/password via BFF Kratos API flow (non-interactive); Principle III tightened — frontend communicates exclusively with BFF (no direct Alkemio access)
+- Updated principles: I (Alkemio Identity Authentication), III (BFF Boundary)
 - Updated sections: Security Requirements
-- Rationale: Cross-origin auth via popup + Kratos tokenize; explicit separation of public API access vs GraphQL data operations
-- Follow-up TODOs: Kratos tokenizer template must be configured on Alkemio infrastructure
+- Rationale: Popup/SSO approach infeasible without Kratos tokenization infrastructure; username/password via Kratos API flow works today and matches analytics-playground pattern
+- Follow-up TODOs: none
 -->
 
 # Ecosystem Analytics Constitution
 
 ## Core Principles
 
-### I. Frontend-Direct Authentication (Popup Flow)
+### I. Alkemio Identity Authentication (Kratos API Flow)
 
-- The **frontend** MUST authenticate users directly with the Alkemio platform via a **popup window** that opens the Kratos browser login flow (password or OIDC). The BFF server is NOT involved in the authentication handshake.
-- After successful login, the popup obtains a tokenized session JWT from Kratos's `/sessions/whoami?tokenize_as=...` endpoint and sends it to the parent window via `postMessage`.
-- The frontend holds this JWT in memory and sends it with every request to the BFF. The BFF forwards it as an `Authorization` header to the Alkemio GraphQL API. The BFF does NOT issue its own tokens.
-- Credentials MUST NOT be entered in, handled by, or stored by this tool — not in `.env` files, config files, environment variables, local storage, or logs.
-- A dev-only bypass (`DEV_AUTH_BYPASS=true`) MAY exist for local development where the redirect flow is not feasible, but it MUST NOT be enabled in production.
-- Bearer tokens MUST be held in frontend memory only and MUST NOT be persisted to any storage mechanism.
+- Users authenticate with their **Alkemio credentials** (email and password) via a login form in the frontend.
+- Credentials are sent to the BFF (`POST /api/auth/login`), which authenticates against Alkemio's Kratos identity service using the non-interactive API flow (`/self-service/login/api`).
+- The BFF returns the Kratos `session_token` to the frontend. The frontend holds this token in memory and sends it as `Authorization: Bearer` with every BFF request.
+- The BFF forwards the token to the Alkemio GraphQL API.
+- User credentials MUST NOT be stored or logged by any component — they are used only for the initial Kratos authentication exchange.
+- Credentials MUST NOT be supplied via `.env` files, config files, or environment variables — `.env` is only for server deployment parameters (Alkemio URLs, port, cache TTL).
+- Session tokens MUST be held in frontend memory only and MUST NOT be persisted to any storage mechanism.
 
 ### II. Typed GraphQL Contract
 
@@ -32,10 +33,9 @@ Sync Impact Report
 
 ### III. BFF Boundary
 
-- The React frontend MUST NOT communicate directly with the Alkemio **GraphQL API** for data acquisition or visualisation — all data operations flow through the Express BFF server.
-- The frontend IS allowed to access **public Alkemio APIs** directly for: (a) authentication (Kratos/OIDC browser flow via popup), (b) platform configuration/discovery endpoints.
-- The BFF handles: (a) receiving the Alkemio-issued bearer token from the frontend and forwarding it to the Alkemio GraphQL API, (b) per-user per-Space caching, (c) static asset serving in production. The BFF does NOT handle login redirects, callbacks, or session cookie exchange.
-- This boundary keeps data operations proxied through the BFF (caching, access control) while allowing the frontend to authenticate directly with Alkemio and fetch public configuration.
+- The React frontend MUST communicate **exclusively** with the BFF server — never directly with the Alkemio platform (not for authentication, not for GraphQL, not for any other purpose).
+- The BFF handles: (a) user authentication via Kratos API flow, (b) forwarding the session token to the Alkemio GraphQL API, (c) per-user per-Space caching, (d) static asset serving in production.
+- This boundary keeps all Alkemio interactions server-side, avoids CORS issues, and centralises caching and access control.
 
 ### IV. Data Sensitivity
 
@@ -60,13 +60,13 @@ Sync Impact Report
 
 ## Security Requirements
 
-- No user credentials in `.env` — only server deployment parameters (Alkemio URLs, port, cache TTL).
-- `DEV_AUTH_BYPASS` MUST NOT be set to `true` in any production or staging deployment.
-- The BFF MUST validate that every incoming request carries a bearer token before forwarding to the Alkemio GraphQL API.
+- No user credentials in `.env` — only server deployment parameters (Alkemio URLs, Kratos URL, port, cache TTL).
+- User credentials (email/password) MUST NOT be stored or logged by any component — used only for the initial Kratos authentication exchange.
+- The BFF MUST validate that every protected request carries a bearer token before forwarding to the Alkemio GraphQL API.
 - All SQL uses parameterised queries via better-sqlite3 prepared statements.
-- Cache entries are keyed by `(user_id, space_id)` — every read verifies the requesting user matches the cache owner. The user ID is extracted from the bearer token (JWT decode) or by calling the Alkemio `/me` query.
+- Cache entries are keyed by `(user_id, space_id)` — every read verifies the requesting user matches the cache owner. The user ID is resolved by calling Alkemio's `me` query with the session token.
 - The `max_spaces_per_query` limit MUST be enforced server-side to prevent excessive resource consumption.
-- Bearer tokens are Alkemio-issued; the BFF does not mint or manage its own tokens. Token expiry is handled by the frontend (re-prompt login).
+- Session tokens are Kratos-issued; the BFF does not mint its own tokens. Token expiry is handled by the frontend (re-prompt login on 401).
 
 ## Development Workflow
 
@@ -88,4 +88,4 @@ Sync Impact Report
   3. An updated Sync Impact Report (HTML comment at top of this file).
 - The feature spec (`specs/001-ecosystem-analytics/spec.md`) contains the detailed functional, non-functional, and technical requirements. This constitution captures the overarching principles that govern how those requirements are implemented.
 
-**Version**: 2.1.0 | **Ratified**: 2026-02-21 | **Last Amended**: 2026-02-23
+**Version**: 3.0.0 | **Ratified**: 2026-02-21 | **Last Amended**: 2026-02-23

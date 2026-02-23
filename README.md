@@ -9,13 +9,13 @@ frontend/   React 19 + Vite + D3 v7 SPA
 server/     Express BFF (GraphQL relay, SQLite cache)
 ```
 
-The frontend authenticates directly with the Alkemio platform (Kratos/OIDC via popup). All data operations (GraphQL queries, caching) go through the BFF server — the frontend never calls the Alkemio GraphQL API directly.
+The frontend communicates exclusively with the BFF server. The BFF handles authentication (Kratos API flow), GraphQL relay, and caching. The frontend never contacts the Alkemio platform directly.
 
 ## Prerequisites
 
 - Node.js >= 20.9
 - pnpm >= 9
-- Access to an Alkemio instance (server URL, GraphQL endpoint)
+- Access to an Alkemio instance (server URL, GraphQL endpoint, Kratos public URL)
 
 ## Quick start
 
@@ -52,51 +52,41 @@ Open http://localhost:5173 in your browser.
 
 ### 4. Login
 
-Click "Sign in with Alkemio" — a popup opens to the Alkemio login page. Authenticate with your Alkemio credentials (password or OIDC provider). The popup closes and you're ready to go.
-
-To point at a different Alkemio instance, set `VITE_ALKEMIO_URL` before starting the frontend:
-
-```bash
-VITE_ALKEMIO_URL=https://dev.alkem.io pnpm run dev
-```
+Enter your Alkemio email and password. The BFF authenticates against Alkemio's Kratos identity service and returns a session token. Credentials are never stored.
 
 ## Authentication
 
-The tool uses a **popup-based authentication flow**. Credentials are never entered in or stored by this tool.
+The tool uses **username/password authentication** via Alkemio's Kratos identity service (non-interactive API flow), following the same pattern as the [analytics-playground](https://github.com/alkem-io/analytics-playground) reference project.
 
 ### Flow
 
 ```
-User clicks "Sign in with Alkemio"
-  → Popup opens to Alkemio Kratos login page (browser flow)
-  → User authenticates (password or OIDC provider) on the Alkemio domain
-  → Popup obtains a tokenized JWT via /sessions/whoami?tokenize_as=...
-  → Popup sends JWT to parent window via postMessage
-  → Frontend stores JWT in memory (never persisted)
-  → JWT sent as Authorization: Bearer on every BFF request
-  → BFF forwards JWT to Alkemio GraphQL API
+User enters email + password in the login form
+  → Frontend sends credentials to POST /api/auth/login
+  → BFF initiates Kratos API flow (GET /self-service/login/api)
+  → BFF submits credentials to Kratos action URL
+  → Kratos validates and returns session_token
+  → BFF returns session_token to frontend
+  → Frontend stores token in memory (never persisted)
+  → Token sent as Authorization: Bearer on every BFF request
+  → BFF forwards token to Alkemio GraphQL API
 ```
-
-### Prerequisites
-
-- **Kratos session tokenization** must be configured on the Alkemio infrastructure so that `/sessions/whoami?tokenize_as=<template>` returns a signed JWT.
-- The Alkemio server already supports JWT-based auth via its `getSessionFromJwt` path.
 
 ### Token lifecycle
 
-- Alkemio-issued JWT, obtained via Kratos session tokenization
+- Kratos-issued `session_token`, obtained via the BFF login endpoint
 - Held in memory only (FR-001 / TR-015) — never written to localStorage, cookies, or disk
-- Sent as `Authorization: Bearer <jwt>` on every API request to the BFF
-- BFF forwards it as-is to the Alkemio GraphQL API — the BFF does not mint or validate tokens
+- Sent as `Authorization: Bearer <token>` on every API request to the BFF
+- BFF forwards it as-is to the Alkemio GraphQL API
 - On expiry or 401 response, the user is redirected back to the login page
 
 ### Configuration
 
 | Variable | Where | Default | Description |
 | --- | --- | --- | --- |
-| `VITE_ALKEMIO_URL` | Frontend (env/CLI) | `https://alkem.io` | Alkemio instance URL for popup auth |
 | `ALKEMIO_SERVER_URL` | `server/.env` | (required) | Alkemio server base URL |
 | `ALKEMIO_GRAPHQL_ENDPOINT` | `server/.env` | (required) | Alkemio GraphQL endpoint for BFF relay |
+| `ALKEMIO_KRATOS_PUBLIC_URL` | `server/.env` | (required) | Kratos public API URL for authentication |
 
 ## Usage
 
@@ -139,7 +129,7 @@ pnpm run codegen
 ```
 server/
   src/
-    auth/           Middleware (token extraction), resolve-user, /me handler
+    auth/           Login (Kratos API flow), middleware, resolve-user, /me
     cache/          SQLite per-user per-Space cache (better-sqlite3)
     graphql/        Queries, fragments, client factory (codegen SDK)
     routes/         /api/auth, /api/spaces, /api/graph

@@ -1,7 +1,11 @@
 import { createAlkemioSdk } from '../graphql/client.js';
+import { getLogger } from '../logging/logger.js';
+import { getCacheEntry, setCacheEntry } from '../cache/cache-service.js';
 import type { Sdk } from '../graphql/generated/graphql.js';
 import type { SpaceByNameQuery } from '../graphql/generated/alkemio-schema.js';
 import type { SpaceSelectionItem } from '../types/api.js';
+
+const SPACES_CACHE_KEY = '__spaces__';
 
 /**
  * Fetches the user's L0 Space memberships from Alkemio.
@@ -12,8 +16,9 @@ export async function listUserSpaces(bearerToken: string): Promise<SpaceSelectio
 
   const { data } = await sdk.mySpacesHierarchical();
   const currentUserId = data.me.user?.id;
+  getLogger().info(`Listing spaces for user ${currentUserId} — ${data.me.spaceMembershipsHierarchical.length} space(s) found`, { context: 'Spaces' });
 
-  return data.me.spaceMembershipsHierarchical.map((membership) => {
+  const spaces = data.me.spaceMembershipsHierarchical.map((membership) => {
     const space = membership.space;
     const isLead = currentUserId
       ? space.community.roleSet.leadUsers.some((u) => u.id === currentUserId)
@@ -27,6 +32,33 @@ export async function listUserSpaces(bearerToken: string): Promise<SpaceSelectio
       visibility: 'PUBLIC',
     } satisfies SpaceSelectionItem;
   });
+
+  // Lead spaces first, then alphabetical by name
+  const sorted = spaces.sort((a, b) => {
+    if (a.role === 'LEAD' && b.role !== 'LEAD') return -1;
+    if (a.role !== 'LEAD' && b.role === 'LEAD') return 1;
+    return a.displayName.localeCompare(b.displayName);
+  });
+
+  // Update server-side cache
+  if (currentUserId) {
+    setCacheEntry(currentUserId, SPACES_CACHE_KEY, JSON.stringify(sorted));
+  }
+
+  return sorted;
+}
+
+/**
+ * Returns cached spaces list if available, otherwise fetches fresh.
+ */
+export async function listUserSpacesCached(userId: string, bearerToken: string): Promise<SpaceSelectionItem[]> {
+  const cached = getCacheEntry(userId, SPACES_CACHE_KEY);
+  if (cached) {
+    getLogger().info(`Returning cached spaces for user ${userId}`, { context: 'Spaces' });
+    return JSON.parse(cached.datasetJson);
+  }
+
+  return listUserSpaces(bearerToken);
 }
 
 /**
