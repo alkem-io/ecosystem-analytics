@@ -20,10 +20,14 @@ interface Props {
   dataset: GraphDataset;
   onClose: () => void;
   onExpandSpace?: (spaceId: string) => void;
+  onNodeSelect?: (node: GraphNode) => void;
   isPreview?: boolean;
+  showPeople?: boolean;
+  showOrganizations?: boolean;
+  showSpaces?: boolean;
 }
 
-export default function DetailsDrawer({ node, dataset, onClose, onExpandSpace, isPreview = false }: Props) {
+export default function DetailsDrawer({ node, dataset, onClose, onExpandSpace, onNodeSelect, isPreview = false, showPeople = true, showOrganizations = true, showSpaces = true }: Props) {
   const [relatedSpaces, setRelatedSpaces] = useState<SpaceSelectionItem[]>([]);
   const [loadingRelated, setLoadingRelated] = useState(false);
 
@@ -44,13 +48,57 @@ export default function DetailsDrawer({ node, dataset, onClose, onExpandSpace, i
 
   if (!node) return null;
 
-  // Count connections
-  const connections = dataset.edges.filter(
-    (e) => e.sourceId === node.id || e.targetId === node.id,
+  // Filter nodes by current visibility toggles — same as the graph
+  const visibleNodeIds = new Set(
+    dataset.nodes
+      .filter((n) => {
+        if (n.type === 'USER' && !showPeople) return false;
+        if (n.type === 'ORGANIZATION' && !showOrganizations) return false;
+        if ((n.type === 'SPACE_L0' || n.type === 'SPACE_L1' || n.type === 'SPACE_L2') && !showSpaces) return false;
+        return true;
+      })
+      .map((n) => n.id),
   );
-  const memberCount = connections.filter((e) => e.type === 'MEMBER').length;
-  const leadCount = connections.filter((e) => e.type === 'LEAD').length;
-  const childCount = connections.filter((e) => e.type === 'CHILD').length;
+
+  // Only include edges where both endpoints are visible
+  const connections = dataset.edges.filter(
+    (e) =>
+      (e.sourceId === node.id || e.targetId === node.id) &&
+      visibleNodeIds.has(e.sourceId) &&
+      visibleNodeIds.has(e.targetId),
+  );
+
+  // Build a map of connected nodes with their edge type — deduplicate by node ID
+  // When multiple edges exist to the same node (e.g. across scope groups), keep
+  // the highest-priority edge type: LEAD > CHILD > MEMBER
+  const nodeById = new Map(dataset.nodes.map((n) => [n.id, n]));
+  const edgePriority: Record<string, number> = { LEAD: 3, CHILD: 2, MEMBER: 1 };
+  const connectionMap = new Map<string, { node: GraphNode; edgeType: string }>();
+
+  for (const e of connections) {
+    const otherId = e.sourceId === node.id ? e.targetId : e.sourceId;
+    const otherNode = nodeById.get(otherId);
+    if (!otherNode) continue;
+    const existing = connectionMap.get(otherId);
+    if (!existing || (edgePriority[e.type] ?? 0) > (edgePriority[existing.edgeType] ?? 0)) {
+      connectionMap.set(otherId, { node: otherNode, edgeType: e.type });
+    }
+  }
+
+  const directConnections = Array.from(connectionMap.values());
+
+  // Stats by connected node type
+  const spaceCount = directConnections.filter((c) =>
+    c.node.type === 'SPACE_L0' || c.node.type === 'SPACE_L1' || c.node.type === 'SPACE_L2'
+  ).length;
+  const orgCount = directConnections.filter((c) => c.node.type === 'ORGANIZATION').length;
+  const peopleCount = directConnections.filter((c) => c.node.type === 'USER').length;
+
+  // Sort: spaces first (child edges), then orgs, then people
+  const sortedConnections = [...directConnections].sort((a, b) => {
+    const typeOrder: Record<string, number> = { SPACE_L0: 0, SPACE_L1: 1, SPACE_L2: 2, ORGANIZATION: 3, USER: 4 };
+    return (typeOrder[a.node.type] ?? 5) - (typeOrder[b.node.type] ?? 5);
+  });
 
   // For space nodes, resolve the L0 ancestor to show its banner
   const isSpace = node.type === 'SPACE_L0' || node.type === 'SPACE_L1' || node.type === 'SPACE_L2';
@@ -99,28 +147,58 @@ export default function DetailsDrawer({ node, dataset, onClose, onExpandSpace, i
 
       <div className={styles.stats}>
         <div className={styles.stat}>
-          <span className={styles.statValue}>{connections.length}</span>
+          <span className={styles.statValue}>{directConnections.length}</span>
           <span className={styles.statLabel}>Connections</span>
         </div>
-        {memberCount > 0 && (
+        {spaceCount > 0 && (
           <div className={styles.stat}>
-            <span className={styles.statValue}>{memberCount}</span>
-            <span className={styles.statLabel}>Member</span>
+            <span className={styles.statValue}>{spaceCount}</span>
+            <span className={styles.statLabel}>Spaces</span>
           </div>
         )}
-        {leadCount > 0 && (
+        {orgCount > 0 && (
           <div className={styles.stat}>
-            <span className={styles.statValue}>{leadCount}</span>
-            <span className={styles.statLabel}>Lead</span>
+            <span className={styles.statValue}>{orgCount}</span>
+            <span className={styles.statLabel}>Orgs</span>
           </div>
         )}
-        {childCount > 0 && (
+        {peopleCount > 0 && (
           <div className={styles.stat}>
-            <span className={styles.statValue}>{childCount}</span>
-            <span className={styles.statLabel}>Subspaces</span>
+            <span className={styles.statValue}>{peopleCount}</span>
+            <span className={styles.statLabel}>People</span>
           </div>
         )}
       </div>
+
+      {/* Direct Connections list */}
+      {!isPreview && sortedConnections.length > 0 && (
+        <div className={styles.connectionsSection}>
+          <h3 className={styles.connectionsHeading}>Direct Connections</h3>
+          <div className={styles.connectionsList}>
+            {sortedConnections.map((c) => (
+              <div key={c.node.id} className={styles.connectionItem} onClick={() => onNodeSelect?.(c.node)} role="button" tabIndex={0} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') onNodeSelect?.(c.node); }}>
+                <div className={styles.connectionLeft}>
+                  {c.node.avatarUrl ? (
+                    <img
+                      src={proxyImageUrl(c.node.avatarUrl) ?? undefined}
+                      alt=""
+                      className={styles.connectionAvatar}
+                    />
+                  ) : (
+                    <div className={`${styles.connectionAvatar} ${styles.connectionAvatarPlaceholder}`}>
+                      {c.node.displayName?.charAt(0)?.toUpperCase() || '?'}
+                    </div>
+                  )}
+                  <span className={styles.connectionName}>{c.node.displayName || 'Unknown'}</span>
+                </div>
+                <span className={`${styles.edgeBadge} ${styles[`edgeBadge_${c.edgeType.toLowerCase()}`] || ''}`}>
+                  {c.edgeType.toLowerCase()}
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Full details only shown when not in preview (hover) mode */}
       {!isPreview && (

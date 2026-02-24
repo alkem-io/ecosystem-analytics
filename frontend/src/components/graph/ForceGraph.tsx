@@ -5,7 +5,18 @@ import type { GraphDataset, GraphNode, GraphEdge } from '@server/types/graph.js'
 import { computeClusters } from './clustering.js';
 import { computeProximityGroups, type ProximityCluster } from './proximityClustering.js';
 import type { MapRegion } from '../map/MapOverlay.js';
+import { getToken } from '../../services/auth.js';
 import styles from './ForceGraph.module.css';
+
+/** Proxy private Alkemio storage URLs through our auth endpoint */
+function proxyImageUrl(url: string | null | undefined): string | null {
+  if (!url) return null;
+  if (url.includes('/api/private/')) {
+    const token = getToken();
+    return `/api/image-proxy?url=${encodeURIComponent(url)}${token ? `&token=${encodeURIComponent(token)}` : ''}`;
+  }
+  return url;
+}
 
 const NODE_COLORS: Record<string, string> = {
   SPACE_L0: 'var(--node-space-l0)',
@@ -15,20 +26,49 @@ const NODE_COLORS: Record<string, string> = {
   USER: 'var(--node-user)',
 };
 
-const PROXIMITY_THRESHOLD = 15;
-const MAX_NODES_FOR_CLUSTERING = 300;
-const FAN_OUT_DURATION_MS = 300;
-const COLLAPSE_DURATION_MS = 250;
-const FAN_OUT_MIN_RADIUS = 50;
-const FAN_OUT_PER_NODE_RADIUS = 14;
+const PROXIMITY_THRESHOLD = 10;   // only merge truly overlapping nodes
+const MAX_NODES_FOR_CLUSTERING = 500;
+const ZOOM_TRANSITION_MS = 600;
 const LABEL_MAX_CHARS = 30;     // truncate long labels
+const FANOUT_RADIUS = 80;       // radius of the fan-out circle when revealing a cluster
 
-// Edge styling — Kumu-inspired subtle curves
+// Hierarchical radial layout — flower-circle clustering
+// Ring radii are now RESPONSIVE — computed from member count per space
+const L1_RING_RADIUS_MIN = 220;   // minimum L0→L1 distance
+const L1_RING_RADIUS_PER_MEMBER = 4;  // extra distance per L0-only member
+const L1_RING_RADIUS_PER_NODE = 40;   // extra distance per L1 child
+const L2_RING_RADIUS_MIN = 65;    // minimum L1→L2 distance
+const L2_RING_RADIUS_PER_MEMBER = 3;  // extra distance per L1-direct member
+const L2_RING_RADIUS_PER_NODE = 16;   // extra distance per L2 child
+const PEOPLE_RING_RADIUS = 65;
+const L0_ONLY_PEOPLE_RADIUS = 36;
+
+// Edge styling — refined, professional palette
 const EDGE_COLORS: Record<string, string> = {
-  CHILD: 'rgba(99,102,241,0.35)',    // indigo for parent-child
-  LEAD: 'rgba(180,140,60,0.45)',     // warm brown for leadership
-  MEMBER: 'rgba(140,160,180,0.2)',   // neutral blue-gray for membership
+  CHILD: 'rgba(99,102,241,0.30)',    // indigo for parent-child
+  LEAD: 'rgba(170,135,55,0.35)',     // warm brown for leadership
+  MEMBER: 'rgba(150,170,190,0.18)', // soft blue-gray — visible but not overwhelming
 };
+
+/**
+ * Scale highlight stroke widths inversely with the number of direct connections.
+ * A node with 5 edges can afford fat highlight lines; one with 138 connections
+ * needs hairlines so the graph stays readable.
+ */
+function highlightEdgeWidth(connectionCount: number, tier: 'direct' | '2nd'): number {
+  //  connections  direct  2nd
+  //  ≤ 10         2.5     1.5
+  //  ~50          1.2     0.7
+  //  ≥ 100        0.8     0.4
+  const base = tier === 'direct' ? 2.5 : 1.5;
+  const scale = Math.max(0.3, 1 / (1 + connectionCount * 0.015));
+  return Math.round(base * scale * 10) / 10;
+}
+function highlightNodeStroke(connectionCount: number, tier: 'selected' | '1st' | '2nd'): number {
+  const base = tier === 'selected' ? 4 : tier === '1st' ? 3 : 1.8;
+  const scale = Math.max(0.45, 1 / (1 + connectionCount * 0.01));
+  return Math.round(base * scale * 10) / 10;
+}
 
 // Soft pastel palette for cluster hull backgrounds (non-map view)
 const HULL_COLORS = [
@@ -65,9 +105,9 @@ const MAP_CENTERS: Record<MapRegion, [number, number]> = {
 };
 
 const MAP_SCALES: Record<MapRegion, number> = {
-  world: 120,
-  europe: 600,
-  netherlands: 5000,
+  world: 180,
+  europe: 900,
+  netherlands: 7000,
 };
 
 interface Props {
@@ -77,7 +117,7 @@ interface Props {
   showSpaces: boolean;
   searchQuery: string;
   onNodeClick: (node: GraphNode) => void;
-  onNodeHover?: (node: GraphNode | null) => void;
+  onNodeHover?: (node: GraphNode | null, position?: { x: number; y: number }) => void;
   selectedNodeId: string | null;
   highlightedNodeIds?: string[];
   showMap?: boolean;
@@ -90,6 +130,47 @@ interface SimNode extends d3.SimulationNodeDatum {
 
 interface SimLink extends d3.SimulationLinkDatum<SimNode> {
   data: GraphEdge;
+}
+
+/** Base radius per type — the minimum size when a node has few connections */
+const BASE_RADIUS: Record<string, number> = {
+  SPACE_L0: 18,
+  SPACE_L1: 14,
+  SPACE_L2: 9,
+  ORGANIZATION: 7,
+  USER: 8,
+};
+/** Max scale factor per category — L0 capped lower to avoid dominating */
+const MAX_DEGREE_SCALE: Record<string, number> = {
+  space: 1.5,   // L0/L1/L2 grow modestly
+  org: 3.5,
+  people: 3.5,
+};
+
+/**
+ * Compute node radius. Uses an external degree map for connection-based scaling.
+ * Scaling is relative to the max degree *within the same node category* so
+ * users scale against other users, not against high-degree L0 spaces.
+ */
+let _nodeDegree: Map<string, number> = new Map();
+let _maxDegreeByCategory: Record<string, number> = {};
+
+function _category(type: string): string {
+  if (type === 'SPACE_L0' || type === 'SPACE_L1' || type === 'SPACE_L2') return 'space';
+  if (type === 'ORGANIZATION') return 'org';
+  return 'people';
+}
+
+function nodeRadius(d: { data: { type: string; weight: number; id: string } }): number {
+  const base = BASE_RADIUS[d.data.type] ?? Math.sqrt(d.data.weight) * 3;
+  const degree = _nodeDegree.get(d.data.id) || 0;
+  const cat = _category(d.data.type);
+  const maxDeg = _maxDegreeByCategory[cat] || 1;
+  const maxScale = MAX_DEGREE_SCALE[cat] ?? 2.0;
+  // Logarithmic scaling relative to peers in same category
+  const t = maxDeg > 1 ? Math.log(1 + degree) / Math.log(1 + maxDeg) : 0;
+  const scale = 1 + t * (maxScale - 1);
+  return base * scale;
 }
 
 export default function ForceGraph({
@@ -133,6 +214,22 @@ export default function ForceGraph({
     // Create simulation data
     const simNodes: SimNode[] = visibleNodes.map((n) => ({ data: n }));
     const nodeMap = new Map(simNodes.map((n) => [n.data.id, n]));
+
+    // Precompute degree (connection count) per node for radius scaling
+    const degreeMap = new Map<string, number>();
+    for (const e of visibleEdges) {
+      degreeMap.set(e.sourceId, (degreeMap.get(e.sourceId) || 0) + 1);
+      degreeMap.set(e.targetId, (degreeMap.get(e.targetId) || 0) + 1);
+    }
+    _nodeDegree = degreeMap;
+    // Compute max degree per category so scaling is relative to peers
+    const maxByCategory: Record<string, number> = {};
+    for (const n of visibleNodes) {
+      const cat = _category(n.type);
+      const deg = degreeMap.get(n.id) || 0;
+      maxByCategory[cat] = Math.max(maxByCategory[cat] || 1, deg);
+    }
+    _maxDegreeByCategory = maxByCategory;
     const simLinks: SimLink[] = visibleEdges
       .map((e) => ({
         source: nodeMap.get(e.sourceId)!,
@@ -141,17 +238,9 @@ export default function ForceGraph({
       }))
       .filter((l) => l.source && l.target);
 
-    // Compute clusters for layout forces
+    // Compute clusters for hull rendering
     const clusters = computeClusters(visibleNodes, 'space');
     const clusterCenters = new Map<string, { x: number; y: number }>();
-    clusters.forEach((c, i) => {
-      const angle = (2 * Math.PI * i) / clusters.length;
-      const radius = Math.min(width, height) * 0.25;
-      clusterCenters.set(c.id, {
-        x: width / 2 + radius * Math.cos(angle),
-        y: height / 2 + radius * Math.sin(angle),
-      });
-    });
 
     // Build node-to-cluster map
     const nodeCluster = new Map<string, string>();
@@ -161,17 +250,266 @@ export default function ForceGraph({
       }
     }
 
-    // Proximity clustering state (persists across ticks within this render)
-    let expandedClusterKey: string | null = null;
-    const fannedNodeIds = new Set<string>();
-    let fanOrigin: { x: number; y: number } | null = null;
+    // ---- Hierarchical radial layout (flower-circle) ----
+    // Build parent-child hierarchy from node data
+    const childMap = new Map<string, SimNode[]>();
+    for (const n of simNodes) {
+      if (n.data.parentSpaceId && nodeMap.has(n.data.parentSpaceId)) {
+        if (!childMap.has(n.data.parentSpaceId)) childMap.set(n.data.parentSpaceId, []);
+        childMap.get(n.data.parentSpaceId)!.push(n);
+      }
+    }
+
+    // Count direct MEMBER/LEAD connections per space (people around each space)
+    const spaceMemberCount = new Map<string, number>();
+    for (const e of visibleEdges) {
+      if (e.type === 'MEMBER' || e.type === 'LEAD') {
+        // Target is usually the space
+        const tgtNode = nodeMap.get(e.targetId);
+        const srcNode = nodeMap.get(e.sourceId);
+        if (tgtNode && (tgtNode.data.type === 'SPACE_L0' || tgtNode.data.type === 'SPACE_L1' || tgtNode.data.type === 'SPACE_L2')) {
+          spaceMemberCount.set(e.targetId, (spaceMemberCount.get(e.targetId) || 0) + 1);
+        } else if (srcNode && (srcNode.data.type === 'SPACE_L0' || srcNode.data.type === 'SPACE_L1' || srcNode.data.type === 'SPACE_L2')) {
+          spaceMemberCount.set(e.sourceId, (spaceMemberCount.get(e.sourceId) || 0) + 1);
+        }
+      }
+    }
+
+    // Target positions for hierarchical layout
+    const targetPositions = new Map<string, { x: number; y: number }>();
+
+    // L0 nodes: arrange in a circle, ordered by member overlap so related L0s are adjacent
+    const l0Nodes = simNodes.filter(n => n.data.type === 'SPACE_L0');
+    const clusterSpread = l0Nodes.length === 1
+      ? 0
+      : Math.min(width, height) * 0.58 + l0Nodes.length * 90;
+
+    // Build member sets per L0 ecosystem (all people/orgs connected to any space under this L0)
+    const l0MemberSets = new Map<string, Set<string>>();
+    for (const l0 of l0Nodes) {
+      const members = new Set<string>();
+      // Collect all space IDs under this L0 (L0 itself + L1s + L2s via scopeGroups)
+      const spaceIds = new Set<string>();
+      for (const n of simNodes) {
+        if (n.data.scopeGroups.includes(l0.data.id) &&
+            (n.data.type === 'SPACE_L0' || n.data.type === 'SPACE_L1' || n.data.type === 'SPACE_L2')) {
+          spaceIds.add(n.data.id);
+        }
+      }
+      // Find all people/orgs connected to those spaces
+      for (const e of visibleEdges) {
+        if (e.type === 'MEMBER' || e.type === 'LEAD') {
+          if (spaceIds.has(e.targetId)) members.add(e.sourceId);
+          else if (spaceIds.has(e.sourceId)) members.add(e.targetId);
+        }
+      }
+      l0MemberSets.set(l0.data.id, members);
+    }
+
+    // Compute pairwise overlap (Jaccard-like: shared members count)
+    const overlap = (a: string, b: string): number => {
+      const setA = l0MemberSets.get(a);
+      const setB = l0MemberSets.get(b);
+      if (!setA || !setB) return 0;
+      let shared = 0;
+      for (const id of setA) { if (setB.has(id)) shared++; }
+      return shared;
+    };
+
+    // Order L0s by greedy nearest-neighbor: start with first, always pick the
+    // most-overlapping unvisited neighbor next → related L0s end up adjacent
+    let orderedL0: SimNode[] = [];
+    if (l0Nodes.length <= 2) {
+      orderedL0 = [...l0Nodes];
+    } else {
+      const remaining = new Set(l0Nodes.map((_, i) => i));
+      let current = 0;
+      remaining.delete(0);
+      orderedL0.push(l0Nodes[0]);
+      while (remaining.size > 0) {
+        let bestIdx = -1;
+        let bestOverlap = -1;
+        for (const idx of remaining) {
+          const ov = overlap(l0Nodes[current].data.id, l0Nodes[idx].data.id);
+          if (ov > bestOverlap) { bestOverlap = ov; bestIdx = idx; }
+        }
+        remaining.delete(bestIdx);
+        orderedL0.push(l0Nodes[bestIdx]);
+        current = bestIdx;
+      }
+    }
+
+    orderedL0.forEach((l0, i) => {
+      const angle = orderedL0.length === 1
+        ? 0
+        : (2 * Math.PI * i) / orderedL0.length - Math.PI / 2;
+      const l0Pos = {
+        x: width / 2 + clusterSpread * Math.cos(angle),
+        y: height / 2 + clusterSpread * Math.sin(angle),
+      };
+      targetPositions.set(l0.data.id, l0Pos);
+      clusterCenters.set(l0.data.id, l0Pos);
+
+      // L1 children: ring around L0 — radius responsive to L0's member count
+      const l1Children = (childMap.get(l0.data.id) || [])
+        .filter(c => c.data.type === 'SPACE_L1');
+      const l0Members = spaceMemberCount.get(l0.data.id) || 0;
+      const l1Radius = L1_RING_RADIUS_MIN
+        + l1Children.length * L1_RING_RADIUS_PER_NODE
+        + l0Members * L1_RING_RADIUS_PER_MEMBER;
+
+      l1Children.forEach((l1, j) => {
+        const l1Angle = (2 * Math.PI * j) / l1Children.length - Math.PI / 2;
+        const l1Pos = {
+          x: l0Pos.x + l1Radius * Math.cos(l1Angle),
+          y: l0Pos.y + l1Radius * Math.sin(l1Angle),
+        };
+        targetPositions.set(l1.data.id, l1Pos);
+
+        // L2 children: ring around L1 — radius responsive to L1's member count
+        const l2Children = (childMap.get(l1.data.id) || [])
+          .filter(c => c.data.type === 'SPACE_L2');
+        const l1Members = spaceMemberCount.get(l1.data.id) || 0;
+        const l2Radius = L2_RING_RADIUS_MIN
+          + l2Children.length * L2_RING_RADIUS_PER_NODE
+          + l1Members * L2_RING_RADIUS_PER_MEMBER;
+
+        l2Children.forEach((l2, k) => {
+          const l2Angle = (2 * Math.PI * k) / l2Children.length - Math.PI / 2;
+          targetPositions.set(l2.data.id, {
+            x: l1Pos.x + l2Radius * Math.cos(l2Angle),
+            y: l1Pos.y + l2Radius * Math.sin(l2Angle),
+          });
+        });
+      });
+    });
+
+    // Fallback: L1/L2 nodes without parentSpaceId or whose parent isn't visible
+    for (const node of simNodes) {
+      if (targetPositions.has(node.data.id)) continue;
+      if (node.data.type === 'SPACE_L1' || node.data.type === 'SPACE_L2') {
+        const clusterId = nodeCluster.get(node.data.id);
+        const center = clusterId && clusterCenters.get(clusterId);
+        if (center) {
+          const angle = Math.random() * 2 * Math.PI;
+          const r = node.data.type === 'SPACE_L1'
+            ? L1_RING_RADIUS_MIN
+            : L1_RING_RADIUS_MIN + L2_RING_RADIUS_MIN;
+          targetPositions.set(node.data.id, {
+            x: center.x + r * Math.cos(angle),
+            y: center.y + r * Math.sin(angle),
+          });
+        }
+      }
+    }
+
+    // Pre-build adjacency for user/org placement — track edge type for depth weighting
+    const nodeEdges = new Map<string, { otherId: string; weight: number; type: string }[]>();
+    for (const edge of visibleEdges) {
+      if (!nodeEdges.has(edge.sourceId)) nodeEdges.set(edge.sourceId, []);
+      if (!nodeEdges.has(edge.targetId)) nodeEdges.set(edge.targetId, []);
+      nodeEdges.get(edge.sourceId)!.push({ otherId: edge.targetId, weight: edge.weight, type: edge.type });
+      nodeEdges.get(edge.targetId)!.push({ otherId: edge.sourceId, weight: edge.weight, type: edge.type });
+    }
+
+    // Depth weight: deeper spaces carry more positioning influence
+    // A person in L0 + L1a + L1b should be pulled toward L1a & L1b more than L0
+    const depthWeight = (type: string): number => {
+      if (type === 'SPACE_L2') return 4;
+      if (type === 'SPACE_L1') return 2;
+      if (type === 'SPACE_L0') return 1;
+      return 0;
+    };
+
+    // Users & Orgs: position at weighted centroid of ALL membership spaces
+    // Deeper (more specific) spaces have higher weight — reveals cross-cutting structure
+    for (const node of simNodes) {
+      if (targetPositions.has(node.data.id)) continue;
+
+      const edges = nodeEdges.get(node.data.id) || [];
+      const memberSpaces: { pos: { x: number; y: number }; w: number; id: string }[] = [];
+
+      for (const { otherId } of edges) {
+        const other = nodeMap.get(otherId);
+        if (!other || !targetPositions.has(otherId)) continue;
+        const dw = depthWeight(other.data.type);
+        if (dw > 0) {
+          memberSpaces.push({ pos: targetPositions.get(otherId)!, w: dw, id: otherId });
+        }
+      }
+
+      if (memberSpaces.length > 0) {
+        // Check if user is only connected to L0 (no L1/L2 memberships)
+        const hasDeeper = memberSpaces.some(s => s.w > 1); // L1=2, L2=4
+        const l0Only = !hasDeeper;
+
+        // Weighted centroid of all membership spaces
+        let totalW = 0, cx = 0, cy = 0;
+        for (const s of memberSpaces) {
+          totalW += s.w;
+          cx += s.pos.x * s.w;
+          cy += s.pos.y * s.w;
+        }
+        cx /= totalW;
+        cy /= totalW;
+
+        const angle = Math.random() * 2 * Math.PI;
+
+        let scatter: number;
+        if (l0Only) {
+          // L0-only users: tight ring centered on the L0 node
+          const l0Space = memberSpaces[0];
+          const l0R = nodeRadius(nodeMap.get(l0Space.id)!);
+          scatter = l0R + L0_ONLY_PEOPLE_RADIUS + Math.random() * 10;
+        } else if (memberSpaces.length === 1) {
+          // Single deeper space: ring around that space
+          const deepestSpace = memberSpaces[0];
+          const spaceR = nodeRadius(nodeMap.get(deepestSpace.id)!);
+          scatter = spaceR + PEOPLE_RING_RADIUS + Math.random() * 15;
+        } else {
+          // Multi-space: between spaces, tighter scatter
+          scatter = PEOPLE_RING_RADIUS * 0.6 + Math.random() * 12;
+        }
+
+        targetPositions.set(node.data.id, {
+          x: cx + scatter * Math.cos(angle),
+          y: cy + scatter * Math.sin(angle),
+        });
+      } else {
+        // Fallback: use cluster center from scope groups
+        const scopeGroup = node.data.scopeGroups[0];
+        const clusterPos = scopeGroup && clusterCenters.get(scopeGroup);
+        if (clusterPos) {
+          const angle = Math.random() * 2 * Math.PI;
+          targetPositions.set(node.data.id, {
+            x: clusterPos.x + 100 * Math.cos(angle),
+            y: clusterPos.y + 100 * Math.sin(angle),
+          });
+        }
+      }
+    }
+
+    // Initialize node positions at their hierarchical targets
+    for (const simNode of simNodes) {
+      const target = targetPositions.get(simNode.data.id);
+      if (target) {
+        simNode.x = target.x + (Math.random() - 0.5) * 5;
+        simNode.y = target.y + (Math.random() - 0.5) * 5;
+      } else {
+        simNode.x = width / 2 + (Math.random() - 0.5) * 100;
+        simNode.y = height / 2 + (Math.random() - 0.5) * 100;
+      }
+    }
+
+    // Clustering state
     let currentZoomScale = 1;
-    let autoExpandedForSelection = false;
+    // Track nodes that have been "revealed" from a cluster click (exempt from re-clustering)
+    const revealedNodeIds = new Set<string>();
 
     // Setup zoom
     let simulationLocal: d3.Simulation<SimNode, SimLink> | null = null;
     const g = svg.append('g');
-    const zoom = d3.zoom<SVGSVGElement, unknown>().scaleExtent([0.1, 8]).on('zoom', (event) => {
+    const zoom = d3.zoom<SVGSVGElement, unknown>().scaleExtent([0.1, 20]).on('zoom', (event) => {
       g.attr('transform', event.transform);
       currentZoomScale = event.transform.k;
       applyLOD(event.transform.k);
@@ -181,6 +519,31 @@ export default function ForceGraph({
       }
     });
     svg.call(zoom as any);
+
+    // Background click: collapse any revealed cluster
+    svg.on('click.reveal', () => {
+      if (revealedNodeIds.size === 0) return;
+      // Unfix the previously revealed nodes
+      for (const id of revealedNodeIds) {
+        const n = nodeMap.get(id);
+        if (n) {
+          // In geo mode, snap back to geo position; otherwise release
+          const geoTarget = geoTargets.get(id);
+          if (geoTarget) {
+            n.fx = geoTarget.x;
+            n.fy = geoTarget.y;
+          } else {
+            n.fx = null;
+            n.fy = null;
+          }
+        }
+      }
+      revealedNodeIds.clear();
+      // Restart simulation gently so nodes settle
+      if (simulationLocal) {
+        simulationLocal.alpha(0.3).restart();
+      }
+    });
 
     /**
      * Lightweight LOD: only counter-scale badges and adjust hull opacity.
@@ -287,7 +650,11 @@ export default function ForceGraph({
       .join('path')
       .attr('fill', 'none')
       .attr('stroke', (d) => EDGE_COLORS[d.data.type] || EDGE_COLORS.MEMBER)
-      .attr('stroke-width', (d) => Math.max(0.5, Math.min(d.data.weight * 0.6, 2)))
+      .attr('stroke-width', (d) => {
+        if (d.data.type === 'MEMBER') return 0.6;  // thin hairline — clean at scale
+        if (d.data.type === 'LEAD') return 1.2;
+        return Math.max(0.5, Math.min(d.data.weight * 0.5, 1.8)); // CHILD
+      })
       .attr('stroke-linecap', 'round');
 
     // Draw nodes
@@ -302,8 +669,11 @@ export default function ForceGraph({
         _event.stopPropagation();
         onNodeClick(d.data);
       })
-      .on('mouseenter', (_event, d) => {
-        onNodeHover?.(d.data);
+      .on('mouseenter', (_event: MouseEvent, d) => {
+        onNodeHover?.(d.data, { x: _event.clientX, y: _event.clientY });
+      })
+      .on('mousemove', (_event: MouseEvent, d) => {
+        onNodeHover?.(d.data, { x: _event.clientX, y: _event.clientY });
       })
       .on('mouseleave', () => {
         onNodeHover?.(null);
@@ -322,12 +692,6 @@ export default function ForceGraph({
           })
           .on('end', (event: any, d: any) => {
             if (!event.active) simulationRef.current?.alphaTarget(0);
-            // Fanned-out nodes stay at dragged position
-            if (fannedNodeIds.has(d.data.id)) {
-              d.fx = d.x;
-              d.fy = d.y;
-              return;
-            }
             // In geo mode, snap back to geographic position if node has one
             const geoTarget = geoTargets.get(d.data.id);
             if (geoTarget) {
@@ -380,7 +744,7 @@ export default function ForceGraph({
     simNodes
       .filter((d) => !!d.data.avatarUrl)
       .forEach((d) => {
-        const r = Math.sqrt(d.data.weight) * 3;
+        const r = nodeRadius(d);
         defs
           .append('clipPath')
           .attr('id', `clip-avatar-${d.data.id}`)
@@ -391,7 +755,7 @@ export default function ForceGraph({
     // Node circles — Kumu-inspired: spaces are filled, users/orgs get ring borders
     nodeSelection
       .append('circle')
-      .attr('r', (d) => Math.sqrt(d.data.weight) * 3)
+      .attr('r', (d) => nodeRadius(d))
       .attr('fill', (d) => {
         if (d.data.type === 'USER' || d.data.type === 'ORGANIZATION') {
           return d.data.avatarUrl ? 'white' : NODE_COLORS[d.data.type] || '#999';
@@ -399,12 +763,15 @@ export default function ForceGraph({
         return NODE_COLORS[d.data.type] || '#999';
       })
       .attr('stroke', (d) => {
-        if (d.data.type === 'USER') return 'rgba(140,160,180,0.6)';
+        if (d.data.type === 'USER') return 'rgba(160,175,195,0.5)';
         if (d.data.type === 'ORGANIZATION') return NODE_COLORS.ORGANIZATION;
-        return 'rgba(255,255,255,0.8)';
+        if (d.data.type === 'SPACE_L0') return 'rgba(255,255,255,0.9)';
+        return 'rgba(255,255,255,0.7)';
       })
       .attr('stroke-width', (d) => {
-        if (d.data.type === 'USER' || d.data.type === 'ORGANIZATION') return 2;
+        if (d.data.type === 'USER') return 1.5;
+        if (d.data.type === 'ORGANIZATION') return 1.5;
+        if (d.data.type === 'SPACE_L0') return 2;
         return 1;
       });
 
@@ -412,11 +779,11 @@ export default function ForceGraph({
     nodeSelection
       .filter((d) => !!d.data.avatarUrl)
       .append('image')
-      .attr('href', (d) => d.data.avatarUrl!)
-      .attr('x', (d) => -Math.sqrt(d.data.weight) * 3)
-      .attr('y', (d) => -Math.sqrt(d.data.weight) * 3)
-      .attr('width', (d) => Math.sqrt(d.data.weight) * 6)
-      .attr('height', (d) => Math.sqrt(d.data.weight) * 6)
+      .attr('href', (d) => proxyImageUrl(d.data.avatarUrl) ?? d.data.avatarUrl!)
+      .attr('x', (d) => -nodeRadius(d))
+      .attr('y', (d) => -nodeRadius(d))
+      .attr('width', (d) => nodeRadius(d) * 2)
+      .attr('height', (d) => nodeRadius(d) * 2)
       .attr('clip-path', (d) => `url(#clip-avatar-${d.data.id})`)
       .attr('preserveAspectRatio', 'xMidYMid slice')
       .on('error', function () {
@@ -435,9 +802,9 @@ export default function ForceGraph({
         const name = d.data.displayName;
         return name.length > LABEL_MAX_CHARS ? name.slice(0, LABEL_MAX_CHARS - 1) + '\u2026' : name;
       })
-      .attr('font-size', (d) => (d.data.type === 'SPACE_L0' ? 11 : 9))
+      .attr('font-size', (d) => (d.data.type === 'SPACE_L0' ? 13 : d.data.type === 'SPACE_L1' ? 10 : 9))
       .attr('text-anchor', 'middle')
-      .attr('dy', (d) => Math.sqrt(d.data.weight) * 3 + 14)
+      .attr('dy', (d) => nodeRadius(d) + 14)
       .attr('fill', 'none')
       .attr('stroke', 'white')
       .attr('stroke-width', 4)
@@ -453,27 +820,19 @@ export default function ForceGraph({
         const name = d.data.displayName;
         return name.length > LABEL_MAX_CHARS ? name.slice(0, LABEL_MAX_CHARS - 1) + '\u2026' : name;
       })
-      .attr('font-size', (d) => (d.data.type === 'SPACE_L0' ? 11 : 9))
-      .attr('font-weight', (d) => (d.data.type === 'SPACE_L0' ? '600' : '400'))
+      .attr('font-size', (d) => (d.data.type === 'SPACE_L0' ? 13 : d.data.type === 'SPACE_L1' ? 10 : 9))
+      .attr('font-weight', (d) => (d.data.type === 'SPACE_L0' ? '700' : d.data.type === 'SPACE_L1' ? '600' : '400'))
       .attr('text-anchor', 'middle')
-      .attr('dy', (d) => Math.sqrt(d.data.weight) * 3 + 14)
+      .attr('dy', (d) => nodeRadius(d) + 14)
       .attr('fill', 'var(--text-secondary)')
       .attr('pointer-events', 'none')
       .attr('opacity', 0);
-
-    // Connector lines layer (between badges and fanned nodes)
-    const connectorLayer = g.append('g').attr('class', 'fan-connectors')
-      .attr('pointer-events', 'none');
 
     // Cluster hull background layer (non-map view only)
     const hullLayer = g.insert('g', '.edges').attr('class', 'cluster-hulls');
 
     // Proximity clustering badge layer (above nodes)
     const badgeLayer = g.append('g').attr('class', 'cluster-badges');
-
-    // Animation state
-    let fanAnimationId: number | null = null;
-    let collapseAnimationId: number | null = null;
 
     // Force simulation — adjust forces based on whether map mode is active
     const isGeoMode = showMap && geoTargets.size > 0;
@@ -485,22 +844,47 @@ export default function ForceGraph({
         d3
           .forceLink(simLinks)
           .id((_d, i) => simNodes[i]?.data.id || '')
-          .distance(isGeoMode ? 30 : 80)
-          .strength(isGeoMode ? 0.15 : 0.2),
+          .distance((d: any) => {
+            if (isGeoMode) return 30;
+            const edgeData = (d as SimLink).data;
+            // CHILD edges (hierarchy) shorter, MEMBER longer — maintains flower structure
+            if (edgeData.type === 'CHILD') return 60;
+            if (edgeData.type === 'LEAD') return 70;
+            return 80; // MEMBER — tighter to keep people near their spaces
+          })
+          .strength((d: any) => {
+            if (isGeoMode) return 0.15;
+            const edgeData = (d as SimLink).data;
+            // Hierarchy edges stronger to maintain structure
+            if (edgeData.type === 'CHILD') return 0.6;
+            if (edgeData.type === 'LEAD') return 0.15;
+            return 0.1; // MEMBER — enough pull to keep people near spaces
+          }),
       )
-      .force('charge', d3.forceManyBody().strength(isGeoMode ? -40 : -150))
-      .force('center', isGeoMode ? null : d3.forceCenter(width / 2, height / 2))
-      .force('collision', d3.forceCollide().radius((d) => Math.sqrt((d as SimNode).data.weight) * 3 + 12))
-      .force('cluster', isGeoMode ? null : (alpha: number) => {
+      .force('charge', d3.forceManyBody()
+        .strength((d: any) => {
+          if (isGeoMode) return -40;
+          const nd = d as SimNode;
+          // Spaces repel more to maintain cluster separation
+          if (nd.data.type === 'SPACE_L0') return -500;
+          if (nd.data.type === 'SPACE_L1') return -200;
+          if (nd.data.type === 'SPACE_L2') return -80;
+          return -25; // people/orgs: gentle repulsion
+        }))
+      .force('center', isGeoMode ? null : d3.forceCenter(width / 2, height / 2).strength(0.03))
+      .force('collision', d3.forceCollide().radius((d) => nodeRadius(d as SimNode) + 8))
+      .force('radial-hierarchy', isGeoMode ? null : (alpha: number) => {
         for (const node of simNodes) {
-          const clusterId = nodeCluster.get(node.data.id);
-          if (clusterId) {
-            const center = clusterCenters.get(clusterId);
-            if (center) {
-              node.vx = (node.vx || 0) + (center.x - (node.x || 0)) * alpha * 0.1;
-              node.vy = (node.vy || 0) + (center.y - (node.y || 0)) * alpha * 0.1;
-            }
-          }
+          const target = targetPositions.get(node.data.id);
+          if (!target) continue;
+          // Strength varies by level — spaces anchor the layout
+          let strength = 0.08;
+          if (node.data.type === 'SPACE_L0') strength = 0.4;
+          else if (node.data.type === 'SPACE_L1') strength = 0.25;
+          else if (node.data.type === 'SPACE_L2') strength = 0.15;
+
+          node.vx = (node.vx || 0) + (target.x - (node.x || 0)) * alpha * strength;
+          node.vy = (node.vy || 0) + (target.y - (node.y || 0)) * alpha * strength;
         }
       });
 
@@ -549,15 +933,15 @@ export default function ForceGraph({
       // Label collision culling — hide labels that overlap higher-priority ones
       cullOverlappingLabels();
 
-      // Proximity clustering
-      if (simNodes.length <= MAX_NODES_FOR_CLUSTERING) {
-        // Build list of clusterable nodes (exclude fanned-out nodes)
+      // Proximity clustering — only active in map overlay mode
+      if (showMap && simNodes.length <= MAX_NODES_FOR_CLUSTERING) {
+        // Build list of clusterable nodes — exclude revealed (fanned-out) nodes
         const clusterableNodes = simNodes
-          .filter((n) => !fannedNodeIds.has(n.data.id))
+          .filter((n) => !revealedNodeIds.has(n.data.id))
           .map((n) => ({ id: n.data.id, x: n.x || 0, y: n.y || 0 }));
 
-        // Simple linear threshold: clusters only truly overlapping nodes
-        const effectiveThreshold = PROXIMITY_THRESHOLD / currentZoomScale;
+        // Threshold decays quadratically with zoom — clusters dissolve fast as you zoom
+        const effectiveThreshold = PROXIMITY_THRESHOLD / (currentZoomScale * currentZoomScale);
         const proxClusters = computeProximityGroups(clusterableNodes, effectiveThreshold);
 
         // Collect all clustered node IDs
@@ -568,24 +952,29 @@ export default function ForceGraph({
           }
         }
 
-        // Toggle node visibility
+        // Toggle node visibility — hide clustered nodes (but not revealed ones)
         nodeSelection.attr('display', (d) =>
-          clusteredIds.has(d.data.id) ? 'none' : '',
+          clusteredIds.has(d.data.id) && !revealedNodeIds.has(d.data.id) ? 'none' : '',
         );
+        // Also hide edges that connect to hidden nodes (but show edges to revealed nodes)
+        linkSelection.attr('display', (d) => {
+          const srcId = (d.source as SimNode).data.id;
+          const tgtId = (d.target as SimNode).data.id;
+          const srcHidden = clusteredIds.has(srcId) && !revealedNodeIds.has(srcId);
+          const tgtHidden = clusteredIds.has(tgtId) && !revealedNodeIds.has(tgtId);
+          if (srcHidden || tgtHidden) return 'none';
+          return '';
+        });
 
         // D3 join for badge groups
         const badges = badgeLayer
           .selectAll<SVGGElement, ProximityCluster>('g.proximity-badge')
           .data(proxClusters, (d) => d.key);
 
-        // Exit: scale down and fade out
+        // Exit
         badges.exit()
           .transition().duration(200)
           .attr('opacity', 0)
-          .attr('transform', function () {
-            const cur = d3.select(this).attr('transform') || 'translate(0,0)';
-            return `${cur} scale(0.3)`;
-          })
           .remove();
 
         const enter = badges.enter()
@@ -595,27 +984,25 @@ export default function ForceGraph({
           .attr('opacity', 0)
           .attr('filter', 'url(#badge-shadow)');
 
-        // Animate entrance: scale + fade in
-        enter.transition().duration(250)
-          .attr('opacity', 1);
+        enter.transition().duration(250).attr('opacity', 1);
 
-        // Invisible hitbox for easier clicking
+        // Invisible hitbox
         enter.append('circle')
           .attr('class', 'badge-hitbox')
           .attr('r', 30)
           .attr('fill', 'transparent')
           .attr('cursor', 'pointer');
 
-        // Outer ring (subtle indicator)
+        // Outer ring
         enter.append('circle')
           .attr('class', 'badge-ring')
           .attr('r', 22)
           .attr('fill', 'none')
-          .attr('stroke', 'rgba(99,102,241,0.2)')
-          .attr('stroke-width', 1.5)
+          .attr('stroke', 'rgba(99,102,241,0.15)')
+          .attr('stroke-width', 1)
           .attr('stroke-dasharray', '3,2');
 
-        // Visible badge circle — themed gradient feel
+        // Badge circle
         enter.append('circle')
           .attr('class', 'badge-circle')
           .attr('r', 18)
@@ -633,9 +1020,19 @@ export default function ForceGraph({
           .attr('fill', '#4338ca')
           .attr('pointer-events', 'none');
 
+        // Summary label below badge — shows top space name
+        enter.append('text')
+          .attr('class', 'badge-summary')
+          .attr('text-anchor', 'middle')
+          .attr('dy', '2.2em')
+          .attr('font-size', 9)
+          .attr('font-weight', '500')
+          .attr('fill', 'var(--text-secondary)')
+          .attr('pointer-events', 'none');
+
         // Hover effects
         enter
-          .on('mouseenter', function () {
+          .on('mouseenter', function (_event, d) {
             const el = d3.select(this);
             el.attr('filter', 'url(#badge-glow)');
             el.select('.badge-circle')
@@ -646,10 +1043,15 @@ export default function ForceGraph({
             el.select('.badge-ring')
               .transition().duration(150)
               .attr('r', 26)
-              .attr('stroke', 'rgba(99,102,241,0.4)');
-            el.select('.badge-text')
-              .transition().duration(150)
-              .attr('font-size', 14);
+              .attr('stroke', 'rgba(99,102,241,0.35)');
+
+            // Show tooltip with all member names
+            const names = d.memberIds
+              .map(id => nodeMap.get(id)?.data.displayName || id)
+              .slice(0, 8);
+            const overflow = d.memberIds.length > 8 ? `\n+${d.memberIds.length - 8} more` : '';
+            el.select('.badge-summary')
+              .text(names[0] || '');
           })
           .on('mouseleave', function () {
             const el = d3.select(this);
@@ -662,76 +1064,89 @@ export default function ForceGraph({
             el.select('.badge-ring')
               .transition().duration(150)
               .attr('r', 22)
-              .attr('stroke', 'rgba(99,102,241,0.2)');
-            el.select('.badge-text')
-              .transition().duration(150)
-              .attr('font-size', 13);
+              .attr('stroke', 'rgba(99,102,241,0.15)');
           });
 
-        // Badge click → animated fan-out
-        enter.on('click', (_event, d) => {
+        // Badge click → fan out cluster members in a circle and zoom in
+        enter.on('click', function (_event, d) {
           _event.stopPropagation();
 
-          // Cancel any running collapse animation
-          if (collapseAnimationId) {
-            cancelAnimationFrame(collapseAnimationId);
-            collapseAnimationId = null;
-          }
-
-          expandedClusterKey = d.key;
-          fanOrigin = { x: d.centroidX, y: d.centroidY };
-          const count = d.memberIds.length;
-          const radius = Math.max(FAN_OUT_MIN_RADIUS, count * FAN_OUT_PER_NODE_RADIUS);
-
-          // Calculate target positions (start from top, clockwise)
-          const targets = d.memberIds.map((id, i) => ({
-            id,
-            tx: d.centroidX + radius * Math.cos((2 * Math.PI * i) / count - Math.PI / 2),
-            ty: d.centroidY + radius * Math.sin((2 * Math.PI * i) / count - Math.PI / 2),
-          }));
-
-          // Start nodes at centroid
-          for (const t of targets) {
-            const node = nodeMap.get(t.id);
-            if (node) { node.fx = d.centroidX; node.fy = d.centroidY; }
-            fannedNodeIds.add(t.id);
-          }
-
-          // Animated interpolation from centroid → target
-          const startTime = performance.now();
-          function animateFan() {
-            const elapsed = performance.now() - startTime;
-            const t = Math.min(1, elapsed / FAN_OUT_DURATION_MS);
-            // Cubic ease-out: 1 - (1-t)^3
-            const et = 1 - Math.pow(1 - t, 3);
-
-            for (const target of targets) {
-              const node = nodeMap.get(target.id);
-              if (node) {
-                node.fx = d.centroidX + (target.tx - d.centroidX) * et;
-                node.fy = d.centroidY + (target.ty - d.centroidY) * et;
+          // Reset any previously revealed nodes first
+          for (const id of revealedNodeIds) {
+            const n = nodeMap.get(id);
+            if (n) {
+              const geoTarget = geoTargets.get(id);
+              if (geoTarget) {
+                n.fx = geoTarget.x;
+                n.fy = geoTarget.y;
+              } else {
+                n.fx = null;
+                n.fy = null;
               }
             }
-            simulation.alpha(Math.max(simulation.alpha(), 0.05)).restart();
-
-            if (t < 1) {
-              fanAnimationId = requestAnimationFrame(animateFan);
-            } else {
-              fanAnimationId = null;
-              // Draw connector lines after animation completes
-              updateConnectors();
-            }
           }
-          fanAnimationId = requestAnimationFrame(animateFan);
+          revealedNodeIds.clear();
+
+          // Fan out member nodes in a circle around the cluster centroid
+          const angleStep = (2 * Math.PI) / d.memberIds.length;
+          d.memberIds.forEach((id, i) => {
+            const n = nodeMap.get(id);
+            if (n) {
+              const angle = i * angleStep - Math.PI / 2;
+              n.fx = d.centroidX + FANOUT_RADIUS * Math.cos(angle);
+              n.fy = d.centroidY + FANOUT_RADIUS * Math.sin(angle);
+              revealedNodeIds.add(id);
+            }
+          });
+
+          // Zoom to show the fanned-out cluster
+          const viewSize = Math.min(width, height) * 0.4;
+          const targetScale = Math.min(20, Math.max(currentZoomScale * 1.5, viewSize / (FANOUT_RADIUS * 2.5)));
+
+          const transform = d3.zoomIdentity
+            .translate(width / 2, height / 2)
+            .scale(targetScale)
+            .translate(-d.centroidX, -d.centroidY);
+
+          svg.transition()
+            .duration(ZOOM_TRANSITION_MS)
+            .ease(d3.easeCubicInOut)
+            .call(zoom.transform as any, transform);
+
+          // Restart simulation so nodes animate to their new fixed positions
+          if (simulationLocal) {
+            simulationLocal.alpha(0.5).restart();
+          }
         });
 
         const merged = enter.merge(badges);
 
-        // Position badges at cluster centroids — counter-scaled to maintain
-        // constant apparent size regardless of zoom level
+        // Position badges
         const invScale = 1 / currentZoomScale;
         merged.attr('transform', (d) => `translate(${d.centroidX},${d.centroidY}) scale(${invScale})`);
         merged.select('.badge-text').text((d) => `${d.count}`);
+
+        // Show dominant space name as summary on each badge
+        merged.select('.badge-summary').text((d) => {
+          // Find the most prominent node (highest weight space) in this cluster
+          let bestName = '';
+          let bestWeight = -1;
+          for (const id of d.memberIds) {
+            const n = nodeMap.get(id);
+            if (n && (n.data.type === 'SPACE_L0' || n.data.type === 'SPACE_L1' || n.data.type === 'SPACE_L2')) {
+              if (n.data.weight > bestWeight) {
+                bestWeight = n.data.weight;
+                bestName = n.data.displayName;
+              }
+            }
+          }
+          if (!bestName) {
+            // Fallback: first node name
+            const first = nodeMap.get(d.memberIds[0]);
+            bestName = first?.data.displayName || '';
+          }
+          return bestName.length > 18 ? bestName.slice(0, 17) + '\u2026' : bestName;
+        });
 
         // Badge highlighting for search
         if (searchQuery) {
@@ -745,7 +1160,7 @@ export default function ForceGraph({
             .attr('stroke', (d) => matchesFn(d) ? '#f59e0b' : '#6366f1')
             .attr('stroke-width', (d) => matchesFn(d) ? 3 : 2);
           merged.select('.badge-ring')
-            .attr('stroke', (d) => matchesFn(d) ? 'rgba(245,158,11,0.4)' : 'rgba(99,102,241,0.2)');
+            .attr('stroke', (d) => matchesFn(d) ? 'rgba(245,158,11,0.4)' : 'rgba(99,102,241,0.15)');
           merged.select('.badge-text')
             .attr('fill', (d) => matchesFn(d) ? '#b45309' : '#4338ca');
           merged.attr('opacity', (d) => matchesFn(d) ? 1 : 0.15);
@@ -759,185 +1174,34 @@ export default function ForceGraph({
             .attr('stroke', (d) => hlMatchFn(d) ? '#f59e0b' : '#6366f1')
             .attr('stroke-width', (d) => hlMatchFn(d) ? 3 : 2);
           merged.select('.badge-ring')
-            .attr('stroke', (d) => hlMatchFn(d) ? 'rgba(245,158,11,0.4)' : 'rgba(99,102,241,0.2)');
+            .attr('stroke', (d) => hlMatchFn(d) ? 'rgba(245,158,11,0.4)' : 'rgba(99,102,241,0.15)');
           merged.select('.badge-text')
             .attr('fill', (d) => hlMatchFn(d) ? '#b45309' : '#4338ca');
           merged.attr('opacity', (d) => hlMatchFn(d) ? 1 : 0.25);
         }
 
-        // Auto-expand cluster containing selected node (with animation)
-        if (selectedNodeId && !autoExpandedForSelection) {
+        // Auto-zoom to cluster containing selected node
+        if (selectedNodeId) {
           for (const c of proxClusters) {
             if (c.memberIds.includes(selectedNodeId)) {
-              expandedClusterKey = c.key;
-              fanOrigin = { x: c.centroidX, y: c.centroidY };
-              const cnt = c.memberIds.length;
-              const r = Math.max(FAN_OUT_MIN_RADIUS, cnt * FAN_OUT_PER_NODE_RADIUS);
-
-              const autoTargets = c.memberIds.map((id, i) => ({
-                id,
-                tx: c.centroidX + r * Math.cos((2 * Math.PI * i) / cnt - Math.PI / 2),
-                ty: c.centroidY + r * Math.sin((2 * Math.PI * i) / cnt - Math.PI / 2),
-              }));
-
-              for (const t of autoTargets) {
-                const node = nodeMap.get(t.id);
-                if (node) { node.fx = c.centroidX; node.fy = c.centroidY; }
-                fannedNodeIds.add(t.id);
-              }
-
-              autoExpandedForSelection = true;
-              const startTime = performance.now();
-              function animateAutoFan() {
-                const elapsed = performance.now() - startTime;
-                const t = Math.min(1, elapsed / FAN_OUT_DURATION_MS);
-                const et = 1 - Math.pow(1 - t, 3);
-                for (const target of autoTargets) {
-                  const node = nodeMap.get(target.id);
-                  if (node) {
-                    node.fx = c.centroidX + (target.tx - c.centroidX) * et;
-                    node.fy = c.centroidY + (target.ty - c.centroidY) * et;
-                  }
-                }
-                simulation.alpha(Math.max(simulation.alpha(), 0.05)).restart();
-                if (t < 1) {
-                  requestAnimationFrame(animateAutoFan);
-                } else {
-                  updateConnectors();
-                }
-              }
-              requestAnimationFrame(animateAutoFan);
+              const targetScale = Math.min(20, Math.max(currentZoomScale * 2, 4));
+              const transform = d3.zoomIdentity
+                .translate(width / 2, height / 2)
+                .scale(targetScale)
+                .translate(-c.centroidX, -c.centroidY);
+              svg.transition()
+                .duration(ZOOM_TRANSITION_MS)
+                .ease(d3.easeCubicInOut)
+                .call(zoom.transform as any, transform);
               break;
             }
           }
         }
-
-        // Update connector lines for fanned-out nodes
-        if (fanOrigin && fannedNodeIds.size > 0) {
-          updateConnectors();
-        } else {
-          connectorLayer.selectAll('*').remove();
-        }
       } else {
-        // Too many nodes — skip clustering
+        // No clustering — show all nodes/edges, clear badges
         nodeSelection.attr('display', '');
+        linkSelection.attr('display', '');
         badgeLayer.selectAll('*').remove();
-      }
-    });
-
-    // Helper: draw connector lines from fanOrigin to fanned nodes
-    function updateConnectors() {
-      if (!fanOrigin || fannedNodeIds.size === 0) {
-        connectorLayer.selectAll('*').remove();
-        return;
-      }
-      const lineData = Array.from(fannedNodeIds).map((id) => {
-        const node = nodeMap.get(id);
-        return node ? { id, x: node.x || 0, y: node.y || 0 } : null;
-      }).filter(Boolean) as { id: string; x: number; y: number }[];
-
-      const lines = connectorLayer
-        .selectAll<SVGLineElement, typeof lineData[0]>('line')
-        .data(lineData, (d) => d.id);
-
-      lines.exit().remove();
-
-      lines.enter().append('line')
-        .attr('stroke', 'rgba(99,102,241,0.25)')
-        .attr('stroke-width', 1)
-        .attr('stroke-dasharray', '4,3')
-        .merge(lines)
-        .attr('x1', fanOrigin.x)
-        .attr('y1', fanOrigin.y)
-        .attr('x2', (d) => d.x)
-        .attr('y2', (d) => d.y);
-    }
-
-    // Background click to collapse expanded cluster (animated)
-    svg.on('click.collapse', () => {
-      if (expandedClusterKey) {
-        // Cancel any running fan animation
-        if (fanAnimationId) {
-          cancelAnimationFrame(fanAnimationId);
-          fanAnimationId = null;
-        }
-
-        const collapsingIds = new Set(fannedNodeIds);
-        const origin = fanOrigin ? { ...fanOrigin } : null;
-
-        // Capture current positions as starting points
-        const startPositions = new Map<string, { x: number; y: number }>();
-        for (const id of collapsingIds) {
-          const node = nodeMap.get(id);
-          if (node) startPositions.set(id, { x: node.x || 0, y: node.y || 0 });
-        }
-
-        // Clear state immediately so tick handler stops re-clustering these
-        expandedClusterKey = null;
-        fannedNodeIds.clear();
-        fanOrigin = null;
-
-        // Animated collapse back to origin / geo position
-        if (origin) {
-          const startTime = performance.now();
-          function animateCollapse() {
-            const elapsed = performance.now() - startTime;
-            const t = Math.min(1, elapsed / COLLAPSE_DURATION_MS);
-            // Cubic ease-in: t^3
-            const et = t * t * (3 - 2 * t); // smoothstep for natural deceleration
-
-            for (const id of collapsingIds) {
-              const node = nodeMap.get(id);
-              const start = startPositions.get(id);
-              if (!node || !start) continue;
-
-              const geoTarget = geoTargets.get(id);
-              const endX = geoTarget ? geoTarget.x : origin!.x;
-              const endY = geoTarget ? geoTarget.y : origin!.y;
-
-              node.fx = start.x + (endX - start.x) * et;
-              node.fy = start.y + (endY - start.y) * et;
-            }
-            simulation.alpha(Math.max(simulation.alpha(), 0.05)).restart();
-
-            // Fade out connectors
-            connectorLayer.selectAll('line')
-              .attr('stroke', `rgba(99,102,241,${0.25 * (1 - t)})`);
-
-            if (t < 1) {
-              collapseAnimationId = requestAnimationFrame(animateCollapse);
-            } else {
-              collapseAnimationId = null;
-              connectorLayer.selectAll('*').remove();
-              // Release fx/fy or restore geo
-              for (const id of collapsingIds) {
-                const node = nodeMap.get(id);
-                if (!node) continue;
-                const geoTarget = geoTargets.get(id);
-                if (geoTarget) {
-                  node.fx = geoTarget.x;
-                  node.fy = geoTarget.y;
-                } else {
-                  node.fx = null;
-                  node.fy = null;
-                }
-              }
-              simulation.alpha(0.1).restart();
-            }
-          }
-          collapseAnimationId = requestAnimationFrame(animateCollapse);
-        } else {
-          // No origin — just release
-          for (const id of collapsingIds) {
-            const node = nodeMap.get(id);
-            if (!node) continue;
-            const geoTarget = geoTargets.get(id);
-            if (geoTarget) { node.fx = geoTarget.x; node.fy = geoTarget.y; }
-            else { node.fx = null; node.fy = null; }
-          }
-          connectorLayer.selectAll('*').remove();
-          simulation.alpha(0.3).restart();
-        }
       }
     });
 
@@ -973,11 +1237,11 @@ export default function ForceGraph({
 
         // Approximate text dimensions (rough: 6px per char)
         const text = label.textContent || '';
-        const fontSize = d.data.type === 'SPACE_L0' ? 11 : 9;
+        const fontSize = d.data.type === 'SPACE_L0' ? 13 : d.data.type === 'SPACE_L1' ? 10 : 9;
         const charWidth = fontSize * 0.6;
         const w = text.length * charWidth * invK;
         const h = fontSize * 1.5 * invK;
-        const r = Math.sqrt(d.data.weight) * 3;
+        const r = nodeRadius(d);
 
         entries.push({
           el: label,
@@ -1120,8 +1384,8 @@ export default function ForceGraph({
       nodeSelection.attr('opacity', (d: any) => (hlSet.has(d.data.id) ? 1 : 0.2));
     }
 
-    // Apply selection highlighting — Kumu-style: highlight connected subgraph
-    // 1st-degree connections at full opacity, 2nd-degree at medium, rest at low
+    // Apply selection highlighting — analytics-playground style:
+    // Colored strokes + bold edges with animated transitions
     if (selectedNodeId) {
       // 1st-degree neighbors
       const firstDegree = new Set<string>();
@@ -1142,23 +1406,60 @@ export default function ForceGraph({
         }
       }
 
-      nodeSelection.attr('opacity', (d) => {
-        if (firstDegree.has(d.data.id)) return 1;
-        if (secondDegree.has(d.data.id)) return 0.45;
-        return 0.15;
-      });
+      // Count direct connections so highlight stroke scales inversely
+      const directCount = firstDegree.size - 1; // minus the node itself
 
-      linkSelection.attr('opacity', (d) => {
-        const srcFirst = firstDegree.has(d.data.sourceId);
-        const tgtFirst = firstDegree.has(d.data.targetId);
-        // Direct connection to selected node
-        if (d.data.sourceId === selectedNodeId || d.data.targetId === selectedNodeId) return 0.9;
-        // Between 1st-degree nodes
-        if (srcFirst && tgtFirst) return 0.5;
-        // Between 1st and 2nd degree
-        if ((srcFirst && secondDegree.has(d.data.targetId)) || (tgtFirst && secondDegree.has(d.data.sourceId))) return 0.2;
-        return 0.04;
-      });
+      // Nodes: subtle colored rings + opacity fade
+      nodeSelection
+        .transition().duration(300)
+        .attr('opacity', (d) => {
+          if (d.data.id === selectedNodeId) return 1;
+          if (firstDegree.has(d.data.id)) return 1;
+          if (secondDegree.has(d.data.id)) return 0.7;
+          return 0.08;
+        });
+      nodeSelection.select('circle')
+        .transition().duration(300)
+        .attr('stroke', (d: any) => {
+          if (d.data.id === selectedNodeId) return '#2563eb'; // bright blue
+          if (firstDegree.has(d.data.id)) return '#3b82f6'; // medium blue
+          if (secondDegree.has(d.data.id)) return '#93c5fd'; // soft blue
+          return 'rgba(200,210,220,0.5)';
+        })
+        .attr('stroke-width', (d: any) => {
+          if (d.data.id === selectedNodeId) return highlightNodeStroke(directCount, 'selected');
+          if (firstDegree.has(d.data.id)) return highlightNodeStroke(directCount, '1st');
+          if (secondDegree.has(d.data.id)) return highlightNodeStroke(directCount, '2nd');
+          return 0.5;
+        });
+
+      // Edges: connection-count-aware widths — stays clean even with 100+ links
+      linkSelection
+        .transition().duration(300)
+        .attr('opacity', (d) => {
+          const src = (d.source as SimNode).data.id;
+          const tgt = (d.target as SimNode).data.id;
+          if (src === selectedNodeId || tgt === selectedNodeId) return 0.7;
+          if ((firstDegree.has(src) && secondDegree.has(tgt)) ||
+              (firstDegree.has(tgt) && secondDegree.has(src))) return 0.25;
+          return 0.03;
+        })
+        .attr('stroke', (d) => {
+          const src = (d.source as SimNode).data.id;
+          const tgt = (d.target as SimNode).data.id;
+          if (src === selectedNodeId || tgt === selectedNodeId) return '#3b82f6';
+          if ((firstDegree.has(src) && secondDegree.has(tgt)) ||
+              (firstDegree.has(tgt) && secondDegree.has(src))) return '#93c5fd';
+          return 'rgba(200,210,220,0.3)';
+        })
+        .attr('stroke-width', (d) => {
+          const src = (d.source as SimNode).data.id;
+          const tgt = (d.target as SimNode).data.id;
+          if (src === selectedNodeId || tgt === selectedNodeId) return highlightEdgeWidth(directCount, 'direct');
+          if ((firstDegree.has(src) && secondDegree.has(tgt)) ||
+              (firstDegree.has(tgt) && secondDegree.has(src))) return highlightEdgeWidth(directCount, '2nd');
+          return 0.3;
+        });
     }
   }, [dataset, showPeople, showOrganizations, showSpaces, searchQuery, selectedNodeId, highlightedNodeIds, onNodeClick, onNodeHover, showMap, mapRegion]);
 

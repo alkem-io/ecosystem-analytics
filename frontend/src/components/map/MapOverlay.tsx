@@ -27,9 +27,9 @@ const MAP_CENTERS: Record<MapRegion, [number, number]> = {
 };
 
 const MAP_SCALES: Record<MapRegion, number> = {
-  world: 120,
-  europe: 600,
-  netherlands: 5000,
+  world: 180,
+  europe: 900,
+  netherlands: 7000,
 };
 
 export default function MapOverlay({ region, width, height, visible }: Props) {
