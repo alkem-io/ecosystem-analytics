@@ -69,6 +69,8 @@ export async function generateGraph(
   // Acquire missing spaces
   let freshNodes: GraphNode[] = [];
   let freshEdges: GraphEdge[] = [];
+  // Detect activity data from cached edges (if any edge has activityTier, cache had activity)
+  let hasActivity = cachedEdges.some((e) => e.activityTier !== undefined);
 
   if (spacesToFetch.length > 0) {
     logger.info(`Fetching ${spacesToFetch.length} space(s) from Alkemio: [${spacesToFetch.join(', ')}]`, { context: 'Graph' });
@@ -83,6 +85,9 @@ export async function generateGraph(
     const transformed = transformToGraph(acquired);
     freshNodes = transformed.nodes;
     freshEdges = transformed.edges;
+
+    // Track whether activity data was successfully fetched
+    hasActivity = acquired.activityEntries !== undefined;
 
     // Cache each space's partial dataset (keyed by nameId to match frontend request keys)
     for (const { space, nameId } of acquired.spacesL0) {
@@ -123,6 +128,7 @@ export async function generateGraph(
     metrics,
     cacheInfo,
     insights,
+    hasActivityData: hasActivity,
   };
 }
 

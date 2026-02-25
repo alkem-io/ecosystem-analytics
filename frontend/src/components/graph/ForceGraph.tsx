@@ -7,6 +7,7 @@ import { computeProximityGroups, type ProximityCluster } from './proximityCluste
 import type { MapRegion } from '../map/MapOverlay.js';
 import { getToken } from '../../services/auth.js';
 import styles from './ForceGraph.module.css';
+import './pulse.css';
 
 /** Proxy private Alkemio storage URLs through our auth endpoint */
 function proxyImageUrl(url: string | null | undefined): string | null {
@@ -34,41 +35,25 @@ const FANOUT_RADIUS = 80;       // radius of the fan-out circle when revealing a
 
 // Hierarchical radial layout — flower-circle clustering
 // Ring radii are now RESPONSIVE — computed from member count per space
-const L1_RING_RADIUS_MIN = 220;   // minimum L0→L1 distance
-const L1_RING_RADIUS_PER_MEMBER = 4;  // extra distance per L0-only member
-const L1_RING_RADIUS_PER_NODE = 40;   // extra distance per L1 child
-const L2_RING_RADIUS_MIN = 65;    // minimum L1→L2 distance
+const L1_RING_RADIUS_MIN = 260;   // minimum L0→L1 distance (room for L0-only people ring)
+const L1_RING_RADIUS_PER_MEMBER = 5;  // extra distance per L0-only member
+const L1_RING_RADIUS_PER_NODE = 45;   // extra distance per L1 child
+const L2_RING_RADIUS_MIN = 70;    // minimum L1→L2 distance
 const L2_RING_RADIUS_PER_MEMBER = 3;  // extra distance per L1-direct member
-const L2_RING_RADIUS_PER_NODE = 16;   // extra distance per L2 child
-const PEOPLE_RING_RADIUS = 65;
-const L0_ONLY_PEOPLE_RADIUS = 36;
+const L2_RING_RADIUS_PER_NODE = 18;   // extra distance per L2 child
+const PEOPLE_RING_RADIUS = 80;
+const L0_ONLY_PEOPLE_RADIUS = 60;
+const L1_PEOPLE_RING_RADIUS = 55;  // radial ring for people connected to exactly one L1
 
 // Edge styling — refined, professional palette
 const EDGE_COLORS: Record<string, string> = {
-  CHILD: 'rgba(99,102,241,0.30)',    // indigo for parent-child
-  LEAD: 'rgba(170,135,55,0.35)',     // warm brown for leadership
-  MEMBER: 'rgba(150,170,190,0.18)', // soft blue-gray — visible but not overwhelming
+  CHILD: 'rgba(99,102,241,0.50)',    // indigo for parent-child
+  LEAD: 'rgba(170,135,55,0.50)',     // warm brown for leadership
+  MEMBER: 'rgba(150,170,190,0.32)', // soft blue-gray — visible but not overwhelming
 };
 
 /**
- * Scale highlight stroke widths inversely with the number of direct connections.
- * A node with 5 edges can afford fat highlight lines; one with 138 connections
- * needs hairlines so the graph stays readable.
  */
-function highlightEdgeWidth(connectionCount: number, tier: 'direct' | '2nd'): number {
-  //  connections  direct  2nd
-  //  ≤ 10         2.5     1.5
-  //  ~50          1.2     0.7
-  //  ≥ 100        0.8     0.4
-  const base = tier === 'direct' ? 2.5 : 1.5;
-  const scale = Math.max(0.3, 1 / (1 + connectionCount * 0.015));
-  return Math.round(base * scale * 10) / 10;
-}
-function highlightNodeStroke(connectionCount: number, tier: 'selected' | '1st' | '2nd'): number {
-  const base = tier === 'selected' ? 4 : tier === '1st' ? 3 : 1.8;
-  const scale = Math.max(0.45, 1 / (1 + connectionCount * 0.01));
-  return Math.round(base * scale * 10) / 10;
-}
 
 // Soft pastel palette for cluster hull backgrounds (non-map view)
 const HULL_COLORS = [
@@ -122,6 +107,7 @@ interface Props {
   highlightedNodeIds?: string[];
   showMap?: boolean;
   mapRegion?: MapRegion;
+  activityPulseEnabled?: boolean;
 }
 
 interface SimNode extends d3.SimulationNodeDatum {
@@ -185,9 +171,14 @@ export default function ForceGraph({
   highlightedNodeIds = [],
   showMap = false,
   mapRegion = 'europe',
+  activityPulseEnabled = false,
 }: Props) {
   const svgRef = useRef<SVGSVGElement>(null);
   const simulationRef = useRef<d3.Simulation<SimNode, SimLink>>(null);
+  // Refs to D3 selections so selection-highlighting can run without re-rendering
+  const nodeSelRef = useRef<d3.Selection<SVGGElement, SimNode, SVGGElement, unknown>>(null);
+  const linkSelRef = useRef<d3.Selection<SVGPathElement, SimLink, SVGGElement, unknown>>(null);
+  const visibleEdgesRef = useRef<typeof dataset.edges>([]);
 
   const renderGraph = useCallback(() => {
     const svg = d3.select(svgRef.current);
@@ -421,29 +412,92 @@ export default function ForceGraph({
       return 0;
     };
 
-    // Users & Orgs: position at weighted centroid of ALL membership spaces
-    // Deeper (more specific) spaces have higher weight — reveals cross-cutting structure
+    // --- Track per-space people counts so we can distribute them evenly around the ring ---
+    const spaceRadialCounters = new Map<string, number>(); // spaceId → next index
+    const spaceRadialTotals = new Map<string, number>();    // spaceId → total radial people
+
+    // Pre-count: figure out how many people will be radially placed per space
+    for (const node of simNodes) {
+      if (targetPositions.has(node.data.id)) continue;
+      if (node.data.type !== 'USER' && node.data.type !== 'ORGANIZATION') continue;
+      const edges = nodeEdges.get(node.data.id) || [];
+      const connectedSpaces: { id: string; type: string }[] = [];
+      for (const { otherId } of edges) {
+        const other = nodeMap.get(otherId);
+        if (!other || !targetPositions.has(otherId)) continue;
+        const dw = depthWeight(other.data.type);
+        if (dw > 0) connectedSpaces.push({ id: otherId, type: other.data.type });
+      }
+      const l0s = connectedSpaces.filter(s => s.type === 'SPACE_L0');
+      const l1s = connectedSpaces.filter(s => s.type === 'SPACE_L1');
+      const l2s = connectedSpaces.filter(s => s.type === 'SPACE_L2');
+
+      if (l1s.length === 0 && l2s.length === 0 && l0s.length === 1) {
+        // L0-only → radial around L0
+        const key = l0s[0].id;
+        spaceRadialTotals.set(key, (spaceRadialTotals.get(key) || 0) + 1);
+      } else if (l1s.length === 1 && l2s.length === 0) {
+        // Exactly one L1 (possibly + L0) → radial around L1
+        const key = l1s[0].id;
+        spaceRadialTotals.set(key, (spaceRadialTotals.get(key) || 0) + 1);
+      }
+    }
+
+    // Users & Orgs: position radially for low-connection nodes, centroid for multi-membership
     for (const node of simNodes) {
       if (targetPositions.has(node.data.id)) continue;
 
       const edges = nodeEdges.get(node.data.id) || [];
-      const memberSpaces: { pos: { x: number; y: number }; w: number; id: string }[] = [];
+      const memberSpaces: { pos: { x: number; y: number }; w: number; id: string; type: string }[] = [];
 
       for (const { otherId } of edges) {
         const other = nodeMap.get(otherId);
         if (!other || !targetPositions.has(otherId)) continue;
         const dw = depthWeight(other.data.type);
         if (dw > 0) {
-          memberSpaces.push({ pos: targetPositions.get(otherId)!, w: dw, id: otherId });
+          memberSpaces.push({ pos: targetPositions.get(otherId)!, w: dw, id: otherId, type: other.data.type });
         }
       }
 
       if (memberSpaces.length > 0) {
-        // Check if user is only connected to L0 (no L1/L2 memberships)
-        const hasDeeper = memberSpaces.some(s => s.w > 1); // L1=2, L2=4
-        const l0Only = !hasDeeper;
+        const l0s = memberSpaces.filter(s => s.type === 'SPACE_L0');
+        const l1s = memberSpaces.filter(s => s.type === 'SPACE_L1');
+        const l2s = memberSpaces.filter(s => s.type === 'SPACE_L2');
 
-        // Weighted centroid of all membership spaces
+        // --- RADIAL placement: single-parent nodes ---
+        if (l1s.length === 0 && l2s.length === 0 && l0s.length === 1) {
+          // L0-only person: radial ring around the L0
+          const anchor = l0s[0];
+          const total = spaceRadialTotals.get(anchor.id) || 1;
+          const idx = spaceRadialCounters.get(anchor.id) || 0;
+          spaceRadialCounters.set(anchor.id, idx + 1);
+          const angle = (2 * Math.PI * idx) / total - Math.PI / 2;
+          const anchorR = nodeRadius(nodeMap.get(anchor.id)!);
+          const ringR = anchorR + L0_ONLY_PEOPLE_RADIUS + Math.random() * 8;
+          targetPositions.set(node.data.id, {
+            x: anchor.pos.x + ringR * Math.cos(angle),
+            y: anchor.pos.y + ringR * Math.sin(angle),
+          });
+          continue;
+        }
+
+        if (l1s.length === 1 && l2s.length === 0) {
+          // Exactly one L1 (+ possibly L0): radial ring around the L1
+          const anchor = l1s[0];
+          const total = spaceRadialTotals.get(anchor.id) || 1;
+          const idx = spaceRadialCounters.get(anchor.id) || 0;
+          spaceRadialCounters.set(anchor.id, idx + 1);
+          const angle = (2 * Math.PI * idx) / total - Math.PI / 2;
+          const anchorR = nodeRadius(nodeMap.get(anchor.id)!);
+          const ringR = anchorR + L1_PEOPLE_RING_RADIUS + Math.random() * 10;
+          targetPositions.set(node.data.id, {
+            x: anchor.pos.x + ringR * Math.cos(angle),
+            y: anchor.pos.y + ringR * Math.sin(angle),
+          });
+          continue;
+        }
+
+        // --- CENTROID placement: multi-membership nodes ---
         let totalW = 0, cx = 0, cy = 0;
         for (const s of memberSpaces) {
           totalW += s.w;
@@ -454,22 +508,7 @@ export default function ForceGraph({
         cy /= totalW;
 
         const angle = Math.random() * 2 * Math.PI;
-
-        let scatter: number;
-        if (l0Only) {
-          // L0-only users: tight ring centered on the L0 node
-          const l0Space = memberSpaces[0];
-          const l0R = nodeRadius(nodeMap.get(l0Space.id)!);
-          scatter = l0R + L0_ONLY_PEOPLE_RADIUS + Math.random() * 10;
-        } else if (memberSpaces.length === 1) {
-          // Single deeper space: ring around that space
-          const deepestSpace = memberSpaces[0];
-          const spaceR = nodeRadius(nodeMap.get(deepestSpace.id)!);
-          scatter = spaceR + PEOPLE_RING_RADIUS + Math.random() * 15;
-        } else {
-          // Multi-space: between spaces, tighter scatter
-          scatter = PEOPLE_RING_RADIUS * 0.6 + Math.random() * 12;
-        }
+        const scatter = PEOPLE_RING_RADIUS * 0.5 + Math.random() * 12;
 
         targetPositions.set(node.data.id, {
           x: cx + scatter * Math.cos(angle),
@@ -651,9 +690,9 @@ export default function ForceGraph({
       .attr('fill', 'none')
       .attr('stroke', (d) => EDGE_COLORS[d.data.type] || EDGE_COLORS.MEMBER)
       .attr('stroke-width', (d) => {
-        if (d.data.type === 'MEMBER') return 0.6;  // thin hairline — clean at scale
-        if (d.data.type === 'LEAD') return 1.2;
-        return Math.max(0.5, Math.min(d.data.weight * 0.5, 1.8)); // CHILD
+        if (d.data.type === 'MEMBER') return 0.9;  // thin but visible
+        if (d.data.type === 'LEAD') return 1.4;
+        return Math.max(0.7, Math.min(d.data.weight * 0.5, 2.0)); // CHILD
       })
       .attr('stroke-linecap', 'round');
 
@@ -703,6 +742,11 @@ export default function ForceGraph({
             }
           }),
       );
+
+    // Persist D3 selections in refs for lightweight highlight updates
+    nodeSelRef.current = nodeSelection as any;
+    linkSelRef.current = linkSelection as any;
+    visibleEdgesRef.current = visibleEdges;
 
     // SVG defs — avatar clip paths + badge shadow filter
     const defs = svg.append('defs');
@@ -1180,23 +1224,6 @@ export default function ForceGraph({
           merged.attr('opacity', (d) => hlMatchFn(d) ? 1 : 0.25);
         }
 
-        // Auto-zoom to cluster containing selected node
-        if (selectedNodeId) {
-          for (const c of proxClusters) {
-            if (c.memberIds.includes(selectedNodeId)) {
-              const targetScale = Math.min(20, Math.max(currentZoomScale * 2, 4));
-              const transform = d3.zoomIdentity
-                .translate(width / 2, height / 2)
-                .scale(targetScale)
-                .translate(-c.centroidX, -c.centroidY);
-              svg.transition()
-                .duration(ZOOM_TRANSITION_MS)
-                .ease(d3.easeCubicInOut)
-                .call(zoom.transform as any, transform);
-              break;
-            }
-          }
-        }
       } else {
         // No clustering — show all nodes/edges, clear badges
         nodeSelection.attr('display', '');
@@ -1384,8 +1411,15 @@ export default function ForceGraph({
       nodeSelection.attr('opacity', (d: any) => (hlSet.has(d.data.id) ? 1 : 0.2));
     }
 
-    // Apply selection highlighting — analytics-playground style:
-    // Colored strokes + bold edges with animated transitions
+  }, [dataset, showPeople, showOrganizations, showSpaces, searchQuery, highlightedNodeIds, onNodeClick, onNodeHover, showMap, mapRegion]);
+
+  // ---------- Selection highlighting — runs without rebuilding the graph ----------
+  useEffect(() => {
+    const nodeSelection = nodeSelRef.current;
+    const linkSelection = linkSelRef.current;
+    const visibleEdges = visibleEdgesRef.current;
+    if (!nodeSelection || !linkSelection) return;
+
     if (selectedNodeId) {
       // 1st-degree neighbors
       const firstDegree = new Set<string>();
@@ -1406,62 +1440,168 @@ export default function ForceGraph({
         }
       }
 
-      // Count direct connections so highlight stroke scales inversely
-      const directCount = firstDegree.size - 1; // minus the node itself
-
-      // Nodes: subtle colored rings + opacity fade
+      // Nodes — matched to analytics-playground: bold strokes, strong fade
       nodeSelection
         .transition().duration(300)
-        .attr('opacity', (d) => {
+        .attr('opacity', (d: any) => {
           if (d.data.id === selectedNodeId) return 1;
           if (firstDegree.has(d.data.id)) return 1;
-          if (secondDegree.has(d.data.id)) return 0.7;
-          return 0.08;
+          if (secondDegree.has(d.data.id)) return 1;
+          return 0.1; // non-connected nearly invisible — matches old repo
         });
       nodeSelection.select('circle')
         .transition().duration(300)
         .attr('stroke', (d: any) => {
-          if (d.data.id === selectedNodeId) return '#2563eb'; // bright blue
-          if (firstDegree.has(d.data.id)) return '#3b82f6'; // medium blue
-          if (secondDegree.has(d.data.id)) return '#93c5fd'; // soft blue
-          return 'rgba(200,210,220,0.5)';
+          if (d.data.id === selectedNodeId) return '#2563eb'; // blue
+          if (firstDegree.has(d.data.id)) return '#3b82f6';   // medium blue
+          if (secondDegree.has(d.data.id)) return '#93c5fd';   // soft blue
+          return '#bfc9d1';
         })
         .attr('stroke-width', (d: any) => {
-          if (d.data.id === selectedNodeId) return highlightNodeStroke(directCount, 'selected');
-          if (firstDegree.has(d.data.id)) return highlightNodeStroke(directCount, '1st');
-          if (secondDegree.has(d.data.id)) return highlightNodeStroke(directCount, '2nd');
-          return 0.5;
+          if (d.data.id === selectedNodeId) return 5;
+          if (firstDegree.has(d.data.id)) return 3.5;
+          if (secondDegree.has(d.data.id)) return 1.5;
+          return 1;
         });
 
-      // Edges: connection-count-aware widths — stays clean even with 100+ links
+      // Edges — bold 1st-degree, visible 2nd-degree, nearly hidden rest
       linkSelection
         .transition().duration(300)
-        .attr('opacity', (d) => {
+        .attr('opacity', (d: any) => {
           const src = (d.source as SimNode).data.id;
           const tgt = (d.target as SimNode).data.id;
-          if (src === selectedNodeId || tgt === selectedNodeId) return 0.7;
+          if (src === selectedNodeId || tgt === selectedNodeId) return 0.75;
           if ((firstDegree.has(src) && secondDegree.has(tgt)) ||
-              (firstDegree.has(tgt) && secondDegree.has(src))) return 0.25;
-          return 0.03;
+              (firstDegree.has(tgt) && secondDegree.has(src))) return 0.15;
+          return 0.05;
         })
-        .attr('stroke', (d) => {
+        .attr('stroke', (d: any) => {
           const src = (d.source as SimNode).data.id;
           const tgt = (d.target as SimNode).data.id;
           if (src === selectedNodeId || tgt === selectedNodeId) return '#3b82f6';
           if ((firstDegree.has(src) && secondDegree.has(tgt)) ||
-              (firstDegree.has(tgt) && secondDegree.has(src))) return '#93c5fd';
-          return 'rgba(200,210,220,0.3)';
-        })
-        .attr('stroke-width', (d) => {
+              (firstDegree.has(tgt) && secondDegree.has(src))) return '#a0b4c8';
+          return '#bfc9d1';
+        });
+
+      // T023-T025: Compose pulse with selection — pause animation on non-connected edges
+      if (activityPulseEnabled) {
+        linkSelection.each(function (d: any) {
+          const el = d3.select(this);
+          if (!el.classed('edge-pulse') && !el.classed('edge-pulse-entering')) return;
           const src = (d.source as SimNode).data.id;
           const tgt = (d.target as SimNode).data.id;
-          if (src === selectedNodeId || tgt === selectedNodeId) return highlightEdgeWidth(directCount, 'direct');
-          if ((firstDegree.has(src) && secondDegree.has(tgt)) ||
-              (firstDegree.has(tgt) && secondDegree.has(src))) return highlightEdgeWidth(directCount, '2nd');
-          return 0.3;
+          const isConnected = src === selectedNodeId || tgt === selectedNodeId;
+          el.style('animation-play-state', isConnected ? 'running' : 'paused');
         });
+      }
+    } else {
+      // Deselected — reset to default visual state
+      nodeSelection.transition().duration(300).attr('opacity', 1);
+      nodeSelection.select('circle')
+        .transition().duration(300)
+        .attr('stroke', 'rgba(200,210,220,0.5)')
+        .attr('stroke-width', 0.5);
+      linkSelection
+        .transition().duration(300)
+        .attr('opacity', (d: any) => {
+          const type = d.data?.type;
+          if (type === 'CHILD') return 0.50;
+          if (type === 'LEAD') return 0.50;
+          return 0.32;
+        })
+        .attr('stroke', (d: any) => EDGE_COLORS[d.data?.type] || EDGE_COLORS.MEMBER)
+        .attr('stroke-width', (d: any) => {
+          if (d.data?.type === 'MEMBER') return 0.9;
+          if (d.data?.type === 'LEAD') return 1.4;
+          return Math.max(0.7, Math.min((d.data?.weight ?? 1) * 0.5, 2.0));
+        });
+
+      // T025: Restore animation-play-state on deselect
+      if (activityPulseEnabled) {
+        linkSelection.each(function () {
+          const el = d3.select(this);
+          if (el.classed('edge-pulse') || el.classed('edge-pulse-entering')) {
+            el.style('animation-play-state', 'running');
+          }
+        });
+      }
     }
-  }, [dataset, showPeople, showOrganizations, showSpaces, searchQuery, selectedNodeId, highlightedNodeIds, onNodeClick, onNodeHover, showMap, mapRegion]);
+  }, [selectedNodeId, activityPulseEnabled]);
+
+  // ---------- Activity Pulse animation — applies/removes CSS classes on user→space edges ----------
+  useEffect(() => {
+    const linkSelection = linkSelRef.current;
+    if (!linkSelection) return;
+
+    // Tier-to-duration mapping
+    const TIER_DURATION: Record<string, string> = {
+      LOW: '4s',
+      MEDIUM: '2s',
+      HIGH: '0.8s',
+    };
+
+    // Tier-to-color mapping (used for reduced-motion static indicator)
+    const TIER_COLOR: Record<string, string> = {
+      LOW: '#93c5fd',
+      MEDIUM: '#3b82f6',
+      HIGH: '#1d4ed8',
+    };
+
+    // Tier-to-stroke-width mapping — thicker = more active
+    const TIER_WIDTH: Record<string, number> = {
+      LOW: 1.5,
+      MEDIUM: 2.5,
+      HIGH: 4.0,
+    };
+
+    if (activityPulseEnabled) {
+      // Apply pulse to user→space edges only (T016: exclude org edges)
+      linkSelection.each(function (d: any) {
+        const edge = d.data;
+        const sourceNode = (d.source as SimNode)?.data;
+        if (!sourceNode || sourceNode.type !== 'USER') return;
+        if (!edge?.activityTier || edge.activityTier === 'INACTIVE') return;
+
+        const el = d3.select(this);
+        const tier = edge.activityTier as string;
+        const duration = TIER_DURATION[tier] || '2s';
+        el.style('--pulse-duration', duration);
+        el.style('--pulse-color', TIER_COLOR[tier] || '#3b82f6');
+        el.attr('stroke-width', TIER_WIDTH[tier] || 1.5);
+        el.attr('stroke', TIER_COLOR[tier] || '#93c5fd');
+        el.classed('edge-pulse-exiting', false);
+        el.classed('edge-pulse-entering', true);
+
+        // After enter transition, swap to steady-state class
+        setTimeout(() => {
+          el.classed('edge-pulse-entering', false);
+          el.classed('edge-pulse', true);
+        }, 300);
+      });
+    } else {
+      // Remove pulse: add exiting class, then clean up
+      linkSelection.each(function (d: any) {
+        const el = d3.select(this);
+        if (el.classed('edge-pulse') || el.classed('edge-pulse-entering')) {
+          el.classed('edge-pulse', false);
+          el.classed('edge-pulse-entering', false);
+          el.classed('edge-pulse-exiting', true);
+
+          setTimeout(() => {
+            el.classed('edge-pulse-exiting', false);
+            el.style('--pulse-duration', null);
+            el.style('--pulse-color', null);
+            // Restore original stroke-width and color
+            const edgeData = (d3.select(this).datum() as any)?.data;
+            const type = edgeData?.type;
+            el.attr('stroke-width', type === 'LEAD' ? 1.4 : type === 'MEMBER' ? 0.9 : Math.max(0.7, Math.min((edgeData?.weight ?? 1) * 0.5, 2.0)));
+            el.attr('stroke', (EDGE_COLORS as any)[type] || (EDGE_COLORS as any).MEMBER);
+          }, 300);
+        }
+      });
+    }
+  }, [activityPulseEnabled]);
 
   useEffect(() => {
     renderGraph();

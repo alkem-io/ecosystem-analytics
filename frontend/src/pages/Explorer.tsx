@@ -37,6 +37,7 @@ export default function Explorer({ onLogout }: ExplorerProps) {
   const [highlightedNodeIds, setHighlightedNodeIds] = useState<string[]>([]);
   const [mapRegion, setMapRegion] = useState<MapRegion>('europe');
   const [showMap, setShowMap] = useState(false);
+  const [activityPulseEnabled, setActivityPulseEnabled] = useState(false);
   const canvasRef = useRef<HTMLDivElement>(null);
 
   // Get spaceIds from navigation state
@@ -89,10 +90,11 @@ export default function Explorer({ onLogout }: ExplorerProps) {
     [activeSpaceIds, dataset, generate, navigate],
   );
 
+  const EMPTY_IDS: string[] = useMemo(() => [], []);
   const handleNodeClick = useCallback((node: GraphNode) => {
     setSelectedNode((prev) => (prev?.id === node.id ? null : node));
-    setHighlightedNodeIds([]);
-  }, []);
+    setHighlightedNodeIds(EMPTY_IDS);
+  }, [EMPTY_IDS]);
 
   const handleNodeHover = useCallback((node: GraphNode | null, position?: { x: number; y: number }) => {
     setHoveredNode(node);
@@ -168,6 +170,9 @@ export default function Explorer({ onLogout }: ExplorerProps) {
             mapRegion={mapRegion}
             onMapRegionChange={setMapRegion}
             onRemoveSpace={handleRemoveSpace}
+            activityPulseEnabled={activityPulseEnabled}
+            onToggleActivityPulse={() => setActivityPulseEnabled((p) => !p)}
+            hasActivityData={dataset.hasActivityData ?? false}
           />
         )}
         <div className={styles.canvas} ref={canvasRef}>
@@ -184,6 +189,7 @@ export default function Explorer({ onLogout }: ExplorerProps) {
               highlightedNodeIds={highlightedNodeIds}
               showMap={showMap}
               mapRegion={mapRegion}
+              activityPulseEnabled={activityPulseEnabled}
             />
           )}
           {loading && <LoadingOverlay progress={progress} />}

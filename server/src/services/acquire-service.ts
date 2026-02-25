@@ -9,11 +9,22 @@ export type RawUser = UsersByIDsQuery['users'][number];
 /** Raw organization profile — derived from codegen types */
 export type RawOrganization = NonNullable<OrganizationByIdQuery['lookup']['organization']>;
 
+/** Lightweight activity entry — matches the fields returned by our activityFeedGrouped query */
+export interface RawActivityEntry {
+  id: string;
+  type: string;
+  createdDate: Date;
+  triggeredBy: { id: string };
+  space?: { id: string };
+}
+
 /** Complete acquired data for a set of spaces */
 export interface AcquiredData {
   spacesL0: Array<{ space: RawSpace; nameId: string }>;
   users: Map<string, RawUser>;
   organizations: Map<string, RawOrganization>;
+  /** Raw activity feed entries — undefined if fetch failed */
+  activityEntries?: RawActivityEntry[];
 }
 
 /**
@@ -53,29 +64,85 @@ export async function acquireSpaces(
 
   logger.info(`Acquired ${spacesL0.length} space(s), found ${userIds.size} users and ${orgIds.size} organizations`, { context: 'Acquire' });
 
-  // Batch-fetch user profiles
-  const users = new Map<string, RawUser>();
-  if (userIds.size > 0) {
-    const { data } = await sdk.usersByIDs({ ids: Array.from(userIds) });
-    for (const user of data.users) {
-      users.set(user.id, user);
-    }
-  }
+  // Contribution event types to track (excludes MEMBER_JOINED, SUBSPACE_CREATED, CALLOUT_PUBLISHED)
+  const CONTRIBUTION_EVENT_TYPES: string[] = [
+    'CALLOUT_POST_CREATED',
+    'CALLOUT_POST_COMMENT',
+    'CALLOUT_MEMO_CREATED',
+    'CALLOUT_LINK_CREATED',
+    'CALLOUT_WHITEBOARD_CREATED',
+    'CALLOUT_WHITEBOARD_CONTENT_MODIFIED',
+    'DISCUSSION_COMMENT',
+    'UPDATE_SENT',
+    'CALENDAR_EVENT_CREATED',
+  ];
 
-  // Fetch organization profiles one by one
-  const organizations = new Map<string, RawOrganization>();
-  for (const id of orgIds) {
-    try {
-      const { data } = await sdk.organizationByID({ id });
-      if (data.lookup.organization) {
-        organizations.set(id, data.lookup.organization);
+  // Run user fetch, org fetch, and activity fetch in parallel
+  const allSpaceIds = spacesL0.map((s) => s.space.id);
+
+  const [usersResult, orgsResult, activityResult] = await Promise.allSettled([
+    // Batch-fetch user profiles
+    (async () => {
+      const users = new Map<string, RawUser>();
+      if (userIds.size > 0) {
+        const { data } = await sdk.usersByIDs({ ids: Array.from(userIds) });
+        for (const user of data.users) {
+          users.set(user.id, user);
+        }
       }
-    } catch {
-      getLogger().warn(`Failed to fetch organization ${id}, skipping`, { context: 'Acquire' });
-    }
+      return users;
+    })(),
+
+    // Fetch organization profiles one by one
+    (async () => {
+      const organizations = new Map<string, RawOrganization>();
+      for (const id of orgIds) {
+        try {
+          const { data } = await sdk.organizationByID({ id });
+          if (data.lookup.organization) {
+            organizations.set(id, data.lookup.organization);
+          }
+        } catch {
+          logger.warn(`Failed to fetch organization ${id}, skipping`, { context: 'Acquire' });
+        }
+      }
+      return organizations;
+    })(),
+
+    // Fetch activity data
+    (async () => {
+      if (allSpaceIds.length === 0) return undefined;
+      const { data } = await sdk.ActivityFeedGrouped({
+        args: {
+          spaceIds: allSpaceIds,
+          limit: 5000,
+          types: CONTRIBUTION_EVENT_TYPES as any,
+        },
+      });
+      return data.activityFeedGrouped as RawActivityEntry[];
+    })(),
+  ]);
+
+  const users = usersResult.status === 'fulfilled' ? usersResult.value : new Map<string, RawUser>();
+  if (usersResult.status === 'rejected') {
+    logger.warn(`Failed to fetch user profiles: ${(usersResult.reason as Error).message}`, { context: 'Acquire' });
   }
 
-  return { spacesL0, users, organizations };
+  const organizations = orgsResult.status === 'fulfilled' ? orgsResult.value : new Map<string, RawOrganization>();
+  if (orgsResult.status === 'rejected') {
+    logger.warn(`Failed to fetch organization profiles: ${(orgsResult.reason as Error).message}`, { context: 'Acquire' });
+  }
+
+  let activityEntries: RawActivityEntry[] | undefined;
+  if (activityResult.status === 'fulfilled') {
+    activityEntries = activityResult.value;
+    logger.info(`Fetched ${activityEntries?.length ?? 0} activity entries for ${allSpaceIds.length} space(s)`, { context: 'Acquire' });
+  } else {
+    activityEntries = undefined;
+    logger.warn(`Failed to fetch activity data, pulse will be unavailable: ${(activityResult.reason as Error).message}`, { context: 'Acquire' });
+  }
+
+  return { spacesL0, users, organizations, activityEntries };
 }
 
 /** Common shape for collecting contributor IDs across space levels */

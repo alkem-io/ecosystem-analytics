@@ -1,0 +1,13 @@
+query ActivityFeedGrouped($args: ActivityFeedGroupedQueryArgs) {
+  activityFeedGrouped(args: $args) {
+    id
+    type
+    createdDate
+    triggeredBy {
+      id
+    }
+    space {
+      id
+    }
+  }
+}

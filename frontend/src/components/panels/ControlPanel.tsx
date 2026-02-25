@@ -1,3 +1,4 @@
+import { useMemo } from 'react';
 import type { GraphDataset } from '@server/types/graph.js';
 import type { MapRegion } from '../map/MapOverlay.js';
 import FilterControls from './FilterControls.js';
@@ -16,6 +17,9 @@ interface Props {
   mapRegion: MapRegion;
   onMapRegionChange: (region: MapRegion) => void;
   onRemoveSpace?: (spaceId: string) => void;
+  activityPulseEnabled: boolean;
+  onToggleActivityPulse: () => void;
+  hasActivityData: boolean;
 }
 
 export default function ControlPanel({
@@ -31,9 +35,18 @@ export default function ControlPanel({
   mapRegion,
   onMapRegionChange,
   onRemoveSpace,
+  activityPulseEnabled,
+  onToggleActivityPulse,
+  hasActivityData,
 }: Props) {
   // Get L0 space nodes for scope chips
   const scopeSpaces = dataset.nodes.filter((n) => n.type === 'SPACE_L0');
+
+  // Detect reduced-motion preference for toggle label
+  const prefersReducedMotion = useMemo(
+    () => typeof window !== 'undefined' && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches,
+    [],
+  );
 
   return (
     <div className={styles.panel}>
@@ -66,6 +79,19 @@ export default function ControlPanel({
         onToggleOrganizations={onToggleOrganizations}
         onToggleSpaces={onToggleSpaces}
       />
+
+      <div className={styles.section}>
+        <h3 className={styles.heading}>Activity</h3>
+        <label className={styles.toggleRow}>
+          <input
+            type="checkbox"
+            checked={activityPulseEnabled}
+            onChange={onToggleActivityPulse}
+            disabled={!hasActivityData}
+          />
+          <span>{!hasActivityData ? 'Activity data unavailable' : (prefersReducedMotion ? 'Activity Indicators' : 'Activity Pulse')}</span>
+        </label>
+      </div>
 
       <div className={styles.section}>
         <h3 className={styles.heading}>Map</h3>
