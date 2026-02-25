@@ -115,14 +115,15 @@ export default function DetailsDrawer({ node, dataset, onClose, onExpandSpace, o
     return current ?? null;
   }, [isSpace, node, dataset.nodes]);
 
-  const bannerUrl = l0Space?.bannerUrl ?? null;
+  const bannerUrl = l0Space?.bannerUrl ?? node.bannerUrl ?? null;
+  const proxiedBanner = proxyImageUrl(bannerUrl);
 
   return (
     <div className={`${styles.drawer} ${isPreview ? styles.drawerPreview : ''}`}>
       {/* Banner image — always shows L0 parent banner, full width */}
-      {isSpace && bannerUrl && (
+      {isSpace && proxiedBanner && (
         <div className={styles.bannerWrap}>
-          <img src={proxyImageUrl(bannerUrl) ?? undefined} alt="" className={styles.banner} />
+          <img src={proxiedBanner} alt="" className={styles.banner} />
         </div>
       )}
 
@@ -170,6 +171,32 @@ export default function DetailsDrawer({ node, dataset, onClose, onExpandSpace, o
         )}
       </div>
 
+      {/* Location & Open in Alkemio — always visible above connections */}
+      {!isPreview && (
+        <>
+          <div className={styles.detail}>
+            <span className={styles.detailLabel}>Location</span>
+            <span>
+              {node.location && (node.location.city || node.location.country)
+                ? <>
+                    {[node.location.city, node.location.country].filter(Boolean).join(', ')}
+                    {node.location.latitude != null && node.location.longitude != null && (
+                      <> ({node.location.latitude.toFixed(4)}, {node.location.longitude.toFixed(4)})</>
+                    )}
+                  </>
+                : <em>&lt;not set&gt;</em>
+              }
+            </span>
+          </div>
+
+          {node.url && (
+            <a href={node.url} target="_blank" rel="noopener noreferrer" className={styles.link}>
+              Open in Alkemio
+            </a>
+          )}
+        </>
+      )}
+
       {/* Direct Connections list */}
       {!isPreview && sortedConnections.length > 0 && (
         <div className={styles.connectionsSection}>
@@ -200,52 +227,26 @@ export default function DetailsDrawer({ node, dataset, onClose, onExpandSpace, o
         </div>
       )}
 
-      {/* Full details only shown when not in preview (hover) mode */}
-      {!isPreview && (
-        <>
-          <div className={styles.detail}>
-            <span className={styles.detailLabel}>Location</span>
-            <span>
-              {node.location && (node.location.city || node.location.country)
-                ? <>
-                    {[node.location.city, node.location.country].filter(Boolean).join(', ')}
-                    {node.location.latitude != null && node.location.longitude != null && (
-                      <> ({node.location.latitude.toFixed(4)}, {node.location.longitude.toFixed(4)})</>
-                    )}
-                  </>
-                : <em>&lt;not set&gt;</em>
-              }
-            </span>
-          </div>
-
-          {node.url && (
-            <a href={node.url} target="_blank" rel="noopener noreferrer" className={styles.link}>
-              Open in Alkemio
-            </a>
+      {/* Related Spaces — US3 expansion (users/orgs only) */}
+      {!isPreview && (node.type === 'USER' || node.type === 'ORGANIZATION') && (
+        <div className={styles.relatedSection}>
+          <h3 className={styles.relatedHeading}>Related Spaces</h3>
+          {loadingRelated && <p className={styles.relatedLoading}>Loading...</p>}
+          {!loadingRelated && relatedSpaces.length === 0 && (
+            <p className={styles.relatedEmpty}>No additional spaces available.</p>
           )}
-
-          {/* Related Spaces — US3 expansion */}
-          {(node.type === 'USER' || node.type === 'ORGANIZATION') && (
-            <div className={styles.relatedSection}>
-              <h3 className={styles.relatedHeading}>Related Spaces</h3>
-              {loadingRelated && <p className={styles.relatedLoading}>Loading...</p>}
-              {!loadingRelated && relatedSpaces.length === 0 && (
-                <p className={styles.relatedEmpty}>No additional spaces available.</p>
-              )}
-              {relatedSpaces.map((space) => (
-                <div key={space.id} className={styles.relatedItem}>
-                  <span className={styles.relatedName}>{space.displayName}</span>
-                  <button
-                    className={styles.addBtn}
-                    onClick={() => onExpandSpace?.(space.id)}
-                  >
-                    Add to graph
-                  </button>
-                </div>
-              ))}
+          {relatedSpaces.map((space) => (
+            <div key={space.id} className={styles.relatedItem}>
+              <span className={styles.relatedName}>{space.displayName}</span>
+              <button
+                className={styles.addBtn}
+                onClick={() => onExpandSpace?.(space.id)}
+              >
+                Add to graph
+              </button>
             </div>
-          )}
-        </>
+          ))}
+        </div>
       )}
 
       {isPreview && (

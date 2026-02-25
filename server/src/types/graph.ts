@@ -14,6 +14,22 @@ export enum EdgeType {
   LEAD = 'LEAD',
 }
 
+/** Activity tier classification based on percentile distribution */
+export enum ActivityTier {
+  INACTIVE = 'INACTIVE',
+  LOW = 'LOW',
+  MEDIUM = 'MEDIUM',
+  HIGH = 'HIGH',
+}
+
+/** Per-user per-space activity count with computed tier */
+export interface ActivityCount {
+  userId: string;
+  spaceId: string;
+  count: number;
+  tier: ActivityTier;
+}
+
 /** Visual weight per node type (controls node size in rendering) */
 export const NODE_WEIGHT: Record<NodeType, number> = {
   [NodeType.SPACE_L0]: 20,
@@ -62,6 +78,10 @@ export interface GraphEdge {
   type: EdgeType;
   weight: number;
   scopeGroup: string | null;
+  /** Raw contribution count for user→space edges */
+  activityCount?: number;
+  /** Computed tier classification for user→space edges */
+  activityTier?: ActivityTier;
 }
 
 /** Computed network metrics */
@@ -101,4 +121,6 @@ export interface GraphDataset {
   metrics: GraphMetrics;
   cacheInfo: SpaceCacheInfo[];
   insights?: GraphInsights;
+  /** True if activity data was successfully fetched; false otherwise */
+  hasActivityData?: boolean;
 }

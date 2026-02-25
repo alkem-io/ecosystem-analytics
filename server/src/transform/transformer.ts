@@ -1,10 +1,11 @@
-import type { AcquiredData, RawUser, RawOrganization } from '../services/acquire-service.js';
+import type { AcquiredData, RawUser, RawOrganization, RawActivityEntry } from '../services/acquire-service.js';
 import {
   type GraphNode,
   type GraphEdge,
   type GraphLocation,
   NodeType,
   EdgeType,
+  ActivityTier,
   NODE_WEIGHT,
   EDGE_WEIGHT,
 } from '../types/graph.js';
@@ -83,6 +84,31 @@ export function transformToGraph(data: AcquiredData): TransformResult {
 
     // Add contributor edges for L0
     addContributorEdges(space, l0ScopeGroup, data, nodes, edges, nodeIds);
+  }
+
+  // Attach activity data to user→space edges if available
+  if (data.activityEntries && data.activityEntries.length > 0) {
+    const countMap = aggregateActivityCounts(data.activityEntries);
+    const tierMap = computeActivityTiers(countMap);
+
+    for (const edge of edges) {
+      // Only user→space edges (MEMBER or LEAD where source is a user)
+      if (edge.type !== EdgeType.MEMBER && edge.type !== EdgeType.LEAD) continue;
+      const sourceNode = nodes.find((n) => n.id === edge.sourceId);
+      if (!sourceNode || sourceNode.type !== NodeType.USER) continue;
+
+      const key = `${edge.sourceId}:${edge.targetId}`;
+      const count = countMap.get(key);
+      const tier = tierMap.get(key);
+      if (count !== undefined) {
+        edge.activityCount = count;
+      }
+      if (tier !== undefined) {
+        edge.activityTier = tier;
+      } else if (count === undefined || count === 0) {
+        edge.activityTier = ActivityTier.INACTIVE;
+      }
+    }
   }
 
   return { nodes, edges };
@@ -251,6 +277,84 @@ function extractLocation(
     latitude: loc.geoLocation?.latitude ?? null,
     longitude: loc.geoLocation?.longitude ?? null,
   };
+}
+
+/**
+ * Aggregate activity log entries into per-user-per-space counts.
+ * Key format: "userId:spaceId" → total contribution count.
+ * Entries without a space are filtered out.
+ */
+export function aggregateActivityCounts(entries: RawActivityEntry[]): Map<string, number> {
+  const counts = new Map<string, number>();
+  for (const entry of entries) {
+    const spaceId = entry.space?.id;
+    const userId = entry.triggeredBy.id;
+    if (!spaceId || !userId) continue;
+    const key = `${userId}:${spaceId}`;
+    counts.set(key, (counts.get(key) ?? 0) + 1);
+  }
+  return counts;
+}
+
+/**
+ * Compute activity tiers from a count map using percentile-based quartiles.
+ * Edge cases:
+ *   - Zero count → INACTIVE
+ *   - All non-zero counts equal → MEDIUM
+ *   - Fewer than 3 non-zero entries → fixed thresholds (1-2=LOW, 3-10=MEDIUM, 11+=HIGH)
+ *   - Otherwise: ≤p25 → LOW, p25<x≤p75 → MEDIUM, >p75 → HIGH
+ */
+export function computeActivityTiers(countMap: Map<string, number>): Map<string, ActivityTier> {
+  const tiers = new Map<string, ActivityTier>();
+
+  // Separate zero and non-zero entries
+  const nonZeroEntries: Array<{ key: string; count: number }> = [];
+  for (const [key, count] of countMap) {
+    if (count === 0) {
+      tiers.set(key, ActivityTier.INACTIVE);
+    } else {
+      nonZeroEntries.push({ key, count });
+    }
+  }
+
+  if (nonZeroEntries.length === 0) return tiers;
+
+  // Sort ascending for percentile calculation
+  nonZeroEntries.sort((a, b) => a.count - b.count);
+
+  // Edge case: all same count → MEDIUM
+  const allSame = nonZeroEntries.every((e) => e.count === nonZeroEntries[0].count);
+  if (allSame) {
+    for (const { key } of nonZeroEntries) {
+      tiers.set(key, ActivityTier.MEDIUM);
+    }
+    return tiers;
+  }
+
+  // Edge case: fewer than 3 non-zero entries → fixed thresholds
+  if (nonZeroEntries.length < 3) {
+    for (const { key, count } of nonZeroEntries) {
+      if (count <= 2) tiers.set(key, ActivityTier.LOW);
+      else if (count <= 10) tiers.set(key, ActivityTier.MEDIUM);
+      else tiers.set(key, ActivityTier.HIGH);
+    }
+    return tiers;
+  }
+
+  // Normal case: percentile-based quartiles
+  const n = nonZeroEntries.length;
+  const p25Index = Math.floor(n * 0.25);
+  const p75Index = Math.floor(n * 0.75);
+  const p25 = nonZeroEntries[p25Index].count;
+  const p75 = nonZeroEntries[p75Index].count;
+
+  for (const { key, count } of nonZeroEntries) {
+    if (count <= p25) tiers.set(key, ActivityTier.LOW);
+    else if (count <= p75) tiers.set(key, ActivityTier.MEDIUM);
+    else tiers.set(key, ActivityTier.HIGH);
+  }
+
+  return tiers;
 }
 
 function createEdge(

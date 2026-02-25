@@ -13876,6 +13876,26 @@ export type SpaceAboutFragmentFragment = { id: string, profile: { id: string, di
 
 export type SpaceGraphInfoFragmentFragment = { id: string, nameID: string, about: { id: string, profile: { id: string, displayName: string, tagline?: string | undefined, url: string, location?: { country?: string | undefined, city?: string | undefined, geoLocation: { latitude?: number | undefined, longitude?: number | undefined } } | undefined, avatar?: { uri: string } | undefined, banner?: { uri: string } | undefined, bannerWide?: { uri: string } | undefined } }, community: { id: string, roleSet: { memberUsers: Array<{ id: string }>, memberOrganizations: Array<{ id: string }>, leadOrganizations: Array<{ id: string }>, leadUsers: Array<{ id: string }> } } };
 
+export type ActivityFeedGroupedQueryVariables = SchemaTypes.Exact<{
+  args?: SchemaTypes.InputMaybe<SchemaTypes.ActivityFeedGroupedQueryArgs>;
+}>;
+
+
+export type ActivityFeedGroupedQuery = { activityFeedGrouped: Array<
+    | { id: string, type: SchemaTypes.ActivityEventType, createdDate: Date, triggeredBy: { id: string }, space?: { id: string } | undefined }
+    | { id: string, type: SchemaTypes.ActivityEventType, createdDate: Date, triggeredBy: { id: string }, space?: { id: string } | undefined }
+    | { id: string, type: SchemaTypes.ActivityEventType, createdDate: Date, triggeredBy: { id: string }, space?: { id: string } | undefined }
+    | { id: string, type: SchemaTypes.ActivityEventType, createdDate: Date, triggeredBy: { id: string }, space?: { id: string } | undefined }
+    | { id: string, type: SchemaTypes.ActivityEventType, createdDate: Date, triggeredBy: { id: string }, space?: { id: string } | undefined }
+    | { id: string, type: SchemaTypes.ActivityEventType, createdDate: Date, triggeredBy: { id: string }, space?: { id: string } | undefined }
+    | { id: string, type: SchemaTypes.ActivityEventType, createdDate: Date, triggeredBy: { id: string }, space?: { id: string } | undefined }
+    | { id: string, type: SchemaTypes.ActivityEventType, createdDate: Date, triggeredBy: { id: string }, space?: { id: string } | undefined }
+    | { id: string, type: SchemaTypes.ActivityEventType, createdDate: Date, triggeredBy: { id: string }, space?: { id: string } | undefined }
+    | { id: string, type: SchemaTypes.ActivityEventType, createdDate: Date, triggeredBy: { id: string }, space?: { id: string } | undefined }
+    | { id: string, type: SchemaTypes.ActivityEventType, createdDate: Date, triggeredBy: { id: string }, space?: { id: string } | undefined }
+    | { id: string, type: SchemaTypes.ActivityEventType, createdDate: Date, triggeredBy: { id: string }, space?: { id: string } | undefined }
+  > };
+
 export type MeQueryVariables = SchemaTypes.Exact<{ [key: string]: never; }>;
 
 
@@ -13971,6 +13991,21 @@ export const SpaceGraphInfoFragmentFragmentDoc = gql`
 }
     ${SpaceAboutFragmentFragmentDoc}
 ${CommunityRolesFragmentFragmentDoc}`;
+export const ActivityFeedGroupedDocument = gql`
+    query ActivityFeedGrouped($args: ActivityFeedGroupedQueryArgs) {
+  activityFeedGrouped(args: $args) {
+    id
+    type
+    createdDate
+    triggeredBy {
+      id
+    }
+    space {
+      id
+    }
+  }
+}
+    `;
 export const MeDocument = gql`
     query me {
   me {
@@ -14111,6 +14146,7 @@ export type SdkFunctionWrapper = <T>(action: (requestHeaders?:Record<string, str
 
 
 const defaultWrapper: SdkFunctionWrapper = (action, _operationName, _operationType, _variables) => action();
+const ActivityFeedGroupedDocumentString = print(ActivityFeedGroupedDocument);
 const MeDocumentString = print(MeDocument);
 const MySpacesHierarchicalDocumentString = print(MySpacesHierarchicalDocument);
 const OrganizationByIdDocumentString = print(OrganizationByIdDocument);
@@ -14118,6 +14154,9 @@ const SpaceByNameDocumentString = print(SpaceByNameDocument);
 const UsersByIDsDocumentString = print(UsersByIDsDocument);
 export function getSdk(client: GraphQLClient, withWrapper: SdkFunctionWrapper = defaultWrapper) {
   return {
+    ActivityFeedGrouped(variables?: SchemaTypes.ActivityFeedGroupedQueryVariables, requestHeaders?: GraphQLClientRequestHeaders): Promise<{ data: SchemaTypes.ActivityFeedGroupedQuery; errors?: GraphQLError[]; extensions?: any; headers: Headers; status: number; }> {
+        return withWrapper((wrappedRequestHeaders) => client.rawRequest<SchemaTypes.ActivityFeedGroupedQuery>(ActivityFeedGroupedDocumentString, variables, {...requestHeaders, ...wrappedRequestHeaders}), 'ActivityFeedGrouped', 'query', variables);
+    },
     me(variables?: SchemaTypes.MeQueryVariables, requestHeaders?: GraphQLClientRequestHeaders): Promise<{ data: SchemaTypes.MeQuery; errors?: GraphQLError[]; extensions?: any; headers: Headers; status: number; }> {
         return withWrapper((wrappedRequestHeaders) => client.rawRequest<SchemaTypes.MeQuery>(MeDocumentString, variables, {...requestHeaders, ...wrappedRequestHeaders}), 'me', 'query', variables);
     },
