@@ -1,4 +1,4 @@
-import { useRef, useEffect, useCallback } from 'react';
+import { useRef, useEffect, useCallback, useState } from 'react';
 import * as d3 from 'd3';
 import { geoMercator, geoPath } from 'd3-geo';
 import type { GraphDataset, GraphNode, GraphEdge } from '@server/types/graph.js';
@@ -179,6 +179,21 @@ export default function ForceGraph({
   const nodeSelRef = useRef<d3.Selection<SVGGElement, SimNode, SVGGElement, unknown>>(null);
   const linkSelRef = useRef<d3.Selection<SVGPathElement, SimLink, SVGGElement, unknown>>(null);
   const visibleEdgesRef = useRef<typeof dataset.edges>([]);
+
+  // Stable refs for callbacks — avoids including them in renderGraph deps
+  const onNodeClickRef = useRef(onNodeClick);
+  onNodeClickRef.current = onNodeClick;
+  const onNodeHoverRef = useRef(onNodeHover);
+  onNodeHoverRef.current = onNodeHover;
+
+  // Stable refs for visual state — read inside effects without adding as deps
+  const activityPulseEnabledRef = useRef(activityPulseEnabled);
+  activityPulseEnabledRef.current = activityPulseEnabled;
+  const selectedNodeIdRef = useRef(selectedNodeId);
+  selectedNodeIdRef.current = selectedNodeId;
+
+  // Incremented after each renderGraph so visual-state effects re-apply on fresh DOM
+  const [graphVersion, setGraphVersion] = useState(0);
 
   const renderGraph = useCallback(() => {
     const svg = d3.select(svgRef.current);
@@ -706,16 +721,16 @@ export default function ForceGraph({
       .attr('cursor', 'pointer')
       .on('click', (_event, d) => {
         _event.stopPropagation();
-        onNodeClick(d.data);
+        onNodeClickRef.current(d.data);
       })
       .on('mouseenter', (_event: MouseEvent, d) => {
-        onNodeHover?.(d.data, { x: _event.clientX, y: _event.clientY });
+        onNodeHoverRef.current?.(d.data, { x: _event.clientX, y: _event.clientY });
       })
       .on('mousemove', (_event: MouseEvent, d) => {
-        onNodeHover?.(d.data, { x: _event.clientX, y: _event.clientY });
+        onNodeHoverRef.current?.(d.data, { x: _event.clientX, y: _event.clientY });
       })
       .on('mouseleave', () => {
-        onNodeHover?.(null);
+        onNodeHoverRef.current?.(null);
       })
       .call(
         (d3
@@ -1393,7 +1408,17 @@ export default function ForceGraph({
       cullOverlappingLabels();
     });
 
-    // Apply search highlighting
+    // Signal that a fresh graph is ready — visual-state effects will re-apply
+    queueMicrotask(() => setGraphVersion((v) => v + 1));
+
+  }, [dataset, showPeople, showOrganizations, showSpaces, showMap, mapRegion]);
+
+  // ---------- Search highlighting ----------
+  useEffect(() => {
+    const nodeSelection = nodeSelRef.current;
+    const linkSelection = linkSelRef.current;
+    if (!nodeSelection || !linkSelection) return;
+
     if (searchQuery) {
       const q = searchQuery.toLowerCase();
       nodeSelection.attr('opacity', (d) =>
@@ -1401,8 +1426,14 @@ export default function ForceGraph({
       );
       linkSelection.attr('opacity', 0.05);
     }
+    // Reset handled by selection effect when searchQuery is cleared
+  }, [searchQuery, graphVersion]);
 
-    // Apply insight highlighting
+  // ---------- Insight highlighting ----------
+  useEffect(() => {
+    const nodeSelection = nodeSelRef.current;
+    if (!nodeSelection) return;
+
     if (highlightedNodeIds.length > 0) {
       const hlSet = new Set(highlightedNodeIds);
       nodeSelection.select('circle')
@@ -1410,8 +1441,7 @@ export default function ForceGraph({
         .attr('stroke-width', (d: any) => (hlSet.has(d.data.id) ? 3 : null));
       nodeSelection.attr('opacity', (d: any) => (hlSet.has(d.data.id) ? 1 : 0.2));
     }
-
-  }, [dataset, showPeople, showOrganizations, showSpaces, searchQuery, highlightedNodeIds, onNodeClick, onNodeHover, showMap, mapRegion]);
+  }, [highlightedNodeIds, graphVersion]);
 
   // ---------- Selection highlighting — runs without rebuilding the graph ----------
   useEffect(() => {
@@ -1419,6 +1449,10 @@ export default function ForceGraph({
     const linkSelection = linkSelRef.current;
     const visibleEdges = visibleEdgesRef.current;
     if (!nodeSelection || !linkSelection) return;
+
+    // Read pulse state from ref — avoids having it as a dep that re-triggers
+    // the full selection reset (which would race with the pulse effect's transitions).
+    const actPulse = activityPulseEnabledRef.current;
 
     if (selectedNodeId) {
       // 1st-degree neighbors
@@ -1484,8 +1518,8 @@ export default function ForceGraph({
           return '#bfc9d1';
         });
 
-      // T023-T025: Compose pulse with selection — pause animation on non-connected edges
-      if (activityPulseEnabled) {
+      // Compose pulse with selection — pause animation on non-connected edges
+      if (actPulse) {
         linkSelection.each(function (d: any) {
           const el = d3.select(this);
           if (!el.classed('edge-pulse') && !el.classed('edge-pulse-entering')) return;
@@ -1502,32 +1536,43 @@ export default function ForceGraph({
         .transition().duration(300)
         .attr('stroke', 'rgba(200,210,220,0.5)')
         .attr('stroke-width', 0.5);
-      linkSelection
-        .transition().duration(300)
-        .attr('opacity', (d: any) => {
-          const type = d.data?.type;
-          if (type === 'CHILD') return 0.50;
-          if (type === 'LEAD') return 0.50;
-          return 0.32;
-        })
-        .attr('stroke', (d: any) => EDGE_COLORS[d.data?.type] || EDGE_COLORS.MEMBER)
-        .attr('stroke-width', (d: any) => {
-          if (d.data?.type === 'MEMBER') return 0.9;
-          if (d.data?.type === 'LEAD') return 1.4;
-          return Math.max(0.7, Math.min((d.data?.weight ?? 1) * 0.5, 2.0));
-        });
 
-      // T025: Restore animation-play-state on deselect
-      if (activityPulseEnabled) {
+      // For links: if pulse is active, only reset non-pulse properties (opacity);
+      // pulse effect owns stroke/stroke-width for pulsing edges.
+      if (actPulse) {
+        linkSelection
+          .transition().duration(300)
+          .attr('opacity', (d: any) => {
+            const type = d.data?.type;
+            if (type === 'CHILD') return 0.50;
+            if (type === 'LEAD') return 0.50;
+            return 0.32;
+          });
+        // Restore animation-play-state on deselect
         linkSelection.each(function () {
           const el = d3.select(this);
           if (el.classed('edge-pulse') || el.classed('edge-pulse-entering')) {
             el.style('animation-play-state', 'running');
           }
         });
+      } else {
+        linkSelection
+          .transition().duration(300)
+          .attr('opacity', (d: any) => {
+            const type = d.data?.type;
+            if (type === 'CHILD') return 0.50;
+            if (type === 'LEAD') return 0.50;
+            return 0.32;
+          })
+          .attr('stroke', (d: any) => EDGE_COLORS[d.data?.type] || EDGE_COLORS.MEMBER)
+          .attr('stroke-width', (d: any) => {
+            if (d.data?.type === 'MEMBER') return 0.9;
+            if (d.data?.type === 'LEAD') return 1.4;
+            return Math.max(0.7, Math.min((d.data?.weight ?? 1) * 0.5, 2.0));
+          });
       }
     }
-  }, [selectedNodeId, activityPulseEnabled]);
+  }, [selectedNodeId, graphVersion]);
 
   // ---------- Activity Pulse animation — applies/removes CSS classes on user→space edges ----------
   useEffect(() => {
@@ -1556,6 +1601,9 @@ export default function ForceGraph({
     };
 
     if (activityPulseEnabled) {
+      // Cancel any in-flight D3 transitions on links so they don't overwrite pulse attributes
+      linkSelection.interrupt();
+
       // Apply pulse to user→space edges only (T016: exclude org edges)
       linkSelection.each(function (d: any) {
         const edge = d.data;
@@ -1579,6 +1627,19 @@ export default function ForceGraph({
           el.classed('edge-pulse', true);
         }, 300);
       });
+
+      // Compose with selection: pause non-connected edges when a node is selected
+      const selId = selectedNodeIdRef.current;
+      if (selId) {
+        linkSelection.each(function (d: any) {
+          const el = d3.select(this);
+          if (!el.classed('edge-pulse') && !el.classed('edge-pulse-entering')) return;
+          const src = (d.source as SimNode).data.id;
+          const tgt = (d.target as SimNode).data.id;
+          const isConnected = src === selId || tgt === selId;
+          el.style('animation-play-state', isConnected ? 'running' : 'paused');
+        });
+      }
     } else {
       // Remove pulse: add exiting class, then clean up
       linkSelection.each(function (d: any) {
@@ -1601,7 +1662,7 @@ export default function ForceGraph({
         }
       });
     }
-  }, [activityPulseEnabled]);
+  }, [activityPulseEnabled, graphVersion]);
 
   useEffect(() => {
     renderGraph();

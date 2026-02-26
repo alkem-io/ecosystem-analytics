@@ -14,6 +14,9 @@ import type { GraphNode } from '@server/types/graph.js';
 import { api } from '../services/api.js';
 import styles from './Explorer.module.css';
 
+/** Stable empty-array reference shared between state init and click handler. */
+const EMPTY_IDS: string[] = [];
+
 /**
  * Screen C — Graph Explorer
  * Design reference: design-brief-figma-make.md Screen C
@@ -34,7 +37,7 @@ export default function Explorer({ onLogout }: ExplorerProps) {
   const [selectedNode, setSelectedNode] = useState<GraphNode | null>(null);
   const [hoveredNode, setHoveredNode] = useState<GraphNode | null>(null);
   const [hoverPos, setHoverPos] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
-  const [highlightedNodeIds, setHighlightedNodeIds] = useState<string[]>([]);
+  const [highlightedNodeIds, setHighlightedNodeIds] = useState<string[]>(EMPTY_IDS);
   const [mapRegion, setMapRegion] = useState<MapRegion>('europe');
   const [showMap, setShowMap] = useState(false);
   const [activityPulseEnabled, setActivityPulseEnabled] = useState(false);
@@ -90,11 +93,10 @@ export default function Explorer({ onLogout }: ExplorerProps) {
     [activeSpaceIds, dataset, generate, navigate],
   );
 
-  const EMPTY_IDS: string[] = useMemo(() => [], []);
   const handleNodeClick = useCallback((node: GraphNode) => {
     setSelectedNode((prev) => (prev?.id === node.id ? null : node));
     setHighlightedNodeIds(EMPTY_IDS);
-  }, [EMPTY_IDS]);
+  }, []);
 
   const handleNodeHover = useCallback((node: GraphNode | null, position?: { x: number; y: number }) => {
     setHoveredNode(node);
