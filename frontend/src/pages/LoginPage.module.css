@@ -50,9 +50,13 @@
   margin: 0 0 8px;
 }
 
-.security {
+.authNotice {
   font-size: 13px;
-  color: var(--text-muted);
+  color: #92400e;
+  background: #fef3c7;
+  border-left: 3px solid #d97706;
+  padding: 10px 12px;
+  border-radius: var(--radius-sm);
   line-height: 1.5;
   margin: 0 0 24px;
 }
