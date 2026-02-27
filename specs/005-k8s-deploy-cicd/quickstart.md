@@ -24,7 +24,7 @@ These are org-level secrets shared across Alkemio repos (matching the `oidc-serv
 | `REGISTRY_LOGIN_SERVER` | Scaleway Container Registry URL (e.g. `rg.nl-ams.scw.cloud/alkemio`) |
 | `REGISTRY_USERNAME` | Registry username (`nologin` for Scaleway) |
 | `REGISTRY_PASSWORD` | Scaleway API secret key |
-| `KUBECONFIG_SECRET_SCALEWAY_PROD` | Raw kubeconfig YAML for production cluster |
+| `KUBECONFIG_SECRET_SCALEWAY_PLATFORM` | Raw kubeconfig YAML for production cluster |
 
 ### 2. Apply DNS Record
 
@@ -123,7 +123,7 @@ kubectl logs -n ecosystem-analytics -l app=ecosystem-analytics
 - Check Scaleway console for registry access permissions
 
 ### Pipeline fails at deploy
-- Verify `KUBECONFIG_SECRET_SCALEWAY_PROD` secret contains valid, non-expired kubeconfig
+- Verify `KUBECONFIG_SECRET_SCALEWAY_PLATFORM` secret contains valid, non-expired kubeconfig
 - Check that the kubeconfig has permissions for the `ecosystem-analytics` namespace
 
 ### DNS not resolving

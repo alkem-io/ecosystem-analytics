@@ -46,7 +46,7 @@ No blocking prerequisites — each user story touches independent repositories a
 ### Implementation for User Story 1
 
 - [x] T002 [US1] Create GitHub Actions CI/CD workflow with build job in `.github/workflows/ci-cd.yml` — triggers on push to `main` and pull_request targeting `main`; steps: checkout (`actions/checkout@v4`), setup-buildx (`docker/setup-buildx-action@v3`), metadata (`docker/metadata-action@v5` with `type=sha` tag), conditional registry login (`docker/login-action@v3` with Scaleway `rg.nl-ams.scw.cloud`, username `nologin`, password `REGISTRY_PASSWORD`), build-push (`docker/build-push-action@v6` with conditional push, registry cache) per `contracts/ci-cd-workflow.yml`
-- [x] T003 [US1] Add deploy job to CI/CD workflow in `.github/workflows/ci-cd.yml` — runs only on `main` push after build succeeds; steps: set K8s context (`azure/k8s-set-context@v4` with `KUBECONFIG_SECRET_SCALEWAY_PROD` secret), `kubectl set image` targeting `deployment/ecosystem-analytics` in namespace `ecosystem-analytics` with `sha-<7char>` tag, `kubectl rollout status` with 300s timeout per `contracts/ci-cd-workflow.yml`
+- [x] T003 [US1] Add deploy job to CI/CD workflow in `.github/workflows/ci-cd.yml` — runs only on `main` push after build succeeds; steps: set K8s context (`azure/k8s-set-context@v4` with `KUBECONFIG_SECRET_SCALEWAY_PLATFORM` secret), `kubectl set image` targeting `deployment/ecosystem-analytics` in namespace `ecosystem-analytics` with `sha-<7char>` tag, `kubectl rollout status` with 300s timeout per `contracts/ci-cd-workflow.yml`
 
 **Checkpoint**: CI/CD workflow file exists and is syntactically valid. Pipeline will execute once manifests (US3) and DNS (US4) are deployed.
 
@@ -113,7 +113,7 @@ No blocking prerequisites — each user story touches independent repositories a
 
 **Purpose**: Final cleanup and documentation
 
-- [x] T016 [P] Document required GitHub Actions secrets (`REGISTRY_LOGIN_SERVER`, `REGISTRY_USERNAME`, `REGISTRY_PASSWORD`, `KUBECONFIG_SECRET_SCALEWAY_PROD`) setup instructions in repository wiki or PR description
+- [x] T016 [P] Document required GitHub Actions secrets (`REGISTRY_LOGIN_SERVER`, `REGISTRY_USERNAME`, `REGISTRY_PASSWORD`, `KUBECONFIG_SECRET_SCALEWAY_PLATFORM`) setup instructions in repository wiki or PR description
 - [ ] T017 **MANUAL** Run full quickstart.md validation checklist (`specs/005-k8s-deploy-cicd/quickstart.md`) and confirm all items pass
 
 ---

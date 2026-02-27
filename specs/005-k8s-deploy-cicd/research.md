@@ -116,7 +116,7 @@ Use a single GitHub Actions workflow with `docker/build-push-action@v6` for buil
 | `REGISTRY_LOGIN_SERVER` | Scaleway Container Registry URL (e.g. `rg.nl-ams.scw.cloud/alkemio`) |
 | `REGISTRY_USERNAME` | Registry username (`nologin` for Scaleway) |
 | `REGISTRY_PASSWORD` | Scaleway API secret key |
-| `KUBECONFIG_SECRET_SCALEWAY_PROD` | Raw kubeconfig YAML for the production K8s cluster |
+| `KUBECONFIG_SECRET_SCALEWAY_PLATFORM` | Raw kubeconfig YAML for the production K8s cluster |
 
 **Registry endpoint**: `rg.nl-ams.scw.cloud/alkemio/ecosystem-analytics`
 

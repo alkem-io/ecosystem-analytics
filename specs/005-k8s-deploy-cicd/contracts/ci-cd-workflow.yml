@@ -14,7 +14,7 @@ on:
 #   REGISTRY_LOGIN_SERVER  - Scaleway Container Registry URL (e.g. rg.nl-ams.scw.cloud/alkemio)
 #   REGISTRY_USERNAME      - Registry username (nologin for Scaleway)
 #   REGISTRY_PASSWORD      - Scaleway API secret key
-#   KUBECONFIG_SECRET_SCALEWAY_PROD - Raw kubeconfig YAML for production K8s cluster
+#   KUBECONFIG_SECRET_SCALEWAY_PLATFORM - Raw kubeconfig YAML for production K8s cluster
 
 jobs:
   build:
@@ -60,7 +60,7 @@ jobs:
         uses: azure/k8s-set-context@v4
         with:
           method: kubeconfig
-          kubeconfig: ${{ secrets.KUBECONFIG_SECRET_SCALEWAY_PROD }}
+          kubeconfig: ${{ secrets.KUBECONFIG_SECRET_SCALEWAY_PLATFORM }}
 
       - name: Deploy to Kubernetes
         run: |
