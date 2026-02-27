@@ -24,6 +24,7 @@ WORKDIR /app
 
 COPY --from=build-server /app/server/package.json /app/server/pnpm-lock.yaml ./
 COPY --from=build-server /app/server/dist ./dist
+COPY server/analytics.yml ./
 COPY --from=build-frontend /app/frontend/dist ./frontend/dist
 
 RUN pnpm install --frozen-lockfile --prod
