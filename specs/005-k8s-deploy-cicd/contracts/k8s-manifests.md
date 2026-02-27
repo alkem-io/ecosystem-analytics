@@ -81,7 +81,7 @@ spec:
     spec:
       containers:
         - name: ecosystem-analytics
-          image: rg.fr-par.scw.cloud/<NAMESPACE>/ecosystem-analytics:sha-0000000
+          image: rg.nl-ams.scw.cloud/alkemio/ecosystem-analytics:sha-0000000
           ports:
             - containerPort: 4000
           envFrom:

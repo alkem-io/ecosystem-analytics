@@ -116,7 +116,7 @@ Use a single GitHub Actions workflow with `docker/build-push-action@v6` for buil
 | `SCW_SECRET_KEY` | Scaleway API secret key for registry auth |
 | `KUBECONFIG` | Raw kubeconfig YAML for the production K8s cluster |
 
-**Registry endpoint**: `rg.fr-par.scw.cloud/<namespace>/ecosystem-analytics` (exact namespace TBD from Scaleway console)
+**Registry endpoint**: `rg.nl-ams.scw.cloud/alkemio/ecosystem-analytics`
 
 **Workflow structure**:
 - Single file: `.github/workflows/ci-cd.yml`

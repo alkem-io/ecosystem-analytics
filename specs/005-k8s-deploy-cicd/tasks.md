@@ -45,7 +45,7 @@ No blocking prerequisites — each user story touches independent repositories a
 
 ### Implementation for User Story 1
 
-- [x] T002 [US1] Create GitHub Actions CI/CD workflow with build job in `.github/workflows/ci-cd.yml` — triggers on push to `main` and pull_request targeting `main`; steps: checkout (`actions/checkout@v4`), setup-buildx (`docker/setup-buildx-action@v3`), metadata (`docker/metadata-action@v5` with `type=sha` tag), conditional registry login (`docker/login-action@v3` with Scaleway `rg.fr-par.scw.cloud`, username `nologin`, password `SCW_SECRET_KEY`), build-push (`docker/build-push-action@v6` with conditional push, registry cache) per `contracts/ci-cd-workflow.yml`
+- [x] T002 [US1] Create GitHub Actions CI/CD workflow with build job in `.github/workflows/ci-cd.yml` — triggers on push to `main` and pull_request targeting `main`; steps: checkout (`actions/checkout@v4`), setup-buildx (`docker/setup-buildx-action@v3`), metadata (`docker/metadata-action@v5` with `type=sha` tag), conditional registry login (`docker/login-action@v3` with Scaleway `rg.nl-ams.scw.cloud`, username `nologin`, password `SCW_SECRET_KEY`), build-push (`docker/build-push-action@v6` with conditional push, registry cache) per `contracts/ci-cd-workflow.yml`
 - [x] T003 [US1] Add deploy job to CI/CD workflow in `.github/workflows/ci-cd.yml` — runs only on `main` push after build succeeds; steps: set K8s context (`azure/k8s-set-context@v4` with `KUBECONFIG` secret), `kubectl set image` targeting `deployment/ecosystem-analytics` in namespace `ecosystem-analytics` with `sha-<7char>` tag, `kubectl rollout status` with 300s timeout per `contracts/ci-cd-workflow.yml`
 
 **Checkpoint**: CI/CD workflow file exists and is syntactically valid. Pipeline will execute once manifests (US3) and DNS (US4) are deployed.
@@ -238,6 +238,6 @@ With multiple developers:
 - This feature spans 3 repos — commit tasks to the correct repository
 - US2 is P2 business priority but Phase 6 execution order (depends on US1+US3+US4)
 - Secrets (registry credentials, kubeconfig) and TLS cert data are populated by the platform operator — NOT committed to version control
-- The `<NAMESPACE>` placeholder in registry paths must be replaced with the actual Scaleway Container Registry namespace
+- Registry namespace resolved: `rg.nl-ams.scw.cloud/alkemio` (confirmed from production cluster)
 - Commit after each task or logical group
 - Stop at any checkpoint to validate independently

@@ -41,7 +41,7 @@ This feature is infrastructure-focused. The "data model" describes Kubernetes re
 | **Namespace** | `ecosystem-analytics` |
 | **Replicas** | 1 |
 | **Strategy** | RollingUpdate (maxSurge: 1, maxUnavailable: 0) |
-| **Container image** | `rg.fr-par.scw.cloud/<namespace>/ecosystem-analytics:sha-<7char>` |
+| **Container image** | `rg.nl-ams.scw.cloud/alkemio/ecosystem-analytics:sha-<7char>` |
 | **Container port** | 4000 |
 | **Resources requests** | 512Mi memory, 500m CPU |
 | **Resources limits** | 1Gi memory, 1000m CPU |
@@ -106,7 +106,7 @@ This feature is infrastructure-focused. The "data model" describes Kubernetes re
 
 | Field | Value |
 |-------|-------|
-| **Registry** | Scaleway Container Registry (`rg.fr-par.scw.cloud`) |
+| **Registry** | Scaleway Container Registry (`rg.nl-ams.scw.cloud`) |
 | **Tag format** | `sha-<7-char-git-sha>` (via `docker/metadata-action` `type=sha`) |
 | **Build context** | Repository root (multi-stage Dockerfile) |
 | **Push condition** | Only on `main` branch push (not on PRs) |
