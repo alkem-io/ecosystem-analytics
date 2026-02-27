@@ -113,8 +113,10 @@ Use a single GitHub Actions workflow with `docker/build-push-action@v6` for buil
 **Required GitHub Secrets**:
 | Secret | Value |
 |---|---|
-| `SCW_SECRET_KEY` | Scaleway API secret key for registry auth |
-| `KUBECONFIG` | Raw kubeconfig YAML for the production K8s cluster |
+| `REGISTRY_LOGIN_SERVER` | Scaleway Container Registry URL (e.g. `rg.nl-ams.scw.cloud/alkemio`) |
+| `REGISTRY_USERNAME` | Registry username (`nologin` for Scaleway) |
+| `REGISTRY_PASSWORD` | Scaleway API secret key |
+| `KUBECONFIG_SECRET_SCALEWAY_PROD` | Raw kubeconfig YAML for the production K8s cluster |
 
 **Registry endpoint**: `rg.nl-ams.scw.cloud/alkemio/ecosystem-analytics`
 
