@@ -107,3 +107,10 @@ The project constitution (`.specify/memory/constitution.md`) defines six mandato
 ## Speckit Workflow
 
 Feature specifications live in `specs/NNN-feature-name/` with `spec.md`, `tasks.md`, `research.md`, `design.md`. The speckit agent workflow (agents in `agents/`, prompts in `prompts/`, templates in `.specify/templates/`) supports: clarify → plan → specify → analyze → tasks → checklist → implement → constitution validation.
+
+## Active Technologies
+- YAML (GitHub Actions, Kubernetes manifests), HCL (Terraform), existing TypeScript/Node 20 app unchanged + GitHub Actions (`docker/build-push-action@v6`, `docker/metadata-action@v5`, `docker/login-action@v3`, `azure/k8s-set-context@v4`), Traefik CRDs (`traefik.containo.us/v1alpha1`), Azure DNS (`azurerm` Terraform provider) (005-k8s-deploy-cicd)
+- N/A (no storage changes; existing SQLite cache runs inside container) (005-k8s-deploy-cicd)
+
+## Recent Changes
+- 005-k8s-deploy-cicd: Added YAML (GitHub Actions, Kubernetes manifests), HCL (Terraform), existing TypeScript/Node 20 app unchanged + GitHub Actions (`docker/build-push-action@v6`, `docker/metadata-action@v5`, `docker/login-action@v3`, `azure/k8s-set-context@v4`), Traefik CRDs (`traefik.containo.us/v1alpha1`), Azure DNS (`azurerm` Terraform provider)

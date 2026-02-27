@@ -5,6 +5,7 @@ WORKDIR /app/frontend
 COPY frontend/package.json frontend/pnpm-lock.yaml ./
 RUN pnpm install --frozen-lockfile
 COPY frontend/ ./
+COPY server/src/types/ ../server/src/types/
 RUN pnpm run build
 
 # Stage 2: Build server
