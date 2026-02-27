@@ -64,11 +64,13 @@ export default function LoginPage({ onLogin }: Props) {
         <div className={styles.body}>
           <h2 className={styles.welcome}>Welcome</h2>
           <p className={styles.description}>
-            Sign in with your Alkemio account to explore your portfolio.
+            This is an experimental tool for exploring ecosystem-level data across Alkemio.
+            The exact end state is not yet defined — we are exploring what the value add can be.
           </p>
-          <p className={styles.security}>
-            Currently only username/password Alkemio identities are supported. SSO/OIDC login (Microsoft, LinkedIn, etc.) is not yet available.
-          </p>
+          <div className={styles.authNotice}>
+            <strong>Authentication note:</strong> Currently only username/password Alkemio identities are supported.
+            SSO/OIDC login (Microsoft, LinkedIn, etc.) is not yet available.
+          </div>
 
           <form onSubmit={handleLogin}>
             <input
