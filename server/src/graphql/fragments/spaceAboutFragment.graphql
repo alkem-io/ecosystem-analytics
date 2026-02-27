@@ -1,0 +1,26 @@
+fragment spaceAboutFragment on SpaceAbout {
+  id
+  profile {
+    id
+    displayName
+    tagline
+    location {
+      country
+      city
+      geoLocation {
+        latitude
+        longitude
+      }
+    }
+    url
+    avatar: visual(type: AVATAR) {
+      uri
+    }
+    banner: visual(type: BANNER) {
+      uri
+    }
+    bannerWide: visual(type: BANNER_WIDE) {
+      uri
+    }
+  }
+}

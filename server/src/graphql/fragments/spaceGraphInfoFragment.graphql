@@ -1,0 +1,10 @@
+fragment SpaceGraphInfoFragment on Space {
+  id
+  nameID
+  about {
+    ...spaceAboutFragment
+  }
+  community {
+    ...communityRolesFragment
+  }
+}

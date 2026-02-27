@@ -1,0 +1,35 @@
+/* Activity Pulse Animation — plain CSS (not CSS Modules) so D3 .classed() works directly */
+
+@keyframes pulse-flow {
+  from { stroke-dashoffset: 32; }
+  to   { stroke-dashoffset: 0; }
+}
+
+.edge-pulse {
+  stroke-dasharray: 8 24 !important;
+  stroke-dashoffset: 0;
+  animation: pulse-flow var(--pulse-duration, 2s) linear infinite;
+}
+
+.edge-pulse-entering {
+  stroke-dasharray: 8 24 !important;
+  stroke-dashoffset: 0;
+  animation: pulse-flow var(--pulse-duration, 2s) linear infinite;
+  transition: stroke-dasharray 300ms ease-in;
+}
+
+.edge-pulse-exiting {
+  stroke-dasharray: 0 32 !important;
+  animation: none;
+  transition: stroke-dasharray 300ms ease-out;
+}
+
+/* Reduced motion: static dotted indicator with tier-based color */
+@media (prefers-reduced-motion: reduce) {
+  .edge-pulse,
+  .edge-pulse-entering {
+    animation: none !important;
+    stroke-dasharray: 4 12 !important;
+    stroke: var(--pulse-color, #3b82f6);
+  }
+}

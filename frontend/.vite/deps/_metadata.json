@@ -1,0 +1,58 @@
+{
+  "hash": "795b9f3c",
+  "configHash": "25040161",
+  "lockfileHash": "f3c5a0db",
+  "browserHash": "8736d2cb",
+  "optimized": {
+    "react/jsx-dev-runtime": {
+      "src": "../../node_modules/.pnpm/react@19.2.4/node_modules/react/jsx-dev-runtime.js",
+      "file": "react_jsx-dev-runtime.js",
+      "fileHash": "fd7e1a45",
+      "needsInterop": true
+    },
+    "react": {
+      "src": "../../node_modules/.pnpm/react@19.2.4/node_modules/react/index.js",
+      "file": "react.js",
+      "fileHash": "c294bc2e",
+      "needsInterop": true
+    },
+    "react-dom/client": {
+      "src": "../../node_modules/.pnpm/react-dom@19.2.4_react@19.2.4/node_modules/react-dom/client.js",
+      "file": "react-dom_client.js",
+      "fileHash": "8b2df470",
+      "needsInterop": true
+    },
+    "react-router-dom": {
+      "src": "../../node_modules/.pnpm/react-router-dom@7.13.0_react-dom@19.2.4_react@19.2.4__react@19.2.4/node_modules/react-router-dom/dist/index.mjs",
+      "file": "react-router-dom.js",
+      "fileHash": "4acb77bb",
+      "needsInterop": false
+    },
+    "d3": {
+      "src": "../../node_modules/.pnpm/d3@7.9.0/node_modules/d3/src/index.js",
+      "file": "d3.js",
+      "fileHash": "b7bf0592",
+      "needsInterop": false
+    },
+    "d3-geo": {
+      "src": "../../node_modules/.pnpm/d3-geo@3.1.1/node_modules/d3-geo/src/index.js",
+      "file": "d3-geo.js",
+      "fileHash": "d22334ba",
+      "needsInterop": false
+    }
+  },
+  "chunks": {
+    "chunk-YE3JXFAK": {
+      "file": "chunk-YE3JXFAK.js"
+    },
+    "chunk-VF4MKRLI": {
+      "file": "chunk-VF4MKRLI.js"
+    },
+    "chunk-ONSJF3SQ": {
+      "file": "chunk-ONSJF3SQ.js"
+    },
+    "chunk-5WRI5ZAA": {
+      "file": "chunk-5WRI5ZAA.js"
+    }
+  }
+}

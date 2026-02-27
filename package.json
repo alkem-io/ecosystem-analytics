@@ -1,0 +1,15 @@
+{
+  "name": "ecosystem-analytics",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "test:visual": "playwright test",
+    "test:visual:update": "playwright test --update-snapshots",
+    "setup:prototype": "npm --prefix .prototype/alkemio-redesign install",
+    "test:visual:prototype": "npm run setup:prototype && USE_PROTOTYPE=1 playwright test"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.55.0"
+  }
+}

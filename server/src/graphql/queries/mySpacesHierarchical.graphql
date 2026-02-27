@@ -1,0 +1,39 @@
+query mySpacesHierarchical {
+  me {
+    user {
+      id
+      nameID
+      profile {
+        displayName
+        avatar: visual(type: AVATAR) {
+          uri
+        }
+        location {
+          country
+          city
+          geoLocation {
+            latitude
+            longitude
+          }
+        }
+        url
+      }
+      email
+    }
+    spaceMembershipsHierarchical {
+      space {
+        ...SpaceGraphInfoFragment
+      }
+      childMemberships {
+        space {
+          ...SpaceGraphInfoFragment
+        }
+        childMemberships {
+          space {
+            ...SpaceGraphInfoFragment
+          }
+        }
+      }
+    }
+  }
+}
