@@ -4,6 +4,9 @@ import {
   type GraphEdge,
   type GraphLocation,
   type ActivityPeriodCounts,
+  type TagData,
+  type ActivityTimeBucket,
+  type SpaceTimeSeries,
   NodeType,
   EdgeType,
   ActivityTier,
@@ -15,6 +18,8 @@ import {
 interface SpaceLike {
   id: string;
   nameID: string;
+  createdDate?: string;
+  visibility?: string;
   about: {
     isContentPublic?: boolean;
     profile: {
@@ -29,6 +34,7 @@ interface SpaceLike {
       avatar?: { uri: string } | null;
       banner?: { uri: string } | null;
       bannerWide?: { uri: string } | null;
+      tagsets?: Array<{ name: string; tags: string[]; type?: string; allowedValues?: string[] }>;
     };
   };
   community?: {
@@ -46,6 +52,7 @@ interface SpaceLike {
 export interface TransformResult {
   nodes: GraphNode[];
   edges: GraphEdge[];
+  timeSeries?: SpaceTimeSeries[];
 }
 
 /**
@@ -133,7 +140,29 @@ export function transformToGraph(data: AcquiredData): TransformResult {
     }
   }
 
-  return { nodes, edges };
+  // Build time series for Timeline view (T012/T014)
+  let timeSeries: SpaceTimeSeries[] | undefined;
+  if (data.activityEntries && data.activityEntries.length > 0) {
+    timeSeries = buildTimeSeries(data.activityEntries, nodes);
+  }
+
+  // Estimate edge creation dates for Temporal Force view (T013/T014)
+  if (data.activityEntries && data.activityEntries.length > 0) {
+    const spaceNodeMap = new Map<string, GraphNode>();
+    for (const n of nodes) {
+      if (n.type === NodeType.SPACE_L0 || n.type === NodeType.SPACE_L1 || n.type === NodeType.SPACE_L2) {
+        spaceNodeMap.set(n.id, n);
+      }
+    }
+    for (const edge of edges) {
+      // Only estimate for user→space relationship edges
+      if (edge.type !== EdgeType.MEMBER && edge.type !== EdgeType.LEAD && edge.type !== EdgeType.ADMIN) continue;
+      const estimated = estimateEdgeCreatedDate(edge, data.activityEntries, spaceNodeMap);
+      if (estimated) edge.createdDate = estimated;
+    }
+  }
+
+  return { nodes, edges, timeSeries };
 }
 
 function addSpaceNode(
@@ -180,6 +209,9 @@ function addSpaceNode(
     tagline: profile.tagline || null,
     parentSpaceId,
     privacyMode: space.about.isContentPublic !== false ? 'PUBLIC' : 'PRIVATE',
+    createdDate: space.createdDate || undefined,
+    visibility: parseVisibility(space.visibility),
+    tags: extractTags(profile.tagsets),
   });
 }
 
@@ -260,6 +292,8 @@ function ensureUserNode(
     tagline: null,
     parentSpaceId: null,
     privacyMode: null,
+    createdDate: (user as Record<string, unknown> | undefined)?.createdDate as string | undefined,
+    tags: extractTags((user?.profile as Record<string, unknown> | undefined)?.tagsets as SpaceLike['about']['profile']['tagsets']),
   });
 }
 
@@ -296,6 +330,7 @@ function ensureOrgNode(
     tagline: null,
     parentSpaceId: null,
     privacyMode: null,
+    tags: extractTags((org?.profile as Record<string, unknown> | undefined)?.tagsets as SpaceLike['about']['profile']['tagsets']),
   });
 }
 
@@ -474,4 +509,144 @@ function createEdge(
     weight: EDGE_WEIGHT[type],
     scopeGroup,
   };
+}
+
+// ---------------------------------------------------------------------------
+// 009 — Helper utilities for alternative views
+// ---------------------------------------------------------------------------
+
+/**
+ * Parse a visibility string from Alkemio into the typed union.
+ * Returns undefined if the value is missing or unrecognised.
+ */
+function parseVisibility(raw?: string): 'ACTIVE' | 'ARCHIVED' | 'DEMO' | undefined {
+  if (!raw) return undefined;
+  const upper = raw.toUpperCase();
+  if (upper === 'ACTIVE' || upper === 'ARCHIVED' || upper === 'DEMO') return upper;
+  return undefined;
+}
+
+/**
+ * Extract tags from profile tagsets into the canonical TagData shape.
+ * Groups tags by well-known tagset names (keywords, skills); everything
+ * else lands in `default`.
+ */
+function extractTags(
+  tagsets?: Array<{ name: string; tags: string[]; type?: string; allowedValues?: string[] }>,
+): TagData | undefined {
+  if (!tagsets || tagsets.length === 0) return undefined;
+  const result: TagData = {};
+  for (const ts of tagsets) {
+    const key = ts.name.toLowerCase();
+    if (ts.tags.length === 0) continue;
+    if (key === 'keywords') {
+      result.keywords = ts.tags;
+    } else if (key === 'skills') {
+      result.skills = ts.tags;
+    } else {
+      result.default = [...(result.default ?? []), ...ts.tags];
+    }
+  }
+  // Return undefined when we didn't collect anything meaningful
+  if (!result.keywords && !result.skills && !result.default) return undefined;
+  return result;
+}
+
+/**
+ * Build weekly activity time series from raw activity entries (T012).
+ * Groups entries by (spaceId, ISO week) and returns one SpaceTimeSeries
+ * per space that has any activity.
+ */
+export function buildTimeSeries(
+  activityEntries: RawActivityEntry[],
+  spaceNodes: GraphNode[],
+): SpaceTimeSeries[] {
+  // Build a lookup for space display names
+  const spaceNameMap = new Map<string, string>();
+  for (const n of spaceNodes) {
+    if (n.type === NodeType.SPACE_L0 || n.type === NodeType.SPACE_L1 || n.type === NodeType.SPACE_L2) {
+      spaceNameMap.set(n.id, n.displayName);
+    }
+  }
+
+  // Group counts by spaceId → week → count
+  const bySpace = new Map<string, Map<string, number>>();
+
+  for (const entry of activityEntries) {
+    const spaceId = entry.space?.id;
+    if (!spaceId) continue;
+    const week = toISOWeek(new Date(entry.createdDate));
+    let weekMap = bySpace.get(spaceId);
+    if (!weekMap) {
+      weekMap = new Map();
+      bySpace.set(spaceId, weekMap);
+    }
+    weekMap.set(week, (weekMap.get(week) ?? 0) + 1);
+  }
+
+  // Convert to SpaceTimeSeries[]
+  const series: SpaceTimeSeries[] = [];
+  for (const [spaceId, weekMap] of bySpace) {
+    const buckets: ActivityTimeBucket[] = [];
+    for (const [week, count] of weekMap) {
+      buckets.push({ week, count });
+    }
+    // Sort buckets chronologically
+    buckets.sort((a, b) => a.week.localeCompare(b.week));
+    series.push({
+      spaceId,
+      spaceDisplayName: spaceNameMap.get(spaceId) ?? spaceId,
+      buckets,
+    });
+  }
+
+  // Sort series by spaceDisplayName for deterministic output
+  series.sort((a, b) => a.spaceDisplayName.localeCompare(b.spaceDisplayName));
+  return series;
+}
+
+/**
+ * Estimate when a user→space edge was created (T013).
+ * Priority: 1) earliest activity date for this (user, space) pair,
+ *           2) target space's createdDate,
+ *           3) undefined.
+ *
+ * Application.createdDate would be priority 1 per spec, but it is not
+ * available in the current GraphQL schema data set — we use the next
+ * best heuristic.
+ */
+export function estimateEdgeCreatedDate(
+  edge: GraphEdge,
+  activityEntries: RawActivityEntry[],
+  spaceNodeMap: Map<string, GraphNode>,
+): string | undefined {
+  // Priority 1: earliest activity entry for this (user, space) pair
+  let earliest: Date | undefined;
+  for (const entry of activityEntries) {
+    if (entry.triggeredBy.id !== edge.sourceId) continue;
+    if (entry.space?.id !== edge.targetId) continue;
+    const d = new Date(entry.createdDate);
+    if (!earliest || d < earliest) earliest = d;
+  }
+  if (earliest) return earliest.toISOString();
+
+  // Priority 2: target space's createdDate
+  const spaceNode = spaceNodeMap.get(edge.targetId);
+  if (spaceNode?.createdDate) return spaceNode.createdDate;
+
+  return undefined;
+}
+
+/**
+ * Convert a Date into an ISO week string like '2026-W09'.
+ */
+function toISOWeek(date: Date): string {
+  // ISO week logic: week 1 is the week containing the first Thursday of the year.
+  const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
+  // Set to nearest Thursday: current date + 4 - current day (Mon=1, Sun=7)
+  const dayNum = d.getUTCDay() || 7; // Make Sunday = 7
+  d.setUTCDate(d.getUTCDate() + 4 - dayNum);
+  const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
+  const weekNo = Math.ceil(((d.getTime() - yearStart.getTime()) / 86400000 + 1) / 7);
+  return `${d.getUTCFullYear()}-W${String(weekNo).padStart(2, '0')}`;
 }

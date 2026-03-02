@@ -23,5 +23,11 @@ fragment spaceAboutFragment on SpaceAbout {
     bannerWide: visual(type: BANNER_WIDE) {
       uri
     }
+    tagsets {
+      name
+      tags
+      type
+      allowedValues
+    }
   }
 }

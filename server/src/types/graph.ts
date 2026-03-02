@@ -59,6 +59,28 @@ export const EDGE_WEIGHT: Record<EdgeType, number> = {
   [EdgeType.MEMBER]: 1,
 };
 
+/** Aggregated tag data from profile tagsets */
+export interface TagData {
+  keywords?: string[];
+  skills?: string[];
+  default?: string[];
+}
+
+/** A single weekly activity bucket for time-series data */
+export interface ActivityTimeBucket {
+  /** ISO week string, e.g., '2026-W09' */
+  week: string;
+  /** Total activity count for this week */
+  count: number;
+}
+
+/** Time-series activity data for a single space */
+export interface SpaceTimeSeries {
+  spaceId: string;
+  spaceDisplayName: string;
+  buckets: ActivityTimeBucket[];
+}
+
 /** Geographic location data */
 export interface GraphLocation {
   country: string | null;
@@ -84,6 +106,12 @@ export interface GraphNode {
   parentSpaceId: string | null;
   /** Privacy mode for space nodes; null for non-space types (USER, ORGANIZATION) */
   privacyMode: 'PUBLIC' | 'PRIVATE' | null;
+  /** ISO 8601 timestamp when the node entity was created on Alkemio */
+  createdDate?: string;
+  /** Space visibility — ACTIVE, ARCHIVED, or DEMO (spaces only) */
+  visibility?: 'ACTIVE' | 'ARCHIVED' | 'DEMO';
+  /** Tags from the profile's tagsets, keyed by reserved name */
+  tags?: TagData;
   /** Total direct contribution count for this space (L0/L1/L2 only, undefined for others) */
   totalActivityCount?: number;
   /** Activity tier for the space based on percentile distribution (L0/L1/L2 only) */
@@ -99,6 +127,8 @@ export interface GraphEdge {
   type: EdgeType;
   weight: number;
   scopeGroup: string | null;
+  /** Estimated ISO 8601 timestamp when this relationship was established */
+  createdDate?: string;
   /** Raw contribution count for user→space edges */
   activityCount?: number;
   /** Computed tier classification for user→space edges */
@@ -146,4 +176,6 @@ export interface GraphDataset {
   insights?: GraphInsights;
   /** True if activity data was successfully fetched; false otherwise */
   hasActivityData?: boolean;
+  /** Weekly activity time series per space (for Timeline view) */
+  timeSeries?: SpaceTimeSeries[];
 }

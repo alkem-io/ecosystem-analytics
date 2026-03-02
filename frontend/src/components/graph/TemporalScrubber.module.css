@@ -1,0 +1,56 @@
+/* TemporalScrubber — time slider + controls */
+
+.scrubber {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.5rem 1rem;
+  background: var(--view-color-bg, #0f172a);
+  border-top: 1px solid var(--view-color-border, #334155);
+  color: var(--view-color-text, #e2e8f0);
+  font-size: 0.8rem;
+  min-height: 40px;
+}
+
+.playBtn {
+  background: none;
+  border: 1px solid var(--view-color-border, #475569);
+  border-radius: 4px;
+  color: var(--view-color-text, #e2e8f0);
+  font-size: 1rem;
+  width: 32px;
+  height: 32px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.15s;
+}
+
+.playBtn:hover {
+  background: var(--view-color-hover, #1e293b);
+}
+
+.slider {
+  flex: 1;
+  min-width: 100px;
+  accent-color: #38bdf8;
+  cursor: pointer;
+}
+
+.dateLabel {
+  min-width: 100px;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+  color: var(--view-color-text-muted, #94a3b8);
+}
+
+.speedSelect {
+  background: var(--view-color-bg, #1e293b);
+  border: 1px solid var(--view-color-border, #475569);
+  border-radius: 4px;
+  color: var(--view-color-text, #e2e8f0);
+  padding: 0.25rem 0.5rem;
+  font-size: 0.8rem;
+  cursor: pointer;
+}

@@ -18,6 +18,11 @@ query organizationByID($id: UUID!) {
         }
         url
       }
+      tagsets {
+        name
+        tags
+        type
+      }
     }
   }
 }

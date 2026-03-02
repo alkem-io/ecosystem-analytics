@@ -2,6 +2,7 @@ query usersByIDs($ids: [UUID!]!) {
   users(IDs: $ids) {
     id
     nameID
+    createdDate
     profile {
       displayName
       avatar: visual(type: AVATAR) {
@@ -16,6 +17,11 @@ query usersByIDs($ids: [UUID!]!) {
         }
       }
       url
+      tagsets {
+        name
+        tags
+        type
+      }
     }
   }
 }

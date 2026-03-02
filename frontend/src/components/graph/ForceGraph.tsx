@@ -238,6 +238,7 @@ export default function ForceGraph({
   const showPrivateRef = useRef(showPrivate);
   showPrivateRef.current = showPrivate;
 
+
   // Incremented after each renderGraph so visual-state effects re-apply on fresh DOM
   const [graphVersion, setGraphVersion] = useState(0);
 
@@ -1133,6 +1134,8 @@ export default function ForceGraph({
 
       // Update node positions
       nodeSelection.attr('transform', (d) => `translate(${d.x || 0},${d.y || 0})`);
+
+
 
       // Update cluster hulls (non-map view)
       if (!isGeoMode && clusters.length > 1) {

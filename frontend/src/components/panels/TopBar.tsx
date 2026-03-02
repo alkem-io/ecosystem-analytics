@@ -1,4 +1,5 @@
 import { useNavigate } from 'react-router-dom';
+import type { Theme } from '../../hooks/useTheme.js';
 import SearchBar from '../search/SearchBar.js';
 import styles from './TopBar.module.css';
 
@@ -10,10 +11,12 @@ interface Props {
   refreshing: boolean;
   onExport?: () => void;
   onLogout?: () => void;
+  theme?: Theme;
+  onToggleTheme?: () => void;
   children?: React.ReactNode;
 }
 
-export default function TopBar({ searchQuery, onSearchChange, lastSync, onRefresh, refreshing, onExport, onLogout, children }: Props) {
+export default function TopBar({ searchQuery, onSearchChange, lastSync, onRefresh, refreshing, onExport, onLogout, theme, onToggleTheme, children }: Props) {
   const navigate = useNavigate();
 
   const syncTime = lastSync
@@ -46,6 +49,16 @@ export default function TopBar({ searchQuery, onSearchChange, lastSync, onRefres
         {onExport && (
           <button className={styles.exportBtn} onClick={onExport} aria-label="Export dataset">
             &#x2913; Export
+          </button>
+        )}
+        {onToggleTheme && (
+          <button
+            className={styles.themeBtn}
+            onClick={onToggleTheme}
+            aria-label={`Switch to ${theme === 'light' ? 'dark' : 'light'} mode`}
+            title={`Switch to ${theme === 'light' ? 'dark' : 'light'} mode`}
+          >
+            {theme === 'light' ? '🌙' : '☀️'}
           </button>
         )}
         {syncTime && <span className={styles.syncTime}>Last sync {syncTime}</span>}

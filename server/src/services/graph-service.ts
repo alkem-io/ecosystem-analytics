@@ -4,7 +4,7 @@ import { computeMetrics } from '../transform/metrics.js';
 import { computeInsights } from '../transform/insights.js';
 import { getCacheEntry, setCacheEntry, invalidateCache } from '../cache/cache-service.js';
 import { getLogger } from '../logging/logger.js';
-import { type GraphDataset, type GraphNode, type GraphEdge, type SpaceCacheInfo, type ActivityPeriodCounts, NodeType, EdgeType, ActivityTier } from '../types/graph.js';
+import { type GraphDataset, type GraphNode, type GraphEdge, type SpaceCacheInfo, type SpaceTimeSeries, type ActivityPeriodCounts, NodeType, EdgeType, ActivityTier } from '../types/graph.js';
 import type { GraphGenerationRequest, GraphProgress } from '../types/api.js';
 
 const logger = getLogger();
@@ -69,6 +69,7 @@ export async function generateGraph(
   // Acquire missing spaces
   let freshNodes: GraphNode[] = [];
   let freshEdges: GraphEdge[] = [];
+  let timeSeries: SpaceTimeSeries[] | undefined;
   // Detect activity data from cached edges (if any edge has activityTier, cache had activity)
   let hasActivity = cachedEdges.some((e) => e.activityTier !== undefined);
 
@@ -85,6 +86,7 @@ export async function generateGraph(
     const transformed = transformToGraph(acquired);
     freshNodes = transformed.nodes;
     freshEdges = transformed.edges;
+    timeSeries = transformed.timeSeries;
 
     // Track whether activity data was successfully fetched
     hasActivity = acquired.activityEntries !== undefined;
@@ -134,6 +136,7 @@ export async function generateGraph(
     cacheInfo,
     insights,
     hasActivityData: hasActivity,
+    timeSeries,
   };
 }
 

@@ -34,9 +34,12 @@ tests/
 Not applicable (documentation and design briefs): Follow standard conventions
 
 ## Recent Changes
-- 007-space-visibility: Added [if applicable, e.g., PostgreSQL, CoreData, files or N/A]
 - 007-space-visibility: Added TypeScript 5.9.3 (strict mode) + React 19.x, D3.js v7.9, Express 5, Vite 7.3.1, `@graphql-codegen/cli`
-- 006-role-filters: Added TypeScript 5.9.3 (strict mode), React 19.x + D3 v7.9, Express 5, Vite 7.3.1, `@graphql-codegen/cli` (typed SDK)
+- 009-alternative-views: TypeScript 5.9.3, React 19, D3.js 7.9 (d3-hierarchy, d3-chord, d3-shape, d3-scale, d3-brush, d3-timer), Express 5, Vite 7.3.1
+- 009-alternative-views: New views: Treemap, Sunburst, Chord, Timeline, Temporal Force Graph
+- 009-alternative-views: Extended GraphNode (createdDate, visibility, tags), GraphEdge (createdDate), GraphDataset (timeSeries)
+- 009-alternative-views: New frontend types: ViewMode, ViewState, HierarchyDatum, ChordMatrixResult
+- 009-alternative-views: New hooks: useViewState, useHierarchyData, useChordMatrix, useTimeSeries
 
 
 <!-- MANUAL ADDITIONS START -->
