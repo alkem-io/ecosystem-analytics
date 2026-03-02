@@ -11,6 +11,7 @@ import MetricsBar from '../components/panels/MetricsBar.js';
 import type { MapRegion } from '../components/map/MapOverlay.js';
 import HoverCard from '../components/graph/HoverCard.js';
 import type { GraphNode } from '@server/types/graph.js';
+import type { ActivityPeriod } from '@server/types/graph.js';
 import { api } from '../services/api.js';
 import styles from './Explorer.module.css';
 
@@ -33,6 +34,11 @@ export default function Explorer({ onLogout }: ExplorerProps) {
   const [showPeople, setShowPeople] = useState(true);
   const [showOrganizations, setShowOrganizations] = useState(true);
   const [showSpaces, setShowSpaces] = useState(true);
+  const [showMembers, setShowMembers] = useState(true);
+  const [showLeads, setShowLeads] = useState(true);
+  const [showAdmins, setShowAdmins] = useState(true);
+  const [showPublic, setShowPublic] = useState(true);
+  const [showPrivate, setShowPrivate] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedNode, setSelectedNode] = useState<GraphNode | null>(null);
   const [hoveredNode, setHoveredNode] = useState<GraphNode | null>(null);
@@ -41,6 +47,9 @@ export default function Explorer({ onLogout }: ExplorerProps) {
   const [mapRegion, setMapRegion] = useState<MapRegion>('europe');
   const [showMap, setShowMap] = useState(false);
   const [activityPulseEnabled, setActivityPulseEnabled] = useState(false);
+  const [spaceActivityEnabled, setSpaceActivityEnabled] = useState(false);
+  const [activityPeriod, setActivityPeriod] = useState<ActivityPeriod>('allTime');
+  const [directConnectionsOnly, setDirectConnectionsOnly] = useState(false);
   const canvasRef = useRef<HTMLDivElement>(null);
 
   // Get spaceIds from navigation state
@@ -167,6 +176,16 @@ export default function Explorer({ onLogout }: ExplorerProps) {
             onTogglePeople={() => setShowPeople((p) => !p)}
             onToggleOrganizations={() => setShowOrganizations((p) => !p)}
             onToggleSpaces={() => setShowSpaces((p) => !p)}
+            showMembers={showMembers}
+            showLeads={showLeads}
+            showAdmins={showAdmins}
+            onToggleMembers={() => setShowMembers((m) => !m)}
+            onToggleLeads={() => setShowLeads((l) => !l)}
+            onToggleAdmins={() => setShowAdmins((a) => !a)}
+            showPublic={showPublic}
+            showPrivate={showPrivate}
+            onTogglePublic={() => setShowPublic((p) => !p)}
+            onTogglePrivate={() => setShowPrivate((p) => !p)}
             showMap={showMap}
             onToggleMap={() => setShowMap((m) => !m)}
             mapRegion={mapRegion}
@@ -175,6 +194,12 @@ export default function Explorer({ onLogout }: ExplorerProps) {
             activityPulseEnabled={activityPulseEnabled}
             onToggleActivityPulse={() => setActivityPulseEnabled((p) => !p)}
             hasActivityData={dataset.hasActivityData ?? false}
+            spaceActivityEnabled={spaceActivityEnabled}
+            onToggleSpaceActivity={() => setSpaceActivityEnabled((p) => !p)}
+            activityPeriod={activityPeriod}
+            onActivityPeriodChange={setActivityPeriod}
+            directConnectionsOnly={directConnectionsOnly}
+            onToggleDirectConnections={() => setDirectConnectionsOnly((d) => !d)}
           />
         )}
         <div className={styles.canvas} ref={canvasRef}>
@@ -184,6 +209,11 @@ export default function Explorer({ onLogout }: ExplorerProps) {
               showPeople={showPeople}
               showOrganizations={showOrganizations}
               showSpaces={showSpaces}
+              showMembers={showMembers}
+              showLeads={showLeads}
+              showAdmins={showAdmins}
+              showPublic={showPublic}
+              showPrivate={showPrivate}
               searchQuery={searchQuery}
               onNodeClick={handleNodeClick}
               onNodeHover={handleNodeHover}
@@ -192,6 +222,9 @@ export default function Explorer({ onLogout }: ExplorerProps) {
               showMap={showMap}
               mapRegion={mapRegion}
               activityPulseEnabled={activityPulseEnabled}
+              spaceActivityEnabled={spaceActivityEnabled}
+              activityPeriod={activityPeriod}
+              directConnectionsOnly={directConnectionsOnly}
             />
           )}
           {loading && <LoadingOverlay progress={progress} />}
@@ -206,6 +239,7 @@ export default function Explorer({ onLogout }: ExplorerProps) {
             showPeople={showPeople}
             showOrganizations={showOrganizations}
             showSpaces={showSpaces}
+            activityPeriod={activityPeriod}
           />
         )}
         {hoveredNode && !selectedNode && dataset && (

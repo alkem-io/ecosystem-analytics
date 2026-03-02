@@ -21,3 +21,14 @@
   cursor: pointer;
   padding: 4px 0;
 }
+
+.roleFilters {
+  padding-left: 20px;
+  border-left: 2px solid var(--border);
+  margin: 2px 0 2px 8px;
+}
+
+.roleFiltersDisabled {
+  opacity: 0.4;
+  pointer-events: none;
+}

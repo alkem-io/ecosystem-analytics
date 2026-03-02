@@ -2,6 +2,7 @@ import { useRef, useEffect, useCallback, useState } from 'react';
 import * as d3 from 'd3';
 import { geoMercator, geoPath } from 'd3-geo';
 import type { GraphDataset, GraphNode, GraphEdge } from '@server/types/graph.js';
+import type { ActivityPeriod } from '@server/types/graph.js';
 import { computeClusters } from './clustering.js';
 import { computeProximityGroups, type ProximityCluster } from './proximityClustering.js';
 import type { MapRegion } from '../map/MapOverlay.js';
@@ -17,6 +18,14 @@ function proxyImageUrl(url: string | null | undefined): string | null {
     return `/api/image-proxy?url=${encodeURIComponent(url)}${token ? `&token=${encodeURIComponent(token)}` : ''}`;
   }
   return url;
+}
+
+/** Pick the best image URL for a node: spaces prefer bannerUrl, users/orgs prefer avatarUrl */
+function nodeImageUrl(node: { type: string; avatarUrl: string | null; bannerUrl: string | null }): string | null {
+  if (node.type.startsWith('SPACE_')) {
+    return node.bannerUrl || node.avatarUrl || null;
+  }
+  return node.avatarUrl || null;
 }
 
 const NODE_COLORS: Record<string, string> = {
@@ -47,9 +56,10 @@ const L1_PEOPLE_RING_RADIUS = 55;  // radial ring for people connected to exactl
 
 // Edge styling — refined, professional palette
 const EDGE_COLORS: Record<string, string> = {
-  CHILD: 'rgba(99,102,241,0.50)',    // indigo for parent-child
-  LEAD: 'rgba(170,135,55,0.50)',     // warm brown for leadership
-  MEMBER: 'rgba(150,170,190,0.32)', // soft blue-gray — visible but not overwhelming
+  CHILD: 'rgba(67,56,202,0.60)',     // deep indigo for parent-child
+  LEAD: 'rgba(234,88,12,0.60)',      // orange for leadership
+  ADMIN: 'rgba(13,148,136,0.60)',    // teal for admin
+  MEMBER: 'rgba(148,163,184,0.35)',  // slate blue-gray — visible but subtle
 };
 
 /**
@@ -100,6 +110,9 @@ interface Props {
   showPeople: boolean;
   showOrganizations: boolean;
   showSpaces: boolean;
+  showMembers?: boolean;
+  showLeads?: boolean;
+  showAdmins?: boolean;
   searchQuery: string;
   onNodeClick: (node: GraphNode) => void;
   onNodeHover?: (node: GraphNode | null, position?: { x: number; y: number }) => void;
@@ -108,6 +121,16 @@ interface Props {
   showMap?: boolean;
   mapRegion?: MapRegion;
   activityPulseEnabled?: boolean;
+  /** Whether space activity sizing/glow is enabled (default: false) */
+  spaceActivityEnabled?: boolean;
+  /** Activity time period for sizing/glow (default: allTime) */
+  activityPeriod?: ActivityPeriod;
+  /** Whether public space nodes are visible (default: true) */
+  showPublic?: boolean;
+  /** Whether private space nodes are visible (default: true) */
+  showPrivate?: boolean;
+  /** When true, prune redundant ancestor edges — keep only the deepest space connection per user */
+  directConnectionsOnly?: boolean;
 }
 
 interface SimNode extends d3.SimulationNodeDatum {
@@ -132,6 +155,9 @@ const MAX_DEGREE_SCALE: Record<string, number> = {
   org: 3.5,
   people: 3.5,
 };
+
+/** Max scale factor for activity-based sizing (space nodes only) */
+const MAX_ACTIVITY_SCALE = 2.5;
 
 /**
  * Compute node radius. Uses an external degree map for connection-based scaling.
@@ -164,6 +190,9 @@ export default function ForceGraph({
   showPeople,
   showOrganizations,
   showSpaces,
+  showMembers = true,
+  showLeads = true,
+  showAdmins = true,
   searchQuery,
   onNodeClick,
   onNodeHover,
@@ -172,6 +201,11 @@ export default function ForceGraph({
   showMap = false,
   mapRegion = 'europe',
   activityPulseEnabled = false,
+  spaceActivityEnabled = false,
+  activityPeriod = 'allTime',
+  showPublic = true,
+  showPrivate = true,
+  directConnectionsOnly = false,
 }: Props) {
   const svgRef = useRef<SVGSVGElement>(null);
   const simulationRef = useRef<d3.Simulation<SimNode, SimLink>>(null);
@@ -189,8 +223,20 @@ export default function ForceGraph({
   // Stable refs for visual state — read inside effects without adding as deps
   const activityPulseEnabledRef = useRef(activityPulseEnabled);
   activityPulseEnabledRef.current = activityPulseEnabled;
+  const spaceActivityEnabledRef = useRef(spaceActivityEnabled);
+  spaceActivityEnabledRef.current = spaceActivityEnabled;
   const selectedNodeIdRef = useRef(selectedNodeId);
   selectedNodeIdRef.current = selectedNodeId;
+  const showMembersRef = useRef(showMembers);
+  showMembersRef.current = showMembers;
+  const showLeadsRef = useRef(showLeads);
+  showLeadsRef.current = showLeads;
+  const showAdminsRef = useRef(showAdmins);
+  showAdminsRef.current = showAdmins;
+  const showPublicRef = useRef(showPublic);
+  showPublicRef.current = showPublic;
+  const showPrivateRef = useRef(showPrivate);
+  showPrivateRef.current = showPrivate;
 
   // Incremented after each renderGraph so visual-state effects re-apply on fresh DOM
   const [graphVersion, setGraphVersion] = useState(0);
@@ -213,9 +259,74 @@ export default function ForceGraph({
     });
 
     const visibleNodeIds = new Set(visibleNodes.map((n) => n.id));
-    const visibleEdges = dataset.edges.filter(
+    let visibleEdges = dataset.edges.filter(
       (e) => visibleNodeIds.has(e.sourceId) && visibleNodeIds.has(e.targetId),
     );
+
+    // Direct-connections mode: for each USER, prune edges to ancestor spaces
+    // when the user is also connected to a deeper child space.
+    if (directConnectionsOnly) {
+      const nodeById = new Map(visibleNodes.map((n) => [n.id, n]));
+      // Build parent → children lookup from parentSpaceId
+      const childrenOf = new Map<string, Set<string>>();
+      for (const n of visibleNodes) {
+        if (n.parentSpaceId && visibleNodeIds.has(n.parentSpaceId)) {
+          let kids = childrenOf.get(n.parentSpaceId);
+          if (!kids) { kids = new Set(); childrenOf.set(n.parentSpaceId, kids); }
+          kids.add(n.id);
+        }
+      }
+      // For each user, collect set of space IDs they connect to
+      const userSpaces = new Map<string, Set<string>>();
+      for (const e of visibleEdges) {
+        if (e.type === 'CHILD') continue;
+        const srcNode = nodeById.get(e.sourceId);
+        const tgtNode = nodeById.get(e.targetId);
+        if (!srcNode || !tgtNode) continue;
+        const isUserSrc = srcNode.type === 'USER';
+        const isSpaceTgt = tgtNode.type.startsWith('SPACE_');
+        if (isUserSrc && isSpaceTgt) {
+          let set = userSpaces.get(e.sourceId);
+          if (!set) { set = new Set(); userSpaces.set(e.sourceId, set); }
+          set.add(e.targetId);
+        }
+        const isUserTgt = tgtNode.type === 'USER';
+        const isSpaceSrc = srcNode.type.startsWith('SPACE_');
+        if (isUserTgt && isSpaceSrc) {
+          let set = userSpaces.get(e.targetId);
+          if (!set) { set = new Set(); userSpaces.set(e.targetId, set); }
+          set.add(e.sourceId);
+        }
+      }
+      // Helper: check if user connects to any child of a given space
+      const userConnectsToChildOf = (userId: string, spaceId: string): boolean => {
+        const kids = childrenOf.get(spaceId);
+        if (!kids) return false;
+        const spaces = userSpaces.get(userId);
+        if (!spaces) return false;
+        for (const kid of kids) {
+          if (spaces.has(kid)) return true;
+        }
+        return false;
+      };
+      visibleEdges = visibleEdges.filter((e) => {
+        if (e.type === 'CHILD') return true; // always keep hierarchy edges
+        const srcNode = nodeById.get(e.sourceId);
+        const tgtNode = nodeById.get(e.targetId);
+        if (!srcNode || !tgtNode) return true;
+        // Identify user→space and space→user edges
+        let userId: string | null = null;
+        let spaceId: string | null = null;
+        if (srcNode.type === 'USER' && tgtNode.type.startsWith('SPACE_')) {
+          userId = e.sourceId; spaceId = e.targetId;
+        } else if (tgtNode.type === 'USER' && srcNode.type.startsWith('SPACE_')) {
+          userId = e.targetId; spaceId = e.sourceId;
+        }
+        if (!userId || !spaceId) return true; // not a user↔space edge, keep
+        // Prune if the user also connects to a child of this space
+        return !userConnectsToChildOf(userId, spaceId);
+      });
+    }
 
     // Create simulation data
     const simNodes: SimNode[] = visibleNodes.map((n) => ({ data: n }));
@@ -266,10 +377,10 @@ export default function ForceGraph({
       }
     }
 
-    // Count direct MEMBER/LEAD connections per space (people around each space)
+    // Count direct MEMBER/LEAD/ADMIN connections per space (people around each space)
     const spaceMemberCount = new Map<string, number>();
     for (const e of visibleEdges) {
-      if (e.type === 'MEMBER' || e.type === 'LEAD') {
+      if (e.type === 'MEMBER' || e.type === 'LEAD' || e.type === 'ADMIN') {
         // Target is usually the space
         const tgtNode = nodeMap.get(e.targetId);
         const srcNode = nodeMap.get(e.sourceId);
@@ -304,7 +415,7 @@ export default function ForceGraph({
       }
       // Find all people/orgs connected to those spaces
       for (const e of visibleEdges) {
-        if (e.type === 'MEMBER' || e.type === 'LEAD') {
+        if (e.type === 'MEMBER' || e.type === 'LEAD' || e.type === 'ADMIN') {
           if (spaceIds.has(e.targetId)) members.add(e.sourceId);
           else if (spaceIds.has(e.sourceId)) members.add(e.targetId);
         }
@@ -707,6 +818,7 @@ export default function ForceGraph({
       .attr('stroke-width', (d) => {
         if (d.data.type === 'MEMBER') return 0.9;  // thin but visible
         if (d.data.type === 'LEAD') return 1.4;
+        if (d.data.type === 'ADMIN') return 1.4;
         return Math.max(0.7, Math.min(d.data.weight * 0.5, 2.0)); // CHILD
       })
       .attr('stroke-linecap', 'round');
@@ -799,9 +911,9 @@ export default function ForceGraph({
       .attr('in2', 'SourceGraphic')
       .attr('operator', 'over');
 
-    // Avatar clip paths
+    // Avatar / banner clip paths
     simNodes
-      .filter((d) => !!d.data.avatarUrl)
+      .filter((d) => !!nodeImageUrl(d.data))
       .forEach((d) => {
         const r = nodeRadius(d);
         defs
@@ -819,7 +931,8 @@ export default function ForceGraph({
         if (d.data.type === 'USER' || d.data.type === 'ORGANIZATION') {
           return d.data.avatarUrl ? 'white' : NODE_COLORS[d.data.type] || '#999';
         }
-        return NODE_COLORS[d.data.type] || '#999';
+        // Space nodes: use white background when we have a banner/avatar image
+        return nodeImageUrl(d.data) ? 'white' : NODE_COLORS[d.data.type] || '#999';
       })
       .attr('stroke', (d) => {
         if (d.data.type === 'USER') return 'rgba(160,175,195,0.5)';
@@ -834,11 +947,11 @@ export default function ForceGraph({
         return 1;
       });
 
-    // Avatar images — clipped to circle, with fallback on error
+    // Node images (avatars / banners) — clipped to circle, with fallback on error
     nodeSelection
-      .filter((d) => !!d.data.avatarUrl)
+      .filter((d) => !!nodeImageUrl(d.data))
       .append('image')
-      .attr('href', (d) => proxyImageUrl(d.data.avatarUrl) ?? d.data.avatarUrl!)
+      .attr('href', (d) => proxyImageUrl(nodeImageUrl(d.data)) ?? nodeImageUrl(d.data)!)
       .attr('x', (d) => -nodeRadius(d))
       .attr('y', (d) => -nodeRadius(d))
       .attr('width', (d) => nodeRadius(d) * 2)
@@ -848,6 +961,38 @@ export default function ForceGraph({
       .on('error', function () {
         d3.select(this).remove();
       });
+
+    // Visibility badge — lock/unlock icon overlay on space nodes (bottom-right)
+    const spaceNodes = nodeSelection.filter(
+      (d) => d.data.type === 'SPACE_L0' || d.data.type === 'SPACE_L1' || d.data.type === 'SPACE_L2',
+    );
+
+    // Lock badge — only shown on private spaces
+    const privateSpaceNodes = spaceNodes.filter((d) => d.data.privacyMode === 'PRIVATE');
+
+    // White circle background for contrast
+    privateSpaceNodes
+      .append('circle')
+      .attr('class', 'visibility-badge-bg')
+      .attr('cx', (d) => nodeRadius(d) * 0.6)
+      .attr('cy', (d) => nodeRadius(d) * 0.6)
+      .attr('r', (d) => (d.data.type === 'SPACE_L0' ? 7 : 5))
+      .attr('fill', 'white')
+      .attr('stroke', 'rgba(148,163,184,0.4)')
+      .attr('stroke-width', 0.5)
+      .attr('pointer-events', 'none');
+
+    // Lock emoji
+    privateSpaceNodes
+      .append('text')
+      .attr('class', 'visibility-badge-icon')
+      .attr('x', (d) => nodeRadius(d) * 0.6)
+      .attr('y', (d) => nodeRadius(d) * 0.6)
+      .attr('text-anchor', 'middle')
+      .attr('dominant-baseline', 'central')
+      .attr('font-size', (d) => (d.data.type === 'SPACE_L0' ? 9 : 7))
+      .attr('pointer-events', 'none')
+      .text('\u{1F512}');
 
     // Node labels (for spaces and orgs) — with white halo for readability
     // Each label gets a shadow text (white stroke outline) + foreground text
@@ -909,6 +1054,7 @@ export default function ForceGraph({
             // CHILD edges (hierarchy) shorter, MEMBER longer — maintains flower structure
             if (edgeData.type === 'CHILD') return 60;
             if (edgeData.type === 'LEAD') return 70;
+            if (edgeData.type === 'ADMIN') return 70;
             return 80; // MEMBER — tighter to keep people near their spaces
           })
           .strength((d: any) => {
@@ -917,6 +1063,7 @@ export default function ForceGraph({
             // Hierarchy edges stronger to maintain structure
             if (edgeData.type === 'CHILD') return 0.6;
             if (edgeData.type === 'LEAD') return 0.15;
+            if (edgeData.type === 'ADMIN') return 0.15;
             return 0.1; // MEMBER — enough pull to keep people near spaces
           }),
       )
@@ -931,7 +1078,10 @@ export default function ForceGraph({
           return -25; // people/orgs: gentle repulsion
         }))
       .force('center', isGeoMode ? null : d3.forceCenter(width / 2, height / 2).strength(0.03))
-      .force('collision', d3.forceCollide().radius((d) => nodeRadius(d as SimNode) + 8))
+      .force('collision', d3.forceCollide().radius((d) => {
+        const sn = d as SimNode;
+        return ((sn as any)._effectiveRadius ?? nodeRadius(sn)) + 8;
+      }))
       .force('radial-hierarchy', isGeoMode ? null : (alpha: number) => {
         for (const node of simNodes) {
           const target = targetPositions.get(node.data.id);
@@ -1411,7 +1561,338 @@ export default function ForceGraph({
     // Signal that a fresh graph is ready — visual-state effects will re-apply
     queueMicrotask(() => setGraphVersion((v) => v + 1));
 
-  }, [dataset, showPeople, showOrganizations, showSpaces, showMap, mapRegion]);
+  }, [dataset, showPeople, showOrganizations, showSpaces, showMap, mapRegion, directConnectionsOnly]);
+
+  // ---------- Role filter visibility (T013-T016) ----------
+  // Show/hide user→space edges by role type without rebuilding the graph.
+  // Organization→space edges are NOT affected (T016).
+  useEffect(() => {
+    const nodeSelection = nodeSelRef.current;
+    const linkSelection = linkSelRef.current;
+    if (!nodeSelection || !linkSelection) return;
+
+    // Determine which role edge types are visible
+    const roleVisible: Record<string, boolean> = {
+      MEMBER: showMembers,
+      LEAD: showLeads,
+      ADMIN: showAdmins,
+    };
+
+    // Track user IDs that still have at least one visible role edge
+    const usersWithVisibleEdge = new Set<string>();
+
+    // Apply visibility to edges — only user→space role edges are affected
+    linkSelection.each(function (d: any) {
+      const edge = d.data;
+      const sourceNode = (d.source as SimNode)?.data;
+      if (!sourceNode) return;
+
+      // Only filter user→space role edges (T016: skip org edges, skip CHILD)
+      if (sourceNode.type !== 'USER') return;
+      if (edge.type === 'CHILD') return;
+
+      const visible = roleVisible[edge.type] ?? true;
+      d3.select(this).style('display', visible ? '' : 'none');
+
+      if (visible) {
+        usersWithVisibleEdge.add(sourceNode.id);
+      }
+    });
+
+    // Also count visible edges from the non-role types (CHILD won't connect users)
+    // and from org edges to keep org-connected users visible
+    linkSelection.each(function (d: any) {
+      const edge = d.data;
+      const sourceNode = (d.source as SimNode)?.data;
+      const targetNode = (d.target as SimNode)?.data;
+      if (!sourceNode || !targetNode) return;
+      // If a user is the target of any visible edge, keep them visible
+      if (targetNode.type === 'USER') {
+        const el = d3.select(this);
+        if (el.style('display') !== 'none') usersWithVisibleEdge.add(targetNode.id);
+      }
+    });
+
+    // Hide orphaned user nodes (users with no visible role edges)
+    nodeSelection.each(function (d: any) {
+      const node = d.data;
+      if (node.type !== 'USER') return;
+      const visible = usersWithVisibleEdge.has(node.id);
+      d3.select(this).style('display', visible ? '' : 'none');
+    });
+
+    // Update visibleEdgesRef for selection highlighting composition (T014)
+    const visibleEdgeData: typeof dataset.edges = [];
+    linkSelection.each(function (d: any) {
+      const el = d3.select(this);
+      if (el.style('display') !== 'none') {
+        visibleEdgeData.push(d.data);
+      }
+    });
+    visibleEdgesRef.current = visibleEdgeData;
+
+    // Compose with selection highlighting (T014) — re-apply if a node is selected
+    const selId = selectedNodeIdRef.current;
+    if (selId) {
+      // Trigger selection effect by reading current state
+      // Selection effect reads visibleEdgesRef, so it will use updated edges
+    }
+
+    // Compose with activity pulse (T015) — pause animation on hidden edges
+    linkSelection.each(function () {
+      const el = d3.select(this);
+      if (!el.classed('edge-pulse') && !el.classed('edge-pulse-entering')) return;
+      const isHidden = el.style('display') === 'none';
+      el.style('animation-play-state', isHidden ? 'paused' : 'running');
+    });
+
+  }, [showMembers, showLeads, showAdmins, graphVersion]);
+
+  // ---------- Visibility filter (T018-T019) ----------
+  // Show/hide space nodes by privacyMode without rebuilding the graph.
+  // Also hides edges to hidden spaces and orphans users/orgs with no visible edges.
+  useEffect(() => {
+    const nodeSelection = nodeSelRef.current;
+    const linkSelection = linkSelRef.current;
+    if (!nodeSelection || !linkSelection) return;
+
+    // Determine which space nodes are hidden by visibility filters
+    const hiddenSpaceIds = new Set<string>();
+    nodeSelection.each(function (d: any) {
+      const node = d.data as GraphNode;
+      const isSpace = node.type === 'SPACE_L0' || node.type === 'SPACE_L1' || node.type === 'SPACE_L2';
+      if (!isSpace) return;
+      const pm = node.privacyMode;
+      const hide = (pm === 'PUBLIC' && !showPublic) || (pm === 'PRIVATE' && !showPrivate);
+      if (hide) {
+        hiddenSpaceIds.add(node.id);
+        d3.select(this).style('display', 'none');
+      }
+      // Don't force-show — entity filter or role filter may have hidden it
+    });
+
+    // Hide edges connected to hidden spaces
+    linkSelection.each(function (d: any) {
+      const sourceId = (d.source as SimNode)?.data?.id ?? d.data?.sourceId;
+      const targetId = (d.target as SimNode)?.data?.id ?? d.data?.targetId;
+      if (hiddenSpaceIds.has(sourceId) || hiddenSpaceIds.has(targetId)) {
+        d3.select(this).style('display', 'none');
+      }
+    });
+
+    // Find orphaned users/orgs (no remaining visible edges)
+    const nodesWithVisibleEdge = new Set<string>();
+    linkSelection.each(function (d: any) {
+      const el = d3.select(this);
+      if (el.style('display') === 'none') return;
+      const sId = (d.source as SimNode)?.data?.id;
+      const tId = (d.target as SimNode)?.data?.id;
+      if (sId) nodesWithVisibleEdge.add(sId);
+      if (tId) nodesWithVisibleEdge.add(tId);
+    });
+
+    nodeSelection.each(function (d: any) {
+      const node = d.data as GraphNode;
+      // Only orphan-hide users and orgs; spaces are handled above
+      if (node.type !== 'USER' && node.type !== 'ORGANIZATION') return;
+      // If already hidden by another filter, skip
+      const el = d3.select(this);
+      if (el.style('display') === 'none') return;
+      if (!nodesWithVisibleEdge.has(node.id)) {
+        el.style('display', 'none');
+      }
+    });
+
+    // Update visibleEdgesRef for selection highlighting composition
+    const visibleEdgeData: typeof dataset.edges = [];
+    linkSelection.each(function (d: any) {
+      const el = d3.select(this);
+      if (el.style('display') !== 'none') {
+        visibleEdgeData.push(d.data);
+      }
+    });
+    visibleEdgesRef.current = visibleEdgeData;
+
+    // Compose with activity pulse — pause animation on hidden edges
+    linkSelection.each(function () {
+      const el = d3.select(this);
+      if (!el.classed('edge-pulse') && !el.classed('edge-pulse-entering')) return;
+      const isHidden = el.style('display') === 'none';
+      el.style('animation-play-state', isHidden ? 'paused' : 'running');
+    });
+
+  }, [showPublic, showPrivate, graphVersion]);
+
+  // ---------- Space Activity sizing + glow (T011/T012/T013) ----------
+  // Scales space nodes by contribution volume on top of their degree-based radius.
+  // Floor = degree radius (spaces never shrink). Ceiling = degree × MAX_ACTIVITY_SCALE.
+  // Also applies tier-based stroke glow. Animated transitions (~300ms).
+  useEffect(() => {
+    const nodeSelection = nodeSelRef.current;
+    if (!nodeSelection) return;
+
+    const svgEl = svgRef.current;
+    if (!svgEl) return;
+
+    const prefersReducedMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+    const duration = prefersReducedMotion ? 0 : 300;
+
+    // Select space nodes only
+    const spaceNodes = nodeSelection.filter(
+      (d: any) => d.data.type === 'SPACE_L0' || d.data.type === 'SPACE_L1' || d.data.type === 'SPACE_L2',
+    );
+
+    if (spaceActivityEnabled) {
+      // Compute per-level max activity count for the selected period
+      const maxByLevel: Record<string, number> = {};
+      const countByNode = new Map<string, number>();
+      spaceNodes.each(function (d: any) {
+        const periods = d.data.activityByPeriod;
+        const count = periods ? (periods[activityPeriod] ?? 0) : (d.data.totalActivityCount ?? 0);
+        countByNode.set(d.data.id, count);
+        const lvl = d.data.type as string;
+        maxByLevel[lvl] = Math.max(maxByLevel[lvl] ?? 0, count);
+      });
+
+      // Compute period-specific tiers using quartile logic
+      const allCounts = Array.from(countByNode.values()).filter((c) => c > 0).sort((a, b) => a - b);
+      const tierByNode = new Map<string, string>();
+      if (allCounts.length === 0) {
+        // All zero — everyone INACTIVE
+        countByNode.forEach((_, id) => tierByNode.set(id, 'INACTIVE'));
+      } else if (allCounts.length < 3) {
+        // Too few for percentiles — use fixed thresholds
+        countByNode.forEach((c, id) => {
+          if (c === 0) tierByNode.set(id, 'INACTIVE');
+          else if (c <= 2) tierByNode.set(id, 'LOW');
+          else if (c <= 10) tierByNode.set(id, 'MEDIUM');
+          else tierByNode.set(id, 'HIGH');
+        });
+      } else if (new Set(allCounts).size === 1) {
+        // All equal non-zero → MEDIUM
+        countByNode.forEach((c, id) => tierByNode.set(id, c === 0 ? 'INACTIVE' : 'MEDIUM'));
+      } else {
+        const p25 = allCounts[Math.floor(allCounts.length * 0.25)];
+        const p75 = allCounts[Math.floor(allCounts.length * 0.75)];
+        countByNode.forEach((c, id) => {
+          if (c === 0) tierByNode.set(id, 'INACTIVE');
+          else if (c <= p25) tierByNode.set(id, 'LOW');
+          else if (c <= p75) tierByNode.set(id, 'MEDIUM');
+          else tierByNode.set(id, 'HIGH');
+        });
+      }
+
+      // Apply activity-based radius + tier glow
+      // Uses degree-based radius as the floor so spaces never shrink.
+      // Most active space scales to MAX_ACTIVITY_SCALE × its degree size.
+      spaceNodes.each(function (d: any) {
+        const el = d3.select(this);
+        const count = countByNode.get(d.data.id) ?? 0;
+        const tier = tierByNode.get(d.data.id) ?? 'INACTIVE';
+        const degreeR = nodeRadius(d);
+        const maxCount = maxByLevel[d.data.type] ?? 0;
+        const t = maxCount > 0 ? Math.log(1 + count) / Math.log(1 + maxCount) : 0;
+        const activityRadius = degreeR * (1 + t * (MAX_ACTIVITY_SCALE - 1));
+
+        // Stash effective radius for collision force
+        d._effectiveRadius = activityRadius;
+
+        // Transition circle radius
+        el.select('circle')
+          .transition().duration(duration).ease(d3.easeQuadOut)
+          .attr('r', activityRadius)
+          // Tier-based stroke glow — dark-blue/light-blue palette
+          .attr('stroke', tier === 'HIGH' ? '#1e3a5f' : tier === 'MEDIUM' ? '#38bdf8' : tier === 'LOW' ? '#7dd3fc' : (d.data.type === 'SPACE_L0' ? 'rgba(255,255,255,0.9)' : 'rgba(255,255,255,0.7)'))
+          .attr('stroke-width', tier === 'HIGH' ? Math.max(3.5, activityRadius * 0.08) : tier === 'MEDIUM' ? Math.max(2.5, activityRadius * 0.05) : tier === 'LOW' ? 1.5 : (d.data.type === 'SPACE_L0' ? 2 : 1))
+          .style('filter', tier === 'HIGH'
+            ? `drop-shadow(0 0 ${Math.max(6, activityRadius * 0.15)}px #1e3a5f)`
+            : tier === 'MEDIUM'
+              ? `drop-shadow(0 0 ${Math.max(4, activityRadius * 0.1)}px #38bdf8)`
+              : 'none');
+
+        // Transition image
+        el.select('image')
+          .transition().duration(duration).ease(d3.easeQuadOut)
+          .attr('x', -activityRadius)
+          .attr('y', -activityRadius)
+          .attr('width', activityRadius * 2)
+          .attr('height', activityRadius * 2);
+
+        // Transition clipPath circle
+        const svgD3 = d3.select(svgEl);
+        svgD3.select(`#clip-avatar-${d.data.id} circle`)
+          .transition().duration(duration).ease(d3.easeQuadOut)
+          .attr('r', activityRadius);
+
+        // Reposition lock badge (FR-009)
+        el.select('.visibility-badge-bg')
+          .transition().duration(duration).ease(d3.easeQuadOut)
+          .attr('cx', activityRadius * 0.6)
+          .attr('cy', activityRadius * 0.6);
+        el.select('.visibility-badge-icon')
+          .transition().duration(duration).ease(d3.easeQuadOut)
+          .attr('x', activityRadius * 0.6)
+          .attr('y', activityRadius * 0.6);
+      });
+
+      // Update collision force and gently push nodes apart
+      const sim = simulationRef.current;
+      if (sim) {
+        sim.force('collision', d3.forceCollide().radius((d) => {
+          const sn = d as SimNode;
+          return ((sn as any)._effectiveRadius ?? nodeRadius(sn)) + 8;
+        }));
+        sim.alpha(0.15).restart();
+      }
+    } else {
+      // Restore degree-based radius and default strokes
+      spaceNodes.each(function (d: any) {
+        const el = d3.select(this);
+        const degreeR = nodeRadius(d);
+
+        // Clear effective radius so collision falls back to degree-based
+        delete d._effectiveRadius;
+
+        el.select('circle')
+          .transition().duration(duration).ease(d3.easeQuadOut)
+          .attr('r', degreeR)
+          .attr('stroke', d.data.type === 'SPACE_L0' ? 'rgba(255,255,255,0.9)' : 'rgba(255,255,255,0.7)')
+          .attr('stroke-width', d.data.type === 'SPACE_L0' ? 2 : 1)
+          .style('filter', 'none');
+
+        el.select('image')
+          .transition().duration(duration).ease(d3.easeQuadOut)
+          .attr('x', -degreeR)
+          .attr('y', -degreeR)
+          .attr('width', degreeR * 2)
+          .attr('height', degreeR * 2);
+
+        const svgD3 = d3.select(svgEl);
+        svgD3.select(`#clip-avatar-${d.data.id} circle`)
+          .transition().duration(duration).ease(d3.easeQuadOut)
+          .attr('r', degreeR);
+
+        el.select('.visibility-badge-bg')
+          .transition().duration(duration).ease(d3.easeQuadOut)
+          .attr('cx', degreeR * 0.6)
+          .attr('cy', degreeR * 0.6);
+        el.select('.visibility-badge-icon')
+          .transition().duration(duration).ease(d3.easeQuadOut)
+          .attr('x', degreeR * 0.6)
+          .attr('y', degreeR * 0.6);
+      });
+
+      // Update collision force back to degree-based and settle
+      const sim = simulationRef.current;
+      if (sim) {
+        sim.force('collision', d3.forceCollide().radius((d) => {
+          const sn = d as SimNode;
+          return ((sn as any)._effectiveRadius ?? nodeRadius(sn)) + 8;
+        }));
+        sim.alpha(0.15).restart();
+      }
+    }
+  }, [spaceActivityEnabled, activityPeriod, graphVersion]);
 
   // ---------- Search highlighting ----------
   useEffect(() => {
@@ -1421,10 +1902,37 @@ export default function ForceGraph({
 
     if (searchQuery) {
       const q = searchQuery.toLowerCase();
+      const matchedIds = new Set<string>();
+      nodeSelection.each((d: any) => {
+        if (d.data.displayName.toLowerCase().includes(q)) {
+          matchedIds.add(d.data.id);
+        }
+      });
       nodeSelection.attr('opacity', (d) =>
-        d.data.displayName.toLowerCase().includes(q) ? 1 : 0.1,
+        matchedIds.has(d.data.id) ? 1 : 0.1,
       );
-      linkSelection.attr('opacity', 0.05);
+      linkSelection.each(function (d: any) {
+        const srcId = (d.source as SimNode).data.id;
+        const tgtId = (d.target as SimNode).data.id;
+        const el = d3.select(this);
+        if (matchedIds.has(srcId) || matchedIds.has(tgtId)) {
+          el.attr('opacity', 0.35)
+            .attr('stroke', '#60a5fa')
+            .attr('stroke-width', 1.2);
+        } else {
+          el.attr('opacity', 0.05);
+        }
+      });
+    } else {
+      // Reset link styles when search is cleared
+      linkSelection.each(function (d: any) {
+        const edge = d.data;
+        const type = edge?.type;
+        const el = d3.select(this);
+        el.attr('opacity', null)
+          .attr('stroke', (EDGE_COLORS as any)[type] || (EDGE_COLORS as any).MEMBER)
+          .attr('stroke-width', type === 'LEAD' ? 1.4 : type === 'ADMIN' ? 1.4 : type === 'MEMBER' ? 0.9 : Math.max(0.7, Math.min((edge?.weight ?? 1) * 0.5, 2.0)));
+      });
     }
     // Reset handled by selection effect when searchQuery is cleared
   }, [searchQuery, graphVersion]);
@@ -1486,9 +1994,9 @@ export default function ForceGraph({
       nodeSelection.select('circle')
         .transition().duration(300)
         .attr('stroke', (d: any) => {
-          if (d.data.id === selectedNodeId) return '#2563eb'; // blue
-          if (firstDegree.has(d.data.id)) return '#3b82f6';   // medium blue
-          if (secondDegree.has(d.data.id)) return '#93c5fd';   // soft blue
+          if (d.data.id === selectedNodeId) return '#1e3a5f'; // dark blue
+          if (firstDegree.has(d.data.id)) return '#1e3a5f';   // dark blue
+          if (secondDegree.has(d.data.id)) return '#7dd3fc';   // light blue
           return '#bfc9d1';
         })
         .attr('stroke-width', (d: any) => {
@@ -1506,15 +2014,15 @@ export default function ForceGraph({
           const tgt = (d.target as SimNode).data.id;
           if (src === selectedNodeId || tgt === selectedNodeId) return 0.75;
           if ((firstDegree.has(src) && secondDegree.has(tgt)) ||
-              (firstDegree.has(tgt) && secondDegree.has(src))) return 0.15;
+              (firstDegree.has(tgt) && secondDegree.has(src))) return 0.4;
           return 0.05;
         })
         .attr('stroke', (d: any) => {
           const src = (d.source as SimNode).data.id;
           const tgt = (d.target as SimNode).data.id;
-          if (src === selectedNodeId || tgt === selectedNodeId) return '#3b82f6';
+          if (src === selectedNodeId || tgt === selectedNodeId) return '#1e3a5f';
           if ((firstDegree.has(src) && secondDegree.has(tgt)) ||
-              (firstDegree.has(tgt) && secondDegree.has(src))) return '#a0b4c8';
+              (firstDegree.has(tgt) && secondDegree.has(src))) return '#7dd3fc';
           return '#bfc9d1';
         });
 
@@ -1544,9 +2052,10 @@ export default function ForceGraph({
           .transition().duration(300)
           .attr('opacity', (d: any) => {
             const type = d.data?.type;
-            if (type === 'CHILD') return 0.50;
-            if (type === 'LEAD') return 0.50;
-            return 0.32;
+            if (type === 'CHILD') return 0.60;
+            if (type === 'LEAD') return 0.60;
+            if (type === 'ADMIN') return 0.60;
+            return 0.35;
           });
         // Restore animation-play-state on deselect
         linkSelection.each(function () {
@@ -1560,14 +2069,16 @@ export default function ForceGraph({
           .transition().duration(300)
           .attr('opacity', (d: any) => {
             const type = d.data?.type;
-            if (type === 'CHILD') return 0.50;
-            if (type === 'LEAD') return 0.50;
-            return 0.32;
+            if (type === 'CHILD') return 0.60;
+            if (type === 'LEAD') return 0.60;
+            if (type === 'ADMIN') return 0.60;
+            return 0.35;
           })
           .attr('stroke', (d: any) => EDGE_COLORS[d.data?.type] || EDGE_COLORS.MEMBER)
           .attr('stroke-width', (d: any) => {
             if (d.data?.type === 'MEMBER') return 0.9;
             if (d.data?.type === 'LEAD') return 1.4;
+            if (d.data?.type === 'ADMIN') return 1.4;
             return Math.max(0.7, Math.min((d.data?.weight ?? 1) * 0.5, 2.0));
           });
       }
@@ -1586,11 +2097,11 @@ export default function ForceGraph({
       HIGH: '0.8s',
     };
 
-    // Tier-to-color mapping (used for reduced-motion static indicator)
+    // Tier-to-color mapping — dark-blue/light-blue palette
     const TIER_COLOR: Record<string, string> = {
-      LOW: '#93c5fd',
-      MEDIUM: '#3b82f6',
-      HIGH: '#1d4ed8',
+      LOW: '#7dd3fc',
+      MEDIUM: '#38bdf8',
+      HIGH: '#1e3a5f',
     };
 
     // Tier-to-stroke-width mapping — thicker = more active
@@ -1604,15 +2115,66 @@ export default function ForceGraph({
       // Cancel any in-flight D3 transitions on links so they don't overwrite pulse attributes
       linkSelection.interrupt();
 
+      // Compute per-edge period activity counts and derive tiers client-side
+      const edgeCounts: number[] = [];
+      linkSelection.each(function (d: any) {
+        const edge = d.data;
+        const sourceNode = (d.source as SimNode)?.data;
+        if (!sourceNode || sourceNode.type !== 'USER') return;
+        const periods = edge?.activityByPeriod;
+        const count = periods ? (periods[activityPeriod] ?? 0) : (edge?.activityCount ?? 0);
+        if (count > 0) edgeCounts.push(count);
+      });
+      edgeCounts.sort((a, b) => a - b);
+
+      // Compute percentile thresholds for edge tiers
+      let edgeP25 = 0, edgeP75 = 0;
+      if (edgeCounts.length >= 3 && new Set(edgeCounts).size > 1) {
+        edgeP25 = edgeCounts[Math.floor(edgeCounts.length * 0.25)];
+        edgeP75 = edgeCounts[Math.floor(edgeCounts.length * 0.75)];
+      }
+
+      function deriveEdgeTier(count: number): string {
+        if (count === 0) return 'INACTIVE';
+        if (edgeCounts.length < 3) {
+          if (count <= 2) return 'LOW';
+          if (count <= 10) return 'MEDIUM';
+          return 'HIGH';
+        }
+        if (new Set(edgeCounts).size === 1) return 'MEDIUM';
+        if (count <= edgeP25) return 'LOW';
+        if (count <= edgeP75) return 'MEDIUM';
+        return 'HIGH';
+      }
+
       // Apply pulse to user→space edges only (T016: exclude org edges)
       linkSelection.each(function (d: any) {
         const edge = d.data;
         const sourceNode = (d.source as SimNode)?.data;
         if (!sourceNode || sourceNode.type !== 'USER') return;
-        if (!edge?.activityTier || edge.activityTier === 'INACTIVE') return;
+        const periods = edge?.activityByPeriod;
+        const count = periods ? (periods[activityPeriod] ?? 0) : (edge?.activityCount ?? 0);
+        const tier = deriveEdgeTier(count);
 
         const el = d3.select(this);
-        const tier = edge.activityTier as string;
+        if (tier === 'INACTIVE') {
+          // Edge was pulsing but is now inactive for this period — stop pulse
+          if (el.classed('edge-pulse') || el.classed('edge-pulse-entering')) {
+            el.classed('edge-pulse', false);
+            el.classed('edge-pulse-entering', false);
+            el.classed('edge-pulse-exiting', true);
+            setTimeout(() => {
+              el.classed('edge-pulse-exiting', false);
+              el.style('--pulse-duration', null);
+              el.style('--pulse-color', null);
+              const type = edge?.type;
+              el.attr('stroke-width', type === 'LEAD' ? 1.4 : type === 'ADMIN' ? 1.4 : type === 'MEMBER' ? 0.9 : Math.max(0.7, Math.min((edge?.weight ?? 1) * 0.5, 2.0)));
+              el.attr('stroke', (EDGE_COLORS as any)[type] || (EDGE_COLORS as any).MEMBER);
+            }, 300);
+          }
+          return;
+        }
+
         const duration = TIER_DURATION[tier] || '2s';
         el.style('--pulse-duration', duration);
         el.style('--pulse-color', TIER_COLOR[tier] || '#3b82f6');
@@ -1656,13 +2218,13 @@ export default function ForceGraph({
             // Restore original stroke-width and color
             const edgeData = (d3.select(this).datum() as any)?.data;
             const type = edgeData?.type;
-            el.attr('stroke-width', type === 'LEAD' ? 1.4 : type === 'MEMBER' ? 0.9 : Math.max(0.7, Math.min((edgeData?.weight ?? 1) * 0.5, 2.0)));
+            el.attr('stroke-width', type === 'LEAD' ? 1.4 : type === 'ADMIN' ? 1.4 : type === 'MEMBER' ? 0.9 : Math.max(0.7, Math.min((edgeData?.weight ?? 1) * 0.5, 2.0)));
             el.attr('stroke', (EDGE_COLORS as any)[type] || (EDGE_COLORS as any).MEMBER);
           }, 300);
         }
       });
     }
-  }, [activityPulseEnabled, graphVersion]);
+  }, [activityPulseEnabled, activityPeriod, graphVersion]);
 
   useEffect(() => {
     renderGraph();

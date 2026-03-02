@@ -3,6 +3,7 @@ import {
   type GraphNode,
   type GraphEdge,
   type GraphLocation,
+  type ActivityPeriodCounts,
   NodeType,
   EdgeType,
   ActivityTier,
@@ -15,6 +16,7 @@ interface SpaceLike {
   id: string;
   nameID: string;
   about: {
+    isContentPublic?: boolean;
     profile: {
       displayName: string;
       tagline?: string;
@@ -35,6 +37,7 @@ interface SpaceLike {
       memberOrganizations: Array<{ id: string }>;
       leadOrganizations: Array<{ id: string }>;
       leadUsers: Array<{ id: string }>;
+      adminUsers: Array<{ id: string }>;
     };
   } | null;
   subspaces?: SpaceLike[];
@@ -90,10 +93,11 @@ export function transformToGraph(data: AcquiredData): TransformResult {
   if (data.activityEntries && data.activityEntries.length > 0) {
     const countMap = aggregateActivityCounts(data.activityEntries);
     const tierMap = computeActivityTiers(countMap);
+    const periodMap = aggregateActivityCountsByPeriod(data.activityEntries);
 
     for (const edge of edges) {
-      // Only user→space edges (MEMBER or LEAD where source is a user)
-      if (edge.type !== EdgeType.MEMBER && edge.type !== EdgeType.LEAD) continue;
+      // Only user→space edges (MEMBER, LEAD, or ADMIN where source is a user)
+      if (edge.type !== EdgeType.MEMBER && edge.type !== EdgeType.LEAD && edge.type !== EdgeType.ADMIN) continue;
       const sourceNode = nodes.find((n) => n.id === edge.sourceId);
       if (!sourceNode || sourceNode.type !== NodeType.USER) continue;
 
@@ -108,6 +112,24 @@ export function transformToGraph(data: AcquiredData): TransformResult {
       } else if (count === undefined || count === 0) {
         edge.activityTier = ActivityTier.INACTIVE;
       }
+      // Attach per-period breakdown
+      const periods = periodMap.get(key);
+      if (periods) {
+        edge.activityByPeriod = periods;
+      }
+    }
+
+    // Aggregate per-space totals and compute space activity tiers
+    const spaceCountMap = aggregateSpaceActivityCounts(countMap);
+    const spaceTierMap = computeActivityTiers(spaceCountMap);
+    const spacePeriodMap = aggregateSpacePeriodCounts(periodMap);
+
+    for (const node of nodes) {
+      if (node.type !== NodeType.SPACE_L0 && node.type !== NodeType.SPACE_L1 && node.type !== NodeType.SPACE_L2) continue;
+      const total = spaceCountMap.get(node.id);
+      node.totalActivityCount = total ?? 0;
+      node.spaceActivityTier = spaceTierMap.get(node.id) ?? ActivityTier.INACTIVE;
+      node.activityByPeriod = spacePeriodMap.get(node.id) ?? { day: 0, week: 0, month: 0, allTime: 0 };
     }
   }
 
@@ -157,6 +179,7 @@ function addSpaceNode(
     nameId: space.nameID,
     tagline: profile.tagline || null,
     parentSpaceId,
+    privacyMode: space.about.isContentPublic !== false ? 'PUBLIC' : 'PRIVATE',
   });
 }
 
@@ -194,6 +217,14 @@ function addContributorEdges(
     ensureOrgNode(id, data.organizations, scopeGroup, nodes, nodeIds);
     edges.push(createEdge(id, space.id, EdgeType.LEAD, scopeGroup));
   }
+
+  // Admin users
+  if (roleSet.adminUsers) {
+    for (const { id } of roleSet.adminUsers) {
+      ensureUserNode(id, data.users, scopeGroup, nodes, nodeIds);
+      edges.push(createEdge(id, space.id, EdgeType.ADMIN, scopeGroup));
+    }
+  }
 }
 
 function ensureUserNode(
@@ -228,6 +259,7 @@ function ensureUserNode(
     nameId: user?.nameID || null,
     tagline: null,
     parentSpaceId: null,
+    privacyMode: null,
   });
 }
 
@@ -263,6 +295,7 @@ function ensureOrgNode(
     nameId: org?.nameID || null,
     tagline: null,
     parentSpaceId: null,
+    privacyMode: null,
   });
 }
 
@@ -284,6 +317,21 @@ function extractLocation(
  * Key format: "userId:spaceId" → total contribution count.
  * Entries without a space are filtered out.
  */
+/**
+ * Aggregate per-user-per-space counts into per-space totals.
+ * Input keys are "userId:spaceId", output keys are "spaceId".
+ */
+export function aggregateSpaceActivityCounts(countMap: Map<string, number>): Map<string, number> {
+  const spaceCounts = new Map<string, number>();
+  for (const [key, count] of countMap) {
+    const sep = key.indexOf(':');
+    if (sep < 0) continue;
+    const spaceId = key.slice(sep + 1);
+    spaceCounts.set(spaceId, (spaceCounts.get(spaceId) ?? 0) + count);
+  }
+  return spaceCounts;
+}
+
 export function aggregateActivityCounts(entries: RawActivityEntry[]): Map<string, number> {
   const counts = new Map<string, number>();
   for (const entry of entries) {
@@ -294,6 +342,62 @@ export function aggregateActivityCounts(entries: RawActivityEntry[]): Map<string
     counts.set(key, (counts.get(key) ?? 0) + 1);
   }
   return counts;
+}
+
+/**
+ * Aggregate activity counts per user:space key, broken down by time period.
+ * Returns a map of "userId:spaceId" → { day, week, month, allTime }.
+ */
+export function aggregateActivityCountsByPeriod(entries: RawActivityEntry[]): Map<string, ActivityPeriodCounts> {
+  const now = Date.now();
+  const dayAgo = now - 24 * 60 * 60 * 1000;
+  const weekAgo = now - 7 * 24 * 60 * 60 * 1000;
+  const monthAgo = now - 30 * 24 * 60 * 60 * 1000;
+
+  const periodCounts = new Map<string, ActivityPeriodCounts>();
+
+  for (const entry of entries) {
+    const spaceId = entry.space?.id;
+    const userId = entry.triggeredBy.id;
+    if (!spaceId || !userId) continue;
+    const key = `${userId}:${spaceId}`;
+
+    let rec = periodCounts.get(key);
+    if (!rec) {
+      rec = { day: 0, week: 0, month: 0, allTime: 0 };
+      periodCounts.set(key, rec);
+    }
+
+    const ts = new Date(entry.createdDate).getTime();
+    rec.allTime++;
+    if (ts >= monthAgo) rec.month++;
+    if (ts >= weekAgo) rec.week++;
+    if (ts >= dayAgo) rec.day++;
+  }
+
+  return periodCounts;
+}
+
+/**
+ * Aggregate per-period counts by space (sum across all users).
+ */
+export function aggregateSpacePeriodCounts(periodMap: Map<string, ActivityPeriodCounts>): Map<string, ActivityPeriodCounts> {
+  const spacePeriods = new Map<string, ActivityPeriodCounts>();
+  for (const [key, periods] of periodMap) {
+    const sep = key.indexOf(':');
+    if (sep < 0) continue;
+    const spaceId = key.slice(sep + 1);
+    let rec = spacePeriods.get(spaceId);
+    if (!rec) {
+      rec = { day: 0, week: 0, month: 0, allTime: 0 };
+      spacePeriods.set(spaceId, rec);
+    }
+    rec.day += periods.day;
+    rec.week += periods.week;
+    rec.month += periods.month;
+    rec.allTime += periods.allTime;
+  }
+  return spacePeriods;
 }
 
 /**

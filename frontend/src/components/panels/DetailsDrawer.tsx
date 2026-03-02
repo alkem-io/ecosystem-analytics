@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
-import type { GraphNode, GraphDataset } from '@server/types/graph.js';
+import type { GraphNode, GraphDataset, ActivityPeriod } from '@server/types/graph.js';
 import type { SpaceSelectionItem } from '@server/types/api.js';
 import { api } from '../../services/api.js';
 import { getToken } from '../../services/auth.js';
@@ -25,9 +25,10 @@ interface Props {
   showPeople?: boolean;
   showOrganizations?: boolean;
   showSpaces?: boolean;
+  activityPeriod?: ActivityPeriod;
 }
 
-export default function DetailsDrawer({ node, dataset, onClose, onExpandSpace, onNodeSelect, isPreview = false, showPeople = true, showOrganizations = true, showSpaces = true }: Props) {
+export default function DetailsDrawer({ node, dataset, onClose, onExpandSpace, onNodeSelect, isPreview = false, showPeople = true, showOrganizations = true, showSpaces = true, activityPeriod = 'allTime' }: Props) {
   const [relatedSpaces, setRelatedSpaces] = useState<SpaceSelectionItem[]>([]);
   const [loadingRelated, setLoadingRelated] = useState(false);
 
@@ -135,6 +136,9 @@ export default function DetailsDrawer({ node, dataset, onClose, onExpandSpace, o
           <div>
             <h2 className={styles.name}>{node.displayName || 'Unknown'}</h2>
             <span className={styles.typeBadge}>{node.type.replace('_', ' ')}</span>
+            {node.privacyMode === 'PRIVATE' && (
+              <span className={styles.typeBadge} style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>🔒 Private</span>
+            )}
           </div>
         </div>
         {!isPreview && (
@@ -167,6 +171,12 @@ export default function DetailsDrawer({ node, dataset, onClose, onExpandSpace, o
           <div className={styles.stat}>
             <span className={styles.statValue}>{peopleCount}</span>
             <span className={styles.statLabel}>People</span>
+          </div>
+        )}
+        {isSpace && (
+          <div className={styles.stat}>
+            <span className={styles.statValue}>{node.activityByPeriod?.[activityPeriod] ?? node.totalActivityCount ?? 0}</span>
+            <span className={styles.statLabel}>Contributions{activityPeriod !== 'allTime' ? ` (${activityPeriod === 'day' ? 'day' : activityPeriod === 'week' ? 'week' : 'month'})` : ''}</span>
           </div>
         )}
       </div>

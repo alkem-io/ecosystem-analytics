@@ -12,6 +12,7 @@ export enum EdgeType {
   CHILD = 'CHILD',
   MEMBER = 'MEMBER',
   LEAD = 'LEAD',
+  ADMIN = 'ADMIN',
 }
 
 /** Activity tier classification based on percentile distribution */
@@ -21,6 +22,17 @@ export enum ActivityTier {
   MEDIUM = 'MEDIUM',
   HIGH = 'HIGH',
 }
+
+/** Activity counts broken down by time period */
+export interface ActivityPeriodCounts {
+  day: number;
+  week: number;
+  month: number;
+  allTime: number;
+}
+
+/** Valid activity time periods */
+export type ActivityPeriod = keyof ActivityPeriodCounts;
 
 /** Per-user per-space activity count with computed tier */
 export interface ActivityCount {
@@ -43,6 +55,7 @@ export const NODE_WEIGHT: Record<NodeType, number> = {
 export const EDGE_WEIGHT: Record<EdgeType, number> = {
   [EdgeType.CHILD]: 3,
   [EdgeType.LEAD]: 2,
+  [EdgeType.ADMIN]: 2,
   [EdgeType.MEMBER]: 1,
 };
 
@@ -69,6 +82,14 @@ export interface GraphNode {
   tagline: string | null;
   /** For L1/L2 spaces: the ID of the parent space */
   parentSpaceId: string | null;
+  /** Privacy mode for space nodes; null for non-space types (USER, ORGANIZATION) */
+  privacyMode: 'PUBLIC' | 'PRIVATE' | null;
+  /** Total direct contribution count for this space (L0/L1/L2 only, undefined for others) */
+  totalActivityCount?: number;
+  /** Activity tier for the space based on percentile distribution (L0/L1/L2 only) */
+  spaceActivityTier?: ActivityTier;
+  /** Per-period activity counts for time-based filtering (L0/L1/L2 only) */
+  activityByPeriod?: ActivityPeriodCounts;
 }
 
 /** An edge in the graph dataset */
@@ -82,6 +103,8 @@ export interface GraphEdge {
   activityCount?: number;
   /** Computed tier classification for user→space edges */
   activityTier?: ActivityTier;
+  /** Per-period activity counts for time-based filtering */
+  activityByPeriod?: ActivityPeriodCounts;
 }
 
 /** Computed network metrics */

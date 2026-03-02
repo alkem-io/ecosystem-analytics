@@ -1,5 +1,6 @@
 fragment spaceAboutFragment on SpaceAbout {
   id
+  isContentPublic
   profile {
     id
     displayName
