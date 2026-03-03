@@ -110,6 +110,18 @@ export interface GraphNode {
   createdDate?: string;
   /** Space visibility — ACTIVE, ARCHIVED, or DEMO (spaces only) */
   visibility?: 'ACTIVE' | 'ARCHIVED' | 'DEMO';
+  /** Markdown description / bio */
+  description?: string | null;
+  /** Organization website URL */
+  website?: string | null;
+  /** Organization contact email */
+  contactEmail?: string | null;
+  /** External reference links from the profile */
+  references?: { name: string; uri: string }[];
+  /** Organization owner display name */
+  owner?: string | null;
+  /** Number of associates in the organization */
+  associateCount?: number;
   /** Tags from the profile's tagsets, keyed by reserved name */
   tags?: TagData;
   /** Total direct contribution count for this space (L0/L1/L2 only, undefined for others) */

@@ -2,6 +2,7 @@ import { Router, Request, Response } from 'express';
 import { authMiddleware } from '../auth/middleware.js';
 import { resolveUser } from '../auth/resolve-user.js';
 import { generateGraph, getProgress } from '../services/graph-service.js';
+import { clearUserCache } from '../cache/cache-service.js';
 import { loadConfig } from '../config.js';
 import { getLogger } from '../logging/logger.js';
 import type { GraphGenerationRequest } from '../types/api.js';
@@ -91,6 +92,13 @@ graphRouter.post('/export', async (req: Request, res: Response) => {
     logger.error(`Graph export failed: ${(err as Error).message}`, { context: 'Graph' });
     res.status(502).json({ error: 'EXPORT_FAILED', message: 'Failed to export graph dataset' });
   }
+});
+
+// DELETE /api/graph/cache — Clear all cached data for the current user
+graphRouter.delete('/cache', (req: Request, res: Response) => {
+  const deleted = clearUserCache(req.auth!.userId!);
+  logger.info(`Cleared ${deleted} cache entries for user ${req.auth!.userId}`, { context: 'Graph' });
+  res.json({ cleared: deleted });
 });
 
 // GET /api/graph/progress — Check generation progress
