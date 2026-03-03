@@ -1,5 +1,5 @@
 # Stage 1: Build frontend
-FROM node:20-alpine AS build-frontend
+FROM node:22-alpine AS build-frontend
 RUN corepack enable && corepack prepare pnpm@latest --activate
 WORKDIR /app/frontend
 COPY frontend/package.json frontend/pnpm-lock.yaml ./
@@ -9,7 +9,7 @@ COPY server/src/types/ ../server/src/types/
 RUN pnpm run build
 
 # Stage 2: Build server
-FROM node:20-alpine AS build-server
+FROM node:22-alpine AS build-server
 RUN corepack enable && corepack prepare pnpm@latest --activate
 WORKDIR /app/server
 COPY server/package.json server/pnpm-lock.yaml ./
@@ -18,7 +18,7 @@ COPY server/ ./
 RUN pnpm run build
 
 # Stage 3: Production
-FROM node:20-alpine AS production
+FROM node:22-alpine AS production
 RUN corepack enable && corepack prepare pnpm@latest --activate
 WORKDIR /app
 
