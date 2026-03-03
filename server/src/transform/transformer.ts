@@ -18,7 +18,7 @@ import {
 interface SpaceLike {
   id: string;
   nameID: string;
-  createdDate?: string;
+  createdDate?: string | Date;
   visibility?: string;
   about: {
     isContentPublic?: boolean;
@@ -209,7 +209,7 @@ function addSpaceNode(
     tagline: profile.tagline || null,
     parentSpaceId,
     privacyMode: space.about.isContentPublic !== false ? 'PUBLIC' : 'PRIVATE',
-    createdDate: space.createdDate || undefined,
+    createdDate: space.createdDate ? String(space.createdDate) : undefined,
     visibility: parseVisibility(space.visibility),
     tags: extractTags(profile.tagsets),
   });
@@ -316,6 +316,19 @@ function ensureOrgNode(
   const org = orgs.get(id);
   const location = extractLocation(org?.profile?.location);
 
+  // Extract references (external links) from org profile
+  const rawRefs = (org?.profile as Record<string, unknown> | undefined)?.references as
+    | Array<{ name: string; uri: string; description?: string }>
+    | undefined;
+  const references = rawRefs?.filter((r) => r.uri)?.map((r) => ({ name: r.name, uri: r.uri }));
+
+  // Extract owner and associate count from roleSet
+  const roleSet = (org as Record<string, unknown> | undefined)?.roleSet as
+    | { owners?: Array<{ id: string; profile?: { displayName?: string } }>; associates?: Array<{ id: string }> }
+    | undefined;
+  const ownerName = roleSet?.owners?.[0]?.profile?.displayName ?? null;
+  const associateCount = roleSet?.associates?.length;
+
   nodes.push({
     id,
     type: NodeType.ORGANIZATION,
@@ -327,9 +340,15 @@ function ensureOrgNode(
     location,
     scopeGroups: [scopeGroup],
     nameId: org?.nameID || null,
-    tagline: null,
+    tagline: (org?.profile as Record<string, unknown> | undefined)?.tagline as string | null ?? null,
     parentSpaceId: null,
     privacyMode: null,
+    description: (org?.profile as Record<string, unknown> | undefined)?.description as string | null ?? null,
+    website: (org as Record<string, unknown> | undefined)?.website as string | null ?? null,
+    contactEmail: (org as Record<string, unknown> | undefined)?.contactEmail as string | null ?? null,
+    references: references && references.length > 0 ? references : undefined,
+    owner: ownerName,
+    associateCount: associateCount ?? undefined,
     tags: extractTags((org?.profile as Record<string, unknown> | undefined)?.tagsets as SpaceLike['about']['profile']['tagsets']),
   });
 }
