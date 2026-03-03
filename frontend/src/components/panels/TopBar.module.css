@@ -78,6 +78,31 @@
   }
 }
 
+.clearCacheBtn {
+  font-size: 12px;
+  font-family: var(--font-family);
+  padding: 6px 12px;
+  background: none;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  color: var(--text-secondary);
+}
+
+.clearCacheBtn:hover {
+  background: var(--surface);
+}
+
+.clearCacheBtn:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.clearCacheDone {
+  color: #16a34a;
+  border-color: #16a34a;
+}
+
 .exportBtn {
   font-size: 12px;
   font-family: var(--font-family);
