@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
+import ReactMarkdown from 'react-markdown';
 import type { GraphNode, GraphDataset, ActivityPeriod } from '@server/types/graph.js';
 import type { SpaceSelectionItem } from '@server/types/api.js';
 import { api } from '../../services/api.js';
@@ -149,6 +150,70 @@ export default function DetailsDrawer({ node, dataset, onClose, onExpandSpace, o
       </div>
 
       {node.tagline && <p className={styles.tagline}>{node.tagline}</p>}
+
+      {/* Organization enriched profile — shown in both preview and full modes */}
+      {node.type === 'ORGANIZATION' && (
+        <>
+          {node.description && (
+            <div className={styles.description}>
+              <ReactMarkdown>{isPreview && node.description.length > 150 ? node.description.slice(0, 150) + '…' : node.description}</ReactMarkdown>
+            </div>
+          )}
+
+          {/* Quick info row for orgs — compact metadata */}
+          <div className={styles.orgMeta}>
+            {node.owner && (
+              <div className={styles.orgMetaItem}>
+                <span className={styles.orgMetaLabel}>Owner</span>
+                <span className={styles.orgMetaValue}>{node.owner}</span>
+              </div>
+            )}
+            {node.associateCount != null && node.associateCount > 0 && (
+              <div className={styles.orgMetaItem}>
+                <span className={styles.orgMetaLabel}>Associates</span>
+                <span className={styles.orgMetaValue}>{node.associateCount}</span>
+              </div>
+            )}
+          </div>
+
+          {node.website && (
+            <div className={styles.detail}>
+              <span className={styles.detailLabel}>Website</span>
+              <a href={node.website} target="_blank" rel="noopener noreferrer" className={styles.link} style={{ padding: 0 }}>
+                {node.website.replace(/^https?:\/\//, '').replace(/\/$/, '')}
+              </a>
+            </div>
+          )}
+          {!isPreview && node.contactEmail && (
+            <div className={styles.detail}>
+              <span className={styles.detailLabel}>Email</span>
+              <a href={`mailto:${node.contactEmail}`} className={styles.link} style={{ padding: 0 }}>
+                {node.contactEmail}
+              </a>
+            </div>
+          )}
+
+          {/* Tags */}
+          {node.tags && (node.tags.keywords?.length || node.tags.skills?.length || node.tags.default?.length) && (
+            <div className={styles.tagsWrap}>
+              {[...(node.tags.keywords ?? []), ...(node.tags.skills ?? []), ...(node.tags.default ?? [])].slice(0, isPreview ? 6 : 20).map((tag) => (
+                <span key={tag} className={styles.tag}>{tag}</span>
+              ))}
+            </div>
+          )}
+
+          {!isPreview && node.references && node.references.length > 0 && (
+            <div className={styles.referencesSection}>
+              <h3 className={styles.connectionsHeading}>Links</h3>
+              {node.references.map((ref, i) => (
+                <a key={i} href={ref.uri} target="_blank" rel="noopener noreferrer" className={styles.referenceLink}>
+                  {ref.name || ref.uri}
+                </a>
+              ))}
+            </div>
+          )}
+        </>
+      )}
 
       <div className={styles.stats}>
         <div className={styles.stat}>
