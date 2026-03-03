@@ -1,0 +1,240 @@
+/* ─── Shared View Styles ────────────────────────────────────────
+ * Common CSS module for all new visualization views (009).
+ * Uses global design tokens from tokens.css — supports light/dark themes.
+ * ───────────────────────────────────────────────────────────── */
+
+/* === View container === */
+.viewContainer {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background: var(--view-bg);
+  color: var(--view-text);
+}
+
+.viewContainer svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+/* === Empty state (graceful degradation) === */
+.emptyState {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  gap: 12px;
+  color: var(--view-text-muted);
+  font-family: var(--font-family);
+  text-align: center;
+  padding: 2rem;
+}
+
+.emptyIcon {
+  font-size: 2.5rem;
+  opacity: 0.5;
+}
+
+.emptyTitle {
+  font-size: 1.125rem;
+  font-weight: 600;
+  color: var(--view-text);
+}
+
+.emptyMessage {
+  font-size: 0.875rem;
+  max-width: 320px;
+  line-height: 1.5;
+}
+
+/* Backward compat aliases */
+.emptyStateIcon { composes: emptyIcon; }
+.emptyStateTitle { composes: emptyTitle; }
+.emptyStateMessage { composes: emptyMessage; }
+
+/* === Breadcrumb trail === */
+.breadcrumb {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-family: var(--font-family);
+  font-size: 0.75rem;
+  color: var(--view-text-muted);
+  z-index: 10;
+  background: var(--view-overlay-bg);
+  padding: 4px 10px;
+  border-radius: 6px;
+  border: 1px solid var(--view-border);
+  backdrop-filter: blur(4px);
+}
+
+.breadcrumbItem {
+  cursor: pointer;
+  background: none;
+  border: none;
+  font: inherit;
+  color: inherit;
+  padding: 0;
+  transition: color 0.15s ease;
+}
+
+.breadcrumbItem:hover {
+  color: var(--primary);
+}
+
+.breadcrumbSeparator {
+  color: var(--view-border);
+  user-select: none;
+}
+
+.breadcrumbCurrent {
+  color: var(--view-text);
+  font-weight: 500;
+}
+
+/* === Tooltip === */
+.tooltip {
+  position: absolute;
+  pointer-events: none;
+  background: var(--view-tooltip-bg);
+  color: var(--view-text);
+  font-family: var(--font-family);
+  font-size: 0.8125rem;
+  padding: 8px 12px;
+  border-radius: var(--radius);
+  border: 1px solid var(--view-tooltip-border);
+  box-shadow: var(--view-tooltip-shadow);
+  z-index: 100;
+  max-width: 280px;
+  white-space: nowrap;
+  backdrop-filter: blur(8px);
+}
+
+.tooltipTitle {
+  font-weight: 600;
+  margin-bottom: 2px;
+  display: block;
+}
+
+.tooltipDetail {
+  color: var(--view-text-muted);
+  font-size: 0.75rem;
+}
+
+/* === Legend (Timeline, Chord) === */
+.legend {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-family: var(--font-family);
+  font-size: 0.75rem;
+  color: var(--view-text);
+  z-index: 10;
+  background: var(--view-overlay-bg);
+  padding: 8px 12px;
+  border-radius: var(--radius);
+  border: 1px solid var(--view-border);
+  backdrop-filter: blur(4px);
+  max-height: 300px;
+  overflow-y: auto;
+}
+
+.legendItem {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  transition: opacity 0.15s ease;
+}
+
+.legendItem[data-hidden='true'] {
+  opacity: 0.35;
+}
+
+.legendSwatch {
+  width: 10px;
+  height: 10px;
+  border-radius: 2px;
+  flex-shrink: 0;
+}
+
+/* === View-specific: hatch pattern for private spaces === */
+.privateHatch {
+  fill: url(#hatch-pattern);
+  opacity: 0.3;
+}
+
+/* === Temporal scrubber === */
+.scrubber {
+  position: absolute;
+  bottom: 16px;
+  left: 16px;
+  right: 16px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: var(--view-overlay-bg);
+  padding: 8px 14px;
+  border-radius: var(--radius);
+  border: 1px solid var(--view-border);
+  z-index: 10;
+  backdrop-filter: blur(4px);
+  font-family: var(--font-family);
+}
+
+.scrubberInput {
+  flex: 1;
+  height: 4px;
+  appearance: none;
+  background: var(--view-border);
+  border-radius: 2px;
+  outline: none;
+  cursor: pointer;
+}
+
+.scrubberInput::-webkit-slider-thumb {
+  appearance: none;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--primary);
+  cursor: grab;
+}
+
+.scrubberLabel {
+  font-size: 0.75rem;
+  color: var(--view-text);
+  min-width: 80px;
+  text-align: center;
+}
+
+.scrubberButton {
+  background: none;
+  border: 1px solid var(--view-border);
+  color: var(--view-text);
+  border-radius: var(--radius-sm);
+  padding: 4px 8px;
+  font-size: 0.75rem;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.scrubberButton:hover {
+  background: var(--view-border);
+}
+
+.scrubberSpeed {
+  font-size: 0.6875rem;
+  color: var(--view-text-muted);
+  cursor: pointer;
+  user-select: none;
+}

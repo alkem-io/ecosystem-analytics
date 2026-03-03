@@ -55,3 +55,15 @@
   border-radius: var(--radius);
   cursor: pointer;
 }
+
+.viewPlaceholder {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  color: var(--view-color-text-muted, #94a3b8);
+  font-size: 1.125rem;
+  font-family: var(--font-family);
+  user-select: none;
+}

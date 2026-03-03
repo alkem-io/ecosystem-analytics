@@ -1,0 +1,16 @@
+countMap has 158 entries
+  countMap: e3fe085d-4f03-42a1-bc46-a3b019a9a31b:73f073b7-1f2a-4e4a-9cf1-863d053438c2 => 8
+  countMap: 8aa7a5a1-54d3-4f1f-93fd-9baa0ae4066a:73f073b7-1f2a-4e4a-9cf1-863d053438c2 => 25
+  countMap: 46216335-b218-4c56-b30a-f7c7cce1346a:ae75ed08-1393-46f7-8ab3-408d0dfa530e => 17
+  countMap: 3673c32a-5180-4466-9d8b-6768ac108be6:ae75ed08-1393-46f7-8ab3-408d0dfa530e => 12
+  countMap: 8006ca67-59ff-460a-b38a-ebdb0a39fbbf:ae75ed08-1393-46f7-8ab3-408d0dfa530e => 2
+  countMap: 811acdeb-df55-4e0a-a80f-c7b9b0b3bd2e:ae75ed08-1393-46f7-8ab3-408d0dfa530e => 3
+  countMap: 8aa7a5a1-54d3-4f1f-93fd-9baa0ae4066a:ae75ed08-1393-46f7-8ab3-408d0dfa530e => 6
+  countMap: 3c82370e-a292-41d3-80b6-c6bf5cb1f246:ae75ed08-1393-46f7-8ab3-408d0dfa530e => 4
+  countMap: c3c843c1-a7eb-4a82-9491-0d01783f01ef:ae75ed08-1393-46f7-8ab3-408d0dfa530e => 4
+  countMap: a665bb13-bff4-403f-8a6a-981df9e94655:ae75ed08-1393-46f7-8ab3-408d0dfa530e => 1
+tierMap distribution: {"LOW":70,"MEDIUM":55,"HIGH":33}
+Edge matching: 122 matched, 130 unmatched out of 252 user→space edges
+Activity spaceIds (30): 73f073b7-1f2a-4e4a-9cf1-863d053438c2, ae75ed08-1393-46f7-8ab3-408d0dfa530e, 7652adaf-a8e9-456b-9a08-664a09b7e52a, 6e4ebc85-077d-4ab3-8c2c-3ee0e867f2df, b73ede83-bb58-45be-b6fe-45f920fa74ba
+Edge targetIds (34): b73ede83-bb58-45be-b6fe-45f920fa74ba, ebd93682-8d03-433c-90e5-1fbea9c3f50d, 73f073b7-1f2a-4e4a-9cf1-863d053438c2, 0d51badd-5690-4ae0-bfa3-8b2e4f550a38, 243d2898-94f5-4b29-a09c-50011117ccf0
+Overlap: 30 / 34

@@ -11,6 +11,10 @@ Auto-generated from all feature plans. Last updated: 2026-01-20
 - N/A (no backend changes) (003-node-proximity-clustering)
 - TypeScript 5.9.3 (server + frontend) + Express 5, D3.js 7, React 19, `graphql-request` 7, `@graphql-codegen/cli` 6 (004-activity-pulse)
 - SQLite (better-sqlite3) for server-side cache; in-memory dataset on frontend (004-activity-pulse)
+- TypeScript 5.9.3 (strict mode), React 19.x + D3 v7.9, Express 5, Vite 7.3.1, `@graphql-codegen/cli` (typed SDK) (006-role-filters)
+- SQLite cache (per-user per-space, via better-sqlite3) — no schema changes (006-role-filters)
+- TypeScript 5.9.3 (strict mode) + React 19.x, D3.js v7.9, Express 5, Vite 7.3.1, `@graphql-codegen/cli` (007-space-visibility)
+- better-sqlite3 (per-user per-space cache) (007-space-visibility)
 
 - Not applicable (documentation and design briefs) + Not applicable (content generation and analysis) (001-alkemio-design-brief)
 
@@ -30,9 +34,12 @@ tests/
 Not applicable (documentation and design briefs): Follow standard conventions
 
 ## Recent Changes
-- 004-activity-pulse: Added TypeScript 5.9.3 (server + frontend) + Express 5, D3.js 7, React 19, `graphql-request` 7, `@graphql-codegen/cli` 6
-- 003-node-proximity-clustering: Added TypeScript 5.x (strict mode), React 19.2.4 + D3 v7.9 (d3-selection, d3-force, d3-transition), Vite 7.3.1
-- 002-node-avatar-display: Added TypeScript 5.x (strict mode), React 19.2.4 + D3 v7.9 (d3-selection, d3-force), Vite 7.3.1
+- 007-space-visibility: Added TypeScript 5.9.3 (strict mode) + React 19.x, D3.js v7.9, Express 5, Vite 7.3.1, `@graphql-codegen/cli`
+- 009-alternative-views: TypeScript 5.9.3, React 19, D3.js 7.9 (d3-hierarchy, d3-chord, d3-shape, d3-scale, d3-brush, d3-timer), Express 5, Vite 7.3.1
+- 009-alternative-views: New views: Treemap, Sunburst, Chord, Timeline, Temporal Force Graph
+- 009-alternative-views: Extended GraphNode (createdDate, visibility, tags), GraphEdge (createdDate), GraphDataset (timeSeries)
+- 009-alternative-views: New frontend types: ViewMode, ViewState, HierarchyDatum, ChordMatrixResult
+- 009-alternative-views: New hooks: useViewState, useHierarchyData, useChordMatrix, useTimeSeries
 
 
 <!-- MANUAL ADDITIONS START -->
