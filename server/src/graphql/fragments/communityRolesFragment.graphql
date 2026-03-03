@@ -13,5 +13,8 @@ fragment communityRolesFragment on Community {
     leadUsers: usersInRole(role: LEAD) {
       id
     }
+    adminUsers: usersInRole(role: ADMIN) {
+      id
+    }
   }
 }

@@ -115,3 +115,21 @@
   color: var(--error);
   border-color: var(--error);
 }
+
+.themeBtn {
+  width: 32px;
+  height: 32px;
+  font-size: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: none;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.themeBtn:hover {
+  background: var(--surface);
+}

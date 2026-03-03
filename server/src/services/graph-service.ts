@@ -1,10 +1,10 @@
 import { acquireSpaces } from './acquire-service.js';
-import { transformToGraph } from '../transform/transformer.js';
+import { transformToGraph, computeActivityTiers } from '../transform/transformer.js';
 import { computeMetrics } from '../transform/metrics.js';
 import { computeInsights } from '../transform/insights.js';
 import { getCacheEntry, setCacheEntry, invalidateCache } from '../cache/cache-service.js';
 import { getLogger } from '../logging/logger.js';
-import type { GraphDataset, GraphNode, GraphEdge, SpaceCacheInfo } from '../types/graph.js';
+import { type GraphDataset, type GraphNode, type GraphEdge, type SpaceCacheInfo, type SpaceTimeSeries, type ActivityPeriodCounts, NodeType, EdgeType, ActivityTier } from '../types/graph.js';
 import type { GraphGenerationRequest, GraphProgress } from '../types/api.js';
 
 const logger = getLogger();
@@ -69,6 +69,7 @@ export async function generateGraph(
   // Acquire missing spaces
   let freshNodes: GraphNode[] = [];
   let freshEdges: GraphEdge[] = [];
+  let timeSeries: SpaceTimeSeries[] | undefined;
   // Detect activity data from cached edges (if any edge has activityTier, cache had activity)
   let hasActivity = cachedEdges.some((e) => e.activityTier !== undefined);
 
@@ -85,6 +86,7 @@ export async function generateGraph(
     const transformed = transformToGraph(acquired);
     freshNodes = transformed.nodes;
     freshEdges = transformed.edges;
+    timeSeries = transformed.timeSeries;
 
     // Track whether activity data was successfully fetched
     hasActivity = acquired.activityEntries !== undefined;
@@ -106,6 +108,11 @@ export async function generateGraph(
   // Merge all nodes and edges (deduplicate by ID)
   const allNodes = deduplicateNodes([...cachedNodes, ...freshNodes]);
   const allEdges = [...cachedEdges, ...freshEdges];
+
+  // Recompute space activity totals from merged edge data.
+  // This ensures cached spaces also get correct totalActivityCount / spaceActivityTier
+  // without requiring a force-refresh.
+  recomputeSpaceActivity(allNodes, allEdges);
 
   // Compute metrics and insights
   const metrics = computeMetrics(allNodes, allEdges);
@@ -129,6 +136,7 @@ export async function generateGraph(
     cacheInfo,
     insights,
     hasActivityData: hasActivity,
+    timeSeries,
   };
 }
 
@@ -157,4 +165,48 @@ function deduplicateNodes(nodes: GraphNode[]): GraphNode[] {
     }
   }
   return Array.from(map.values());
+}
+
+/**
+ * Recompute totalActivityCount and spaceActivityTier on space nodes
+ * from the merged edge data. This ensures cached datasets (which may
+ * predate the space-activity feature) get correct values without
+ * requiring a force-refresh.
+ */
+function recomputeSpaceActivity(nodes: GraphNode[], edges: GraphEdge[]): void {
+  // Sum activityCount and per-period counts from user→space edges, grouped by target spaceId
+  const spaceCountMap = new Map<string, number>();
+  const spacePeriodMap = new Map<string, ActivityPeriodCounts>();
+
+  for (const edge of edges) {
+    if (edge.type !== EdgeType.MEMBER && edge.type !== EdgeType.LEAD && edge.type !== EdgeType.ADMIN) continue;
+    if (edge.activityCount === undefined || edge.activityCount === 0) continue;
+    const prev = spaceCountMap.get(edge.targetId) ?? 0;
+    spaceCountMap.set(edge.targetId, prev + edge.activityCount);
+
+    // Accumulate per-period counts if available
+    if (edge.activityByPeriod) {
+      let rec = spacePeriodMap.get(edge.targetId);
+      if (!rec) {
+        rec = { day: 0, week: 0, month: 0, allTime: 0 };
+        spacePeriodMap.set(edge.targetId, rec);
+      }
+      rec.day += edge.activityByPeriod.day;
+      rec.week += edge.activityByPeriod.week;
+      rec.month += edge.activityByPeriod.month;
+      rec.allTime += edge.activityByPeriod.allTime;
+    }
+  }
+
+  if (spaceCountMap.size === 0) return;
+
+  const spaceTierMap = computeActivityTiers(spaceCountMap);
+
+  for (const node of nodes) {
+    if (node.type !== NodeType.SPACE_L0 && node.type !== NodeType.SPACE_L1 && node.type !== NodeType.SPACE_L2) continue;
+    const total = spaceCountMap.get(node.id);
+    node.totalActivityCount = total ?? 0;
+    node.spaceActivityTier = spaceTierMap.get(node.id) ?? ActivityTier.INACTIVE;
+    node.activityByPeriod = spacePeriodMap.get(node.id) ?? { day: 0, week: 0, month: 0, allTime: 0 };
+  }
 }

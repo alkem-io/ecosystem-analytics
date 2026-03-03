@@ -87,6 +87,14 @@
   flex-shrink: 0;
 }
 
+.legendIcon {
+  font-size: 12px;
+  line-height: 1;
+  flex-shrink: 0;
+  width: 16px;
+  text-align: center;
+}
+
 .legendGroup {
   margin-bottom: 8px;
 }
@@ -159,4 +167,33 @@
   font-size: 11px;
   color: var(--text-muted);
   margin: 4px 0 0;
+}
+
+/* Styled select for view-specific controls (matches shadcn style) */
+.viewSelect {
+  font-size: 12px;
+  font-family: var(--font-family);
+  padding: 6px 8px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: border-color 0.15s ease;
+}
+
+.viewSelect:hover {
+  border-color: var(--border-focus);
+}
+
+.viewSelect:focus {
+  outline: 2px solid var(--border-focus);
+  outline-offset: -1px;
+}
+
+.sectionHint {
+  font-size: 11px;
+  color: var(--text-muted);
+  margin: 4px 0 0 24px;
+  line-height: 1.3;
 }

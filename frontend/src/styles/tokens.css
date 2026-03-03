@@ -60,6 +60,60 @@
   --left-panel-width: 240px;
   --details-drawer-width: 320px;
   --space-selector-card-height: 600px;
+
+  /* ─── View Canvas Theme (light default) ─── */
+  --view-bg: #f8fafc;
+  --view-text: #1e293b;
+  --view-text-muted: #64748b;
+  --view-border: #e2e8f0;
+  --view-surface: rgba(255, 255, 255, 0.92);
+  --view-surface-alt: rgba(241, 245, 249, 0.85);
+  --view-tooltip-bg: rgba(255, 255, 255, 0.96);
+  --view-tooltip-border: #cbd5e1;
+  --view-tooltip-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
+  --view-overlay-bg: rgba(248, 250, 252, 0.85);
+
+  /* View activity tier colors (light) */
+  --view-color-low: #38bdf8;
+  --view-color-medium: #2563eb;
+  --view-color-high: #1e3a5f;
+  --view-color-inactive: #cbd5e1;
+}
+
+/* ─── Dark Theme Override ─── */
+:root[data-theme="dark"] {
+  --background: #0f172a;
+  --foreground: #e2e8f0;
+  --text-primary: #e2e8f0;
+  --text-secondary: #94a3b8;
+  --text-muted: #64748b;
+  --text-inverse: #0f172a;
+  --surface: #1e293b;
+  --surface-raised: #1e293b;
+  --border: #334155;
+  --border-focus: #38bdf8;
+
+  --elevation-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.3);
+  --elevation-md: 0 4px 6px -1px rgba(0, 0, 0, 0.4), 0 2px 4px -2px rgba(0, 0, 0, 0.3);
+  --elevation-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.4), 0 4px 6px -4px rgba(0, 0, 0, 0.3);
+
+  /* Dark view canvas */
+  --view-bg: #0f172a;
+  --view-text: #e2e8f0;
+  --view-text-muted: #94a3b8;
+  --view-border: #334155;
+  --view-surface: rgba(15, 23, 42, 0.92);
+  --view-surface-alt: rgba(30, 41, 59, 0.85);
+  --view-tooltip-bg: rgba(15, 23, 42, 0.96);
+  --view-tooltip-border: #334155;
+  --view-tooltip-shadow: 0 4px 16px rgba(0, 0, 0, 0.5);
+  --view-overlay-bg: rgba(15, 23, 42, 0.85);
+
+  /* Dark activity tier colors */
+  --view-color-low: #7dd3fc;
+  --view-color-medium: #38bdf8;
+  --view-color-high: #1e3a5f;
+  --view-color-inactive: #475569;
 }
 
 /* Base reset */
