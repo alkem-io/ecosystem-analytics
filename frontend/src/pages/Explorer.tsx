@@ -102,6 +102,18 @@ export default function Explorer({ onLogout }: ExplorerProps) {
     if (activeSpaceIds.length > 0) generate(activeSpaceIds, true);
   }, [activeSpaceIds, generate]);
 
+  const [cacheCleared, setCacheCleared] = useState(false);
+  const handleClearCache = useCallback(async () => {
+    try {
+      await api.delete('/api/graph/cache');
+      setCacheCleared(true);
+      setTimeout(() => setCacheCleared(false), 2000);
+      if (activeSpaceIds.length > 0) generate(activeSpaceIds, true);
+    } catch {
+      // Silently fail — next refresh will re-fetch anyway
+    }
+  }, [activeSpaceIds, generate]);
+
   const handleExpandSpace = useCallback(
     async (newSpaceId: string) => {
       const updated = [...activeSpaceIds, newSpaceId];
@@ -175,6 +187,8 @@ export default function Explorer({ onLogout }: ExplorerProps) {
         lastSync={lastSync}
         onRefresh={handleRefresh}
         refreshing={loading}
+        onClearCache={handleClearCache}
+        cacheCleared={cacheCleared}
         onExport={dataset ? handleExport : undefined}
         onLogout={onLogout}
         theme={theme}
