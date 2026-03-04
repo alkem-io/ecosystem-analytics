@@ -1,6 +1,7 @@
 import { useNavigate } from 'react-router-dom';
 import type { Theme } from '../../hooks/useTheme.js';
 import SearchBar from '../search/SearchBar.js';
+import UserProfileMenu from '../UserProfileMenu.js';
 import styles from './TopBar.module.css';
 
 interface Props {
@@ -75,11 +76,7 @@ export default function TopBar({ searchQuery, onSearchChange, lastSync, onRefres
           </button>
         )}
         {syncTime && <span className={styles.syncTime}>Last sync {syncTime}</span>}
-        {onLogout && (
-          <button className={styles.logoutBtn} onClick={onLogout} aria-label="Log out">
-            Logout
-          </button>
-        )}
+        {onLogout && <UserProfileMenu onLogout={onLogout} />}
       </div>
     </div>
   );

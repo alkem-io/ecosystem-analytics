@@ -22,8 +22,8 @@ ALKEMIO_KRATOS_PUBLIC_URL=https://identity.alkem.io
 ### 2. Start Dev Servers
 
 ```bash
-cd server && pnpm run dev    # Port 4000
-cd frontend && pnpm run dev  # Port 5173, proxies /api → :4000
+cd server && pnpm run dev    # Port 4010
+cd frontend && pnpm run dev  # Port 5173, proxies /api → :4010
 ```
 
 ### 3. Testing SSO Detection

@@ -1,6 +1,7 @@
 import { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useSpaces } from '../hooks/useSpaces.js';
+import UserProfileMenu from '../components/UserProfileMenu.js';
 import styles from './SpaceSelector.module.css';
 
 /**
@@ -78,7 +79,7 @@ export default function SpaceSelector({ onLogout }: SpaceSelectorProps) {
         <div className={styles.header}>
           <div className={styles.headerRow}>
             <h1 className={styles.title}>Select Top-Level Spaces</h1>
-            <button className={styles.logoutBtn} onClick={onLogout}>Logout</button>
+            <UserProfileMenu onLogout={onLogout} />
           </div>
           <p className={styles.description}>
             Choose the L0 spaces you want to include in your network graph.

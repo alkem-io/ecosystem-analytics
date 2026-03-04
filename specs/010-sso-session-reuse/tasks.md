@@ -22,9 +22,9 @@
 
 **Purpose**: Add types and configuration needed by multiple user stories
 
-- [ ] T001 Add `SsoDetectResponse` type to `server/src/types/api.ts` with fields: `detected` (boolean), `displayName` (string?), `avatarUrl` (string?), `token` (string?)
-- [ ] T002 [P] Add optional `ALKEMIO_KRATOS_PUBLIC_URL` to `server/analytics.yml` config and `server/.env.default`, with dynamic discovery fallback via Alkemio GraphQL `configuration` query
-- [ ] T003 [P] Add Kratos URL resolution utility in `server/src/auth/kratos-url.ts` — discovers Kratos public URL from Alkemio GraphQL config endpoint or env var, caches result
+- [x] T001 Add `SsoDetectResponse` type to `server/src/types/api.ts` with fields: `detected` (boolean), `displayName` (string?), `avatarUrl` (string?), `token` (string?)
+- [x] T002 [P] Add optional `ALKEMIO_KRATOS_PUBLIC_URL` to `server/analytics.yml` config and `server/.env.default`, with dynamic discovery fallback via Alkemio GraphQL `configuration` query
+- [x] T003 [P] Add Kratos URL resolution utility in `server/src/auth/kratos-url.ts` — discovers Kratos public URL from Alkemio GraphQL config endpoint or env var, caches result
 
 **Checkpoint**: Types and config ready for SSO endpoint implementation
 
@@ -36,12 +36,12 @@
 
 **⚠️ CRITICAL**: No user story work can begin until this phase is complete
 
-- [ ] T004 Create SSO detection handler in `server/src/auth/sso.ts` — reads `ory_kratos_session` from `req.headers.cookie`, calls Kratos `GET /sessions/whoami` with cookie forwarded, extracts session token and user identity traits (displayName, avatarUrl), returns `SsoDetectResponse`
-- [ ] T005 Register SSO detection route `POST /api/auth/sso/detect` in `server/src/routes/auth.ts` — public endpoint (no authMiddleware), must handle missing cookie (return `{ detected: false }`) and Kratos errors (return `{ detected: false }`)
-- [ ] T006 [P] Create `UserContext` and `UserProvider` in `frontend/src/context/UserContext.tsx` — holds `UserContextState` (displayName, avatarUrl, loading), fetches from `GET /api/auth/me` after token is set, provides context to component tree
-- [ ] T007 [P] Create `useUser` hook in `frontend/src/hooks/useUser.ts` — wraps `useContext(UserContext)`, returns `{ displayName, avatarUrl, loading }`
-- [ ] T008 Add `detectSsoSession` function to `frontend/src/services/auth.ts` — calls `POST /api/auth/sso/detect` with `credentials: 'include'`, returns `SsoDetectResponse` or null on failure, includes 2-second timeout
-- [ ] T009 Wrap authenticated routes with `UserProvider` in `frontend/src/App.tsx` — ensures user context is available to all authenticated pages
+- [x] T004 Create SSO detection handler in `server/src/auth/sso.ts` — reads `ory_kratos_session` from `req.headers.cookie`, calls Kratos `GET /sessions/whoami` with cookie forwarded, extracts session token and user identity traits (displayName, avatarUrl), returns `SsoDetectResponse`
+- [x] T005 Register SSO detection route `POST /api/auth/sso/detect` in `server/src/routes/auth.ts` — public endpoint (no authMiddleware), must handle missing cookie (return `{ detected: false }`) and Kratos errors (return `{ detected: false }`)
+- [x] T006 [P] Create `UserContext` and `UserProvider` in `frontend/src/context/UserContext.tsx` — holds `UserContextState` (displayName, avatarUrl, loading), fetches from `GET /api/auth/me` after token is set, provides context to component tree
+- [x] T007 [P] Create `useUser` hook in `frontend/src/hooks/useUser.ts` — wraps `useContext(UserContext)`, returns `{ displayName, avatarUrl, loading }`
+- [x] T008 Add `detectSsoSession` function to `frontend/src/services/auth.ts` — calls `POST /api/auth/sso/detect` with `credentials: 'include'`, returns `SsoDetectResponse` or null on failure, includes 2-second timeout
+- [x] T009 Wrap authenticated routes with `UserProvider` in `frontend/src/App.tsx` — ensures user context is available to all authenticated pages
 
 **Checkpoint**: Foundation ready — SSO endpoint works, user context available to frontend
 
@@ -57,10 +57,10 @@
 
 ### Implementation for User Story 1 + 3
 
-- [ ] T010 [US1] Modify `frontend/src/pages/LoginPage.tsx` — on mount, check if local token exists (skip if yes per FR-011); if no token, call `detectSsoSession()`; if session detected, show SSO confirmation prompt (display user's displayName and avatarUrl); if no session or detection fails, show standard login form
-- [ ] T011 [US1] Add SSO confirmation prompt UI to `frontend/src/pages/LoginPage.tsx` — show detected user's display name and avatar, "Continue as [name]" button, and "Use different account" link; style consistently with existing login form
-- [ ] T012 [US1] [US3] Handle SSO confirmation in `frontend/src/pages/LoginPage.tsx` — on confirm: call `setToken(response.token)` to store the SSO-provided token, then navigate to `/spaces`; on decline: show standard login form
-- [ ] T013 [US3] Verify SSO token works with existing BFF endpoints — after SSO login, the stored Bearer token must work with `GET /api/spaces`, `POST /api/graph/generate`, and `GET /api/auth/me` (no BFF changes needed per FR-005 since the token format is identical to manual login tokens)
+- [x] T010 [US1] Modify `frontend/src/pages/LoginPage.tsx` — on mount, check if local token exists (skip if yes per FR-011); if no token, call `detectSsoSession()`; if session detected, show SSO confirmation prompt (display user's displayName and avatarUrl); if no session or detection fails, show standard login form
+- [x] T011 [US1] Add SSO confirmation prompt UI to `frontend/src/pages/LoginPage.tsx` — show detected user's display name and avatar, "Continue as [name]" button, and "Use different account" link; style consistently with existing login form
+- [x] T012 [US1] [US3] Handle SSO confirmation in `frontend/src/pages/LoginPage.tsx` — on confirm: call `setToken(response.token)` to store the SSO-provided token, then navigate to `/spaces`; on decline: show standard login form
+- [x] T013 [US3] Verify SSO token works with existing BFF endpoints — after SSO login, the stored Bearer token must work with `GET /api/spaces`, `POST /api/graph/generate`, and `GET /api/auth/me` (no BFF changes needed per FR-005 since the token format is identical to manual login tokens)
 
 **Checkpoint**: SSO detection and token reuse fully functional. Users with an Alkemio session can skip login.
 
@@ -74,8 +74,8 @@
 
 ### Implementation for User Story 2
 
-- [ ] T014 [US2] Add loading/detection state to `frontend/src/pages/LoginPage.tsx` — show a brief loading indicator during SSO detection (max 2 seconds), then fall back to login form; if detection errors or times out, silently show login form with no error messages
-- [ ] T015 [US2] Handle edge case: Alkemio session expires between detection and confirmation in `frontend/src/pages/LoginPage.tsx` — if token from SSO detection fails on first use (401), clear token and show login form with message "Session expired, please log in"
+- [x] T014 [US2] Add loading/detection state to `frontend/src/pages/LoginPage.tsx` — show a brief loading indicator during SSO detection (max 2 seconds), then fall back to login form; if detection errors or times out, silently show login form with no error messages
+- [x] T015 [US2] Handle edge case: Alkemio session expires between detection and confirmation in `frontend/src/pages/LoginPage.tsx` — if token from SSO detection fails on first use (401), clear token and show login form with message "Session expired, please log in"
 
 **Checkpoint**: Both SSO and manual login paths work. No regressions to existing login flow.
 
@@ -89,11 +89,11 @@
 
 ### Implementation for User Story 4
 
-- [ ] T016 [P] [US4] Create `UserProfileMenu` component in `frontend/src/components/UserProfileMenu.tsx` — renders user avatar (with fallback placeholder SVG/icon if avatarUrl is null), shows display name tooltip on hover, opens dropdown on click with "Logout" option; uses `useUser()` hook for data
-- [ ] T017 [P] [US4] Create CSS module `frontend/src/components/UserProfileMenu.module.css` — avatar circle style, hover tooltip, dropdown menu positioned below avatar, consistent with existing design tokens (colors, fonts, spacing from `styles/tokens.css`)
-- [ ] T018 [US4] Replace logout button with `UserProfileMenu` in `frontend/src/components/panels/TopBar.tsx` — remove existing logout button, add `UserProfileMenu` in the same top-right position; pass `onLogout` handler to the dropdown's logout action
-- [ ] T019 [US4] Add `UserProfileMenu` to Space selector page in `frontend/src/pages/SpaceSelector.tsx` — replace existing logout button with the same `UserProfileMenu` component for consistency across all authenticated pages
-- [ ] T020 [US4] Ensure `UserProvider` triggers profile fetch after both SSO and manual login in `frontend/src/context/UserContext.tsx` — profile should load immediately after token is set (via either login method) so avatar is available when authenticated pages render
+- [x] T016 [P] [US4] Create `UserProfileMenu` component in `frontend/src/components/UserProfileMenu.tsx` — renders user avatar (with fallback placeholder SVG/icon if avatarUrl is null), shows display name tooltip on hover, opens dropdown on click with "Logout" option; uses `useUser()` hook for data
+- [x] T017 [P] [US4] Create CSS module `frontend/src/components/UserProfileMenu.module.css` — avatar circle style, hover tooltip, dropdown menu positioned below avatar, consistent with existing design tokens (colors, fonts, spacing from `styles/tokens.css`)
+- [x] T018 [US4] Replace logout button with `UserProfileMenu` in `frontend/src/components/panels/TopBar.tsx` — remove existing logout button, add `UserProfileMenu` in the same top-right position; pass `onLogout` handler to the dropdown's logout action
+- [x] T019 [US4] Add `UserProfileMenu` to Space selector page in `frontend/src/pages/SpaceSelector.tsx` — replace existing logout button with the same `UserProfileMenu` component for consistency across all authenticated pages
+- [x] T020 [US4] Ensure `UserProvider` triggers profile fetch after both SSO and manual login in `frontend/src/context/UserContext.tsx` — profile should load immediately after token is set (via either login method) so avatar is available when authenticated pages render
 
 **Checkpoint**: User profile visible on all authenticated pages with working logout dropdown.
 
@@ -103,10 +103,10 @@
 
 **Purpose**: Edge cases, error handling, and quality improvements across all stories
 
-- [ ] T021 Add cookie-parser middleware or manual cookie parsing to `server/src/app.ts` if not already present — required for SSO endpoint to read `ory_kratos_session` from request cookies
-- [ ] T022 Ensure `credentials: 'include'` is configured on the frontend SSO detection fetch call and that server CORS config (`server/src/app.ts`) allows credentials from the frontend origin
-- [ ] T023 Handle avatar loading failure gracefully in `frontend/src/components/UserProfileMenu.tsx` — if avatar image fails to load, fall back to placeholder (Constitution Principle V)
-- [ ] T024 Verify SSO detection works on localhost (cookies shared across ports) and document any same-domain deployment requirements in `server/.env.default` comments
+- [x] T021 Add cookie-parser middleware or manual cookie parsing to `server/src/app.ts` if not already present — required for SSO endpoint to read `ory_kratos_session` from request cookies
+- [x] T022 Ensure `credentials: 'include'` is configured on the frontend SSO detection fetch call and that server CORS config (`server/src/app.ts`) allows credentials from the frontend origin
+- [x] T023 Handle avatar loading failure gracefully in `frontend/src/components/UserProfileMenu.tsx` — if avatar image fails to load, fall back to placeholder (Constitution Principle V)
+- [x] T024 Verify SSO detection works on localhost (cookies shared across ports) and document any same-domain deployment requirements in `server/.env.default` comments
 
 ---
 
