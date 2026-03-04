@@ -1,5 +1,6 @@
 import { Request, Response } from 'express';
 import { resolveKratosPublicUrl } from './kratos-url.js';
+import { SSO_COOKIE_PREFIX } from './middleware.js';
 import { loadConfig } from '../config.js';
 import { getLogger } from '../logging/logger.js';
 import type { SsoDetectResponse } from '../types/api.js';
@@ -65,42 +66,17 @@ export async function ssoDetectHandler(req: Request, res: Response) {
         ? `${session.identity.traits.name.first} ${session.identity.traits.name.last}`
         : (session.identity?.traits?.email ?? 'Unknown');
 
+    // Prefer Kratos-issued token if available; otherwise use the session cookie
+    // with a prefix so the BFF can forward it as a cookie to the interactive
+    // GraphQL endpoint (the non-interactive endpoint doesn't support cookie auth).
+    const token = session.tokenized ?? session.session_token ?? `${SSO_COOKIE_PREFIX}${kratosSessionCookie}`;
+
     const response: SsoDetectResponse = {
       detected: true,
       displayName,
       avatarUrl: null,
-      token: session.tokenized ?? session.session_token ?? undefined,
+      token,
     };
-
-    if (!response.token) {
-      debug.push('WARNING: No token found in whoami response — testing cookie-based GraphQL auth');
-
-      // Test: try cookie auth against multiple Alkemio GraphQL endpoints
-      const config = loadConfig();
-      const baseUrl = config.alkemioServerUrl.replace(/\/$/, '');
-      const testQuery = '{ me { user { id nameID profile { displayName } } } }';
-      const endpoints = [
-        { label: 'private/non-interactive', url: config.alkemioGraphqlEndpoint },
-        { label: 'graphql (root)', url: `${baseUrl}/graphql` },
-        { label: 'api/private', url: `${baseUrl}/api/private/graphql` },
-      ];
-      for (const ep of endpoints) {
-        try {
-          const gqlRes = await fetch(ep.url, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              Cookie: `ory_kratos_session=${kratosSessionCookie}`,
-            },
-            body: JSON.stringify({ query: testQuery }),
-          });
-          const gqlBody = await gqlRes.text();
-          debug.push(`[${ep.label}] status: ${gqlRes.status}, body: ${gqlBody.slice(0, 300)}`);
-        } catch (gqlErr) {
-          debug.push(`[${ep.label}] failed: ${(gqlErr as Error).message}`);
-        }
-      }
-    }
 
     debug.push(`Session detected for: ${displayName}, has token: ${!!response.token}`);
     res.json({ ...response, _debug: debug });

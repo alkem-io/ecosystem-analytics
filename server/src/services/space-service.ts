@@ -1,6 +1,7 @@
 import { createAlkemioSdk } from '../graphql/client.js';
 import { getLogger } from '../logging/logger.js';
 import { getCacheEntry, setCacheEntry } from '../cache/cache-service.js';
+import type { AuthContext } from '../auth/middleware.js';
 import type { Sdk } from '../graphql/generated/graphql.js';
 import type { SpaceByNameQuery } from '../graphql/generated/alkemio-schema.js';
 import type { SpaceSelectionItem } from '../types/api.js';
@@ -11,8 +12,8 @@ const SPACES_CACHE_KEY = '__spaces__';
  * Fetches the user's L0 Space memberships from Alkemio.
  * Uses the codegen-generated mySpacesHierarchical query (TR-016).
  */
-export async function listUserSpaces(bearerToken: string): Promise<SpaceSelectionItem[]> {
-  const sdk = createAlkemioSdk(bearerToken);
+export async function listUserSpaces(auth: AuthContext): Promise<SpaceSelectionItem[]> {
+  const sdk = createAlkemioSdk(auth);
 
   const { data } = await sdk.mySpacesHierarchical();
   const currentUserId = data.me.user?.id;
@@ -51,14 +52,14 @@ export async function listUserSpaces(bearerToken: string): Promise<SpaceSelectio
 /**
  * Returns cached spaces list if available, otherwise fetches fresh.
  */
-export async function listUserSpacesCached(userId: string, bearerToken: string): Promise<SpaceSelectionItem[]> {
+export async function listUserSpacesCached(userId: string, auth: AuthContext): Promise<SpaceSelectionItem[]> {
   const cached = getCacheEntry(userId, SPACES_CACHE_KEY);
   if (cached) {
     getLogger().info(`Returning cached spaces for user ${userId}`, { context: 'Spaces' });
     return JSON.parse(cached.datasetJson);
   }
 
-  return listUserSpaces(bearerToken);
+  return listUserSpaces(auth);
 }
 
 /**
@@ -95,11 +96,11 @@ export async function fetchSpaceByName(sdk: Sdk, nameId: string) {
  * Used for graph expansion (US3).
  */
 export async function findRelatedSpaces(
-  bearerToken: string,
+  auth: AuthContext,
   entityId: string,
   currentSpaceIds: string[],
 ): Promise<SpaceSelectionItem[]> {
-  const allSpaces = await listUserSpaces(bearerToken);
+  const allSpaces = await listUserSpaces(auth);
   return allSpaces.filter((s) => !currentSpaceIds.includes(s.id));
 }
 

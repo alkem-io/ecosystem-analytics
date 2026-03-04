@@ -15,8 +15,8 @@ spacesRouter.get('/', async (req: Request, res: Response) => {
   try {
     const refresh = req.query.refresh === 'true';
     const spaces = refresh
-      ? await listUserSpaces(req.auth!.bearerToken)
-      : await listUserSpacesCached(req.auth!.userId!, req.auth!.bearerToken);
+      ? await listUserSpaces(req.auth!)
+      : await listUserSpacesCached(req.auth!.userId!, req.auth!);
     res.json(spaces);
   } catch (err) {
     logger.error(`Failed to list spaces: ${(err as Error).message}`, { context: 'Spaces' });
@@ -30,7 +30,7 @@ spacesRouter.get('/:entityId/related', async (req: Request, res: Response) => {
     const entityId = req.params.entityId as string;
     const raw = req.query.currentSpaceIds;
     const currentSpaceIds = (typeof raw === 'string' ? raw : '').split(',').filter(Boolean);
-    const related = await findRelatedSpaces(req.auth!.bearerToken, entityId, currentSpaceIds);
+    const related = await findRelatedSpaces(req.auth!, entityId, currentSpaceIds);
     res.json(related);
   } catch (err) {
     logger.error(`Failed to find related spaces: ${(err as Error).message}`, { context: 'Spaces' });
