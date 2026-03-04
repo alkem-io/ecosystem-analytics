@@ -75,23 +75,30 @@ export async function ssoDetectHandler(req: Request, res: Response) {
     if (!response.token) {
       debug.push('WARNING: No token found in whoami response — testing cookie-based GraphQL auth');
 
-      // Test: can we authenticate to Alkemio GraphQL by forwarding the Kratos cookie?
+      // Test: try cookie auth against multiple Alkemio GraphQL endpoints
       const config = loadConfig();
+      const baseUrl = config.alkemioServerUrl.replace(/\/$/, '');
       const testQuery = '{ me { user { id nameID profile { displayName } } } }';
-      try {
-        const gqlRes = await fetch(config.alkemioGraphqlEndpoint, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            Cookie: `ory_kratos_session=${kratosSessionCookie}`,
-          },
-          body: JSON.stringify({ query: testQuery }),
-        });
-        const gqlBody = await gqlRes.text();
-        debug.push(`GraphQL cookie-auth test status: ${gqlRes.status}`);
-        debug.push(`GraphQL cookie-auth test body: ${gqlBody.slice(0, 500)}`);
-      } catch (gqlErr) {
-        debug.push(`GraphQL cookie-auth test failed: ${(gqlErr as Error).message}`);
+      const endpoints = [
+        { label: 'private/non-interactive', url: config.alkemioGraphqlEndpoint },
+        { label: 'graphql (root)', url: `${baseUrl}/graphql` },
+        { label: 'api/private', url: `${baseUrl}/api/private/graphql` },
+      ];
+      for (const ep of endpoints) {
+        try {
+          const gqlRes = await fetch(ep.url, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              Cookie: `ory_kratos_session=${kratosSessionCookie}`,
+            },
+            body: JSON.stringify({ query: testQuery }),
+          });
+          const gqlBody = await gqlRes.text();
+          debug.push(`[${ep.label}] status: ${gqlRes.status}, body: ${gqlBody.slice(0, 300)}`);
+        } catch (gqlErr) {
+          debug.push(`[${ep.label}] failed: ${(gqlErr as Error).message}`);
+        }
       }
     }
 
