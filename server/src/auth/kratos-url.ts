@@ -20,10 +20,14 @@ export async function resolveKratosPublicUrl(): Promise<string> {
     return cachedKratosUrl;
   }
 
-  // 2. Dynamic discovery from Alkemio GraphQL configuration query
+  // 2. Dynamic discovery from Alkemio GraphQL configuration query.
+  //    Use the public GraphQL endpoint (derived from server_url) since the
+  //    platform configuration query doesn't require authentication.
   try {
+    const publicGraphqlUrl = `${config.alkemioServerUrl.replace(/\/$/, '')}/api/public/graphql`;
     const query = `{ platform { configuration { authentication { providers { config { kratosPublicBaseURL } } } } } }`;
-    const res = await fetch(config.alkemioGraphqlEndpoint, {
+    getLogger().debug(`Discovering Kratos URL from ${publicGraphqlUrl}`, { context: 'SSO' });
+    const res = await fetch(publicGraphqlUrl, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ query }),
