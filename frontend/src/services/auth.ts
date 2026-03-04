@@ -60,7 +60,13 @@ export async function detectSsoSession(): Promise<SsoDetectResult | null> {
     });
 
     if (!res.ok) return null;
-    return (await res.json()) as SsoDetectResult;
+    const data = (await res.json()) as SsoDetectResult & { _debug?: string[] };
+    if (data._debug) {
+      console.group('[SSO] Detection debug');
+      data._debug.forEach((msg) => console.log(msg));
+      console.groupEnd();
+    }
+    return data;
   } catch {
     return null;
   } finally {
