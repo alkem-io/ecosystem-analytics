@@ -1,5 +1,6 @@
 import { getLogger } from '../logging/logger.js';
 import { createAlkemioSdk } from '../graphql/client.js';
+import type { AuthContext } from '../auth/middleware.js';
 import { fetchSpaceByName, type RawSpace } from './space-service.js';
 import type { UsersByIDsQuery, OrganizationByIdQuery } from '../graphql/generated/alkemio-schema.js';
 
@@ -33,11 +34,11 @@ export interface AcquiredData {
  * All queries use the codegen-generated SDK (TR-016).
  */
 export async function acquireSpaces(
-  bearerToken: string,
+  auth: AuthContext,
   spaceNameIds: string[],
 ): Promise<AcquiredData> {
   const logger = getLogger();
-  const sdk = createAlkemioSdk(bearerToken);
+  const sdk = createAlkemioSdk(auth);
 
   const spacesL0: AcquiredData['spacesL0'] = [];
   const userIds = new Set<string>();

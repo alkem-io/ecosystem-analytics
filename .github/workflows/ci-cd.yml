@@ -2,9 +2,9 @@ name: CI/CD
 
 on:
   push:
-    branches: [main]
+    branches: [main, develop]
   pull_request:
-    branches: [main]
+    branches: [main, develop]
 
 # Required GitHub Secrets (org-level, shared with other Alkemio repos):
 #   REGISTRY_LOGIN_SERVER  - Scaleway Container Registry URL (e.g. rg.nl-ams.scw.cloud/alkemio)

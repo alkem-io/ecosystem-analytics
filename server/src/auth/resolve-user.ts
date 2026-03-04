@@ -14,7 +14,7 @@ export async function resolveUser(req: Request, res: Response, next: NextFunctio
   }
 
   try {
-    const sdk = createAlkemioSdk(req.auth.bearerToken);
+    const sdk = createAlkemioSdk(req.auth);
     const { data } = await sdk.me();
     const user = data.me.user;
 

@@ -1,4 +1,5 @@
 import { acquireSpaces } from './acquire-service.js';
+import type { AuthContext } from '../auth/middleware.js';
 import { transformToGraph, computeActivityTiers } from '../transform/transformer.js';
 import { computeMetrics } from '../transform/metrics.js';
 import { computeInsights } from '../transform/insights.js';
@@ -18,7 +19,7 @@ const progressMap = new Map<string, GraphProgress>();
  */
 export async function generateGraph(
   userId: string,
-  bearerToken: string,
+  auth: AuthContext,
   request: GraphGenerationRequest,
 ): Promise<GraphDataset> {
   const { spaceIds, forceRefresh } = request;
@@ -75,7 +76,7 @@ export async function generateGraph(
 
   if (spacesToFetch.length > 0) {
     logger.info(`Fetching ${spacesToFetch.length} space(s) from Alkemio: [${spacesToFetch.join(', ')}]`, { context: 'Graph' });
-    const acquired = await acquireSpaces(bearerToken, spacesToFetch);
+    const acquired = await acquireSpaces(auth, spacesToFetch);
 
     setProgress(userId, {
       step: 'transforming',
