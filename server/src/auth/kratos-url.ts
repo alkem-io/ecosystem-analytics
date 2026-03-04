@@ -46,7 +46,7 @@ export async function resolveKratosPublicUrl(): Promise<string> {
     const providers = json.data?.platform?.configuration?.authentication?.providers;
     const kratosUrl = providers?.[0]?.config?.kratosPublicBaseURL;
     if (kratosUrl) {
-      cachedKratosUrl = kratosUrl;
+      cachedKratosUrl = String(kratosUrl);
       getLogger().info(`Kratos URL discovered: ${cachedKratosUrl}`, { context: 'SSO' });
       return cachedKratosUrl;
     }
