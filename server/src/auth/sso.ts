@@ -1,5 +1,6 @@
 import { Request, Response } from 'express';
 import { resolveKratosPublicUrl } from './kratos-url.js';
+import { loadConfig } from '../config.js';
 import { getLogger } from '../logging/logger.js';
 import type { SsoDetectResponse } from '../types/api.js';
 
@@ -78,7 +79,17 @@ export async function ssoDetectHandler(req: Request, res: Response) {
     debug.push(`Session detected for: ${displayName}, has token: ${!!response.token}`);
     res.json({ ...response, _debug: debug });
   } catch (err) {
-    res.json({ ...noSession, _debug: [`Detection failed: ${(err as Error).message}`] });
+    const config = loadConfig();
+    const envDebug = [
+      `Detection failed: ${(err as Error).message}`,
+      `--- Environment ---`,
+      `ALKEMIO_SERVER_URL: ${config.alkemioServerUrl || '(empty)'}`,
+      `ALKEMIO_GRAPHQL_ENDPOINT: ${config.alkemioGraphqlEndpoint || '(empty)'}`,
+      `ALKEMIO_KRATOS_PUBLIC_URL: ${config.alkemioKratosPublicUrl || '(empty)'}`,
+      `alkemioKratosPublicUrl type: ${typeof config.alkemioKratosPublicUrl}`,
+      `alkemioServerUrl type: ${typeof config.alkemioServerUrl}`,
+    ];
+    res.json({ ...noSession, _debug: envDebug });
   }
 }
 
