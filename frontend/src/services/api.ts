@@ -1,7 +1,7 @@
 import { getToken, clearToken } from './auth.js';
 import type { ApiError } from '@server/types/api.js';
 
-const API_BASE = import.meta.env.VITE_API_URL || '';
+const API_BASE = import.meta.env.VITE_ECOSYSTEM_ANALYTICS_BACKEND_URL || '';
 
 /**
  * Base fetch wrapper that attaches the bearer token and handles 401 responses.

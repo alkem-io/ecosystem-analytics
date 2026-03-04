@@ -3,6 +3,7 @@ import { useState, useCallback } from 'react';
 import LoginPage from './pages/LoginPage.js';
 import SpaceSelector from './pages/SpaceSelector.js';
 import Explorer from './pages/Explorer.js';
+import { UserProvider } from './context/UserContext.js';
 import { isAuthenticated, clearToken } from './services/auth.js';
 
 export default function App() {
@@ -18,11 +19,27 @@ export default function App() {
       <Route path="/" element={authed ? <Navigate to="/spaces" replace /> : <LoginPage onLogin={() => setAuthed(true)} />} />
       <Route
         path="/spaces"
-        element={authed ? <SpaceSelector onLogout={handleLogout} /> : <Navigate to="/" replace />}
+        element={
+          authed ? (
+            <UserProvider>
+              <SpaceSelector onLogout={handleLogout} />
+            </UserProvider>
+          ) : (
+            <Navigate to="/" replace />
+          )
+        }
       />
       <Route
         path="/explorer"
-        element={authed ? <Explorer onLogout={handleLogout} /> : <Navigate to="/" replace />}
+        element={
+          authed ? (
+            <UserProvider>
+              <Explorer onLogout={handleLogout} />
+            </UserProvider>
+          ) : (
+            <Navigate to="/" replace />
+          )
+        }
       />
     </Routes>
   );
