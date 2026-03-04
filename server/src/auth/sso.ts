@@ -1,5 +1,6 @@
 import { Request, Response } from 'express';
 import { resolveKratosPublicUrl } from './kratos-url.js';
+import { SSO_COOKIE_PREFIX } from './middleware.js';
 import { loadConfig } from '../config.js';
 import { getLogger } from '../logging/logger.js';
 import type { SsoDetectResponse } from '../types/api.js';
@@ -31,7 +32,7 @@ export async function ssoDetectHandler(req: Request, res: Response) {
   }
 
   try {
-    const kratosUrl = await resolveKratosPublicUrl();
+    const kratosUrl = resolveKratosPublicUrl();
     const whoamiUrl = `${kratosUrl.replace(/\/$/, '')}/sessions/whoami`;
 
     const debug: string[] = [];
@@ -65,16 +66,17 @@ export async function ssoDetectHandler(req: Request, res: Response) {
         ? `${session.identity.traits.name.first} ${session.identity.traits.name.last}`
         : (session.identity?.traits?.email ?? 'Unknown');
 
+    // Prefer Kratos-issued token if available; otherwise use the session cookie
+    // with a prefix so the BFF can forward it as a cookie to the interactive
+    // GraphQL endpoint (the non-interactive endpoint doesn't support cookie auth).
+    const token = session.tokenized ?? session.session_token ?? `${SSO_COOKIE_PREFIX}${kratosSessionCookie}`;
+
     const response: SsoDetectResponse = {
       detected: true,
       displayName,
       avatarUrl: null,
-      token: session.tokenized ?? session.session_token ?? undefined,
+      token,
     };
-
-    if (!response.token) {
-      debug.push('WARNING: No token found in whoami response');
-    }
 
     debug.push(`Session detected for: ${displayName}, has token: ${!!response.token}`);
     res.json({ ...response, _debug: debug });

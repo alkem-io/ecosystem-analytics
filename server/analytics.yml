@@ -4,7 +4,7 @@
 alkemio:
   server_url: ${ALKEMIO_SERVER_URL}:https://alkem.io
   graphql_endpoint: ${ALKEMIO_GRAPHQL_ENDPOINT}:https://alkem.io/api/private/non-interactive/graphql
-  kratos_public_url: "${ALKEMIO_KRATOS_PUBLIC_URL}:"
+  kratos_public_url: ${ALKEMIO_KRATOS_PUBLIC_URL}
 
 server:
   port: ${ECOSYSTEM_ANALYTICS_BACKEND_PORT}:4000

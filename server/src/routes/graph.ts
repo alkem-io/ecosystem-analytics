@@ -32,7 +32,7 @@ graphRouter.post('/generate', async (req: Request, res: Response) => {
       return;
     }
 
-    const dataset = await generateGraph(req.auth!.userId!, req.auth!.bearerToken, body);
+    const dataset = await generateGraph(req.auth!.userId!, req.auth!, body);
     res.json(dataset);
   } catch (err) {
     logger.error(`Graph generation failed: ${(err as Error).message}`, { context: 'Graph' });
@@ -60,7 +60,7 @@ graphRouter.post('/expand', async (req: Request, res: Response) => {
       return;
     }
 
-    const dataset = await generateGraph(req.auth!.userId!, req.auth!.bearerToken, {
+    const dataset = await generateGraph(req.auth!.userId!, req.auth!, {
       spaceIds: allSpaceIds,
     });
     res.json(dataset);
@@ -80,7 +80,7 @@ graphRouter.post('/export', async (req: Request, res: Response) => {
       return;
     }
 
-    const dataset = await generateGraph(req.auth!.userId!, req.auth!.bearerToken, {
+    const dataset = await generateGraph(req.auth!.userId!, req.auth!, {
       spaceIds: body.spaceIds,
     });
 
