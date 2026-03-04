@@ -27,9 +27,12 @@ export interface UserProfile {
   avatarUrl: string | null;
 }
 
-/** SSO config response — Kratos whoami URL for frontend-side detection */
-export interface SsoConfigResponse {
-  whoamiUrl: string;
+/** SSO session detection response */
+export interface SsoDetectResponse {
+  detected: boolean;
+  displayName?: string;
+  avatarUrl?: string | null;
+  token?: string;
 }
 
 /** API error response */
