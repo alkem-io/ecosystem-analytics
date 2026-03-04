@@ -10,7 +10,7 @@ Ecosystem Analytics is a BFF + React SPA for visualizing Alkemio ecosystem conne
 
 ```
 frontend/   React 19 + Vite 7 + D3.js v7 SPA (port 5173)
-server/     Express 5 BFF — Kratos auth, GraphQL relay, SQLite cache (port 4010)
+server/     Express 5 BFF — Kratos auth, GraphQL relay, SQLite cache (port 4000)
 ```
 
 - Frontend communicates **exclusively** with the BFF (never directly with Alkemio)
@@ -48,7 +48,7 @@ server/     Express 5 BFF — Kratos auth, GraphQL relay, SQLite cache (port 401
 ### Server (`cd server`)
 
 ```bash
-pnpm run dev          # Watch mode (tsx watch, port 4010)
+pnpm run dev          # Watch mode (tsx watch, port 4000)
 pnpm run build        # TypeScript compilation → dist/
 pnpm run test         # Vitest run
 pnpm run test:watch   # Vitest watch
@@ -58,7 +58,7 @@ pnpm run codegen      # Regenerate typed GraphQL SDK from Alkemio schema
 ### Frontend (`cd frontend`)
 
 ```bash
-pnpm run dev          # Vite dev server (port 5173, proxies /api → :4010)
+pnpm run dev          # Vite dev server (port 5173, proxies /api → :4000)
 pnpm run build        # tsc check + Vite build → dist/
 pnpm run test         # Vitest run
 pnpm run test:watch   # Vitest watch
@@ -75,7 +75,7 @@ pnpm run test:visual:update  # Update snapshots
 
 ```bash
 docker build -t ecosystem-analytics .
-docker run -p 4000:4010 --env-file server/.env ecosystem-analytics
+docker run -p 4000:4000 --env-file server/.env ecosystem-analytics
 ```
 
 ## Configuration

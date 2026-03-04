@@ -7,7 +7,7 @@ alkemio:
   kratos_public_url: ${ALKEMIO_KRATOS_PUBLIC_URL}:
 
 server:
-  port: ${ECOSYSTEM_ANALYTICS_BACKEND_PORT}:4010
+  port: ${ECOSYSTEM_ANALYTICS_BACKEND_PORT}:4000
 
 logging:
   level: ${LOG_LEVEL}:info
