@@ -32,3 +32,36 @@ export function clearToken(): void {
 export function isAuthenticated(): boolean {
   return getToken() !== null;
 }
+
+/** SSO detection response from the BFF */
+export interface SsoDetectResult {
+  detected: boolean;
+  displayName?: string;
+  avatarUrl?: string | null;
+  token?: string;
+}
+
+/**
+ * Detect an existing Alkemio/Kratos browser session by calling the BFF.
+ * The browser sends cookies automatically via `credentials: 'include'`.
+ * Returns null if detection fails or times out (2 seconds).
+ */
+export async function detectSsoSession(): Promise<SsoDetectResult | null> {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 2000);
+
+  try {
+    const res = await fetch('/api/auth/sso/detect', {
+      method: 'POST',
+      credentials: 'include',
+      signal: controller.signal,
+    });
+
+    if (!res.ok) return null;
+    return (await res.json()) as SsoDetectResult;
+  } catch {
+    return null;
+  } finally {
+    clearTimeout(timeout);
+  }
+}

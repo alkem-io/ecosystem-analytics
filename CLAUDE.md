@@ -10,7 +10,7 @@ Ecosystem Analytics is a BFF + React SPA for visualizing Alkemio ecosystem conne
 
 ```
 frontend/   React 19 + Vite 7 + D3.js v7 SPA (port 5173)
-server/     Express 5 BFF — Kratos auth, GraphQL relay, SQLite cache (port 4000)
+server/     Express 5 BFF — Kratos auth, GraphQL relay, SQLite cache (port 4010)
 ```
 
 - Frontend communicates **exclusively** with the BFF (never directly with Alkemio)
@@ -48,7 +48,7 @@ server/     Express 5 BFF — Kratos auth, GraphQL relay, SQLite cache (port 400
 ### Server (`cd server`)
 
 ```bash
-pnpm run dev          # Watch mode (tsx watch, port 4000)
+pnpm run dev          # Watch mode (tsx watch, port 4010)
 pnpm run build        # TypeScript compilation → dist/
 pnpm run test         # Vitest run
 pnpm run test:watch   # Vitest watch
@@ -58,7 +58,7 @@ pnpm run codegen      # Regenerate typed GraphQL SDK from Alkemio schema
 ### Frontend (`cd frontend`)
 
 ```bash
-pnpm run dev          # Vite dev server (port 5173, proxies /api → :4000)
+pnpm run dev          # Vite dev server (port 5173, proxies /api → :4010)
 pnpm run build        # tsc check + Vite build → dist/
 pnpm run test         # Vitest run
 pnpm run test:watch   # Vitest watch
@@ -75,7 +75,7 @@ pnpm run test:visual:update  # Update snapshots
 
 ```bash
 docker build -t ecosystem-analytics .
-docker run -p 4000:4000 --env-file server/.env ecosystem-analytics
+docker run -p 4000:4010 --env-file server/.env ecosystem-analytics
 ```
 
 ## Configuration
@@ -111,6 +111,8 @@ Feature specifications live in `specs/NNN-feature-name/` with `spec.md`, `tasks.
 ## Active Technologies
 - YAML (GitHub Actions, Kubernetes manifests), HCL (Terraform), existing TypeScript/Node 20 app unchanged + GitHub Actions (`docker/build-push-action@v6`, `docker/metadata-action@v5`, `docker/login-action@v3`, `azure/k8s-set-context@v4`), Traefik CRDs (`traefik.containo.us/v1alpha1`), Azure DNS (`azurerm` Terraform provider) (005-k8s-deploy-cicd)
 - N/A (no storage changes; existing SQLite cache runs inside container) (005-k8s-deploy-cicd)
+- TypeScript 5.x (strict mode, ESM) + React 19, Vite 7, Express 5, `@alkemio/client-lib`, `graphql-request`, D3.js v7 (010-sso-session-reuse)
+- SQLite (existing cache, no changes needed) (010-sso-session-reuse)
 
 ## Recent Changes
 - 005-k8s-deploy-cicd: Added YAML (GitHub Actions, Kubernetes manifests), HCL (Terraform), existing TypeScript/Node 20 app unchanged + GitHub Actions (`docker/build-push-action@v6`, `docker/metadata-action@v5`, `docker/login-action@v3`, `azure/k8s-set-context@v4`), Traefik CRDs (`traefik.containo.us/v1alpha1`), Azure DNS (`azurerm` Terraform provider)

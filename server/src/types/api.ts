@@ -27,6 +27,14 @@ export interface UserProfile {
   avatarUrl: string | null;
 }
 
+/** SSO session detection response */
+export interface SsoDetectResponse {
+  detected: boolean;
+  displayName?: string;
+  avatarUrl?: string | null;
+  token?: string;
+}
+
 /** API error response */
 export interface ApiError {
   error: string;

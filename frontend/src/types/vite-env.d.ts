@@ -3,7 +3,7 @@
 declare const __APP_VERSION__: string;
 
 interface ImportMetaEnv {
-  readonly VITE_API_URL: string;
+  readonly VITE_ECOSYSTEM_ANALYTICS_BACKEND_URL: string;
 }
 
 interface ImportMeta {
