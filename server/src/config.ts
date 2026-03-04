@@ -94,7 +94,7 @@ export function loadConfig(): ServerConfig {
   cachedConfig = {
     alkemioServerUrl: String(yml.alkemio.server_url),
     alkemioGraphqlEndpoint: String(yml.alkemio.graphql_endpoint),
-    alkemioKratosPublicUrl: yml.alkemio.kratos_public_url ? String(yml.alkemio.kratos_public_url) : '',
+    alkemioKratosPublicUrl: String(yml.alkemio.kratos_public_url),
     port: yml.server.port,
     logging: {
       level: yml.logging.level,

@@ -31,7 +31,7 @@ export async function ssoDetectHandler(req: Request, res: Response) {
   }
 
   try {
-    const kratosUrl = await resolveKratosPublicUrl();
+    const kratosUrl = resolveKratosPublicUrl();
     const whoamiUrl = `${kratosUrl.replace(/\/$/, '')}/sessions/whoami`;
 
     const debug: string[] = [];
