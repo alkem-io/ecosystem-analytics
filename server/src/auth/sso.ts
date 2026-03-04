@@ -33,19 +33,31 @@ export async function ssoDetectHandler(req: Request, res: Response) {
     const kratosUrl = await resolveKratosPublicUrl();
     const whoamiUrl = `${kratosUrl.replace(/\/$/, '')}/sessions/whoami`;
 
+    const debug: string[] = [];
+    debug.push(`Calling Kratos whoami at: ${whoamiUrl}`);
+    debug.push(`Cookie value (first 20 chars): ${kratosSessionCookie.slice(0, 20)}...`);
+
     const whoamiRes = await fetch(whoamiUrl, {
       headers: {
         Cookie: `ory_kratos_session=${kratosSessionCookie}`,
       },
     });
 
+    debug.push(`Kratos whoami response status: ${whoamiRes.status}`);
+
     if (!whoamiRes.ok) {
-      getLogger().debug('Kratos whoami returned non-OK status', { context: 'SSO' });
-      res.json(noSession);
+      const body = await whoamiRes.text();
+      debug.push(`Kratos whoami error body: ${body.slice(0, 500)}`);
+      res.json({ ...noSession, _debug: debug });
       return;
     }
 
     const session = (await whoamiRes.json()) as KratosWhoamiResponse;
+    debug.push(`Whoami response keys: ${Object.keys(session).join(', ')}`);
+    debug.push(`Session active: ${session.active}`);
+    debug.push(`Has tokenized: ${!!session.tokenized}`);
+    debug.push(`Has session_token: ${!!session.session_token}`);
+    debug.push(`Identity email: ${session.identity?.traits?.email}`);
 
     const displayName =
       session.identity?.traits?.name?.first && session.identity?.traits?.name?.last
@@ -60,16 +72,13 @@ export async function ssoDetectHandler(req: Request, res: Response) {
     };
 
     if (!response.token) {
-      getLogger().warn('No session_token in whoami response; SSO token forwarding may not work', {
-        context: 'SSO',
-      });
+      debug.push('WARNING: No token found in whoami response');
     }
 
-    getLogger().info(`SSO session detected for: ${displayName}`, { context: 'SSO' });
-    res.json(response);
+    debug.push(`Session detected for: ${displayName}, has token: ${!!response.token}`);
+    res.json({ ...response, _debug: debug });
   } catch (err) {
-    getLogger().error(`SSO detection failed: ${(err as Error).message}`, { context: 'SSO' });
-    res.json(noSession);
+    res.json({ ...noSession, _debug: [`Detection failed: ${(err as Error).message}`] });
   }
 }
 
