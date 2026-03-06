@@ -26,8 +26,8 @@ interface TemporalScrubberProps {
   onSpeedChange: (speed: number) => void;
 }
 
-const STEP_MS = 86_400_000; // 1 day
-const SPEEDS = [1, 2, 5, 10];
+const STEP_MS = 17_280_000; // ~0.2 days — tuned so 1× feels comfortable
+const SPEEDS = [0.5, 1, 2, 3, 5];
 
 export default function TemporalScrubber({
   minDate,
@@ -43,21 +43,25 @@ export default function TemporalScrubber({
   const currentDateRef = useRef(currentDate);
   currentDateRef.current = currentDate;
 
-  // Auto-advance via d3.timer
+  // Auto-advance via d3.timer with proper delta-time tracking
   useEffect(() => {
     if (playing) {
-      const baseStep = STEP_MS * speed; // ms per frame ≈ speed days per ~16ms
+      let lastElapsed = 0;
       timerRef.current = d3.timer((elapsed) => {
+        const dt = elapsed - lastElapsed;
+        lastElapsed = elapsed;
+        // At speed=1, advance ~0.2 days per frame (60 fps → traverse ~6 years in ~3 min)
+        const advance = STEP_MS * speed * (dt / 16);
         const cur = currentDateRef.current ?? minDate;
-        const next = new Date(cur.getTime() + baseStep * (elapsed > 100 ? 0.016 : elapsed / 1000));
-        if (next.getTime() >= maxDate.getTime()) {
+        const nextMs = cur.getTime() + advance;
+        if (nextMs >= maxDate.getTime()) {
           onDateChange(maxDate);
           onPlayingChange(false);
           timerRef.current?.stop();
           return;
         }
-        onDateChange(next);
-      }, 50);
+        onDateChange(new Date(nextMs));
+      });
     }
     return () => {
       timerRef.current?.stop();

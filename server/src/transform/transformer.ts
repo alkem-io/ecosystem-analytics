@@ -18,7 +18,7 @@ import {
 interface SpaceLike {
   id: string;
   nameID: string;
-  createdDate?: string;
+  createdDate?: Date | string;
   visibility?: string;
   about: {
     isContentPublic?: boolean;
@@ -154,10 +154,26 @@ export function transformToGraph(data: AcquiredData): TransformResult {
         spaceNodeMap.set(n.id, n);
       }
     }
+
+    // Build descendant-space map: for each space, collect all child/grandchild space IDs.
+    // This allows us to find subspace join events when estimating the L0 edge date.
+    const descendantMap = new Map<string, Set<string>>();
+    for (const [id, node] of spaceNodeMap) {
+      if (!node.parentSpaceId) continue;
+      // Walk up the parent chain and add this space as a descendant at each level
+      let parentId: string | null = node.parentSpaceId;
+      while (parentId) {
+        if (!descendantMap.has(parentId)) descendantMap.set(parentId, new Set());
+        descendantMap.get(parentId)!.add(id);
+        const parentNode = spaceNodeMap.get(parentId);
+        parentId = parentNode?.parentSpaceId ?? null;
+      }
+    }
+
     for (const edge of edges) {
       // Only estimate for user→space relationship edges
       if (edge.type !== EdgeType.MEMBER && edge.type !== EdgeType.LEAD && edge.type !== EdgeType.ADMIN) continue;
-      const estimated = estimateEdgeCreatedDate(edge, data.activityEntries, spaceNodeMap);
+      const estimated = estimateEdgeCreatedDate(edge, data.activityEntries, spaceNodeMap, descendantMap);
       if (estimated) edge.createdDate = estimated;
     }
   }
@@ -209,7 +225,7 @@ function addSpaceNode(
     tagline: profile.tagline || null,
     parentSpaceId,
     privacyMode: space.about.isContentPublic !== false ? 'PUBLIC' : 'PRIVATE',
-    createdDate: space.createdDate || undefined,
+    createdDate: toISOString(space.createdDate),
     visibility: parseVisibility(space.visibility),
     tags: extractTags(profile.tagsets),
   });
@@ -292,8 +308,8 @@ function ensureUserNode(
     tagline: null,
     parentSpaceId: null,
     privacyMode: null,
-    createdDate: (user as Record<string, unknown> | undefined)?.createdDate as string | undefined,
-    tags: extractTags((user?.profile as Record<string, unknown> | undefined)?.tagsets as SpaceLike['about']['profile']['tagsets']),
+    createdDate: toISOString(user?.createdDate),
+    tags: extractTags(user?.profile?.tagsets),
   });
 }
 
@@ -330,7 +346,7 @@ function ensureOrgNode(
     tagline: null,
     parentSpaceId: null,
     privacyMode: null,
-    tags: extractTags((org?.profile as Record<string, unknown> | undefined)?.tagsets as SpaceLike['about']['profile']['tagsets']),
+    tags: extractTags(org?.profile?.tagsets),
   });
 }
 
@@ -516,6 +532,17 @@ function createEdge(
 // ---------------------------------------------------------------------------
 
 /**
+ * Safely convert a Date or ISO string to an ISO date string.
+ * Returns undefined if the value is falsy or invalid.
+ */
+function toISOString(value: Date | string | null | undefined): string | undefined {
+  if (!value) return undefined;
+  if (value instanceof Date) return value.toISOString();
+  if (typeof value === 'string' && value.length > 0) return value;
+  return undefined;
+}
+
+/**
  * Parse a visibility string from Alkemio into the typed union.
  * Returns undefined if the value is missing or unrecognised.
  */
@@ -607,33 +634,63 @@ export function buildTimeSeries(
 
 /**
  * Estimate when a user→space edge was created (T013).
- * Priority: 1) earliest activity date for this (user, space) pair,
- *           2) target space's createdDate,
- *           3) undefined.
+ * Priority: 1) MEMBER_JOINED activity event for this (user, space) pair,
+ *           2) MEMBER_JOINED event for a subspace of this space (user joined a child first),
+ *           3) earliest contribution activity for this (user, space) pair,
+ *           4) undefined — no reliable date available.
  *
- * Application.createdDate would be priority 1 per spec, but it is not
- * available in the current GraphQL schema data set — we use the next
- * best heuristic.
+ * NOTE: We intentionally do NOT fall back to the space's createdDate.
+ * Assigning all undated members to the space creation date causes them to
+ * appear in a single burst at the start of the temporal animation.
+ * Instead, edges without dates are left undefined so the frontend can
+ * distribute them more naturally.
  */
 export function estimateEdgeCreatedDate(
   edge: GraphEdge,
   activityEntries: RawActivityEntry[],
-  spaceNodeMap: Map<string, GraphNode>,
+  _spaceNodeMap: Map<string, GraphNode>,
+  descendantMap: Map<string, Set<string>>,
 ): string | undefined {
-  // Priority 1: earliest activity entry for this (user, space) pair
-  let earliest: Date | undefined;
+  let joinDate: Date | undefined;
+  let subspaceJoinDate: Date | undefined;
+  let earliestActivity: Date | undefined;
+
+  const descendants = descendantMap.get(edge.targetId);
+
   for (const entry of activityEntries) {
-    if (entry.triggeredBy.id !== edge.sourceId) continue;
-    if (entry.space?.id !== edge.targetId) continue;
-    const d = new Date(entry.createdDate);
-    if (!earliest || d < earliest) earliest = d;
+    if (entry.type === 'MEMBER_JOINED') {
+      // For MEMBER_JOINED: match on contributor (the actual member) rather than
+      // triggeredBy (which may be the admin who added them)
+      const memberId = entry.contributor?.id ?? entry.triggeredBy.id;
+      if (memberId !== edge.sourceId) continue;
+      const d = new Date(entry.createdDate);
+
+      if (entry.space?.id === edge.targetId) {
+        // Direct join to this space
+        if (!joinDate || d < joinDate) joinDate = d;
+      } else if (entry.space?.id && descendants?.has(entry.space.id)) {
+        // Joined a subspace of this space — use as fallback
+        if (!subspaceJoinDate || d < subspaceJoinDate) subspaceJoinDate = d;
+      }
+    } else {
+      // For other activity types: match on triggeredBy (the user who performed the action)
+      if (entry.triggeredBy.id !== edge.sourceId) continue;
+      if (entry.space?.id !== edge.targetId) continue;
+      const d = new Date(entry.createdDate);
+      if (!earliestActivity || d < earliestActivity) earliestActivity = d;
+    }
   }
-  if (earliest) return earliest.toISOString();
 
-  // Priority 2: target space's createdDate
-  const spaceNode = spaceNodeMap.get(edge.targetId);
-  if (spaceNode?.createdDate) return spaceNode.createdDate;
+  // Priority 1: MEMBER_JOINED event for this exact space
+  if (joinDate) return joinDate.toISOString();
 
+  // Priority 2: MEMBER_JOINED event in a child/grandchild space
+  if (subspaceJoinDate) return subspaceJoinDate.toISOString();
+
+  // Priority 3: earliest contribution activity
+  if (earliestActivity) return earliestActivity.toISOString();
+
+  // No reliable date available — leave undefined
   return undefined;
 }
 

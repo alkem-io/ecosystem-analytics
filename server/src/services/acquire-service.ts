@@ -16,6 +16,10 @@ export interface RawActivityEntry {
   createdDate: Date;
   triggeredBy: { id: string };
   space?: { id: string };
+  /** For MEMBER_JOINED events: the actual contributor who joined (may differ from triggeredBy if an admin added them) */
+  contributor?: { id: string };
+  /** For MEMBER_JOINED events: whether the contributor is a user or organization */
+  contributorType?: string;
 }
 
 /** Complete acquired data for a set of spaces */
@@ -64,7 +68,7 @@ export async function acquireSpaces(
 
   logger.info(`Acquired ${spacesL0.length} space(s), found ${userIds.size} users and ${orgIds.size} organizations`, { context: 'Acquire' });
 
-  // Contribution event types to track (excludes MEMBER_JOINED, SUBSPACE_CREATED, CALLOUT_PUBLISHED)
+  // Activity event types to track — contributions only (excludes MEMBER_JOINED, SUBSPACE_CREATED, CALLOUT_PUBLISHED)
   const CONTRIBUTION_EVENT_TYPES: string[] = [
     'CALLOUT_POST_CREATED',
     'CALLOUT_POST_COMMENT',
@@ -80,7 +84,7 @@ export async function acquireSpaces(
   // Run user fetch, org fetch, and activity fetch in parallel
   const allSpaceIds = spacesL0.map((s) => s.space.id);
 
-  const [usersResult, orgsResult, activityResult] = await Promise.allSettled([
+  const [usersResult, orgsResult, activityResult, memberJoinedResult] = await Promise.allSettled([
     // Batch-fetch user profiles
     (async () => {
       const users = new Map<string, RawUser>();
@@ -109,7 +113,7 @@ export async function acquireSpaces(
       return organizations;
     })(),
 
-    // Fetch activity data
+    // Fetch contribution activity data
     (async () => {
       if (allSpaceIds.length === 0) return undefined;
       const { data } = await sdk.ActivityFeedGrouped({
@@ -117,6 +121,20 @@ export async function acquireSpaces(
           spaceIds: allSpaceIds,
           limit: 5000,
           types: CONTRIBUTION_EVENT_TYPES as any,
+        },
+      });
+      return data.activityFeedGrouped as RawActivityEntry[];
+    })(),
+
+    // Fetch MEMBER_JOINED events separately with its own limit
+    // so join events aren't crowded out by contribution events
+    (async () => {
+      if (allSpaceIds.length === 0) return undefined;
+      const { data } = await sdk.ActivityFeedGrouped({
+        args: {
+          spaceIds: allSpaceIds,
+          limit: 5000,
+          types: ['MEMBER_JOINED'] as any,
         },
       });
       return data.activityFeedGrouped as RawActivityEntry[];
@@ -134,12 +152,22 @@ export async function acquireSpaces(
   }
 
   let activityEntries: RawActivityEntry[] | undefined;
-  if (activityResult.status === 'fulfilled') {
-    activityEntries = activityResult.value;
-    logger.info(`Fetched ${activityEntries?.length ?? 0} activity entries for ${allSpaceIds.length} space(s)`, { context: 'Acquire' });
+  const contributions = activityResult.status === 'fulfilled' ? activityResult.value : undefined;
+  const joinEvents = memberJoinedResult.status === 'fulfilled' ? memberJoinedResult.value : undefined;
+
+  if (contributions || joinEvents) {
+    activityEntries = [...(contributions ?? []), ...(joinEvents ?? [])];
+    const joinCount = joinEvents?.length ?? 0;
+    const contribCount = contributions?.length ?? 0;
+    logger.info(`Fetched ${contribCount} contribution + ${joinCount} MEMBER_JOINED = ${activityEntries.length} total activity entries for ${allSpaceIds.length} space(s)`, { context: 'Acquire' });
   } else {
     activityEntries = undefined;
-    logger.warn(`Failed to fetch activity data, pulse will be unavailable: ${(activityResult.reason as Error).message}`, { context: 'Acquire' });
+    if (activityResult.status === 'rejected') {
+      logger.warn(`Failed to fetch activity data, pulse will be unavailable: ${(activityResult.reason as Error).message}`, { context: 'Acquire' });
+    }
+    if (memberJoinedResult.status === 'rejected') {
+      logger.warn(`Failed to fetch MEMBER_JOINED events: ${(memberJoinedResult.reason as Error).message}`, { context: 'Acquire' });
+    }
   }
 
   return { spacesL0, users, organizations, activityEntries };
