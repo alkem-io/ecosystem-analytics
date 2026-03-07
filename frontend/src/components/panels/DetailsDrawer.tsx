@@ -137,8 +137,10 @@ export default function DetailsDrawer({ node, dataset, onClose, onExpandSpace, o
           <div>
             <h2 className={styles.name}>{node.displayName || 'Unknown'}</h2>
             <span className={styles.typeBadge}>{node.type.replace('_', ' ')}</span>
-            {node.privacyMode === 'PRIVATE' && (
-              <span className={styles.typeBadge} style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>🔒 Private</span>
+            {(node.privacyMode === 'PRIVATE' || node.restricted) && (
+              <span className={styles.typeBadge} style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
+                🔒 {node.restricted ? 'Restricted' : 'Private'}
+              </span>
             )}
           </div>
         </div>
@@ -150,6 +152,12 @@ export default function DetailsDrawer({ node, dataset, onClose, onExpandSpace, o
       </div>
 
       {node.tagline && <p className={styles.tagline}>{node.tagline}</p>}
+
+      {node.restricted && (
+        <p className={styles.restrictedNotice}>
+          You do not have access to view the full contents of this space.
+        </p>
+      )}
 
       {/* Organization enriched profile — shown in both preview and full modes */}
       {node.type === 'ORGANIZATION' && (
@@ -215,7 +223,7 @@ export default function DetailsDrawer({ node, dataset, onClose, onExpandSpace, o
         </>
       )}
 
-      <div className={styles.stats}>
+      {!node.restricted && <div className={styles.stats}>
         <div className={styles.stat}>
           <span className={styles.statValue}>{directConnections.length}</span>
           <span className={styles.statLabel}>Connections</span>
@@ -244,7 +252,7 @@ export default function DetailsDrawer({ node, dataset, onClose, onExpandSpace, o
             <span className={styles.statLabel}>Contributions{activityPeriod !== 'allTime' ? ` (${activityPeriod === 'day' ? 'day' : activityPeriod === 'week' ? 'week' : 'month'})` : ''}</span>
           </div>
         )}
-      </div>
+      </div>}
 
       {/* Location & Open in Alkemio — always visible above connections */}
       {!isPreview && (
@@ -273,7 +281,7 @@ export default function DetailsDrawer({ node, dataset, onClose, onExpandSpace, o
       )}
 
       {/* Direct Connections list */}
-      {!isPreview && sortedConnections.length > 0 && (
+      {!isPreview && !node.restricted && sortedConnections.length > 0 && (
         <div className={styles.connectionsSection}>
           <h3 className={styles.connectionsHeading}>Direct Connections</h3>
           <div className={styles.connectionsList}>
@@ -303,7 +311,7 @@ export default function DetailsDrawer({ node, dataset, onClose, onExpandSpace, o
       )}
 
       {/* Related Spaces — US3 expansion (users/orgs only) */}
-      {!isPreview && (node.type === 'USER' || node.type === 'ORGANIZATION') && (
+      {!isPreview && !node.restricted && (node.type === 'USER' || node.type === 'ORGANIZATION') && (
         <div className={styles.relatedSection}>
           <h3 className={styles.relatedHeading}>Related Spaces</h3>
           {loadingRelated && <p className={styles.relatedLoading}>Loading...</p>}

@@ -106,6 +106,8 @@ export interface GraphNode {
   parentSpaceId: string | null;
   /** Privacy mode for space nodes; null for non-space types (USER, ORGANIZATION) */
   privacyMode: 'PUBLIC' | 'PRIVATE' | null;
+  /** true when user has READ_ABOUT but not READ privilege on this space */
+  restricted?: boolean;
   /** ISO 8601 timestamp when the node entity was created on Alkemio */
   createdDate?: string;
   /** Space visibility — ACTIVE, ARCHIVED, or DEMO (spaces only) */
@@ -190,4 +192,6 @@ export interface GraphDataset {
   hasActivityData?: boolean;
   /** Weekly activity time series per space (for Timeline view) */
   timeSeries?: SpaceTimeSeries[];
+  /** Non-fatal errors encountered during graph generation (logged server-side, surfaced to frontend) */
+  errors?: string[];
 }

@@ -1,0 +1,10 @@
+query subspaceCommunity($subspaceId: UUID!) {
+  lookup {
+    space(ID: $subspaceId) {
+      id
+      community {
+        ...communityRolesFragment
+      }
+    }
+  }
+}

@@ -54,9 +54,13 @@ export default function HoverCard({ node, dataset, x, y }: Props) {
           <span className={`${styles.typeBadge} ${styles[`typeBadge_${typeKey}`] || ''}`}>
             {typeLabel}
           </span>
-          <span className={styles.connections}>
-            {connectionCount} connection{connectionCount !== 1 ? 's' : ''}
-          </span>
+          {node.restricted ? (
+            <span className={styles.restrictedBadge}>🔒 Content restricted</span>
+          ) : (
+            <span className={styles.connections}>
+              {connectionCount} connection{connectionCount !== 1 ? 's' : ''}
+            </span>
+          )}
         </div>
       </div>
     </div>
