@@ -13893,7 +13893,11 @@ export type ActivityFeedGroupedQuery = { activityFeedGrouped: Array<
     | { id: string, type: SchemaTypes.ActivityEventType, createdDate: Date, triggeredBy: { id: string }, space?: { id: string } | undefined }
     | { id: string, type: SchemaTypes.ActivityEventType, createdDate: Date, triggeredBy: { id: string }, space?: { id: string } | undefined }
     | { id: string, type: SchemaTypes.ActivityEventType, createdDate: Date, triggeredBy: { id: string }, space?: { id: string } | undefined }
-    | { id: string, type: SchemaTypes.ActivityEventType, createdDate: Date, triggeredBy: { id: string }, space?: { id: string } | undefined }
+    | { contributorType: SchemaTypes.RoleSetContributorType, id: string, type: SchemaTypes.ActivityEventType, createdDate: Date, contributor:
+        | { id: string }
+        | { id: string }
+        | { id: string }
+      , triggeredBy: { id: string }, space?: { id: string } | undefined }
     | { id: string, type: SchemaTypes.ActivityEventType, createdDate: Date, triggeredBy: { id: string }, space?: { id: string } | undefined }
     | { id: string, type: SchemaTypes.ActivityEventType, createdDate: Date, triggeredBy: { id: string }, space?: { id: string } | undefined }
   > };
@@ -14037,6 +14041,12 @@ export const ActivityFeedGroupedDocument = gql`
     }
     space {
       id
+    }
+    ... on ActivityLogEntryMemberJoined {
+      contributor {
+        id
+      }
+      contributorType
     }
   }
 }
