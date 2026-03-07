@@ -91,3 +91,9 @@
   color: #9ca3af;
   white-space: nowrap;
 }
+
+.restrictedBadge {
+  font-size: 11px;
+  color: #92400e;
+  white-space: nowrap;
+}

@@ -968,8 +968,8 @@ export default function ForceGraph({
       (d) => d.data.type === 'SPACE_L0' || d.data.type === 'SPACE_L1' || d.data.type === 'SPACE_L2',
     );
 
-    // Lock badge — only shown on private spaces
-    const privateSpaceNodes = spaceNodes.filter((d) => d.data.privacyMode === 'PRIVATE');
+    // Lock badge — shown on private spaces and restricted spaces
+    const privateSpaceNodes = spaceNodes.filter((d) => d.data.privacyMode === 'PRIVATE' || d.data.restricted === true);
 
     // White circle background for contrast
     privateSpaceNodes
@@ -1666,7 +1666,8 @@ export default function ForceGraph({
       const isSpace = node.type === 'SPACE_L0' || node.type === 'SPACE_L1' || node.type === 'SPACE_L2';
       if (!isSpace) return;
       const pm = node.privacyMode;
-      const hide = (pm === 'PUBLIC' && !showPublic) || (pm === 'PRIVATE' && !showPrivate);
+      const isRestricted = node.restricted === true;
+      const hide = (pm === 'PUBLIC' && !isRestricted && !showPublic) || ((pm === 'PRIVATE' || isRestricted) && !showPrivate);
       if (hide) {
         hiddenSpaceIds.add(node.id);
         d3.select(this).style('display', 'none');

@@ -104,6 +104,17 @@
   line-height: 1.4;
 }
 
+.restrictedNotice {
+  font-size: 13px;
+  color: var(--warning-text, #92400e);
+  background: var(--warning-bg, #fef3c7);
+  border: 1px solid var(--warning-border, #f59e0b);
+  border-radius: var(--radius-sm);
+  padding: 8px 12px;
+  margin: 0;
+  line-height: 1.4;
+}
+
 .stats {
   display: flex;
   gap: 16px;

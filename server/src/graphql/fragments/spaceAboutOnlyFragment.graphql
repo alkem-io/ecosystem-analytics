@@ -1,0 +1,9 @@
+fragment SpaceAboutOnlyFragment on Space {
+  id
+  nameID
+  createdDate
+  visibility
+  about {
+    ...spaceAboutFragment
+  }
+}

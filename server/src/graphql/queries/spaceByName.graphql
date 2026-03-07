@@ -3,9 +3,9 @@ query spaceByName($nameId: NameID!) {
     space(NAMEID: $nameId) {
       ...SpaceGraphInfoFragment
       subspaces {
-        ...SpaceGraphInfoFragment
+        ...SpaceAboutOnlyFragment
         subspaces {
-          ...SpaceGraphInfoFragment
+          ...SpaceAboutOnlyFragment
         }
       }
       account {
