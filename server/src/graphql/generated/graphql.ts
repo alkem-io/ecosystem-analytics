@@ -13872,9 +13872,11 @@ export type Resolvers<ContextType = any> = {
 
 export type CommunityRolesFragmentFragment = { id: string, roleSet: { memberUsers: Array<{ id: string }>, memberOrganizations: Array<{ id: string }>, leadOrganizations: Array<{ id: string }>, leadUsers: Array<{ id: string }>, adminUsers: Array<{ id: string }> } };
 
-export type SpaceAboutFragmentFragment = { id: string, isContentPublic: boolean, profile: { id: string, displayName: string, tagline?: string | undefined, url: string, location?: { country?: string | undefined, city?: string | undefined, geoLocation: { latitude?: number | undefined, longitude?: number | undefined } } | undefined, avatar?: { uri: string } | undefined, banner?: { uri: string } | undefined, bannerWide?: { uri: string } | undefined, tagsets?: Array<{ name: string, tags: Array<string>, type: SchemaTypes.TagsetType, allowedValues: Array<string> }> | undefined } };
+export type SpaceAboutFragmentFragment = { id: string, isContentPublic: boolean, membership: { myPrivileges?: Array<SchemaTypes.AuthorizationPrivilege> | undefined }, profile: { id: string, displayName: string, tagline?: string | undefined, url: string, location?: { country?: string | undefined, city?: string | undefined, geoLocation: { latitude?: number | undefined, longitude?: number | undefined } } | undefined, avatar?: { uri: string } | undefined, banner?: { uri: string } | undefined, bannerWide?: { uri: string } | undefined, tagsets?: Array<{ name: string, tags: Array<string>, type: SchemaTypes.TagsetType, allowedValues: Array<string> }> | undefined } };
 
-export type SpaceGraphInfoFragmentFragment = { id: string, nameID: string, createdDate: Date, visibility: SchemaTypes.SpaceVisibility, about: { id: string, isContentPublic: boolean, profile: { id: string, displayName: string, tagline?: string | undefined, url: string, location?: { country?: string | undefined, city?: string | undefined, geoLocation: { latitude?: number | undefined, longitude?: number | undefined } } | undefined, avatar?: { uri: string } | undefined, banner?: { uri: string } | undefined, bannerWide?: { uri: string } | undefined, tagsets?: Array<{ name: string, tags: Array<string>, type: SchemaTypes.TagsetType, allowedValues: Array<string> }> | undefined } }, community: { id: string, roleSet: { memberUsers: Array<{ id: string }>, memberOrganizations: Array<{ id: string }>, leadOrganizations: Array<{ id: string }>, leadUsers: Array<{ id: string }>, adminUsers: Array<{ id: string }> } } };
+export type SpaceAboutOnlyFragmentFragment = { id: string, nameID: string, createdDate: Date, visibility: SchemaTypes.SpaceVisibility, about: { id: string, isContentPublic: boolean, membership: { myPrivileges?: Array<SchemaTypes.AuthorizationPrivilege> | undefined }, profile: { id: string, displayName: string, tagline?: string | undefined, url: string, location?: { country?: string | undefined, city?: string | undefined, geoLocation: { latitude?: number | undefined, longitude?: number | undefined } } | undefined, avatar?: { uri: string } | undefined, banner?: { uri: string } | undefined, bannerWide?: { uri: string } | undefined, tagsets?: Array<{ name: string, tags: Array<string>, type: SchemaTypes.TagsetType, allowedValues: Array<string> }> | undefined } } };
+
+export type SpaceGraphInfoFragmentFragment = { id: string, nameID: string, createdDate: Date, visibility: SchemaTypes.SpaceVisibility, about: { id: string, isContentPublic: boolean, membership: { myPrivileges?: Array<SchemaTypes.AuthorizationPrivilege> | undefined }, profile: { id: string, displayName: string, tagline?: string | undefined, url: string, location?: { country?: string | undefined, city?: string | undefined, geoLocation: { latitude?: number | undefined, longitude?: number | undefined } } | undefined, avatar?: { uri: string } | undefined, banner?: { uri: string } | undefined, bannerWide?: { uri: string } | undefined, tagsets?: Array<{ name: string, tags: Array<string>, type: SchemaTypes.TagsetType, allowedValues: Array<string> }> | undefined } }, community: { id: string, roleSet: { memberUsers: Array<{ id: string }>, memberOrganizations: Array<{ id: string }>, leadOrganizations: Array<{ id: string }>, leadUsers: Array<{ id: string }>, adminUsers: Array<{ id: string }> } } };
 
 export type ActivityFeedGroupedQueryVariables = SchemaTypes.Exact<{
   args?: SchemaTypes.InputMaybe<SchemaTypes.ActivityFeedGroupedQueryArgs>;
@@ -13904,7 +13906,7 @@ export type MeQuery = { me: { user?: { id: string, nameID: string, email: string
 export type MySpacesHierarchicalQueryVariables = SchemaTypes.Exact<{ [key: string]: never; }>;
 
 
-export type MySpacesHierarchicalQuery = { me: { user?: { id: string, nameID: string, email: string, profile: { displayName: string, url: string, avatar?: { uri: string } | undefined, location?: { country?: string | undefined, city?: string | undefined, geoLocation: { latitude?: number | undefined, longitude?: number | undefined } } | undefined } } | undefined, spaceMembershipsHierarchical: Array<{ space: { id: string, nameID: string, createdDate: Date, visibility: SchemaTypes.SpaceVisibility, about: { id: string, isContentPublic: boolean, profile: { id: string, displayName: string, tagline?: string | undefined, url: string, location?: { country?: string | undefined, city?: string | undefined, geoLocation: { latitude?: number | undefined, longitude?: number | undefined } } | undefined, avatar?: { uri: string } | undefined, banner?: { uri: string } | undefined, bannerWide?: { uri: string } | undefined, tagsets?: Array<{ name: string, tags: Array<string>, type: SchemaTypes.TagsetType, allowedValues: Array<string> }> | undefined } }, community: { id: string, roleSet: { memberUsers: Array<{ id: string }>, memberOrganizations: Array<{ id: string }>, leadOrganizations: Array<{ id: string }>, leadUsers: Array<{ id: string }>, adminUsers: Array<{ id: string }> } } }, childMemberships: Array<{ space: { id: string, nameID: string, createdDate: Date, visibility: SchemaTypes.SpaceVisibility, about: { id: string, isContentPublic: boolean, profile: { id: string, displayName: string, tagline?: string | undefined, url: string, location?: { country?: string | undefined, city?: string | undefined, geoLocation: { latitude?: number | undefined, longitude?: number | undefined } } | undefined, avatar?: { uri: string } | undefined, banner?: { uri: string } | undefined, bannerWide?: { uri: string } | undefined, tagsets?: Array<{ name: string, tags: Array<string>, type: SchemaTypes.TagsetType, allowedValues: Array<string> }> | undefined } }, community: { id: string, roleSet: { memberUsers: Array<{ id: string }>, memberOrganizations: Array<{ id: string }>, leadOrganizations: Array<{ id: string }>, leadUsers: Array<{ id: string }>, adminUsers: Array<{ id: string }> } } }, childMemberships: Array<{ space: { id: string, nameID: string, createdDate: Date, visibility: SchemaTypes.SpaceVisibility, about: { id: string, isContentPublic: boolean, profile: { id: string, displayName: string, tagline?: string | undefined, url: string, location?: { country?: string | undefined, city?: string | undefined, geoLocation: { latitude?: number | undefined, longitude?: number | undefined } } | undefined, avatar?: { uri: string } | undefined, banner?: { uri: string } | undefined, bannerWide?: { uri: string } | undefined, tagsets?: Array<{ name: string, tags: Array<string>, type: SchemaTypes.TagsetType, allowedValues: Array<string> }> | undefined } }, community: { id: string, roleSet: { memberUsers: Array<{ id: string }>, memberOrganizations: Array<{ id: string }>, leadOrganizations: Array<{ id: string }>, leadUsers: Array<{ id: string }>, adminUsers: Array<{ id: string }> } } } }> }> }> } };
+export type MySpacesHierarchicalQuery = { me: { user?: { id: string, nameID: string, email: string, profile: { displayName: string, url: string, avatar?: { uri: string } | undefined, location?: { country?: string | undefined, city?: string | undefined, geoLocation: { latitude?: number | undefined, longitude?: number | undefined } } | undefined } } | undefined, spaceMembershipsHierarchical: Array<{ space: { id: string, nameID: string, createdDate: Date, visibility: SchemaTypes.SpaceVisibility, about: { id: string, isContentPublic: boolean, membership: { myPrivileges?: Array<SchemaTypes.AuthorizationPrivilege> | undefined }, profile: { id: string, displayName: string, tagline?: string | undefined, url: string, location?: { country?: string | undefined, city?: string | undefined, geoLocation: { latitude?: number | undefined, longitude?: number | undefined } } | undefined, avatar?: { uri: string } | undefined, banner?: { uri: string } | undefined, bannerWide?: { uri: string } | undefined, tagsets?: Array<{ name: string, tags: Array<string>, type: SchemaTypes.TagsetType, allowedValues: Array<string> }> | undefined } }, community: { id: string, roleSet: { memberUsers: Array<{ id: string }>, memberOrganizations: Array<{ id: string }>, leadOrganizations: Array<{ id: string }>, leadUsers: Array<{ id: string }>, adminUsers: Array<{ id: string }> } } }, childMemberships: Array<{ space: { id: string, nameID: string, createdDate: Date, visibility: SchemaTypes.SpaceVisibility, about: { id: string, isContentPublic: boolean, membership: { myPrivileges?: Array<SchemaTypes.AuthorizationPrivilege> | undefined }, profile: { id: string, displayName: string, tagline?: string | undefined, url: string, location?: { country?: string | undefined, city?: string | undefined, geoLocation: { latitude?: number | undefined, longitude?: number | undefined } } | undefined, avatar?: { uri: string } | undefined, banner?: { uri: string } | undefined, bannerWide?: { uri: string } | undefined, tagsets?: Array<{ name: string, tags: Array<string>, type: SchemaTypes.TagsetType, allowedValues: Array<string> }> | undefined } }, community: { id: string, roleSet: { memberUsers: Array<{ id: string }>, memberOrganizations: Array<{ id: string }>, leadOrganizations: Array<{ id: string }>, leadUsers: Array<{ id: string }>, adminUsers: Array<{ id: string }> } } }, childMemberships: Array<{ space: { id: string, nameID: string, createdDate: Date, visibility: SchemaTypes.SpaceVisibility, about: { id: string, isContentPublic: boolean, membership: { myPrivileges?: Array<SchemaTypes.AuthorizationPrivilege> | undefined }, profile: { id: string, displayName: string, tagline?: string | undefined, url: string, location?: { country?: string | undefined, city?: string | undefined, geoLocation: { latitude?: number | undefined, longitude?: number | undefined } } | undefined, avatar?: { uri: string } | undefined, banner?: { uri: string } | undefined, bannerWide?: { uri: string } | undefined, tagsets?: Array<{ name: string, tags: Array<string>, type: SchemaTypes.TagsetType, allowedValues: Array<string> }> | undefined } }, community: { id: string, roleSet: { memberUsers: Array<{ id: string }>, memberOrganizations: Array<{ id: string }>, leadOrganizations: Array<{ id: string }>, leadUsers: Array<{ id: string }>, adminUsers: Array<{ id: string }> } } } }> }> }> } };
 
 export type OrganizationByIdQueryVariables = SchemaTypes.Exact<{
   id: SchemaTypes.Scalars['UUID']['input'];
@@ -13918,11 +13920,18 @@ export type SpaceByNameQueryVariables = SchemaTypes.Exact<{
 }>;
 
 
-export type SpaceByNameQuery = { lookupByName: { space?: { id: string, nameID: string, createdDate: Date, visibility: SchemaTypes.SpaceVisibility, subspaces: Array<{ id: string, nameID: string, createdDate: Date, visibility: SchemaTypes.SpaceVisibility, subspaces: Array<{ id: string, nameID: string, createdDate: Date, visibility: SchemaTypes.SpaceVisibility, about: { id: string, isContentPublic: boolean, profile: { id: string, displayName: string, tagline?: string | undefined, url: string, location?: { country?: string | undefined, city?: string | undefined, geoLocation: { latitude?: number | undefined, longitude?: number | undefined } } | undefined, avatar?: { uri: string } | undefined, banner?: { uri: string } | undefined, bannerWide?: { uri: string } | undefined, tagsets?: Array<{ name: string, tags: Array<string>, type: SchemaTypes.TagsetType, allowedValues: Array<string> }> | undefined } }, community: { id: string, roleSet: { memberUsers: Array<{ id: string }>, memberOrganizations: Array<{ id: string }>, leadOrganizations: Array<{ id: string }>, leadUsers: Array<{ id: string }>, adminUsers: Array<{ id: string }> } } }>, about: { id: string, isContentPublic: boolean, profile: { id: string, displayName: string, tagline?: string | undefined, url: string, location?: { country?: string | undefined, city?: string | undefined, geoLocation: { latitude?: number | undefined, longitude?: number | undefined } } | undefined, avatar?: { uri: string } | undefined, banner?: { uri: string } | undefined, bannerWide?: { uri: string } | undefined, tagsets?: Array<{ name: string, tags: Array<string>, type: SchemaTypes.TagsetType, allowedValues: Array<string> }> | undefined } }, community: { id: string, roleSet: { memberUsers: Array<{ id: string }>, memberOrganizations: Array<{ id: string }>, leadOrganizations: Array<{ id: string }>, leadUsers: Array<{ id: string }>, adminUsers: Array<{ id: string }> } } }>, account: { host?:
+export type SpaceByNameQuery = { lookupByName: { space?: { id: string, nameID: string, createdDate: Date, visibility: SchemaTypes.SpaceVisibility, subspaces: Array<{ id: string, nameID: string, createdDate: Date, visibility: SchemaTypes.SpaceVisibility, subspaces: Array<{ id: string, nameID: string, createdDate: Date, visibility: SchemaTypes.SpaceVisibility, about: { id: string, isContentPublic: boolean, membership: { myPrivileges?: Array<SchemaTypes.AuthorizationPrivilege> | undefined }, profile: { id: string, displayName: string, tagline?: string | undefined, url: string, location?: { country?: string | undefined, city?: string | undefined, geoLocation: { latitude?: number | undefined, longitude?: number | undefined } } | undefined, avatar?: { uri: string } | undefined, banner?: { uri: string } | undefined, bannerWide?: { uri: string } | undefined, tagsets?: Array<{ name: string, tags: Array<string>, type: SchemaTypes.TagsetType, allowedValues: Array<string> }> | undefined } } }>, about: { id: string, isContentPublic: boolean, membership: { myPrivileges?: Array<SchemaTypes.AuthorizationPrivilege> | undefined }, profile: { id: string, displayName: string, tagline?: string | undefined, url: string, location?: { country?: string | undefined, city?: string | undefined, geoLocation: { latitude?: number | undefined, longitude?: number | undefined } } | undefined, avatar?: { uri: string } | undefined, banner?: { uri: string } | undefined, bannerWide?: { uri: string } | undefined, tagsets?: Array<{ name: string, tags: Array<string>, type: SchemaTypes.TagsetType, allowedValues: Array<string> }> | undefined } } }>, account: { host?:
           | { id: string }
           | { id: string }
           | { id: string }
-         | undefined }, about: { id: string, isContentPublic: boolean, profile: { id: string, displayName: string, tagline?: string | undefined, url: string, location?: { country?: string | undefined, city?: string | undefined, geoLocation: { latitude?: number | undefined, longitude?: number | undefined } } | undefined, avatar?: { uri: string } | undefined, banner?: { uri: string } | undefined, bannerWide?: { uri: string } | undefined, tagsets?: Array<{ name: string, tags: Array<string>, type: SchemaTypes.TagsetType, allowedValues: Array<string> }> | undefined } }, community: { id: string, roleSet: { memberUsers: Array<{ id: string }>, memberOrganizations: Array<{ id: string }>, leadOrganizations: Array<{ id: string }>, leadUsers: Array<{ id: string }>, adminUsers: Array<{ id: string }> } } } | undefined } };
+         | undefined }, about: { id: string, isContentPublic: boolean, membership: { myPrivileges?: Array<SchemaTypes.AuthorizationPrivilege> | undefined }, profile: { id: string, displayName: string, tagline?: string | undefined, url: string, location?: { country?: string | undefined, city?: string | undefined, geoLocation: { latitude?: number | undefined, longitude?: number | undefined } } | undefined, avatar?: { uri: string } | undefined, banner?: { uri: string } | undefined, bannerWide?: { uri: string } | undefined, tagsets?: Array<{ name: string, tags: Array<string>, type: SchemaTypes.TagsetType, allowedValues: Array<string> }> | undefined } }, community: { id: string, roleSet: { memberUsers: Array<{ id: string }>, memberOrganizations: Array<{ id: string }>, leadOrganizations: Array<{ id: string }>, leadUsers: Array<{ id: string }>, adminUsers: Array<{ id: string }> } } } | undefined } };
+
+export type SubspaceCommunityQueryVariables = SchemaTypes.Exact<{
+  subspaceId: SchemaTypes.Scalars['UUID']['input'];
+}>;
+
+
+export type SubspaceCommunityQuery = { lookup: { space?: { id: string, community: { id: string, roleSet: { memberUsers: Array<{ id: string }>, memberOrganizations: Array<{ id: string }>, leadOrganizations: Array<{ id: string }>, leadUsers: Array<{ id: string }>, adminUsers: Array<{ id: string }> } } } | undefined } };
 
 export type UsersByIDsQueryVariables = SchemaTypes.Exact<{
   ids: Array<SchemaTypes.Scalars['UUID']['input']> | SchemaTypes.Scalars['UUID']['input'];
@@ -13935,6 +13944,9 @@ export const SpaceAboutFragmentFragmentDoc = gql`
     fragment spaceAboutFragment on SpaceAbout {
   id
   isContentPublic
+  membership {
+    myPrivileges
+  }
   profile {
     id
     displayName
@@ -13966,6 +13978,17 @@ export const SpaceAboutFragmentFragmentDoc = gql`
   }
 }
     `;
+export const SpaceAboutOnlyFragmentFragmentDoc = gql`
+    fragment SpaceAboutOnlyFragment on Space {
+  id
+  nameID
+  createdDate
+  visibility
+  about {
+    ...spaceAboutFragment
+  }
+}
+    ${SpaceAboutFragmentFragmentDoc}`;
 export const CommunityRolesFragmentFragmentDoc = gql`
     fragment communityRolesFragment on Community {
   id
@@ -14141,9 +14164,9 @@ export const SpaceByNameDocument = gql`
     space(NAMEID: $nameId) {
       ...SpaceGraphInfoFragment
       subspaces {
-        ...SpaceGraphInfoFragment
+        ...SpaceAboutOnlyFragment
         subspaces {
-          ...SpaceGraphInfoFragment
+          ...SpaceAboutOnlyFragment
         }
       }
       account {
@@ -14154,7 +14177,20 @@ export const SpaceByNameDocument = gql`
     }
   }
 }
-    ${SpaceGraphInfoFragmentFragmentDoc}`;
+    ${SpaceGraphInfoFragmentFragmentDoc}
+${SpaceAboutOnlyFragmentFragmentDoc}`;
+export const SubspaceCommunityDocument = gql`
+    query subspaceCommunity($subspaceId: UUID!) {
+  lookup {
+    space(ID: $subspaceId) {
+      id
+      community {
+        ...communityRolesFragment
+      }
+    }
+  }
+}
+    ${CommunityRolesFragmentFragmentDoc}`;
 export const UsersByIDsDocument = gql`
     query usersByIDs($ids: [UUID!]!) {
   users(IDs: $ids) {
@@ -14194,6 +14230,7 @@ const MeDocumentString = print(MeDocument);
 const MySpacesHierarchicalDocumentString = print(MySpacesHierarchicalDocument);
 const OrganizationByIdDocumentString = print(OrganizationByIdDocument);
 const SpaceByNameDocumentString = print(SpaceByNameDocument);
+const SubspaceCommunityDocumentString = print(SubspaceCommunityDocument);
 const UsersByIDsDocumentString = print(UsersByIDsDocument);
 export function getSdk(client: GraphQLClient, withWrapper: SdkFunctionWrapper = defaultWrapper) {
   return {
@@ -14211,6 +14248,9 @@ export function getSdk(client: GraphQLClient, withWrapper: SdkFunctionWrapper = 
     },
     spaceByName(variables: SchemaTypes.SpaceByNameQueryVariables, requestHeaders?: GraphQLClientRequestHeaders): Promise<{ data: SchemaTypes.SpaceByNameQuery; errors?: GraphQLError[]; extensions?: any; headers: Headers; status: number; }> {
         return withWrapper((wrappedRequestHeaders) => client.rawRequest<SchemaTypes.SpaceByNameQuery>(SpaceByNameDocumentString, variables, {...requestHeaders, ...wrappedRequestHeaders}), 'spaceByName', 'query', variables);
+    },
+    subspaceCommunity(variables: SchemaTypes.SubspaceCommunityQueryVariables, requestHeaders?: GraphQLClientRequestHeaders): Promise<{ data: SchemaTypes.SubspaceCommunityQuery; errors?: GraphQLError[]; extensions?: any; headers: Headers; status: number; }> {
+        return withWrapper((wrappedRequestHeaders) => client.rawRequest<SchemaTypes.SubspaceCommunityQuery>(SubspaceCommunityDocumentString, variables, {...requestHeaders, ...wrappedRequestHeaders}), 'subspaceCommunity', 'query', variables);
     },
     usersByIDs(variables: SchemaTypes.UsersByIDsQueryVariables, requestHeaders?: GraphQLClientRequestHeaders): Promise<{ data: SchemaTypes.UsersByIDsQuery; errors?: GraphQLError[]; extensions?: any; headers: Headers; status: number; }> {
         return withWrapper((wrappedRequestHeaders) => client.rawRequest<SchemaTypes.UsersByIDsQuery>(UsersByIDsDocumentString, variables, {...requestHeaders, ...wrappedRequestHeaders}), 'usersByIDs', 'query', variables);

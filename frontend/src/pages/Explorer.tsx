@@ -39,7 +39,8 @@ interface ExplorerProps {
 export default function Explorer({ onLogout }: ExplorerProps) {
   const location = useLocation();
   const navigate = useNavigate();
-  const { dataset, progress, loading, error, generate } = useGraph();
+  const { dataset, progress, loading, error, warnings, generate } = useGraph();
+  const [dismissedWarnings, setDismissedWarnings] = useState(false);
   const viewState = useViewState();
   const { theme, toggle: toggleTheme } = useTheme();
 
@@ -73,6 +74,7 @@ export default function Explorer({ onLogout }: ExplorerProps) {
       navigate('/spaces');
       return;
     }
+    setDismissedWarnings(false);
     generate(spaceIds);
   }, []); // Run once on mount
 
@@ -209,6 +211,21 @@ export default function Explorer({ onLogout }: ExplorerProps) {
           </select>
         )}
       </TopBar>
+      {warnings.length > 0 && !dismissedWarnings && (
+        <div className={styles.warningBanner} role="alert">
+          <div className={styles.warningContent}>
+            <strong>Warnings during graph generation:</strong>
+            <ul>
+              {warnings.map((w, i) => (
+                <li key={i}>{w}</li>
+              ))}
+            </ul>
+          </div>
+          <button className={styles.warningDismiss} onClick={() => setDismissedWarnings(true)}>
+            Dismiss
+          </button>
+        </div>
+      )}
       <div className={styles.main}>
         {dataset && (
           <ControlPanel

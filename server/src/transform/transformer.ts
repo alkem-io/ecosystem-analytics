@@ -73,22 +73,31 @@ export function transformToGraph(data: AcquiredData): TransformResult {
     // Process L1 subspaces
     if (space.subspaces) {
       for (const l1 of space.subspaces) {
-        addSpaceNode(l1, NodeType.SPACE_L1, [l0ScopeGroup], space.id, nodes, nodeIds);
+        const l1Any = l1 as Record<string, unknown>;
+        const l1Restricted = !l1Any.community;
+        addSpaceNode(l1, NodeType.SPACE_L1, [l0ScopeGroup], space.id, nodes, nodeIds, l1Restricted);
         edges.push(createEdge(space.id, l1.id, EdgeType.CHILD, l0ScopeGroup));
 
-        // Process L2 subspaces
-        if (l1.subspaces) {
-          for (const l2 of l1.subspaces) {
-            addSpaceNode(l2, NodeType.SPACE_L2, [l0ScopeGroup], l1.id, nodes, nodeIds);
-            edges.push(createEdge(l1.id, l2.id, EdgeType.CHILD, l0ScopeGroup));
+        if (!l1Restricted) {
+          // Process L2 subspaces (only when L1 is accessible)
+          if (l1.subspaces) {
+            for (const l2 of l1.subspaces) {
+              const l2Any = l2 as Record<string, unknown>;
+              const l2Restricted = !l2Any.community;
+              addSpaceNode(l2, NodeType.SPACE_L2, [l0ScopeGroup], l1.id, nodes, nodeIds, l2Restricted);
+              edges.push(createEdge(l1.id, l2.id, EdgeType.CHILD, l0ScopeGroup));
 
-            // Add contributor edges for L2
-            addContributorEdges(l2, l0ScopeGroup, data, nodes, edges, nodeIds);
+              // Add contributor edges for L2 (only if not restricted)
+              if (!l2Restricted) {
+                addContributorEdges(l2, l0ScopeGroup, data, nodes, edges, nodeIds);
+              }
+            }
           }
-        }
 
-        // Add contributor edges for L1
-        addContributorEdges(l1, l0ScopeGroup, data, nodes, edges, nodeIds);
+          // Add contributor edges for L1
+          addContributorEdges(l1, l0ScopeGroup, data, nodes, edges, nodeIds);
+        }
+        // When L1 is restricted: CHILD edge is created above, but no contributor edges and no L2 processing
       }
     }
 
@@ -172,6 +181,7 @@ function addSpaceNode(
   parentSpaceId: string | null,
   nodes: GraphNode[],
   nodeIds: Set<string>,
+  restricted = false,
 ): void {
   if (nodeIds.has(space.id)) {
     // Node already exists (shared across L0 selections) — merge scope groups
@@ -209,6 +219,7 @@ function addSpaceNode(
     tagline: profile.tagline || null,
     parentSpaceId,
     privacyMode: space.about.isContentPublic !== false ? 'PUBLIC' : 'PRIVATE',
+    restricted: restricted || undefined,
     createdDate: space.createdDate ? String(space.createdDate) : undefined,
     visibility: parseVisibility(space.visibility),
     tags: extractTags(profile.tagsets),

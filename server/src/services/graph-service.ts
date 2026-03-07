@@ -71,6 +71,7 @@ export async function generateGraph(
   let freshNodes: GraphNode[] = [];
   let freshEdges: GraphEdge[] = [];
   let timeSeries: SpaceTimeSeries[] | undefined;
+  const errors: string[] = [];
   // Detect activity data from cached edges (if any edge has activityTier, cache had activity)
   let hasActivity = cachedEdges.some((e) => e.activityTier !== undefined);
 
@@ -83,6 +84,9 @@ export async function generateGraph(
       spacesTotal: spaceIds.length,
       spacesCompleted: spaceIds.length - spacesToFetch.length,
     });
+
+    // Collect non-fatal errors from acquisition
+    errors.push(...acquired.errors);
 
     const transformed = transformToGraph(acquired);
     freshNodes = transformed.nodes;
@@ -138,6 +142,7 @@ export async function generateGraph(
     insights,
     hasActivityData: hasActivity,
     timeSeries,
+    errors: errors.length > 0 ? errors : undefined,
   };
 }
 

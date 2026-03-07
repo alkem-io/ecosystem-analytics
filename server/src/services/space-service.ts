@@ -3,7 +3,7 @@ import { getLogger } from '../logging/logger.js';
 import { getCacheEntry, setCacheEntry } from '../cache/cache-service.js';
 import type { AuthContext } from '../auth/middleware.js';
 import type { Sdk } from '../graphql/generated/graphql.js';
-import type { SpaceByNameQuery } from '../graphql/generated/alkemio-schema.js';
+import type { SpaceByNameQuery, SubspaceCommunityQuery } from '../graphql/generated/alkemio-schema.js';
 import type { SpaceSelectionItem } from '../types/api.js';
 
 const SPACES_CACHE_KEY = '__spaces__';
@@ -102,6 +102,37 @@ export async function findRelatedSpaces(
 ): Promise<SpaceSelectionItem[]> {
   const allSpaces = await listUserSpaces(auth);
   return allSpaces.filter((s) => !currentSpaceIds.includes(s.id));
+}
+
+/**
+ * Fetches community/roleSet data for a single subspace by ID (Phase 2 query).
+ * Returns the community data or null if the fetch fails.
+ * Errors are logged and collected (not thrown).
+ */
+export async function fetchSubspaceCommunity(
+  sdk: Sdk,
+  subspaceId: string,
+  errors: string[],
+): Promise<{ id: string; community: NonNullable<SubspaceCommunityQuery['lookup']['space']>['community'] } | null> {
+  const logger = getLogger();
+  try {
+    logger.info(`Fetching community data for subspace ${subspaceId}`, { context: 'Spaces' });
+    const { data } = await sdk.subspaceCommunity({ subspaceId });
+    const space = data.lookup.space;
+    if (!space) {
+      const msg = `Subspace community not found for ID: ${subspaceId}`;
+      logger.error(msg, { context: 'Spaces' });
+      errors.push(msg);
+      return null;
+    }
+    logger.info(`Community data retrieved for subspace ${subspaceId}`, { context: 'Spaces' });
+    return { id: space.id, community: space.community };
+  } catch (err: unknown) {
+    const msg = `Failed to fetch community data for subspace ${subspaceId}: ${(err as Error).message}`;
+    logger.error(msg, { context: 'Spaces' });
+    errors.push(msg);
+    return null;
+  }
 }
 
 /** Extract the space type from the codegen-generated SpaceByNameQuery */
