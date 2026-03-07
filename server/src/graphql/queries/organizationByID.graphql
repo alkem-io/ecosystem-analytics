@@ -5,6 +5,8 @@ query organizationByID($id: UUID!) {
       nameID
       profile {
         displayName
+        description
+        tagline
         avatar: visual(type: AVATAR) {
           uri
         }
@@ -17,10 +19,28 @@ query organizationByID($id: UUID!) {
           }
         }
         url
+        references {
+          name
+          uri
+          description
+        }
         tagsets {
           name
           tags
           type
+        }
+      }
+      website
+      contactEmail
+      roleSet {
+        owners: usersInRole(role: OWNER) {
+          id
+          profile {
+            displayName
+          }
+        }
+        associates: usersInRole(role: ASSOCIATE) {
+          id
         }
       }
     }

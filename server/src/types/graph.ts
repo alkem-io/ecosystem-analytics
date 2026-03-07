@@ -106,10 +106,24 @@ export interface GraphNode {
   parentSpaceId: string | null;
   /** Privacy mode for space nodes; null for non-space types (USER, ORGANIZATION) */
   privacyMode: 'PUBLIC' | 'PRIVATE' | null;
+  /** true when user has READ_ABOUT but not READ privilege on this space */
+  restricted?: boolean;
   /** ISO 8601 timestamp when the node entity was created on Alkemio */
   createdDate?: string;
   /** Space visibility — ACTIVE, ARCHIVED, or DEMO (spaces only) */
   visibility?: 'ACTIVE' | 'ARCHIVED' | 'DEMO';
+  /** Markdown description / bio */
+  description?: string | null;
+  /** Organization website URL */
+  website?: string | null;
+  /** Organization contact email */
+  contactEmail?: string | null;
+  /** External reference links from the profile */
+  references?: { name: string; uri: string }[];
+  /** Organization owner display name */
+  owner?: string | null;
+  /** Number of associates in the organization */
+  associateCount?: number;
   /** Tags from the profile's tagsets, keyed by reserved name */
   tags?: TagData;
   /** Total direct contribution count for this space (L0/L1/L2 only, undefined for others) */
@@ -178,4 +192,6 @@ export interface GraphDataset {
   hasActivityData?: boolean;
   /** Weekly activity time series per space (for Timeline view) */
   timeSeries?: SpaceTimeSeries[];
+  /** Non-fatal errors encountered during graph generation (logged server-side, surfaced to frontend) */
+  errors?: string[];
 }

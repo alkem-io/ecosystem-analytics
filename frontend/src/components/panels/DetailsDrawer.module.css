@@ -104,6 +104,17 @@
   line-height: 1.4;
 }
 
+.restrictedNotice {
+  font-size: 13px;
+  color: var(--warning-text, #92400e);
+  background: var(--warning-bg, #fef3c7);
+  border: 1px solid var(--warning-border, #f59e0b);
+  border-radius: var(--radius-sm);
+  padding: 8px 12px;
+  margin: 0;
+  line-height: 1.4;
+}
+
 .stats {
   display: flex;
   gap: 16px;
@@ -299,4 +310,94 @@
   background: #fef9c3;
   color: #a16207;
   border-color: #fde68a;
+}
+
+/* Organization enriched profile */
+.description {
+  font-size: 13px;
+  color: var(--text-secondary);
+  margin: 0;
+  line-height: 1.5;
+}
+
+.description p {
+  margin: 0 0 8px;
+}
+
+.description p:last-child {
+  margin-bottom: 0;
+}
+
+.description h1,
+.description h2,
+.description h3 {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin: 8px 0 4px;
+}
+
+.description a {
+  color: var(--primary);
+}
+
+.description ul,
+.description ol {
+  margin: 0 0 8px;
+  padding-left: 20px;
+}
+
+.orgMeta {
+  display: flex;
+  gap: 16px;
+}
+
+.orgMetaItem {
+  display: flex;
+  flex-direction: column;
+}
+
+.orgMetaLabel {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-muted);
+}
+
+.orgMetaValue {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.tagsWrap {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.tag {
+  font-size: 11px;
+  padding: 2px 8px;
+  border-radius: var(--radius-full);
+  background: #f3f4f6;
+  color: var(--text-secondary);
+  border: 1px solid #e5e7eb;
+}
+
+.referencesSection {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.referenceLink {
+  font-size: 13px;
+  color: var(--primary);
+  text-decoration: none;
+  padding: 2px 0;
+}
+
+.referenceLink:hover {
+  text-decoration: underline;
 }

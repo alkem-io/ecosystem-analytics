@@ -1,6 +1,7 @@
 import { useNavigate } from 'react-router-dom';
 import type { Theme } from '../../hooks/useTheme.js';
 import SearchBar from '../search/SearchBar.js';
+import UserProfileMenu from '../UserProfileMenu.js';
 import styles from './TopBar.module.css';
 
 interface Props {
@@ -9,6 +10,8 @@ interface Props {
   lastSync: string | null;
   onRefresh: () => void;
   refreshing: boolean;
+  onClearCache?: () => void;
+  cacheCleared?: boolean;
   onExport?: () => void;
   onLogout?: () => void;
   theme?: Theme;
@@ -16,7 +19,7 @@ interface Props {
   children?: React.ReactNode;
 }
 
-export default function TopBar({ searchQuery, onSearchChange, lastSync, onRefresh, refreshing, onExport, onLogout, theme, onToggleTheme, children }: Props) {
+export default function TopBar({ searchQuery, onSearchChange, lastSync, onRefresh, refreshing, onClearCache, cacheCleared, onExport, onLogout, theme, onToggleTheme, children }: Props) {
   const navigate = useNavigate();
 
   const syncTime = lastSync
@@ -46,6 +49,17 @@ export default function TopBar({ searchQuery, onSearchChange, lastSync, onRefres
         >
           &#x21bb;
         </button>
+        {onClearCache && (
+          <button
+            className={`${styles.clearCacheBtn} ${cacheCleared ? styles.clearCacheDone : ''}`}
+            onClick={onClearCache}
+            aria-label="Clear cached data"
+            title="Clear cached data"
+            disabled={refreshing}
+          >
+            {cacheCleared ? 'Cache cleared!' : 'Clear cache'}
+          </button>
+        )}
         {onExport && (
           <button className={styles.exportBtn} onClick={onExport} aria-label="Export dataset">
             &#x2913; Export
@@ -62,11 +76,7 @@ export default function TopBar({ searchQuery, onSearchChange, lastSync, onRefres
           </button>
         )}
         {syncTime && <span className={styles.syncTime}>Last sync {syncTime}</span>}
-        {onLogout && (
-          <button className={styles.logoutBtn} onClick={onLogout} aria-label="Log out">
-            Logout
-          </button>
-        )}
+        {onLogout && <UserProfileMenu onLogout={onLogout} />}
       </div>
     </div>
   );

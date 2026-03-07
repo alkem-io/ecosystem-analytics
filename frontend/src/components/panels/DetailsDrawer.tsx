@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
+import ReactMarkdown from 'react-markdown';
 import type { GraphNode, GraphDataset, ActivityPeriod } from '@server/types/graph.js';
 import type { SpaceSelectionItem } from '@server/types/api.js';
 import { api } from '../../services/api.js';
@@ -136,8 +137,10 @@ export default function DetailsDrawer({ node, dataset, onClose, onExpandSpace, o
           <div>
             <h2 className={styles.name}>{node.displayName || 'Unknown'}</h2>
             <span className={styles.typeBadge}>{node.type.replace('_', ' ')}</span>
-            {node.privacyMode === 'PRIVATE' && (
-              <span className={styles.typeBadge} style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>🔒 Private</span>
+            {(node.privacyMode === 'PRIVATE' || node.restricted) && (
+              <span className={styles.typeBadge} style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
+                🔒 {node.restricted ? 'Restricted' : 'Private'}
+              </span>
             )}
           </div>
         </div>
@@ -150,7 +153,77 @@ export default function DetailsDrawer({ node, dataset, onClose, onExpandSpace, o
 
       {node.tagline && <p className={styles.tagline}>{node.tagline}</p>}
 
-      <div className={styles.stats}>
+      {node.restricted && (
+        <p className={styles.restrictedNotice}>
+          You do not have access to view the full contents of this space.
+        </p>
+      )}
+
+      {/* Organization enriched profile — shown in both preview and full modes */}
+      {node.type === 'ORGANIZATION' && (
+        <>
+          {node.description && (
+            <div className={styles.description}>
+              <ReactMarkdown>{isPreview && node.description.length > 150 ? node.description.slice(0, 150) + '…' : node.description}</ReactMarkdown>
+            </div>
+          )}
+
+          {/* Quick info row for orgs — compact metadata */}
+          <div className={styles.orgMeta}>
+            {node.owner && (
+              <div className={styles.orgMetaItem}>
+                <span className={styles.orgMetaLabel}>Owner</span>
+                <span className={styles.orgMetaValue}>{node.owner}</span>
+              </div>
+            )}
+            {node.associateCount != null && node.associateCount > 0 && (
+              <div className={styles.orgMetaItem}>
+                <span className={styles.orgMetaLabel}>Associates</span>
+                <span className={styles.orgMetaValue}>{node.associateCount}</span>
+              </div>
+            )}
+          </div>
+
+          {node.website && (
+            <div className={styles.detail}>
+              <span className={styles.detailLabel}>Website</span>
+              <a href={node.website} target="_blank" rel="noopener noreferrer" className={styles.link} style={{ padding: 0 }}>
+                {node.website.replace(/^https?:\/\//, '').replace(/\/$/, '')}
+              </a>
+            </div>
+          )}
+          {!isPreview && node.contactEmail && (
+            <div className={styles.detail}>
+              <span className={styles.detailLabel}>Email</span>
+              <a href={`mailto:${node.contactEmail}`} className={styles.link} style={{ padding: 0 }}>
+                {node.contactEmail}
+              </a>
+            </div>
+          )}
+
+          {/* Tags */}
+          {node.tags && (node.tags.keywords?.length || node.tags.skills?.length || node.tags.default?.length) && (
+            <div className={styles.tagsWrap}>
+              {[...(node.tags.keywords ?? []), ...(node.tags.skills ?? []), ...(node.tags.default ?? [])].slice(0, isPreview ? 6 : 20).map((tag) => (
+                <span key={tag} className={styles.tag}>{tag}</span>
+              ))}
+            </div>
+          )}
+
+          {!isPreview && node.references && node.references.length > 0 && (
+            <div className={styles.referencesSection}>
+              <h3 className={styles.connectionsHeading}>Links</h3>
+              {node.references.map((ref, i) => (
+                <a key={i} href={ref.uri} target="_blank" rel="noopener noreferrer" className={styles.referenceLink}>
+                  {ref.name || ref.uri}
+                </a>
+              ))}
+            </div>
+          )}
+        </>
+      )}
+
+      {!node.restricted && <div className={styles.stats}>
         <div className={styles.stat}>
           <span className={styles.statValue}>{directConnections.length}</span>
           <span className={styles.statLabel}>Connections</span>
@@ -179,7 +252,7 @@ export default function DetailsDrawer({ node, dataset, onClose, onExpandSpace, o
             <span className={styles.statLabel}>Contributions{activityPeriod !== 'allTime' ? ` (${activityPeriod === 'day' ? 'day' : activityPeriod === 'week' ? 'week' : 'month'})` : ''}</span>
           </div>
         )}
-      </div>
+      </div>}
 
       {/* Location & Open in Alkemio — always visible above connections */}
       {!isPreview && (
@@ -208,7 +281,7 @@ export default function DetailsDrawer({ node, dataset, onClose, onExpandSpace, o
       )}
 
       {/* Direct Connections list */}
-      {!isPreview && sortedConnections.length > 0 && (
+      {!isPreview && !node.restricted && sortedConnections.length > 0 && (
         <div className={styles.connectionsSection}>
           <h3 className={styles.connectionsHeading}>Direct Connections</h3>
           <div className={styles.connectionsList}>
@@ -238,7 +311,7 @@ export default function DetailsDrawer({ node, dataset, onClose, onExpandSpace, o
       )}
 
       {/* Related Spaces — US3 expansion (users/orgs only) */}
-      {!isPreview && (node.type === 'USER' || node.type === 'ORGANIZATION') && (
+      {!isPreview && !node.restricted && (node.type === 'USER' || node.type === 'ORGANIZATION') && (
         <div className={styles.relatedSection}>
           <h3 className={styles.relatedHeading}>Related Spaces</h3>
           {loadingRelated && <p className={styles.relatedLoading}>Loading...</p>}

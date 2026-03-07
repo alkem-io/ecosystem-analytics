@@ -1,4 +1,5 @@
 import { acquireSpaces } from './acquire-service.js';
+import type { AuthContext } from '../auth/middleware.js';
 import { transformToGraph, computeActivityTiers } from '../transform/transformer.js';
 import { computeMetrics } from '../transform/metrics.js';
 import { computeInsights } from '../transform/insights.js';
@@ -18,7 +19,7 @@ const progressMap = new Map<string, GraphProgress>();
  */
 export async function generateGraph(
   userId: string,
-  bearerToken: string,
+  auth: AuthContext,
   request: GraphGenerationRequest,
 ): Promise<GraphDataset> {
   const { spaceIds, forceRefresh } = request;
@@ -70,18 +71,22 @@ export async function generateGraph(
   let freshNodes: GraphNode[] = [];
   let freshEdges: GraphEdge[] = [];
   let timeSeries: SpaceTimeSeries[] | undefined;
+  const errors: string[] = [];
   // Detect activity data from cached edges (if any edge has activityTier, cache had activity)
   let hasActivity = cachedEdges.some((e) => e.activityTier !== undefined);
 
   if (spacesToFetch.length > 0) {
     logger.info(`Fetching ${spacesToFetch.length} space(s) from Alkemio: [${spacesToFetch.join(', ')}]`, { context: 'Graph' });
-    const acquired = await acquireSpaces(bearerToken, spacesToFetch);
+    const acquired = await acquireSpaces(auth, spacesToFetch);
 
     setProgress(userId, {
       step: 'transforming',
       spacesTotal: spaceIds.length,
       spacesCompleted: spaceIds.length - spacesToFetch.length,
     });
+
+    // Collect non-fatal errors from acquisition
+    errors.push(...acquired.errors);
 
     const transformed = transformToGraph(acquired);
     freshNodes = transformed.nodes;
@@ -137,6 +142,7 @@ export async function generateGraph(
     insights,
     hasActivityData: hasActivity,
     timeSeries,
+    errors: errors.length > 0 ? errors : undefined,
   };
 }
 

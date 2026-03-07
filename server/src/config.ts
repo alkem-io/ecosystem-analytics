@@ -16,6 +16,7 @@ export interface LoggingConfig {
 export interface ServerConfig {
   alkemioServerUrl: string;
   alkemioGraphqlEndpoint: string;
+  alkemioKratosPublicUrl: string;
   port: number;
   logging: LoggingConfig;
   maxSpacesPerQuery: number;
@@ -83,7 +84,7 @@ export function loadConfig(): ServerConfig {
   if (cachedConfig) return cachedConfig;
 
   const yml = loadYamlConfig() as {
-    alkemio: { server_url: string; graphql_endpoint: string };
+    alkemio: { server_url: string; graphql_endpoint: string; kratos_public_url: string };
     server: { port: number };
     logging: { level: string; console_enabled: boolean; json: boolean };
     cache: { ttl_hours: number };
@@ -91,8 +92,9 @@ export function loadConfig(): ServerConfig {
   };
 
   cachedConfig = {
-    alkemioServerUrl: yml.alkemio.server_url,
-    alkemioGraphqlEndpoint: yml.alkemio.graphql_endpoint,
+    alkemioServerUrl: String(yml.alkemio.server_url),
+    alkemioGraphqlEndpoint: String(yml.alkemio.graphql_endpoint),
+    alkemioKratosPublicUrl: String(yml.alkemio.kratos_public_url),
     port: yml.server.port,
     logging: {
       level: yml.logging.level,

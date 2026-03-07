@@ -2,6 +2,7 @@ import { Router, Request, Response } from 'express';
 import { authMiddleware } from '../auth/middleware.js';
 import { resolveUser } from '../auth/resolve-user.js';
 import { generateGraph, getProgress } from '../services/graph-service.js';
+import { clearUserCache } from '../cache/cache-service.js';
 import { loadConfig } from '../config.js';
 import { getLogger } from '../logging/logger.js';
 import type { GraphGenerationRequest } from '../types/api.js';
@@ -31,7 +32,7 @@ graphRouter.post('/generate', async (req: Request, res: Response) => {
       return;
     }
 
-    const dataset = await generateGraph(req.auth!.userId!, req.auth!.bearerToken, body);
+    const dataset = await generateGraph(req.auth!.userId!, req.auth!, body);
     res.json(dataset);
   } catch (err) {
     logger.error(`Graph generation failed: ${(err as Error).message}`, { context: 'Graph' });
@@ -59,7 +60,7 @@ graphRouter.post('/expand', async (req: Request, res: Response) => {
       return;
     }
 
-    const dataset = await generateGraph(req.auth!.userId!, req.auth!.bearerToken, {
+    const dataset = await generateGraph(req.auth!.userId!, req.auth!, {
       spaceIds: allSpaceIds,
     });
     res.json(dataset);
@@ -79,7 +80,7 @@ graphRouter.post('/export', async (req: Request, res: Response) => {
       return;
     }
 
-    const dataset = await generateGraph(req.auth!.userId!, req.auth!.bearerToken, {
+    const dataset = await generateGraph(req.auth!.userId!, req.auth!, {
       spaceIds: body.spaceIds,
     });
 
@@ -91,6 +92,13 @@ graphRouter.post('/export', async (req: Request, res: Response) => {
     logger.error(`Graph export failed: ${(err as Error).message}`, { context: 'Graph' });
     res.status(502).json({ error: 'EXPORT_FAILED', message: 'Failed to export graph dataset' });
   }
+});
+
+// DELETE /api/graph/cache — Clear all cached data for the current user
+graphRouter.delete('/cache', (req: Request, res: Response) => {
+  const deleted = clearUserCache(req.auth!.userId!);
+  logger.info(`Cleared ${deleted} cache entries for user ${req.auth!.userId}`, { context: 'Graph' });
+  res.json({ cleared: deleted });
 });
 
 // GET /api/graph/progress — Check generation progress
