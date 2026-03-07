@@ -21,7 +21,7 @@ import type { MapRegion } from '../components/map/MapOverlay.js';
 import HoverCard from '../components/graph/HoverCard.js';
 import type { GraphNode } from '@server/types/graph.js';
 import type { ActivityPeriod } from '@server/types/graph.js';
-import { EdgeType } from '@server/types/graph.js';
+import { EdgeType, NodeType } from '@server/types/graph.js';
 import { api } from '../services/api.js';
 import styles from './Explorer.module.css';
 
@@ -306,17 +306,33 @@ export default function Explorer({ onLogout }: ExplorerProps) {
             />
           )}
           {dataset && viewState.state.activeView === 'temporal-force' && (() => {
-            // Compute date range from node/edge createdDates
+            // Timeline starts at the oldest selected L0 space's creation date
+            const l0Dates = dataset.nodes
+              .filter((n) => n.type === NodeType.SPACE_L0)
+              .map((n) => n.createdDate ? new Date(n.createdDate) : null)
+              .filter((d): d is Date => d !== null && !isNaN(d.getTime()));
             const allDates = dataset.nodes
               .map((n) => n.createdDate ? new Date(n.createdDate) : null)
               .filter((d): d is Date => d !== null && !isNaN(d.getTime()));
-            const minDate = allDates.length ? new Date(Math.min(...allDates.map((d) => d.getTime()))) : new Date('2020-01-01');
+            const minDate = l0Dates.length ? new Date(Math.min(...l0Dates.map((d) => d.getTime()))) : new Date('2020-01-01');
             const maxDate = allDates.length ? new Date(Math.max(...allDates.map((d) => d.getTime()))) : new Date();
+
+            // Auto-initialize temporal cursor to the earliest date when first entering the view
+            const effectiveDate = viewState.state.temporalDate ?? minDate;
+            if (!viewState.state.temporalDate) {
+              // Schedule for next tick to avoid setState-during-render
+              // Auto-start playback so the user sees nodes appear
+              queueMicrotask(() => {
+                viewState.setTemporalDate(minDate);
+                viewState.setTemporalPlaying(true);
+              });
+            }
+            const scrubberHeight = 48;
             return (
               <>
                 <TemporalForceView
                   dataset={dataset}
-                  temporalDate={viewState.state.temporalDate}
+                  temporalDate={effectiveDate}
                   selectedNodeId={selectedNode?.id ?? null}
                   onNodeSelect={(id) => {
                     if (id) {
@@ -328,18 +344,31 @@ export default function Explorer({ onLogout }: ExplorerProps) {
                   }}
                   activityPeriod={activityPeriod}
                   width={canvasSize.width}
-                  height={canvasSize.height}
+                  height={Math.max(0, canvasSize.height - scrubberHeight)}
+                  showPeople={showPeople}
+                  showOrganizations={showOrganizations}
+                  showSpaces={showSpaces}
+                  showMembers={showMembers}
+                  showLeads={showLeads}
+                  showAdmins={showAdmins}
+                  showPublic={showPublic}
+                  showPrivate={showPrivate}
                 />
-                <TemporalScrubber
-                  minDate={minDate}
-                  maxDate={maxDate}
-                  currentDate={viewState.state.temporalDate}
-                  playing={viewState.state.temporalPlaying}
-                  speed={viewState.state.temporalSpeed}
-                  onDateChange={viewState.setTemporalDate}
-                  onPlayingChange={viewState.setTemporalPlaying}
-                  onSpeedChange={viewState.setTemporalSpeed}
-                />
+                <div style={{
+                  position: 'absolute', bottom: 0, left: 0, right: 0,
+                  zIndex: 15, height: scrubberHeight,
+                }}>
+                  <TemporalScrubber
+                    minDate={minDate}
+                    maxDate={maxDate}
+                    currentDate={viewState.state.temporalDate}
+                    playing={viewState.state.temporalPlaying}
+                    speed={viewState.state.temporalSpeed}
+                    onDateChange={viewState.setTemporalDate}
+                    onPlayingChange={viewState.setTemporalPlaying}
+                    onSpeedChange={viewState.setTemporalSpeed}
+                  />
+                </div>
               </>
             );
           })()}

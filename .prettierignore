@@ -1,0 +1,12 @@
+node_modules/
+dist/
+build/
+coverage/
+package-lock.json
+yarn.lock
+pnpm-lock.yaml
+server/src/graphql/generated/
+playwright-report/
+test-results/
+*.sqlite
+*.sqlite3

@@ -13957,7 +13957,11 @@ export type ActivityFeedGroupedQuery = { activityFeedGrouped: Array<
     | { id: string, type: ActivityEventType, createdDate: Date, triggeredBy: { id: string }, space?: { id: string } | undefined }
     | { id: string, type: ActivityEventType, createdDate: Date, triggeredBy: { id: string }, space?: { id: string } | undefined }
     | { id: string, type: ActivityEventType, createdDate: Date, triggeredBy: { id: string }, space?: { id: string } | undefined }
-    | { id: string, type: ActivityEventType, createdDate: Date, triggeredBy: { id: string }, space?: { id: string } | undefined }
+    | { contributorType: RoleSetContributorType, id: string, type: ActivityEventType, createdDate: Date, contributor:
+        | { id: string }
+        | { id: string }
+        | { id: string }
+      , triggeredBy: { id: string }, space?: { id: string } | undefined }
     | { id: string, type: ActivityEventType, createdDate: Date, triggeredBy: { id: string }, space?: { id: string } | undefined }
     | { id: string, type: ActivityEventType, createdDate: Date, triggeredBy: { id: string }, space?: { id: string } | undefined }
   > };
