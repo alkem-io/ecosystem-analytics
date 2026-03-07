@@ -113,8 +113,12 @@ export default function SpaceSelector({ onLogout }: SpaceSelectorProps) {
 
         {spaces.length === 0 ? (
           <div className={styles.emptyState}>
-            <p>No spaces available.</p>
-            <p className={styles.emptyHint}>Request access or join a Space to get started.</p>
+            <p>You are not currently a member of any spaces.</p>
+            <p className={styles.emptyHint}>
+              This tool can only be used if you are a member of at least one space.
+              To get started, join the <a href="https://alkem.io/welcome-space" target="_blank" rel="noopener noreferrer">welcome-space</a> on
+              Alkemio. You will need to create an Alkemio account if you don't already have one.
+            </p>
           </div>
         ) : (
           <div className={styles.list}>
@@ -134,7 +138,11 @@ export default function SpaceSelector({ onLogout }: SpaceSelectorProps) {
         )}
 
         <div className={styles.footer}>
-          <span className={styles.footerNote}>We'll reuse cached data when available.</span>
+          {selected.size === 0 && spaces.length > 0 ? (
+            <span className={styles.footerNote}>Please select at least one space to generate a graph.</span>
+          ) : (
+            <span className={styles.footerNote}>We'll reuse cached data when available.</span>
+          )}
           <button
             className={styles.generateBtn}
             onClick={handleGenerate}
