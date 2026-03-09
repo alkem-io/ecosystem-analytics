@@ -70,35 +70,9 @@ export function transformToGraph(data: AcquiredData): TransformResult {
     // Add L0 Space node
     addSpaceNode(space, NodeType.SPACE_L0, [l0ScopeGroup], null, nodes, nodeIds);
 
-    // Process L1 subspaces
+    // Process subspaces recursively
     if (space.subspaces) {
-      for (const l1 of space.subspaces) {
-        const l1Any = l1 as Record<string, unknown>;
-        const l1Restricted = !l1Any.community;
-        addSpaceNode(l1, NodeType.SPACE_L1, [l0ScopeGroup], space.id, nodes, nodeIds, l1Restricted);
-        edges.push(createEdge(space.id, l1.id, EdgeType.CHILD, l0ScopeGroup));
-
-        if (!l1Restricted) {
-          // Process L2 subspaces (only when L1 is accessible)
-          if (l1.subspaces) {
-            for (const l2 of l1.subspaces) {
-              const l2Any = l2 as Record<string, unknown>;
-              const l2Restricted = !l2Any.community;
-              addSpaceNode(l2, NodeType.SPACE_L2, [l0ScopeGroup], l1.id, nodes, nodeIds, l2Restricted);
-              edges.push(createEdge(l1.id, l2.id, EdgeType.CHILD, l0ScopeGroup));
-
-              // Add contributor edges for L2 (only if not restricted)
-              if (!l2Restricted) {
-                addContributorEdges(l2, l0ScopeGroup, data, nodes, edges, nodeIds);
-              }
-            }
-          }
-
-          // Add contributor edges for L1
-          addContributorEdges(l1, l0ScopeGroup, data, nodes, edges, nodeIds);
-        }
-        // When L1 is restricted: CHILD edge is created above, but no contributor edges and no L2 processing
-      }
+      processSubspaces(space.subspaces, space.id, NodeType.SPACE_L1, l0ScopeGroup, data, nodes, edges, nodeIds);
     }
 
     // Add contributor edges for L0
@@ -240,6 +214,35 @@ function addSpaceNode(
     visibility: parseVisibility(space.visibility),
     tags: extractTags(profile.tagsets),
   });
+}
+
+/**
+ * Recursively process subspaces at any depth.
+ * Depth 1 = L1 (SPACE_L1), depth 2+ = L2 (SPACE_L2).
+ */
+function processSubspaces(
+  subspaces: SpaceLike[],
+  parentId: string,
+  nodeType: NodeType,
+  scopeGroup: string,
+  data: AcquiredData,
+  nodes: GraphNode[],
+  edges: GraphEdge[],
+  nodeIds: Set<string>,
+): void {
+  for (const sub of subspaces) {
+    const restricted = !(sub as unknown as Record<string, unknown>).community;
+    addSpaceNode(sub, nodeType, [scopeGroup], parentId, nodes, nodeIds, restricted);
+    edges.push(createEdge(parentId, sub.id, EdgeType.CHILD, scopeGroup));
+
+    if (!restricted) {
+      // Recurse into children (all levels beyond L1 use SPACE_L2)
+      if (sub.subspaces) {
+        processSubspaces(sub.subspaces, sub.id, NodeType.SPACE_L2, scopeGroup, data, nodes, edges, nodeIds);
+      }
+      addContributorEdges(sub, scopeGroup, data, nodes, edges, nodeIds);
+    }
+  }
 }
 
 function addContributorEdges(

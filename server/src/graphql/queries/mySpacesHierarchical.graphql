@@ -24,16 +24,6 @@ query mySpacesHierarchical {
       space {
         ...SpaceGraphInfoFragment
       }
-      childMemberships {
-        space {
-          ...SpaceGraphInfoFragment
-        }
-        childMemberships {
-          space {
-            ...SpaceGraphInfoFragment
-          }
-        }
-      }
     }
   }
 }
