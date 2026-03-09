@@ -2,12 +2,6 @@ query spaceByName($nameId: NameID!) {
   lookupByName {
     space(NAMEID: $nameId) {
       ...SpaceGraphInfoFragment
-      subspaces {
-        ...SpaceAboutOnlyFragment
-        subspaces {
-          ...SpaceAboutOnlyFragment
-        }
-      }
       account {
         host {
           id

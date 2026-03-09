@@ -1,0 +1,7 @@
+query subspaceDetails($spaceId: UUID!) {
+  lookup {
+    space(ID: $spaceId) {
+      ...SpaceGraphInfoFragment
+    }
+  }
+}
