@@ -9,4 +9,7 @@ fragment SpaceGraphInfoFragment on Space {
   community {
     ...communityRolesFragment
   }
+  subspaces {
+    ...SpaceAboutOnlyFragment
+  }
 }

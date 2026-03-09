@@ -1,7 +1,7 @@
 import { getLogger } from '../logging/logger.js';
 import { createAlkemioSdk } from '../graphql/client.js';
 import type { AuthContext } from '../auth/middleware.js';
-import { fetchSpaceByName, fetchSubspaceCommunity, type RawSpace } from './space-service.js';
+import { fetchSpaceByName, fetchSubspaceDetails, type RawSpace } from './space-service.js';
 import type { UsersByIDsQuery, OrganizationByIdQuery } from '../graphql/generated/alkemio-schema.js';
 import type { Sdk } from '../graphql/generated/graphql.js';
 
@@ -186,14 +186,16 @@ export async function acquireSpaces(
 }
 
 /**
- * Check user privileges on each subspace and selectively fetch community data.
- * - READ privilege: fetch community data and merge it onto the subspace
- * - READ_ABOUT only: mark as restricted (no community fetch), skip L2 children
- * - Neither: omit from subspaces array, log error
- * - Missing privileges: omit from subspaces array, log error
+ * Recursively check user privileges on subspaces and fetch community data.
+ * Works layer by layer: for each subspace with READ access, fetches its
+ * children via a separate query (since private subspaces hide their children
+ * from the parent query).
  *
- * Mutates the space.subspaces array in-place (filters out inaccessible subspaces,
- * adds community data to accessible ones).
+ * - READ privilege: fetch community data, then recursively fetch + enrich children
+ * - READ_ABOUT only: mark as restricted (no community fetch), no children
+ * - Neither / missing: omit from subspaces array, log error
+ *
+ * Mutates the space.subspaces array in-place.
  */
 async function enrichSubspacesWithCommunityData(
   sdk: Sdk,
@@ -203,21 +205,42 @@ async function enrichSubspacesWithCommunityData(
 ): Promise<void> {
   if (!space.subspaces) return;
 
-  logger.info(`Checking privileges for ${space.subspaces.length} L1 subspace(s) under space "${space.nameID}"`, { context: 'Acquire' });
+  logger.info(
+    `Checking privileges for ${space.subspaces.length} subspace(s) under space "${space.nameID}"`,
+    { context: 'Acquire' },
+  );
 
-  const enrichedL1: typeof space.subspaces = [];
+  const enriched = await enrichSubspaceLevel(sdk, space.subspaces, errors, logger);
+
+  // Replace subspaces with enriched ones
+  (space as Record<string, unknown>).subspaces = enriched;
+}
+
+/**
+ * Process a list of subspaces at any depth: check privileges, fetch community
+ * data for accessible ones, and recursively fetch + process their children.
+ */
+async function enrichSubspaceLevel(
+  sdk: Sdk,
+  subspaces: RawSpace['subspaces'],
+  errors: string[],
+  logger: ReturnType<typeof getLogger>,
+): Promise<NonNullable<RawSpace['subspaces']>> {
+  if (!subspaces || subspaces.length === 0) return [];
+
+  const enriched: NonNullable<RawSpace['subspaces']> = [];
   let readCount = 0;
   let restrictedCount = 0;
   let omittedCount = 0;
 
-  for (const l1 of space.subspaces) {
-    const privileges = (l1.about as Record<string, unknown>).membership as
+  for (const sub of subspaces) {
+    const privileges = (sub.about as Record<string, unknown>).membership as
       | { myPrivileges?: string[] }
       | undefined;
     const privList = privileges?.myPrivileges;
 
     if (!privList || privList.length === 0) {
-      const msg = `No privileges returned for subspace "${l1.nameID}" (${l1.id}) — omitting from graph`;
+      const msg = `No privileges returned for subspace "${sub.nameID}" (${sub.id}) — omitting from graph`;
       logger.error(msg, { context: 'Acquire' });
       errors.push(msg);
       omittedCount++;
@@ -228,63 +251,41 @@ async function enrichSubspacesWithCommunityData(
     const hasReadAbout = privList.includes('READ_ABOUT');
 
     if (hasRead) {
-      // Fetch community data for this L1 subspace
-      logger.info(`L1 "${l1.nameID}" (${l1.id}): READ privilege — fetching community data`, { context: 'Acquire' });
-      const communityData = await fetchSubspaceCommunity(sdk, l1.id, errors);
-      if (communityData) {
-        // Merge community data onto the subspace object
-        (l1 as Record<string, unknown>).community = communityData.community;
-      }
+      // Fetch community data + children in a single query
+      logger.info(`"${sub.nameID}" (${sub.id}): READ privilege — fetching details`, { context: 'Acquire' });
+      const details = await fetchSubspaceDetails(sdk, sub.id, errors);
+      if (details) {
+        (sub as Record<string, unknown>).community = details.community;
 
-      // Process L2 children with same logic
-      if (l1.subspaces) {
-        const enrichedL2: typeof l1.subspaces = [];
-        for (const l2 of l1.subspaces) {
-          const l2Privs = (l2.about as Record<string, unknown>).membership as
-            | { myPrivileges?: string[] }
-            | undefined;
-          const l2PrivList = l2Privs?.myPrivileges;
-
-          if (!l2PrivList || l2PrivList.length === 0) {
-            const msg = `No privileges returned for L2 subspace "${l2.nameID}" (${l2.id}) — omitting from graph`;
-            logger.error(msg, { context: 'Acquire' });
-            errors.push(msg);
-            continue;
-          }
-
-          const l2HasRead = l2PrivList.includes('READ');
-          const l2HasReadAbout = l2PrivList.includes('READ_ABOUT');
-
-          if (l2HasRead) {
-            logger.info(`  L2 "${l2.nameID}" (${l2.id}): READ privilege — fetching community data`, { context: 'Acquire' });
-            const l2Community = await fetchSubspaceCommunity(sdk, l2.id, errors);
-            if (l2Community) {
-              (l2 as Record<string, unknown>).community = l2Community.community;
-            }
-            enrichedL2.push(l2);
-          } else if (l2HasReadAbout) {
-            // L2 restricted — include with about-only data, no community
-            logger.info(`  L2 "${l2.nameID}" (${l2.id}): READ_ABOUT only — marking as restricted`, { context: 'Acquire' });
-            enrichedL2.push(l2);
-          } else {
-            const msg = `L2 subspace "${l2.nameID}" (${l2.id}) has neither READ nor READ_ABOUT — omitting from graph`;
-            logger.error(msg, { context: 'Acquire' });
-            errors.push(msg);
-          }
+        if (details.subspaces && details.subspaces.length > 0) {
+          logger.info(
+            `"${sub.nameID}" (${sub.id}): found ${details.subspaces.length} child subspace(s), processing recursively`,
+            { context: 'Acquire' },
+          );
+          const enrichedChildren = await enrichSubspaceLevel(
+            sdk,
+            details.subspaces as typeof subspaces,
+            errors,
+            logger,
+          );
+          (sub as Record<string, unknown>).subspaces = enrichedChildren;
+        } else {
+          (sub as Record<string, unknown>).subspaces = [];
         }
-        (l1 as Record<string, unknown>).subspaces = enrichedL2;
+      } else {
+        (sub as Record<string, unknown>).subspaces = [];
       }
 
       readCount++;
-      enrichedL1.push(l1);
+      enriched.push(sub);
     } else if (hasReadAbout) {
-      // L1 restricted — include with about-only data, skip all L2 children
-      logger.info(`L1 "${l1.nameID}" (${l1.id}): READ_ABOUT only — marking as restricted, skipping L2 children`, { context: 'Acquire' });
-      (l1 as Record<string, unknown>).subspaces = [];
+      // Restricted — include with about-only data, no community, no children
+      logger.info(`"${sub.nameID}" (${sub.id}): READ_ABOUT only — marking as restricted`, { context: 'Acquire' });
+      (sub as Record<string, unknown>).subspaces = [];
       restrictedCount++;
-      enrichedL1.push(l1);
+      enriched.push(sub);
     } else {
-      const msg = `Subspace "${l1.nameID}" (${l1.id}) has neither READ nor READ_ABOUT — omitting from graph`;
+      const msg = `Subspace "${sub.nameID}" (${sub.id}) has neither READ nor READ_ABOUT — omitting from graph`;
       logger.error(msg, { context: 'Acquire' });
       errors.push(msg);
       omittedCount++;
@@ -292,12 +293,11 @@ async function enrichSubspacesWithCommunityData(
   }
 
   logger.info(
-    `Subspace enrichment complete for "${space.nameID}": ${readCount} accessible, ${restrictedCount} restricted, ${omittedCount} omitted (of ${space.subspaces.length} total)`,
+    `Subspace enrichment: ${readCount} accessible, ${restrictedCount} restricted, ${omittedCount} omitted (of ${subspaces.length} total)`,
     { context: 'Acquire' },
   );
 
-  // Replace subspaces with enriched ones
-  (space as Record<string, unknown>).subspaces = enrichedL1;
+  return enriched;
 }
 
 /** Common shape for collecting contributor IDs across space levels */
