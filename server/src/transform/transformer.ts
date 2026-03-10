@@ -350,6 +350,18 @@ function ensureOrgNode(
   });
 }
 
+/** Canonical city name mapping — normalizes alternate spellings to a single form. */
+const CITY_ALIASES: Record<string, string> = {
+  "'s-gravenhage": 'Den Haag',
+  "'s gravenhage": 'Den Haag',
+  's-gravenhage': 'Den Haag',
+};
+
+function normalizeCity(city: string | undefined | null): string | null {
+  if (!city) return null;
+  return CITY_ALIASES[city.toLowerCase()] ?? city;
+}
+
 function extractLocation(
   loc?: { country?: string; city?: string; geoLocation?: { latitude?: number; longitude?: number } },
 ): GraphLocation | null {
@@ -357,7 +369,7 @@ function extractLocation(
   if (!loc.country && !loc.city && !loc.geoLocation) return null;
   return {
     country: loc.country || null,
-    city: loc.city || null,
+    city: normalizeCity(loc.city),
     latitude: loc.geoLocation?.latitude ?? null,
     longitude: loc.geoLocation?.longitude ?? null,
   };

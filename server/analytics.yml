@@ -18,3 +18,15 @@ cache:
 
 limits:
   max_spaces_per_query: ${MAX_SPACES_PER_QUERY}:10
+
+openai:
+  api_key: ${OPENAI_API_KEY}
+  base_url: "${OPENAI_BASE_URL}:"
+  model: gemini-2.5-flash
+  max_tokens: 8192
+  temperature: 0.3
+
+query:
+  session_ttl_minutes: 30
+  max_query_length: 2000
+  max_feedback_length: 5000

@@ -45,6 +45,46 @@
   border-color: var(--border-focus);
 }
 
+.askBtn {
+  font-size: 13px;
+  font-family: var(--font-family);
+  font-weight: 500;
+  padding: 6px 14px;
+  border: 1px solid var(--primary);
+  border-radius: var(--radius-sm);
+  background: var(--primary);
+  color: white;
+  cursor: pointer;
+  margin-left: 8px;
+  transition: opacity 0.15s;
+}
+
+.askBtn:hover {
+  opacity: 0.9;
+}
+
+.backToConversationBtn {
+  position: fixed;
+  bottom: 80px;
+  right: 24px;
+  z-index: 100;
+  padding: 10px 20px;
+  border-radius: 20px;
+  border: 1px solid var(--primary);
+  background: var(--surface-raised);
+  color: var(--primary);
+  font-size: 13px;
+  font-family: var(--font-family);
+  font-weight: 500;
+  cursor: pointer;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.15);
+  transition: background 0.15s;
+}
+
+.backToConversationBtn:hover {
+  background: var(--primary-faded, rgba(99, 102, 241, 0.1));
+}
+
 .errorContainer button {
   padding: 8px 20px;
   font-family: var(--font-family);

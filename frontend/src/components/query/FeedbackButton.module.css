@@ -1,0 +1,82 @@
+.trigger {
+  font-size: 12px;
+  color: var(--text-secondary);
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 4px 0;
+  font-family: var(--font-family);
+  text-decoration: underline;
+  text-decoration-style: dotted;
+}
+
+.trigger:hover {
+  color: var(--text-primary);
+}
+
+.trigger:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
+
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.textarea {
+  width: 100%;
+  padding: 8px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--surface);
+  color: var(--text-primary);
+  font-size: 13px;
+  font-family: var(--font-family);
+  resize: vertical;
+}
+
+.textarea:focus {
+  outline: none;
+  border-color: var(--primary);
+}
+
+.actions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+.cancel,
+.submit {
+  padding: 6px 12px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-family: var(--font-family);
+  cursor: pointer;
+  border: 1px solid var(--border);
+}
+
+.cancel {
+  background: transparent;
+  color: var(--text-secondary);
+}
+
+.submit {
+  background: var(--primary);
+  color: white;
+  border-color: var(--primary);
+}
+
+.submit:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.confirmation {
+  font-size: 12px;
+  color: var(--text-secondary);
+  font-style: italic;
+}

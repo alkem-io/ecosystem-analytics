@@ -13,6 +13,20 @@ export interface LoggingConfig {
   json: boolean;
 }
 
+export interface OpenAIConfig {
+  apiKey: string;
+  baseUrl: string;
+  model: string;
+  maxTokens: number;
+  temperature: number;
+}
+
+export interface QueryConfig {
+  sessionTtlMinutes: number;
+  maxQueryLength: number;
+  maxFeedbackLength: number;
+}
+
 export interface ServerConfig {
   alkemioServerUrl: string;
   alkemioGraphqlEndpoint: string;
@@ -20,6 +34,8 @@ export interface ServerConfig {
   logging: LoggingConfig;
   maxSpacesPerQuery: number;
   cacheTtlHours: number;
+  openai: OpenAIConfig;
+  query: QueryConfig;
 }
 
 /** Resolve the YAML config file path (check env override, cwd, then relative to dist) */
@@ -68,9 +84,7 @@ function loadYamlConfig(): Record<string, unknown> {
 
   YAML.visit(doc, {
     Scalar(_key, node) {
-      if (node.type === 'PLAIN') {
-        node.value = substituteEnvVar(node.value);
-      }
+      node.value = substituteEnvVar(node.value);
     },
   });
 
@@ -88,6 +102,8 @@ export function loadConfig(): ServerConfig {
     logging: { level: string; console_enabled: boolean; json: boolean };
     cache: { ttl_hours: number };
     limits: { max_spaces_per_query: number };
+    openai: { api_key: string; base_url: string; model: string; max_tokens: number; temperature: number };
+    query: { session_ttl_minutes: number; max_query_length: number; max_feedback_length: number };
   };
 
   cachedConfig = {
@@ -101,6 +117,18 @@ export function loadConfig(): ServerConfig {
     },
     maxSpacesPerQuery: yml.limits.max_spaces_per_query,
     cacheTtlHours: yml.cache.ttl_hours,
+    openai: {
+      apiKey: yml.openai.api_key,
+      baseUrl: String(yml.openai.base_url || ''),
+      model: yml.openai.model,
+      maxTokens: yml.openai.max_tokens,
+      temperature: yml.openai.temperature,
+    },
+    query: {
+      sessionTtlMinutes: yml.query.session_ttl_minutes,
+      maxQueryLength: yml.query.max_query_length,
+      maxFeedbackLength: yml.query.max_feedback_length,
+    },
   };
 
   return cachedConfig;
