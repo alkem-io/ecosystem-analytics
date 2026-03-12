@@ -863,13 +863,15 @@ export default function ForceGraph({
         simNodes.filter((d) => !!nodeImageUrl(d.data)).forEach((d) => {
           svg.select(`#clip-avatar-${d.data.id} circle`).attr('r', effectiveRadius(d, true, k));
         });
-        // Visibility badge positions
+        // Visibility badge — size and position proportional to effective node radius
         nodeSelection.selectAll<SVGCircleElement, SimNode>('.visibility-badge-bg')
           .attr('cx', (d) => effectiveRadius(d, true, k) * 0.6)
-          .attr('cy', (d) => effectiveRadius(d, true, k) * 0.6);
+          .attr('cy', (d) => effectiveRadius(d, true, k) * 0.6)
+          .attr('r', (d) => effectiveRadius(d, true, k) * 0.25);
         nodeSelection.selectAll<SVGTextElement, SimNode>('.visibility-badge-icon')
           .attr('x', (d) => effectiveRadius(d, true, k) * 0.6)
-          .attr('y', (d) => effectiveRadius(d, true, k) * 0.6);
+          .attr('y', (d) => effectiveRadius(d, true, k) * 0.6)
+          .attr('font-size', (d) => effectiveRadius(d, true, k) * 0.3);
         // Label offsets and font size — counter-scale so text doesn't balloon on zoom
         const textScale = 1 / Math.pow(Math.max(k, 0.1), 0.7);
         nodeSelection.selectAll<SVGTextElement, SimNode>('.node-label')
@@ -1379,10 +1381,13 @@ export default function ForceGraph({
       });
 
     // Node images (avatars / banners) — clipped to circle, with fallback on error.
-    // On load, detect Alkemio default placeholder images (e.g. padlock icon) by checking
-    // aspect ratio: real banners are wide (> 1.3:1), placeholders are roughly square.
-    nodeSelection
-      .filter((d) => !!nodeImageUrl(d.data))
+    // For space nodes using bannerUrl, pre-check via fetch to detect Alkemio default
+    // placeholder images (small files like the padlock icon) and skip them.
+    const imgNodes = nodeSelection.filter((d) => !!nodeImageUrl(d.data));
+
+    // Non-banner images: render immediately
+    imgNodes
+      .filter((d) => !(d.data.type.startsWith('SPACE_') && d.data.bannerUrl))
       .append('image')
       .attr('href', (d) => proxyImageUrl(nodeImageUrl(d.data)) ?? nodeImageUrl(d.data)!)
       .attr('x', (d) => -effectiveRadius(d, isGeoMode, currentZoomScale))
@@ -1391,47 +1396,70 @@ export default function ForceGraph({
       .attr('height', (d) => effectiveRadius(d, isGeoMode, currentZoomScale) * 2)
       .attr('clip-path', (d) => `url(#clip-avatar-${d.data.id})`)
       .attr('preserveAspectRatio', 'xMidYMid slice')
-      .each(function (d) {
-        // For space nodes using bannerUrl, verify the image is a real banner (wide aspect ratio)
-        if (d.data.type.startsWith('SPACE_') && d.data.bannerUrl) {
-          const svgImg = this as SVGImageElement;
-          const probe = new Image();
-          probe.onload = () => {
-            const ratio = probe.naturalWidth / probe.naturalHeight;
-            if (ratio < 1.3) {
-              // Square/portrait image — likely a default placeholder; remove it
-              d3.select(svgImg).remove();
-            }
-          };
-          probe.onerror = () => d3.select(svgImg).remove();
-          probe.src = svgImg.href.baseVal;
-        }
-      })
       .on('error', function () {
         d3.select(this).remove();
       });
 
-    // Visibility badge — lock/unlock icon overlay on space nodes (bottom-right)
+    // Space banner images: pre-check to filter out Alkemio default placeholders
+    imgNodes
+      .filter((d) => d.data.type.startsWith('SPACE_') && !!d.data.bannerUrl)
+      .each(function (d) {
+        const group = d3.select(this);
+        const url = proxyImageUrl(nodeImageUrl(d.data)) ?? nodeImageUrl(d.data)!;
+        fetch(url)
+          .then((res) => {
+            if (!res.ok) return;
+            const size = parseInt(res.headers.get('x-image-size') || res.headers.get('content-length') || '0', 10);
+            // Default Alkemio placeholders (padlock icon) are small files (< 100KB).
+            // Real uploaded banners are typically much larger.
+            if (size > 0 && size < 102400) return;
+            const r = effectiveRadius(d, isGeoMode, currentZoomScale);
+            // Insert image before the badge elements so badge stays on top
+            const firstBadge = group.select('.visibility-badge-bg').node();
+            const imgEl = document.createElementNS('http://www.w3.org/2000/svg', 'image');
+            if (firstBadge) {
+              (group.node() as Element).insertBefore(imgEl, firstBadge);
+            } else {
+              (group.node() as Element).appendChild(imgEl);
+            }
+            d3.select(imgEl)
+              .attr('href', url)
+              .attr('x', -r)
+              .attr('y', -r)
+              .attr('width', r * 2)
+              .attr('height', r * 2)
+              .attr('clip-path', `url(#clip-avatar-${d.data.id})`)
+              .attr('preserveAspectRatio', 'xMidYMid slice')
+              .on('error', function () {
+                d3.select(this).remove();
+              });
+          })
+          .catch(() => { /* skip on fetch failure */ });
+      });
+
+    // Visibility badge — lock icon overlay on private space nodes (bottom-right).
+    // Uses a <g> wrapper so the whole badge can be raised above async-loaded images.
     const spaceNodes = nodeSelection.filter(
       (d) => d.data.type === 'SPACE_L0' || d.data.type === 'SPACE_L1' || d.data.type === 'SPACE_L2',
     );
 
-    // Lock badge — only shown on private spaces
     const privateSpaceNodes = spaceNodes.filter((d) => d.data.privacyMode === 'PRIVATE');
 
-    // White circle background for contrast
+    // Badge size scales with node radius so it stays visible at all zoom levels
+    const badgeRadius = (d: SimNode) => effectiveRadius(d, isGeoMode, currentZoomScale) * 0.25;
+    const badgeFontSize = (d: SimNode) => effectiveRadius(d, isGeoMode, currentZoomScale) * 0.3;
+
     privateSpaceNodes
       .append('circle')
       .attr('class', 'visibility-badge-bg')
       .attr('cx', (d) => effectiveRadius(d, isGeoMode, currentZoomScale) * 0.6)
       .attr('cy', (d) => effectiveRadius(d, isGeoMode, currentZoomScale) * 0.6)
-      .attr('r', (d) => (d.data.type === 'SPACE_L0' ? 7 : 5))
+      .attr('r', badgeRadius)
       .attr('fill', 'white')
       .attr('stroke', 'rgba(148,163,184,0.4)')
       .attr('stroke-width', 0.5)
       .attr('pointer-events', 'none');
 
-    // Lock emoji
     privateSpaceNodes
       .append('text')
       .attr('class', 'visibility-badge-icon')
@@ -1439,7 +1467,7 @@ export default function ForceGraph({
       .attr('y', (d) => effectiveRadius(d, isGeoMode, currentZoomScale) * 0.6)
       .attr('text-anchor', 'middle')
       .attr('dominant-baseline', 'central')
-      .attr('font-size', (d) => (d.data.type === 'SPACE_L0' ? 9 : 7))
+      .attr('font-size', badgeFontSize)
       .attr('pointer-events', 'none')
       .text('\u{1F512}');
 
@@ -2005,7 +2033,10 @@ export default function ForceGraph({
         .attr('stroke-width', 1.5)
         .attr('opacity', 0)
         .merge(hulls)
-        .attr('d', (d) => hullLine(d.points))
+        .attr('d', (d) => {
+          const valid = d.points.filter(([x, y]) => isFinite(x) && isFinite(y));
+          return valid.length >= 3 ? hullLine(valid) : null;
+        })
         .transition().duration(200)
         .attr('opacity', 1);
     }

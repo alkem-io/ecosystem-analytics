@@ -51,8 +51,11 @@ imageProxyRouter.get('/', async (req: Request, res: Response) => {
     if (contentType) res.setHeader('Content-Type', contentType);
     res.setHeader('Cache-Control', 'public, max-age=3600');
 
-    // Pipe the response body
     const buffer = Buffer.from(await response.arrayBuffer());
+
+    // Expose image byte size so clients can detect small default placeholders
+    res.setHeader('X-Image-Size', buffer.length);
+
     res.send(buffer);
   } catch {
     res.status(502).json({ error: 'Failed to fetch image' });

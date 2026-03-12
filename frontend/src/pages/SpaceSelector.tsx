@@ -2,6 +2,7 @@ import { useState, useMemo } from 'react';
 import type { CSSProperties } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useSpaces } from '../hooks/useSpaces.js';
+import { useUserProfile } from '../hooks/useUserProfile.js';
 import { Button } from '../components/ui/button.js';
 import { Checkbox } from '../components/ui/checkbox.js';
 import { Network, Search, RefreshCw, Loader2, LogOut } from 'lucide-react';
@@ -24,6 +25,7 @@ interface SpaceSelectorProps {
 
 export default function SpaceSelector({ onLogout }: SpaceSelectorProps) {
   const { spaces, loading, error, reload } = useSpaces();
+  const profile = useUserProfile();
   const SELECTION_KEY = 'alkemio_selected_spaces';
   const [selected, setSelected] = useState<Set<string>>(() => {
     try {
@@ -37,10 +39,21 @@ export default function SpaceSelector({ onLogout }: SpaceSelectorProps) {
   const navigate = useNavigate();
 
   const filteredSpaces = useMemo(() => {
-    if (!search) return spaces;
-    const q = search.toLowerCase();
-    return spaces.filter((s) => s.displayName.toLowerCase().includes(q));
-  }, [spaces, search]);
+    const list = search
+      ? spaces.filter((s) => s.displayName.toLowerCase().includes(search.toLowerCase()))
+      : spaces;
+    // Sort selected spaces to the top
+    return [...list].sort((a, b) => {
+      const aSelected = selected.has(a.nameId) ? 0 : 1;
+      const bSelected = selected.has(b.nameId) ? 0 : 1;
+      return aSelected - bSelected;
+    });
+  }, [spaces, search, selected]);
+
+  const selectedSpaces = useMemo(
+    () => spaces.filter((s) => selected.has(s.nameId)),
+    [spaces, selected],
+  );
 
   const updateSelected = (next: Set<string>) => {
     setSelected(next);
@@ -137,7 +150,7 @@ export default function SpaceSelector({ onLogout }: SpaceSelectorProps) {
               </div>
               <div>
                 <h2 style={{ fontSize: 20, fontWeight: 600, letterSpacing: '-0.02em', color: '#0f172a', margin: 0 }}>
-                  Select Spaces
+                  {profile ? `Welcome, ${profile.displayName}` : 'Select Spaces'}
                 </h2>
                 <p style={{ fontSize: 13, color: '#64748b', marginTop: 3, marginBottom: 0 }}>
                   Choose L0 spaces for your network graph
@@ -233,6 +246,40 @@ export default function SpaceSelector({ onLogout }: SpaceSelectorProps) {
             Member or Lead access only
           </span>
         </div>
+
+        {/* Selected spaces chips */}
+        {selectedSpaces.length > 0 && (
+          <div style={{ padding: '0 32px 12px' }}>
+            <div style={{ fontSize: 11, fontWeight: 500, color: '#94a3b8', marginBottom: 8, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+              Selected ({selectedSpaces.length})
+            </div>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+              {selectedSpaces.map((s) => (
+                <button
+                  key={s.nameId}
+                  onClick={() => toggleSpace(s.nameId)}
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: 4,
+                    padding: '4px 10px',
+                    fontSize: 12,
+                    fontWeight: 500,
+                    color: '#1e40af',
+                    background: '#eff6ff',
+                    border: '1px solid #bfdbfe',
+                    borderRadius: 99,
+                    cursor: 'pointer',
+                    fontFamily: 'inherit',
+                  }}
+                >
+                  {s.displayName}
+                  <span style={{ fontSize: 14, lineHeight: 1, color: '#93c5fd' }}>&times;</span>
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* Divider */}
         <div style={{ height: 1, background: '#e2e8f0' }} />

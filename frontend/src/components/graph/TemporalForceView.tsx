@@ -719,26 +719,37 @@ export default function TemporalForceView({
           .attr('id', clipId)
           .append('circle')
           .attr('r', r - 1);
-        const imgEl = g.append('image')
-          .attr('href', imgUrl)
-          .attr('x', -(r - 1))
-          .attr('y', -(r - 1))
-          .attr('width', (r - 1) * 2)
-          .attr('height', (r - 1) * 2)
-          .attr('clip-path', `url(#${clipId})`)
-          .attr('preserveAspectRatio', 'xMidYMid slice')
-          .style('pointer-events', 'none')
-          .on('error', function () { d3.select(this).remove(); });
-        // Detect Alkemio default placeholder banners (square padlock icons)
+
+        // For space banners, pre-check file size to filter out Alkemio default placeholders
         if (d.data.type.startsWith('SPACE_') && d.data.bannerUrl) {
-          const probe = new Image();
-          probe.onload = () => {
-            if (probe.naturalWidth / probe.naturalHeight < 1.3) {
-              imgEl.remove();
-            }
-          };
-          probe.onerror = () => imgEl.remove();
-          probe.src = imgUrl;
+          fetch(imgUrl)
+            .then((res) => {
+              if (!res.ok) return;
+              const size = parseInt(res.headers.get('x-image-size') || res.headers.get('content-length') || '0', 10);
+              if (size > 0 && size < 102400) return;
+              g.append('image')
+                .attr('href', imgUrl)
+                .attr('x', -(r - 1))
+                .attr('y', -(r - 1))
+                .attr('width', (r - 1) * 2)
+                .attr('height', (r - 1) * 2)
+                .attr('clip-path', `url(#${clipId})`)
+                .attr('preserveAspectRatio', 'xMidYMid slice')
+                .style('pointer-events', 'none')
+                .on('error', function () { d3.select(this).remove(); });
+            })
+            .catch(() => { /* skip */ });
+        } else {
+          g.append('image')
+            .attr('href', imgUrl)
+            .attr('x', -(r - 1))
+            .attr('y', -(r - 1))
+            .attr('width', (r - 1) * 2)
+            .attr('height', (r - 1) * 2)
+            .attr('clip-path', `url(#${clipId})`)
+            .attr('preserveAspectRatio', 'xMidYMid slice')
+            .style('pointer-events', 'none')
+            .on('error', function () { d3.select(this).remove(); });
         }
       });
 

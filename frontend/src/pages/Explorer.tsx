@@ -71,8 +71,19 @@ export default function Explorer({ onLogout }: ExplorerProps) {
   const canvasRef = useRef<HTMLDivElement>(null);
   const [canvasSize, setCanvasSize] = useState({ width: 0, height: 0 });
 
-  // Get spaceIds from navigation state
-  const spaceIds = (location.state as { spaceIds?: string[] })?.spaceIds;
+  // Prefer localStorage (kept in sync by setActiveSpaceIds) over navigation state,
+  // because nav state becomes stale when spaces are added/removed in Explorer.
+  const SELECTION_KEY = 'alkemio_selected_spaces';
+  const spaceIds = (() => {
+    try {
+      const saved = localStorage.getItem(SELECTION_KEY);
+      if (saved) {
+        const parsed = JSON.parse(saved) as string[];
+        if (parsed.length > 0) return parsed;
+      }
+    } catch { /* fall through */ }
+    return (location.state as { spaceIds?: string[] })?.spaceIds ?? null;
+  })();
 
   useEffect(() => {
     if (!spaceIds || spaceIds.length === 0) {
@@ -96,7 +107,6 @@ export default function Explorer({ onLogout }: ExplorerProps) {
     return () => ro.disconnect();
   }, []);
 
-  const SELECTION_KEY = 'alkemio_selected_spaces';
   const [activeSpaceIds, setActiveSpaceIdsRaw] = useState<string[]>(spaceIds || []);
   const setActiveSpaceIds = useCallback((ids: string[]) => {
     setActiveSpaceIdsRaw(ids);
