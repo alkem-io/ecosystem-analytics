@@ -1,22 +1,15 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { setToken } from '../services/auth.js';
-import { Button } from '../components/ui/button.js';
-import { Network, Loader2, AlertCircle } from 'lucide-react';
+import { setToken, isAuthenticated, detectSsoSession, type SsoDetectResult } from '../services/auth.js';
+import styles from './LoginPage.module.css';
 
-const inputStyle: React.CSSProperties = {
-  width: '100%',
-  height: 44,
-  padding: '0 16px',
-  fontSize: 14,
-  borderRadius: 10,
-  border: '2px solid #cbd5e1',
-  background: '#f8fafc',
-  outline: 'none',
-  color: '#0f172a',
-  fontFamily: 'inherit',
-  boxSizing: 'border-box' as const,
-};
+/**
+ * Screen A — Identity Gate
+ *
+ * Detects an existing Alkemio/Kratos session on mount. If found, shows a
+ * confirmation prompt. If not, or if the user declines, shows the standard
+ * email/password login form.
+ */
 
 interface Props {
   onLogin?: () => void;
@@ -28,6 +21,47 @@ export default function LoginPage({ onLogin }: Props) {
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // SSO detection state
+  const [ssoChecking, setSsoChecking] = useState(true);
+  const [ssoResult, setSsoResult] = useState<SsoDetectResult | null>(null);
+
+  // On mount: skip SSO detection if already authenticated (FR-011)
+  useEffect(() => {
+    if (isAuthenticated()) {
+      setSsoChecking(false);
+      return;
+    }
+
+    let cancelled = false;
+    detectSsoSession().then((result) => {
+      if (cancelled) return;
+      if (result?.detected) {
+        setSsoResult(result);
+      }
+      setSsoChecking(false);
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const handleSsoConfirm = () => {
+    if (!ssoResult?.token) {
+      setError('Session token not available. Please log in manually.');
+      setSsoResult(null);
+      return;
+    }
+
+    setToken(ssoResult.token);
+    onLogin?.();
+    navigate('/spaces');
+  };
+
+  const handleSsoDecline = () => {
+    setSsoResult(null);
+  };
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -58,141 +92,129 @@ export default function LoginPage({ onLogin }: Props) {
     }
   };
 
+  // Show a brief loading state while SSO detection runs (max 2s timeout)
+  if (ssoChecking) {
+    return (
+      <div className={styles.container}>
+        <div className={styles.card}>
+          <div className={styles.header}>
+            <h1 className={styles.title}>Ecosystem Analytics</h1>
+            <p className={styles.subtitle}>by Alkemio</p>
+          </div>
+          <div className={styles.body}>
+            <p className={styles.description}>Checking for existing session...</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // SSO session detected — show confirmation prompt
+  if (ssoResult?.detected) {
+    return (
+      <div className={styles.container}>
+        <div className={styles.card}>
+          <div className={styles.header}>
+            <h1 className={styles.title}>Ecosystem Analytics</h1>
+            <p className={styles.subtitle}>by Alkemio</p>
+          </div>
+
+          <div className={styles.body}>
+            <h2 className={styles.welcome}>Welcome back</h2>
+            <div className={styles.ssoPrompt}>
+              {ssoResult.avatarUrl ? (
+                <img
+                  className={styles.ssoAvatar}
+                  src={ssoResult.avatarUrl}
+                  alt=""
+                  onError={(e) => {
+                    (e.target as HTMLImageElement).style.display = 'none';
+                  }}
+                />
+              ) : (
+                <div className={styles.ssoAvatarPlaceholder}>
+                  {(ssoResult.displayName ?? '?')[0].toUpperCase()}
+                </div>
+              )}
+              <p className={styles.ssoName}>{ssoResult.displayName}</p>
+            </div>
+
+            {error && <p className={styles.error}>{error}</p>}
+
+            <button className={styles.cta} onClick={handleSsoConfirm}>
+              Continue as {ssoResult.displayName}
+            </button>
+
+            <button className={styles.ssoDecline} onClick={handleSsoDecline}>
+              Use a different account
+            </button>
+          </div>
+
+          <div className={styles.footer}>
+            <span className={styles.version}>v{__APP_VERSION__}</span>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Standard login form
   return (
-    <div
-      className="flex min-h-screen items-center justify-center p-4"
-      style={{ background: '#eef2f7' }}
-    >
-      <div
-        className="w-full overflow-hidden"
-        style={{
-          maxWidth: 420,
-          borderRadius: 16,
-          background: '#ffffff',
-          boxShadow: '0 25px 60px -12px rgba(0, 0, 0, 0.25), 0 0 0 1px rgba(0, 0, 0, 0.03)',
-        }}
-      >
-        {/* Branding */}
-        <div style={{ padding: '40px 40px 12px', textAlign: 'center' }}>
-          <div
-            className="flex items-center justify-center"
-            style={{
-              width: 56,
-              height: 56,
-              borderRadius: 16,
-              background: 'rgba(37, 99, 235, 0.08)',
-              color: '#2563eb',
-              margin: '0 auto 14px',
-            }}
-          >
-            <Network style={{ width: 28, height: 28 }} />
-          </div>
-          <h1 style={{ fontSize: 22, fontWeight: 600, letterSpacing: '-0.02em', color: '#0f172a', margin: 0 }}>
-            Ecosystem Analytics
-          </h1>
-          <p style={{ fontSize: 13, color: '#94a3b8', marginTop: 4 }}>by Alkemio</p>
+    <div className={styles.container}>
+      <div className={styles.card}>
+        <div className={styles.header}>
+          <h1 className={styles.title}>Ecosystem Analytics</h1>
+          <p className={styles.subtitle}>by Alkemio</p>
         </div>
 
-        {/* Form */}
-        <div style={{ padding: '16px 40px 40px' }}>
-          <div style={{ textAlign: 'center', marginBottom: 28 }}>
-            <h2 style={{ fontSize: 16, fontWeight: 600, color: '#0f172a', margin: 0 }}>Welcome back</h2>
-            <p style={{ fontSize: 13, color: '#64748b', marginTop: 4 }}>
-              Sign in with your Alkemio account
-            </p>
-          </div>
-
-          <form onSubmit={handleLogin} style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
-            <div>
-              <label htmlFor="email" style={{ display: 'block', fontSize: 13, fontWeight: 500, color: '#334155', marginBottom: 6 }}>
-                Email
-              </label>
-              <input
-                id="email"
-                type="email"
-                placeholder="you@example.com"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                required
-                autoComplete="email"
-                style={inputStyle}
-                onFocus={(e) => {
-                  e.currentTarget.style.borderColor = '#93b4f8';
-                  e.currentTarget.style.boxShadow = '0 0 0 3px rgba(37,99,235,0.1)';
-                }}
-                onBlur={(e) => {
-                  e.currentTarget.style.borderColor = '#cbd5e1';
-                  e.currentTarget.style.boxShadow = 'none';
-                }}
-              />
-            </div>
-
-            <div>
-              <label htmlFor="password" style={{ display: 'block', fontSize: 13, fontWeight: 500, color: '#334155', marginBottom: 6 }}>
-                Password
-              </label>
-              <input
-                id="password"
-                type="password"
-                placeholder="Your password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
-                autoComplete="current-password"
-                style={inputStyle}
-                onFocus={(e) => {
-                  e.currentTarget.style.borderColor = '#93b4f8';
-                  e.currentTarget.style.boxShadow = '0 0 0 3px rgba(37,99,235,0.1)';
-                }}
-                onBlur={(e) => {
-                  e.currentTarget.style.borderColor = '#cbd5e1';
-                  e.currentTarget.style.boxShadow = 'none';
-                }}
-              />
-            </div>
-
-            {error && (
-              <div
-                className="flex items-center"
-                style={{
-                  gap: 10,
-                  padding: '12px 14px',
-                  borderRadius: 10,
-                  background: '#fef2f2',
-                  color: '#dc2626',
-                  fontSize: 14,
-                }}
-              >
-                <AlertCircle style={{ width: 16, height: 16, flexShrink: 0 }} />
-                {error}
-              </div>
-            )}
-
-            <Button
-              type="submit"
-              disabled={loading}
-              style={{
-                width: '100%',
-                height: 44,
-                fontSize: 14,
-                fontWeight: 500,
-                borderRadius: 10,
-                marginTop: 4,
-              }}
-            >
-              {loading && <Loader2 className="h-4 w-4 animate-spin" />}
-              {loading ? 'Signing in...' : 'Sign in'}
-            </Button>
-          </form>
-
-          <p style={{ marginTop: 20, textAlign: 'center', fontSize: 12, color: '#94a3b8' }}>
-            Only username/password identities supported. SSO coming soon.
+        <div className={styles.body}>
+          <h2 className={styles.welcome}>Welcome</h2>
+          <p className={styles.description}>
+            This is an experimental tool for exploring ecosystem-level data across Alkemio.
+            The exact end state is not yet defined — we are exploring what the value add can be.
           </p>
+          <div className={styles.authNotice}>
+            <strong>Authentication note:</strong> Currently only username/password Alkemio identities are supported.
+            SSO/OIDC login (Microsoft, LinkedIn, etc.) is not yet available.
+          </div>
+
+          <form onSubmit={handleLogin}>
+            <input
+              type="email"
+              className={styles.input}
+              placeholder="Email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              required
+              autoComplete="email"
+              aria-label="Email address"
+            />
+
+            <input
+              type="password"
+              className={styles.input}
+              placeholder="Password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              required
+              autoComplete="current-password"
+              aria-label="Password"
+            />
+
+            {error && <p className={styles.error}>{error}</p>}
+
+            <button
+              type="submit"
+              className={styles.cta}
+              disabled={loading}
+            >
+              {loading ? 'Signing in...' : 'Sign in with Alkemio'}
+            </button>
+          </form>
         </div>
 
-        {/* Footer */}
-        <div style={{ borderTop: '1px solid #e2e8f0', padding: '14px 0', textAlign: 'center' }}>
-          <span style={{ fontSize: 12, color: '#cbd5e1' }}>v{__APP_VERSION__}</span>
+        <div className={styles.footer}>
+          <span className={styles.version}>v{__APP_VERSION__}</span>
         </div>
       </div>
     </div>

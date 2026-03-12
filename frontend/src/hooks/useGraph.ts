@@ -8,11 +8,13 @@ export function useGraph() {
   const [progress, setProgress] = useState<GraphProgress | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [warnings, setWarnings] = useState<string[]>([]);
   const pollRef = useRef<ReturnType<typeof setInterval>>(null);
 
   const generate = useCallback(async (spaceIds: string[], forceRefresh = false) => {
     setLoading(true);
     setError(null);
+    setWarnings([]);
     setProgress({ step: 'acquiring', spacesTotal: spaceIds.length, spacesCompleted: 0 });
 
     // Poll for progress updates
@@ -31,6 +33,9 @@ export function useGraph() {
         forceRefresh,
       });
       setDataset(result);
+      if (result.errors && result.errors.length > 0) {
+        setWarnings(result.errors);
+      }
       setProgress({ step: 'ready', spacesTotal: spaceIds.length, spacesCompleted: spaceIds.length });
     } catch (err) {
       setError((err as Error).message);
@@ -40,5 +45,5 @@ export function useGraph() {
     }
   }, []);
 
-  return { dataset, progress, loading, error, generate };
+  return { dataset, progress, loading, error, warnings, generate };
 }

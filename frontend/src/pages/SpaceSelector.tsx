@@ -1,24 +1,14 @@
 import { useState, useMemo } from 'react';
-import type { CSSProperties } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useSpaces } from '../hooks/useSpaces.js';
 import { useUserProfile } from '../hooks/useUserProfile.js';
-import { Button } from '../components/ui/button.js';
-import { Checkbox } from '../components/ui/checkbox.js';
-import { Network, Search, RefreshCw, Loader2, LogOut } from 'lucide-react';
+import UserProfileMenu from '../components/UserProfileMenu.js';
+import styles from './SpaceSelector.module.css';
 
-const actionBtnStyle: CSSProperties = {
-  padding: '4px 12px',
-  fontSize: 12,
-  fontWeight: 500,
-  color: '#475569',
-  background: 'transparent',
-  border: 'none',
-  borderRadius: 6,
-  cursor: 'pointer',
-  fontFamily: 'inherit',
-};
-
+/**
+ * Screen B — Space Selector
+ * Design reference: design-brief-figma-make.md Screen B
+ */
 interface SpaceSelectorProps {
   onLogout: () => void;
 }
@@ -77,20 +67,9 @@ export default function SpaceSelector({ onLogout }: SpaceSelectorProps) {
 
   if (loading) {
     return (
-      <div className="flex min-h-screen items-center justify-center p-4" style={{ background: '#eef2f7' }}>
-        <div
-          className="flex items-center justify-center"
-          style={{
-            width: '100%',
-            maxWidth: 560,
-            padding: '64px 32px',
-            borderRadius: 16,
-            background: '#ffffff',
-            boxShadow: '0 25px 60px -12px rgba(0, 0, 0, 0.25), 0 0 0 1px rgba(0, 0, 0, 0.03)',
-          }}
-        >
-          <Loader2 className="h-6 w-6 animate-spin" style={{ color: '#94a3b8', marginRight: 12 }} />
-          <span style={{ color: '#64748b', fontSize: 14 }}>Loading your spaces...</span>
+      <div className={styles.container}>
+        <div className={styles.card}>
+          <p className={styles.loading}>Loading your spaces...</p>
         </div>
       </div>
     );
@@ -98,260 +77,114 @@ export default function SpaceSelector({ onLogout }: SpaceSelectorProps) {
 
   if (error) {
     return (
-      <div className="flex min-h-screen items-center justify-center p-4" style={{ background: '#eef2f7' }}>
-        <div
-          style={{
-            width: '100%',
-            maxWidth: 560,
-            padding: '64px 32px',
-            borderRadius: 16,
-            background: '#ffffff',
-            boxShadow: '0 25px 60px -12px rgba(0, 0, 0, 0.25), 0 0 0 1px rgba(0, 0, 0, 0.03)',
-            textAlign: 'center',
-            color: '#dc2626',
-          }}
-        >
-          {error}
+      <div className={styles.container}>
+        <div className={styles.card}>
+          <p className={styles.error}>{error}</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div
-      className="flex min-h-screen items-center justify-center p-4"
-      style={{ background: '#eef2f7' }}
-    >
-      <div
-        className="flex w-full flex-col overflow-hidden"
-        style={{
-          maxWidth: 560,
-          maxHeight: 'min(720px, 85vh)',
-          borderRadius: 16,
-          background: '#ffffff',
-          boxShadow: '0 25px 60px -12px rgba(0, 0, 0, 0.25), 0 0 0 1px rgba(0, 0, 0, 0.03)',
-        }}
-      >
-        {/* Header */}
-        <div style={{ padding: '32px 32px 24px' }}>
-          <div className="flex items-center justify-between">
-            <div className="flex items-center" style={{ gap: 16 }}>
-              <div
-                className="flex items-center justify-center"
-                style={{
-                  width: 48,
-                  height: 48,
-                  borderRadius: 12,
-                  background: 'rgba(37, 99, 235, 0.08)',
-                  color: '#2563eb',
-                }}
-              >
-                <Network style={{ width: 22, height: 22 }} />
-              </div>
-              <div>
-                <h2 style={{ fontSize: 20, fontWeight: 600, letterSpacing: '-0.02em', color: '#0f172a', margin: 0 }}>
-                  {profile ? `Welcome, ${profile.displayName}` : 'Select Spaces'}
-                </h2>
-                <p style={{ fontSize: 13, color: '#64748b', marginTop: 3, marginBottom: 0 }}>
-                  Choose L0 spaces for your network graph
-                </p>
-              </div>
-            </div>
-            <button
-              onClick={onLogout}
-              style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: 6,
-                padding: '6px 14px',
-                fontSize: 13,
-                fontWeight: 500,
-                color: '#64748b',
-                background: 'transparent',
-                border: '1px solid #e2e8f0',
-                borderRadius: 8,
-                cursor: 'pointer',
-                fontFamily: 'inherit',
-              }}
-            >
-              <LogOut style={{ width: 14, height: 14 }} />
-              Logout
-            </button>
+    <div className={styles.container}>
+      <div className={styles.card}>
+        <div className={styles.header}>
+          <div className={styles.headerRow}>
+            <h1 className={styles.title}>
+              {profile ? `Welcome, ${profile.displayName}` : 'Select Top-Level Spaces'}
+            </h1>
+            <UserProfileMenu onLogout={onLogout} />
           </div>
+          <p className={styles.description}>
+            Choose the L0 spaces you want to include in your network graph.
+          </p>
         </div>
 
-        {/* Search */}
-        <div style={{ padding: '0 32px 16px' }}>
-          <div style={{ position: 'relative' }}>
-            <Search
-              style={{
-                position: 'absolute',
-                left: 14,
-                top: '50%',
-                transform: 'translateY(-50%)',
-                width: 16,
-                height: 16,
-                color: '#94a3b8',
-                pointerEvents: 'none',
-              }}
-            />
-            <input
-              placeholder="Search spaces..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              style={{
-                width: '100%',
-                height: 44,
-                paddingLeft: 42,
-                paddingRight: 16,
-                fontSize: 14,
-                borderRadius: 10,
-                border: '2px solid #cbd5e1',
-                background: '#f8fafc',
-                outline: 'none',
-                color: '#0f172a',
-                fontFamily: 'inherit',
-                boxSizing: 'border-box',
-              }}
-              onFocus={(e) => {
-                e.currentTarget.style.borderColor = '#93b4f8';
-                e.currentTarget.style.boxShadow = '0 0 0 3px rgba(37,99,235,0.1)';
-              }}
-              onBlur={(e) => {
-                e.currentTarget.style.borderColor = '#cbd5e1';
-                e.currentTarget.style.boxShadow = 'none';
-              }}
-            />
-          </div>
+        <div className={styles.searchRow}>
+          <input
+            type="text"
+            className={styles.searchInput}
+            placeholder="Search spaces..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+          />
         </div>
 
-        {/* Action bar */}
-        <div
-          className="flex items-center"
-          style={{
-            margin: '0 32px 16px',
-            padding: '8px 12px',
-            borderRadius: 10,
-            background: '#f1f5f9',
-            gap: 4,
-          }}
-        >
-          <button onClick={selectAll} style={actionBtnStyle}>Select All</button>
-          <button onClick={clearAll} style={actionBtnStyle}>Clear</button>
-          <button onClick={reload} style={{ ...actionBtnStyle, display: 'inline-flex', alignItems: 'center', gap: 4 }}>
-            <RefreshCw style={{ width: 12, height: 12 }} />
-            Refresh
+        <div className={styles.actions}>
+          <button className={styles.actionBtn} onClick={selectAll}>
+            Select All
           </button>
-          <span style={{ marginLeft: 'auto', fontSize: 11, color: '#94a3b8' }}>
-            Member or Lead access only
+          <button className={styles.actionBtn} onClick={clearAll}>
+            Clear
+          </button>
+          <button className={styles.actionBtn} onClick={reload} title="Refresh spaces list">
+            &#x21bb; Refresh
+          </button>
+          <span className={styles.accessNote}>
+            Showing only spaces where you have Member or Lead access.
           </span>
         </div>
 
         {/* Selected spaces chips */}
         {selectedSpaces.length > 0 && (
-          <div style={{ padding: '0 32px 12px' }}>
-            <div style={{ fontSize: 11, fontWeight: 500, color: '#94a3b8', marginBottom: 8, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+          <div className={styles.selectedChips}>
+            <div className={styles.selectedLabel}>
               Selected ({selectedSpaces.length})
             </div>
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+            <div className={styles.chipList}>
               {selectedSpaces.map((s) => (
                 <button
                   key={s.nameId}
+                  className={styles.chip}
                   onClick={() => toggleSpace(s.nameId)}
-                  style={{
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: 4,
-                    padding: '4px 10px',
-                    fontSize: 12,
-                    fontWeight: 500,
-                    color: '#1e40af',
-                    background: '#eff6ff',
-                    border: '1px solid #bfdbfe',
-                    borderRadius: 99,
-                    cursor: 'pointer',
-                    fontFamily: 'inherit',
-                  }}
                 >
                   {s.displayName}
-                  <span style={{ fontSize: 14, lineHeight: 1, color: '#93c5fd' }}>&times;</span>
+                  <span className={styles.chipRemove}>&times;</span>
                 </button>
               ))}
             </div>
           </div>
         )}
 
-        {/* Divider */}
-        <div style={{ height: 1, background: '#e2e8f0' }} />
-
-        {/* List */}
         {spaces.length === 0 ? (
-          <div className="flex flex-1 flex-col items-center justify-center" style={{ padding: '64px 32px', textAlign: 'center' }}>
-            <p style={{ color: '#64748b', fontWeight: 500, margin: 0 }}>No spaces available.</p>
-            <p style={{ color: '#94a3b8', fontSize: 14, marginTop: 4 }}>Request access or join a Space to get started.</p>
+          <div className={styles.emptyState}>
+            <p>You are not currently a member of any spaces.</p>
+            <p className={styles.emptyHint}>
+              This tool can only be used if you are a member of at least one space.
+              To get started, join the <a href="https://alkem.io/welcome-space" target="_blank" rel="noopener noreferrer">welcome-space</a> on
+              Alkemio. You will need to create an Alkemio account if you don't already have one.
+            </p>
           </div>
         ) : (
-          <div style={{ flex: 1, minHeight: 0, overflowY: 'auto' }}>
-            <div style={{ padding: '4px 0' }}>
-              {filteredSpaces.map((space, i) => (
-                <label
-                  key={space.id}
-                  className="flex cursor-pointer items-center transition-colors hover:bg-blue-50/60"
-                  style={{
-                    gap: 16,
-                    padding: '14px 32px',
-                    borderBottom: i < filteredSpaces.length - 1 ? '1px solid #f1f5f9' : 'none',
-                  }}
-                >
-                  <Checkbox
-                    checked={selected.has(space.nameId)}
-                    onCheckedChange={() => toggleSpace(space.nameId)}
-                    className="h-5 w-5 rounded"
-                  />
-                  <span style={{ flex: 1, fontSize: 14, color: '#1e293b', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                    {space.displayName}
-                  </span>
-                  {space.role === 'LEAD' && (
-                    <span style={{ fontSize: 10, fontWeight: 500, padding: '2px 8px', borderRadius: 4, background: '#f1f5f9', color: '#475569', flexShrink: 0 }}>
-                      Lead
-                    </span>
-                  )}
-                  <span style={{ fontSize: 11, color: '#94a3b8', letterSpacing: '0.05em', textTransform: 'uppercase' as const, flexShrink: 0 }}>
-                    {space.visibility}
-                  </span>
-                </label>
-              ))}
-            </div>
+          <div className={styles.list}>
+            {filteredSpaces.map((space) => (
+              <label key={space.id} className={styles.spaceRow}>
+                <input
+                  type="checkbox"
+                  checked={selected.has(space.nameId)}
+                  onChange={() => toggleSpace(space.nameId)}
+                />
+                <span className={styles.spaceName}>{space.displayName}</span>
+                {space.role === 'LEAD' && <span className={styles.badge}>Lead</span>}
+                <span className={styles.visibility}>{space.visibility}</span>
+              </label>
+            ))}
           </div>
         )}
 
-        {/* Footer */}
-        <div style={{ borderTop: '1px solid #e2e8f0', background: '#f8fafc' }}>
-          <div className="flex items-center justify-between" style={{ padding: '20px 32px' }}>
-            <span style={{ fontSize: 12, color: '#94a3b8' }}>Cached data reused when available</span>
-            <Button
-              onClick={handleGenerate}
-              disabled={selected.size === 0}
-              style={{ height: 44, paddingLeft: 28, paddingRight: 28, fontSize: 14, fontWeight: 500, borderRadius: 10 }}
-            >
-              Generate Graph
-              {selected.size > 0 && (
-                <span
-                  style={{
-                    marginLeft: 8,
-                    padding: '1px 8px',
-                    borderRadius: 99,
-                    fontSize: 11,
-                    fontWeight: 600,
-                    background: 'rgba(255,255,255,0.2)',
-                    color: 'white',
-                  }}
-                >
-                  {selected.size}
-                </span>
-              )}
-            </Button>
-          </div>
+        <div className={styles.footer}>
+          {selected.size === 0 && spaces.length > 0 ? (
+            <span className={styles.footerNote}>Please select at least one space to generate a graph.</span>
+          ) : (
+            <span className={styles.footerNote}>We'll reuse cached data when available.</span>
+          )}
+          <button
+            className={styles.generateBtn}
+            onClick={handleGenerate}
+            disabled={selected.size === 0}
+          >
+            Generate Graph ({selected.size} selected)
+          </button>
         </div>
       </div>
     </div>

@@ -1,7 +1,12 @@
 import { Request, Response, NextFunction } from 'express';
 
+/** Auth mode: bearer token (manual login) or cookie (SSO session) */
+export type AuthMode = 'bearer' | 'cookie';
+
 /** Auth context attached to each authenticated request */
 export interface AuthContext {
+  /** How the user authenticated */
+  mode: AuthMode;
   /** The raw Alkemio-issued bearer token, forwarded to the GraphQL API */
   bearerToken: string;
   /** User ID resolved via Alkemio /me query (populated by resolveUser middleware) */
@@ -24,6 +29,13 @@ declare global {
  * Authorization header and attaches it to req.auth. The BFF does NOT
  * validate or decode the token; Alkemio's GraphQL API does that.
  */
+/**
+ * SSO cookie tokens are prefixed with this marker so the BFF can distinguish
+ * them from regular Kratos session tokens and use cookie-based auth against
+ * the interactive GraphQL endpoint.
+ */
+export const SSO_COOKIE_PREFIX = 'sso-cookie:';
+
 export function authMiddleware(req: Request, res: Response, next: NextFunction) {
   const authHeader = req.headers.authorization;
 
@@ -38,6 +50,10 @@ export function authMiddleware(req: Request, res: Response, next: NextFunction) 
     return;
   }
 
-  req.auth = { bearerToken };
+  if (bearerToken.startsWith(SSO_COOKIE_PREFIX)) {
+    req.auth = { mode: 'cookie', bearerToken: bearerToken.slice(SSO_COOKIE_PREFIX.length) };
+  } else {
+    req.auth = { mode: 'bearer', bearerToken };
+  }
   next();
 }

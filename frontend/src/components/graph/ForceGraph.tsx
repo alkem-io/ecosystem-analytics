@@ -1415,12 +1415,13 @@ export default function ForceGraph({
             if (size > 0 && size < 102400) return;
             const r = effectiveRadius(d, isGeoMode, currentZoomScale);
             // Insert image before the badge elements so badge stays on top
-            const firstBadge = group.select('.visibility-badge-bg').node();
+            const firstBadge = group.select('.visibility-badge-bg').node() as Node | null;
             const imgEl = document.createElementNS('http://www.w3.org/2000/svg', 'image');
-            if (firstBadge) {
-              (group.node() as Element).insertBefore(imgEl, firstBadge);
-            } else {
-              (group.node() as Element).appendChild(imgEl);
+            const groupNode = group.node() as Element | null;
+            if (groupNode && firstBadge) {
+              groupNode.insertBefore(imgEl, firstBadge);
+            } else if (groupNode) {
+              groupNode.appendChild(imgEl);
             }
             d3.select(imgEl)
               .attr('href', url)
@@ -1443,7 +1444,8 @@ export default function ForceGraph({
       (d) => d.data.type === 'SPACE_L0' || d.data.type === 'SPACE_L1' || d.data.type === 'SPACE_L2',
     );
 
-    const privateSpaceNodes = spaceNodes.filter((d) => d.data.privacyMode === 'PRIVATE');
+    // Lock badge — shown on private spaces and restricted spaces
+    const privateSpaceNodes = spaceNodes.filter((d) => d.data.privacyMode === 'PRIVATE' || d.data.restricted === true);
 
     // Badge size scales with node radius so it stays visible at all zoom levels
     const badgeRadius = (d: SimNode) => effectiveRadius(d, isGeoMode, currentZoomScale) * 0.25;
@@ -2152,7 +2154,8 @@ export default function ForceGraph({
       const isSpace = node.type === 'SPACE_L0' || node.type === 'SPACE_L1' || node.type === 'SPACE_L2';
       if (!isSpace) return;
       const pm = node.privacyMode;
-      const hide = (pm === 'PUBLIC' && !showPublic) || (pm === 'PRIVATE' && !showPrivate);
+      const isRestricted = node.restricted === true;
+      const hide = (pm === 'PUBLIC' && !isRestricted && !showPublic) || ((pm === 'PRIVATE' || isRestricted) && !showPrivate);
       if (hide) {
         hiddenSpaceIds.add(node.id);
         d3.select(this).style('display', 'none');

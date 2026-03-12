@@ -1,4 +1,5 @@
 import { Router, Request, Response } from 'express';
+import { SSO_COOKIE_PREFIX } from '../auth/middleware.js';
 
 export const imageProxyRouter = Router();
 
@@ -35,11 +36,14 @@ imageProxyRouter.get('/', async (req: Request, res: Response) => {
   }
 
   try {
-    const response = await fetch(imageUrl, {
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
-    });
+    const headers: Record<string, string> = {};
+    if (token.startsWith(SSO_COOKIE_PREFIX)) {
+      headers['Cookie'] = `ory_kratos_session=${token.slice(SSO_COOKIE_PREFIX.length)}`;
+    } else {
+      headers['Authorization'] = `Bearer ${token}`;
+    }
+
+    const response = await fetch(imageUrl, { headers });
 
     if (!response.ok) {
       res.status(response.status).end();

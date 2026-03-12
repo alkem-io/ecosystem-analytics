@@ -61,6 +61,15 @@ export function invalidateCache(userId: string, spaceIds: string[]): void {
 }
 
 /**
+ * Clear all cache entries for a specific user.
+ */
+export function clearUserCache(userId: string): number {
+  const db = getDatabase();
+  const result = db.prepare('DELETE FROM cache_entries WHERE user_id = ?').run(userId);
+  return result.changes;
+}
+
+/**
  * Remove all expired cache entries (housekeeping).
  */
 export function purgeExpired(): void {

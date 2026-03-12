@@ -1,8 +1,9 @@
 import { createAlkemioSdk } from '../graphql/client.js';
 import { getLogger } from '../logging/logger.js';
 import { getCacheEntry, setCacheEntry } from '../cache/cache-service.js';
+import type { AuthContext } from '../auth/middleware.js';
 import type { Sdk } from '../graphql/generated/graphql.js';
-import type { SpaceByNameQuery } from '../graphql/generated/alkemio-schema.js';
+import type { SpaceByNameQuery, SubspaceDetailsQuery } from '../graphql/generated/alkemio-schema.js';
 import type { SpaceSelectionItem } from '../types/api.js';
 
 const SPACES_CACHE_KEY = '__spaces__';
@@ -11,8 +12,8 @@ const SPACES_CACHE_KEY = '__spaces__';
  * Fetches the user's L0 Space memberships from Alkemio.
  * Uses the codegen-generated mySpacesHierarchical query (TR-016).
  */
-export async function listUserSpaces(bearerToken: string): Promise<SpaceSelectionItem[]> {
-  const sdk = createAlkemioSdk(bearerToken);
+export async function listUserSpaces(auth: AuthContext): Promise<SpaceSelectionItem[]> {
+  const sdk = createAlkemioSdk(auth);
 
   const { data } = await sdk.mySpacesHierarchical();
   const currentUserId = data.me.user?.id;
@@ -51,14 +52,14 @@ export async function listUserSpaces(bearerToken: string): Promise<SpaceSelectio
 /**
  * Returns cached spaces list if available, otherwise fetches fresh.
  */
-export async function listUserSpacesCached(userId: string, bearerToken: string): Promise<SpaceSelectionItem[]> {
+export async function listUserSpacesCached(userId: string, auth: AuthContext): Promise<SpaceSelectionItem[]> {
   const cached = getCacheEntry(userId, SPACES_CACHE_KEY);
   if (cached) {
     getLogger().info(`Returning cached spaces for user ${userId}`, { context: 'Spaces' });
     return JSON.parse(cached.datasetJson);
   }
 
-  return listUserSpaces(bearerToken);
+  return listUserSpaces(auth);
 }
 
 /**
@@ -95,12 +96,46 @@ export async function fetchSpaceByName(sdk: Sdk, nameId: string) {
  * Used for graph expansion (US3).
  */
 export async function findRelatedSpaces(
-  bearerToken: string,
+  auth: AuthContext,
   entityId: string,
   currentSpaceIds: string[],
 ): Promise<SpaceSelectionItem[]> {
-  const allSpaces = await listUserSpaces(bearerToken);
+  const allSpaces = await listUserSpaces(auth);
   return allSpaces.filter((s) => !currentSpaceIds.includes(s.id));
+}
+
+/** Result type for fetchSubspaceDetails */
+export type SubspaceDetailsResult = NonNullable<SubspaceDetailsQuery['lookup']['space']>;
+
+/**
+ * Fetches community data and child subspaces for a single subspace by ID.
+ * Combines what was previously two separate queries (community + children)
+ * into a single request. Returns null if the fetch fails.
+ * Errors are logged and collected (not thrown).
+ */
+export async function fetchSubspaceDetails(
+  sdk: Sdk,
+  spaceId: string,
+  errors: string[],
+): Promise<SubspaceDetailsResult | null> {
+  const logger = getLogger();
+  try {
+    logger.info(`Fetching details (community + children) for subspace ${spaceId}`, { context: 'Spaces' });
+    const { data } = await sdk.subspaceDetails({ spaceId });
+    const space = data.lookup.space;
+    if (!space) {
+      const msg = `Subspace not found for ID: ${spaceId}`;
+      logger.error(msg, { context: 'Spaces' });
+      errors.push(msg);
+      return null;
+    }
+    return space;
+  } catch (err: unknown) {
+    const msg = `Failed to fetch details for subspace ${spaceId}: ${(err as Error).message}`;
+    logger.error(msg, { context: 'Spaces' });
+    errors.push(msg);
+    return null;
+  }
 }
 
 /** Extract the space type from the codegen-generated SpaceByNameQuery */

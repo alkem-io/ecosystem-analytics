@@ -96,6 +96,48 @@
   cursor: pointer;
 }
 
+.warningBanner {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 8px 16px;
+  background: var(--warning-bg, #fef3c7);
+  border-bottom: 1px solid var(--warning-border, #f59e0b);
+  color: var(--warning-text, #92400e);
+  font-family: var(--font-family);
+  font-size: 13px;
+}
+
+.warningContent {
+  flex: 1;
+}
+
+.warningContent ul {
+  margin: 4px 0 0;
+  padding-left: 20px;
+}
+
+.warningContent li {
+  margin-bottom: 2px;
+}
+
+.warningDismiss {
+  flex-shrink: 0;
+  padding: 4px 12px;
+  font-family: var(--font-family);
+  font-size: 12px;
+  background: transparent;
+  border: 1px solid var(--warning-border, #f59e0b);
+  border-radius: var(--radius-sm);
+  color: var(--warning-text, #92400e);
+  cursor: pointer;
+}
+
+.warningDismiss:hover {
+  background: var(--warning-border, #f59e0b);
+  color: white;
+}
+
 .viewPlaceholder {
   display: flex;
   align-items: center;

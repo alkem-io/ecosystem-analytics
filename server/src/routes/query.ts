@@ -51,7 +51,7 @@ queryRouter.post('/ask', async (req: Request, res: Response) => {
   res.setHeader('Connection', 'keep-alive');
   res.flushHeaders();
 
-  const sdk = createAlkemioSdk(req.auth!.bearerToken);
+  const sdk = createAlkemioSdk(req.auth!);
 
   const onEvent = (event: StreamEvent) => {
     res.write(`data: ${JSON.stringify(event)}\n\n`);

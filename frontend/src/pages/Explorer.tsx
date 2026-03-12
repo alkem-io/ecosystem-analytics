@@ -43,7 +43,8 @@ interface ExplorerProps {
 export default function Explorer({ onLogout }: ExplorerProps) {
   const location = useLocation();
   const navigate = useNavigate();
-  const { dataset, progress, loading, error, generate } = useGraph();
+  const { dataset, progress, loading, error, warnings, generate } = useGraph();
+  const [dismissedWarnings, setDismissedWarnings] = useState(false);
   const viewState = useViewState();
   const { theme, toggle: toggleTheme } = useTheme();
   const { aiQueryEnabled } = useFeatures();
@@ -90,6 +91,7 @@ export default function Explorer({ onLogout }: ExplorerProps) {
       navigate('/spaces');
       return;
     }
+    setDismissedWarnings(false);
     generate(spaceIds);
   }, []); // Run once on mount
 
@@ -121,6 +123,18 @@ export default function Explorer({ onLogout }: ExplorerProps) {
 
   const handleRefresh = useCallback(() => {
     if (activeSpaceIds.length > 0) generate(activeSpaceIds, true);
+  }, [activeSpaceIds, generate]);
+
+  const [cacheCleared, setCacheCleared] = useState(false);
+  const handleClearCache = useCallback(async () => {
+    try {
+      await api.delete('/api/graph/cache');
+      setCacheCleared(true);
+      setTimeout(() => setCacheCleared(false), 2000);
+      if (activeSpaceIds.length > 0) generate(activeSpaceIds, true);
+    } catch {
+      // Silently fail — next refresh will re-fetch anyway
+    }
   }, [activeSpaceIds, generate]);
 
   const handleExpandSpace = useCallback(
@@ -197,6 +211,8 @@ export default function Explorer({ onLogout }: ExplorerProps) {
         lastSync={lastSync}
         onRefresh={handleRefresh}
         refreshing={loading}
+        onClearCache={handleClearCache}
+        cacheCleared={cacheCleared}
         onExport={dataset ? handleExport : undefined}
         onLogout={onLogout}
         theme={theme}
@@ -256,6 +272,21 @@ export default function Explorer({ onLogout }: ExplorerProps) {
           </button>
         )}
       </TopBar>
+      {warnings.length > 0 && !dismissedWarnings && (
+        <div className={styles.warningBanner} role="alert">
+          <div className={styles.warningContent}>
+            <strong>Warnings during graph generation:</strong>
+            <ul>
+              {warnings.map((w, i) => (
+                <li key={i}>{w}</li>
+              ))}
+            </ul>
+          </div>
+          <button className={styles.warningDismiss} onClick={() => setDismissedWarnings(true)}>
+            Dismiss
+          </button>
+        </div>
+      )}
       <div className={styles.main}>
         {dataset && (
           <ControlPanel

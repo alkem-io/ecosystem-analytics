@@ -36,17 +36,14 @@ export async function buildEcosystemIndex(userId: string, sdk: Sdk): Promise<Eco
   const userRolesMap = new Map<string, IndexedRole[]>();
   const orgRolesMap = new Map<string, IndexedRole[]>();
 
-  function processSpace(
-    space: typeof memberships[number]['space'],
-    childMemberships?: typeof memberships[number]['childMemberships'],
-  ) {
+  function processSpace(space: typeof memberships[number]['space']) {
     const profile = space.about.profile;
     const community = space.community;
     const spaceName = profile.displayName;
     const spaceNameId = space.nameID;
 
-    // Count subspaces
-    const subspaceCount = childMemberships?.length ?? 0;
+    // Count subspaces from the space's own subspaces array
+    const subspaceCount = space.subspaces?.length ?? 0;
 
     // Count all unique member/lead/admin user IDs
     const roleSet = community.roleSet;
@@ -97,20 +94,10 @@ export async function buildEcosystemIndex(userId: string, sdk: Sdk): Promise<Eco
       orgIds.add(o.id);
       addRole(orgRolesMap, o.id, spaceName, spaceNameId, 'LEAD');
     }
-
-    // Recurse into child memberships
-    if (childMemberships) {
-      for (const child of childMemberships) {
-        processSpace(
-          child.space,
-          'childMemberships' in child ? (child as typeof memberships[number]).childMemberships : undefined,
-        );
-      }
-    }
   }
 
   for (const membership of memberships) {
-    processSpace(membership.space, membership.childMemberships);
+    processSpace(membership.space);
   }
 
   logger.info(

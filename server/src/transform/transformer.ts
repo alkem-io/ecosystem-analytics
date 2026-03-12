@@ -70,26 +70,9 @@ export function transformToGraph(data: AcquiredData): TransformResult {
     // Add L0 Space node
     addSpaceNode(space, NodeType.SPACE_L0, [l0ScopeGroup], null, nodes, nodeIds);
 
-    // Process L1 subspaces
+    // Process subspaces recursively
     if (space.subspaces) {
-      for (const l1 of space.subspaces) {
-        addSpaceNode(l1, NodeType.SPACE_L1, [l0ScopeGroup], space.id, nodes, nodeIds);
-        edges.push(createEdge(space.id, l1.id, EdgeType.CHILD, l0ScopeGroup));
-
-        // Process L2 subspaces
-        if (l1.subspaces) {
-          for (const l2 of l1.subspaces) {
-            addSpaceNode(l2, NodeType.SPACE_L2, [l0ScopeGroup], l1.id, nodes, nodeIds);
-            edges.push(createEdge(l1.id, l2.id, EdgeType.CHILD, l0ScopeGroup));
-
-            // Add contributor edges for L2
-            addContributorEdges(l2, l0ScopeGroup, data, nodes, edges, nodeIds);
-          }
-        }
-
-        // Add contributor edges for L1
-        addContributorEdges(l1, l0ScopeGroup, data, nodes, edges, nodeIds);
-      }
+      processSubspaces(space.subspaces, space.id, NodeType.SPACE_L1, l0ScopeGroup, data, nodes, edges, nodeIds);
     }
 
     // Add contributor edges for L0
@@ -188,6 +171,7 @@ function addSpaceNode(
   parentSpaceId: string | null,
   nodes: GraphNode[],
   nodeIds: Set<string>,
+  restricted = false,
 ): void {
   if (nodeIds.has(space.id)) {
     // Node already exists (shared across L0 selections) — merge scope groups
@@ -225,10 +209,40 @@ function addSpaceNode(
     tagline: profile.tagline || null,
     parentSpaceId,
     privacyMode: space.about.isContentPublic !== false ? 'PUBLIC' : 'PRIVATE',
+    restricted: restricted || undefined,
     createdDate: toISOString(space.createdDate),
     visibility: parseVisibility(space.visibility),
     tags: extractTags(profile.tagsets),
   });
+}
+
+/**
+ * Recursively process subspaces at any depth.
+ * Depth 1 = L1 (SPACE_L1), depth 2+ = L2 (SPACE_L2).
+ */
+function processSubspaces(
+  subspaces: SpaceLike[],
+  parentId: string,
+  nodeType: NodeType,
+  scopeGroup: string,
+  data: AcquiredData,
+  nodes: GraphNode[],
+  edges: GraphEdge[],
+  nodeIds: Set<string>,
+): void {
+  for (const sub of subspaces) {
+    const restricted = !(sub as unknown as Record<string, unknown>).community;
+    addSpaceNode(sub, nodeType, [scopeGroup], parentId, nodes, nodeIds, restricted);
+    edges.push(createEdge(parentId, sub.id, EdgeType.CHILD, scopeGroup));
+
+    if (!restricted) {
+      // Recurse into children (all levels beyond L1 use SPACE_L2)
+      if (sub.subspaces) {
+        processSubspaces(sub.subspaces, sub.id, NodeType.SPACE_L2, scopeGroup, data, nodes, edges, nodeIds);
+      }
+      addContributorEdges(sub, scopeGroup, data, nodes, edges, nodeIds);
+    }
+  }
 }
 
 function addContributorEdges(
@@ -332,6 +346,19 @@ function ensureOrgNode(
   const org = orgs.get(id);
   const location = extractLocation(org?.profile?.location);
 
+  // Extract references (external links) from org profile
+  const rawRefs = (org?.profile as Record<string, unknown> | undefined)?.references as
+    | Array<{ name: string; uri: string; description?: string }>
+    | undefined;
+  const references = rawRefs?.filter((r) => r.uri)?.map((r) => ({ name: r.name, uri: r.uri }));
+
+  // Extract owner and associate count from roleSet
+  const roleSet = (org as Record<string, unknown> | undefined)?.roleSet as
+    | { owners?: Array<{ id: string; profile?: { displayName?: string } }>; associates?: Array<{ id: string }> }
+    | undefined;
+  const ownerName = roleSet?.owners?.[0]?.profile?.displayName ?? null;
+  const associateCount = roleSet?.associates?.length;
+
   nodes.push({
     id,
     type: NodeType.ORGANIZATION,
@@ -343,10 +370,16 @@ function ensureOrgNode(
     location,
     scopeGroups: [scopeGroup],
     nameId: org?.nameID || null,
-    tagline: null,
+    tagline: (org?.profile as Record<string, unknown> | undefined)?.tagline as string | null ?? null,
     parentSpaceId: null,
     privacyMode: null,
-    tags: extractTags(org?.profile?.tagsets),
+    description: (org?.profile as Record<string, unknown> | undefined)?.description as string | null ?? null,
+    website: (org as Record<string, unknown> | undefined)?.website as string | null ?? null,
+    contactEmail: (org as Record<string, unknown> | undefined)?.contactEmail as string | null ?? null,
+    references: references && references.length > 0 ? references : undefined,
+    owner: ownerName,
+    associateCount: associateCount ?? undefined,
+    tags: extractTags((org?.profile as Record<string, unknown> | undefined)?.tagsets as SpaceLike['about']['profile']['tagsets']),
   });
 }
 
