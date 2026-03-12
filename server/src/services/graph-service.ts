@@ -77,12 +77,21 @@ export async function generateGraph(
 
   if (spacesToFetch.length > 0) {
     logger.info(`Fetching ${spacesToFetch.length} space(s) from Alkemio: [${spacesToFetch.join(', ')}]`, { context: 'Graph' });
-    const acquired = await acquireSpaces(auth, spacesToFetch);
+    const cachedCount = spaceIds.length - spacesToFetch.length;
+    let acquiredCount = 0;
+    const acquired = await acquireSpaces(auth, spacesToFetch, () => {
+      acquiredCount++;
+      setProgress(userId, {
+        step: 'acquiring',
+        spacesTotal: spaceIds.length,
+        spacesCompleted: cachedCount + acquiredCount,
+      });
+    });
 
     setProgress(userId, {
       step: 'transforming',
       spacesTotal: spaceIds.length,
-      spacesCompleted: spaceIds.length - spacesToFetch.length,
+      spacesCompleted: spaceIds.length,
     });
 
     // Collect non-fatal errors from acquisition

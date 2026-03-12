@@ -12,6 +12,7 @@
     "sourceMap": true,
     "resolveJsonModule": true,
     "paths": {
+      "@/*": ["./src/*"],
       "@server/types/*": ["../server/src/types/*"]
     },
     "baseUrl": "."

@@ -1,10 +1,11 @@
 import { useRef, useEffect, useCallback, useState } from 'react';
 import * as d3 from 'd3';
-import { geoMercator, geoPath } from 'd3-geo';
+import { geoMercator, geoPath, type GeoPermissibleObjects } from 'd3-geo';
 import type { GraphDataset, GraphNode, GraphEdge } from '@server/types/graph.js';
 import type { ActivityPeriod } from '@server/types/graph.js';
 import { computeClusters } from './clustering.js';
 import { computeProximityGroups, type ProximityCluster } from './proximityClustering.js';
+import { computePinnedNodeIds, computeMapBounds } from './mapBoundary.js';
 import type { MapRegion } from '../map/MapOverlay.js';
 import { getToken } from '../../services/auth.js';
 import styles from './ForceGraph.module.css';
@@ -185,6 +186,124 @@ function nodeRadius(d: { data: { type: string; weight: number; id: string } }): 
   return base * scale;
 }
 
+/**
+ * Custom D3 force: pushes free-floating nodes away from the map's projected bounds.
+ * Only affects nodes NOT in the pinnedIds set.
+ * Uses strong radial push from map center + hard boundary enforcement.
+ */
+function mapRepulsionForce(
+  mapBounds: { x: number; y: number; width: number; height: number },
+  pinnedIds: Set<string>,
+): (alpha: number) => void {
+  const margin = 80;
+  const cx = mapBounds.x + mapBounds.width / 2;
+  const cy = mapBounds.y + mapBounds.height / 2;
+  const left = mapBounds.x - margin;
+  const right = mapBounds.x + mapBounds.width + margin;
+  const top = mapBounds.y - margin;
+  const bottom = mapBounds.y + mapBounds.height + margin;
+  // Half-diagonals of the expanded rect — used for distance normalisation
+  const halfW = (right - left) / 2;
+  const halfH = (bottom - top) / 2;
+
+  let nodes: SimNode[] = [];
+  const force = (_alpha: number) => {
+    for (const node of nodes) {
+      if (pinnedIds.has(node.data.id)) continue;
+      const nx = node.x ?? 0;
+      const ny = node.y ?? 0;
+      // Only repel if node is inside the map bounds + margin
+      if (nx >= left && nx <= right && ny >= top && ny <= bottom) {
+        const dx = nx - cx;
+        const dy = ny - cy;
+        const dist = Math.sqrt(dx * dx + dy * dy) || 1;
+        // How deep inside the rect (0 = edge, 1 = center)
+        const depthX = 1 - Math.abs(dx) / halfW;
+        const depthY = 1 - Math.abs(dy) / halfH;
+        const depth = Math.max(depthX, depthY);
+        // Strong constant push (alpha-independent) + depth-scaled boost
+        const push = 8 + depth * 12;
+        node.vx = (node.vx ?? 0) + (dx / dist) * push;
+        node.vy = (node.vy ?? 0) + (dy / dist) * push;
+      }
+    }
+  };
+  force.initialize = (n: SimNode[]) => { nodes = n; };
+  return force as any;
+}
+
+/**
+ * Deterministic pseudo-random number from a string (node ID).
+ * Returns a value in [0, 1) that's stable across renders.
+ */
+function hashRandom(id: string, salt: number): number {
+  let h = salt | 0;
+  for (let i = 0; i < id.length; i++) {
+    h = (h * 31 + id.charCodeAt(i)) | 0;
+  }
+  // Fold to positive float in [0, 1)
+  return ((h & 0x7fffffff) % 10000) / 10000;
+}
+
+/**
+ * Spread co-located nodes with organic, deterministic jitter.
+ * Uses a hash of each node ID to generate a unique offset so nodes in the
+ * same city scatter naturally — like people at different spots around town —
+ * rather than forming a perfect circle.
+ */
+function spreadColocatedNodes(
+  geoTargets: Map<string, { x: number; y: number }>,
+): void {
+  // Group by rounded pixel position
+  const groups = new Map<string, string[]>();
+  for (const [id, pos] of geoTargets) {
+    const k = `${Math.round(pos.x)},${Math.round(pos.y)}`;
+    let arr = groups.get(k);
+    if (!arr) { arr = []; groups.set(k, arr); }
+    arr.push(id);
+  }
+  for (const ids of groups.values()) {
+    if (ids.length < 2) continue;
+    const anchor = geoTargets.get(ids[0])!;
+    const cx = anchor.x;
+    const cy = anchor.y;
+    // Max scatter radius scales with group size but stays tight
+    const maxR = 4 + Math.sqrt(ids.length) * 3;
+    for (const id of ids) {
+      // Each node gets its own unique angle, distance, and slight directional bias
+      const angle = hashRandom(id, 1) * Math.PI * 2;
+      // Distance: bias away from center using sqrt distribution for area-uniform scatter
+      const dist = Math.sqrt(hashRandom(id, 2)) * maxR;
+      // Small secondary wobble for extra organic feel
+      const wobbleX = (hashRandom(id, 3) - 0.5) * 2;
+      const wobbleY = (hashRandom(id, 4) - 0.5) * 2;
+      geoTargets.set(id, {
+        x: cx + dist * Math.cos(angle) + wobbleX,
+        y: cy + dist * Math.sin(angle) + wobbleY,
+      });
+    }
+  }
+}
+
+/**
+ * Compute effective node radius accounting for map mode and zoom.
+ * In map mode: uses flat BASE_RADIUS (no degree scaling) and shrinks at low
+ * zoom to prevent overlap, growing to full size when zoomed in.
+ */
+function effectiveRadius(
+  node: SimNode,
+  isGeoMode: boolean,
+  zoomScale: number,
+): number {
+  if (!isGeoMode) return nodeRadius(node);
+  // Flat base radius — no connection-based scaling in map mode
+  const base = BASE_RADIUS[node.data.type] ?? 8;
+  // Counter-scale: nodes shrink as you zoom in (compensate for the g-transform scale).
+  // Exponent < 1 so they don't fully counter-scale — they still grow a bit on screen.
+  const mapMultiplier = 1 / Math.pow(Math.max(zoomScale, 0.1), 0.7);
+  return base * mapMultiplier;
+}
+
 export default function ForceGraph({
   dataset,
   showPeople,
@@ -238,6 +357,9 @@ export default function ForceGraph({
   const showPrivateRef = useRef(showPrivate);
   showPrivateRef.current = showPrivate;
 
+
+  // Cache GeoJSON per map region so boundary checks work synchronously after first load
+  const mapGeoJSONCacheRef = useRef<Record<string, GeoPermissibleObjects>>({});
 
   // Incremented after each renderGraph so visual-state effects re-apply on fresh DOM
   const [graphVersion, setGraphVersion] = useState(0);
@@ -712,8 +834,8 @@ export default function ForceGraph({
     });
 
     /**
-     * Lightweight LOD: only counter-scale badges and adjust hull opacity.
-     * Edges and labels are always handled by the tick + culling.
+     * Lightweight LOD: counter-scale badges, adjust hull opacity, and
+     * update geo-mode node sizes based on current zoom level.
      */
     function applyLOD(k: number) {
       // Counter-scale badges to stay constant apparent size on screen
@@ -727,8 +849,64 @@ export default function ForceGraph({
       const hullOpacity = k < 0.5 ? 1 : k < 2 ? 1 - (k - 0.5) * 0.5 : 0.25;
       hullLayer?.selectAll('.cluster-hull').attr('opacity', hullOpacity);
 
+      // In geo mode, resize node visuals based on zoom level
+      if (isGeoMode && nodeSelection) {
+        // Circles
+        nodeSelection.select<SVGCircleElement>('circle').attr('r', (d) => effectiveRadius(d, true, k));
+        // Images
+        nodeSelection.select<SVGImageElement>('image')
+          .attr('x', (d) => -effectiveRadius(d, true, k))
+          .attr('y', (d) => -effectiveRadius(d, true, k))
+          .attr('width', (d) => effectiveRadius(d, true, k) * 2)
+          .attr('height', (d) => effectiveRadius(d, true, k) * 2);
+        // Clip paths — update each by ID
+        simNodes.filter((d) => !!nodeImageUrl(d.data)).forEach((d) => {
+          svg.select(`#clip-avatar-${d.data.id} circle`).attr('r', effectiveRadius(d, true, k));
+        });
+        // Visibility badge — size and position proportional to effective node radius
+        nodeSelection.selectAll<SVGCircleElement, SimNode>('.visibility-badge-bg')
+          .attr('cx', (d) => effectiveRadius(d, true, k) * 0.6)
+          .attr('cy', (d) => effectiveRadius(d, true, k) * 0.6)
+          .attr('r', (d) => effectiveRadius(d, true, k) * 0.25);
+        nodeSelection.selectAll<SVGTextElement, SimNode>('.visibility-badge-icon')
+          .attr('x', (d) => effectiveRadius(d, true, k) * 0.6)
+          .attr('y', (d) => effectiveRadius(d, true, k) * 0.6)
+          .attr('font-size', (d) => effectiveRadius(d, true, k) * 0.3);
+        // Label offsets and font size — counter-scale so text doesn't balloon on zoom
+        const textScale = 1 / Math.pow(Math.max(k, 0.1), 0.7);
+        nodeSelection.selectAll<SVGTextElement, SimNode>('.node-label')
+          .attr('dy', (d) => effectiveRadius(d, true, k) + 10 * textScale)
+          .attr('font-size', (d) => {
+            const base = d.data.type === 'SPACE_L0' ? 11 : d.data.type === 'SPACE_L1' ? 9 : 8;
+            return base * textScale;
+          });
+        // City labels — same counter-scale
+        g.selectAll<SVGTextElement, unknown>('.city-label')
+          .attr('font-size', 8 * textScale);
+        // Update collision force radius
+        simulationLocal?.force('collision', d3.forceCollide<SimNode>().radius((d) =>
+          effectiveRadius(d, true, k) + 8));
+      }
+
+      // Counter-scale edge stroke width in geo mode so lines thin as you zoom in
+      if (isGeoMode && linkSelection) {
+        const edgeScale = 1 / Math.pow(Math.max(k, 0.1), 0.6);
+        linkSelection.attr('stroke-width', (d) => {
+          let base: number;
+          if (d.data.type === 'MEMBER') base = 0.5;
+          else if (d.data.type === 'LEAD' || d.data.type === 'ADMIN') base = 0.8;
+          else base = Math.max(0.4, Math.min(d.data.weight * 0.35, 1.4));
+          return base * edgeScale;
+        });
+      }
+
       // Re-cull labels on zoom change
       cullOverlappingLabels();
+
+      // Refresh map tiles at the new zoom level
+      if ((applyLOD as any)._renderTiles) {
+        (applyLOD as any)._renderTiles(k);
+      }
     }
 
     // Build projection for geo-pinning
@@ -739,10 +917,105 @@ export default function ForceGraph({
           .translate([width / 2, height / 2])
       : null;
 
-    // Render map paths inside the zoom group (behind everything)
+    // Render map tiles + GeoJSON boundary data inside the zoom group (behind everything)
     if (showMap && projection) {
       const mapGroup = g.append('g').attr('class', 'map-layer');
       const path = geoPath().projection(projection);
+
+      // Clip definition: tiles will be clipped to this path once GeoJSON loads
+      const clipId = 'map-region-clip';
+      const mapClipDef = svg.append('defs').append('clipPath').attr('id', clipId);
+
+      const tileGroup = mapGroup.append('g').attr('class', 'tile-layer');
+
+      // --- Tile rendering helpers ---
+      // Convert lon/lat to tile x/y at a given zoom level (Web Mercator)
+      function lon2tile(lon: number, z: number) { return ((lon + 180) / 360) * Math.pow(2, z); }
+      function lat2tile(lat: number, z: number) {
+        const latRad = (lat * Math.PI) / 180;
+        return ((1 - Math.log(Math.tan(latRad) + 1 / Math.cos(latRad)) / Math.PI) / 2) * Math.pow(2, z);
+      }
+      // Inverse: tile x/y → lon/lat
+      function tile2lon(x: number, z: number) { return (x / Math.pow(2, z)) * 360 - 180; }
+      function tile2lat(y: number, z: number) {
+        const n = Math.PI - (2 * Math.PI * y) / Math.pow(2, z);
+        return (180 / Math.PI) * Math.atan(0.5 * (Math.exp(n) - Math.exp(-n)));
+      }
+
+      // Choose tile zoom level based on the Mercator scale
+      const baseZoom = mapRegion === 'netherlands' ? 8 : mapRegion === 'europe' ? 4 : 2;
+
+      function renderTiles(zoomK: number) {
+        // The effective tile zoom considers both base projection scale and D3 zoom
+        const tileZ = Math.max(0, Math.min(18, Math.round(baseZoom + Math.log2(Math.max(zoomK, 0.1)))));
+        // Compute SVG-space bounds visible in the viewport.
+        // When zoomed, the g-transform is "translate(tx,ty) scale(k)".
+        // The inverse maps SVG viewport corners to coordinate space.
+        const currentTransform = d3.zoomTransform(svg.node()!);
+        const topLeft = currentTransform.invert([0, 0]);
+        const bottomRight = currentTransform.invert([width, height]);
+        // Convert SVG coordinates to lon/lat via the inverse projection
+        const inv = projection!.invert!;
+        const geoTL = inv(topLeft as [number, number]);
+        const geoBR = inv(bottomRight as [number, number]);
+        if (!geoTL || !geoBR) return;
+
+        // Tile range for the visible extent
+        const xMin = Math.max(0, Math.floor(lon2tile(geoTL[0], tileZ)));
+        const xMax = Math.min(Math.pow(2, tileZ) - 1, Math.floor(lon2tile(geoBR[0], tileZ)));
+        const yMin = Math.max(0, Math.floor(lat2tile(geoTL[1], tileZ)));
+        const yMax = Math.min(Math.pow(2, tileZ) - 1, Math.floor(lat2tile(geoBR[1], tileZ)));
+
+        // Build tile data array
+        const tiles: { tx: number; ty: number; z: number; key: string }[] = [];
+        for (let tx = xMin; tx <= xMax; tx++) {
+          for (let ty = yMin; ty <= yMax; ty++) {
+            tiles.push({ tx, ty, z: tileZ, key: `${tileZ}/${tx}/${ty}` });
+          }
+        }
+
+        // Cap tiles to prevent flooding the DOM
+        if (tiles.length > 200) return;
+
+        const subdomains = ['a', 'b', 'c', 'd'];
+
+        // Data join
+        const images = tileGroup.selectAll<SVGImageElement, typeof tiles[0]>('image')
+          .data(tiles, (d) => d.key);
+
+        images.exit().remove();
+
+        images.enter()
+          .append('image')
+          .attr('preserveAspectRatio', 'none')
+          .attr('pointer-events', 'none')
+          .merge(images as any)
+          .attr('href', (d) => {
+            const s = subdomains[(d.tx + d.ty) % subdomains.length];
+            return `https://${s}.basemaps.cartocdn.com/light_nolabels/${d.z}/${d.tx}/${d.ty}.png`;
+          })
+          .each(function (d) {
+            // Project tile corners from lon/lat to SVG coordinates
+            const topLeftLon = tile2lon(d.tx, d.z);
+            const topLeftLat = tile2lat(d.ty, d.z);
+            const bottomRightLon = tile2lon(d.tx + 1, d.z);
+            const bottomRightLat = tile2lat(d.ty + 1, d.z);
+            const pTL = projection!([topLeftLon, topLeftLat]);
+            const pBR = projection!([bottomRightLon, bottomRightLat]);
+            if (pTL && pBR) {
+              d3.select(this)
+                .attr('x', pTL[0])
+                .attr('y', pTL[1])
+                .attr('width', pBR[0] - pTL[0])
+                .attr('height', pBR[1] - pTL[1]);
+            }
+          });
+      }
+
+      // Initial tile render
+      renderTiles(1);
+      // Expose for zoom handler
+      (applyLOD as any)._renderTiles = renderTiles;
 
       fetch(MAP_URLS[mapRegion])
         .then((res) => {
@@ -750,35 +1023,61 @@ export default function ForceGraph({
           return res.json();
         })
         .then((geojson) => {
-          const isWorldMap = mapRegion === 'world';
+          // Cache GeoJSON for boundary checking (used by computePinnedNodeIds)
+          mapGeoJSONCacheRef.current[mapRegion] = geojson as GeoPermissibleObjects;
 
-          // Draw country/region paths
-          mapGroup
-            .selectAll('path')
-            .data(geojson.features || [geojson])
+          // Build clip path from region boundary so tiles are masked to the region
+          const features = geojson.features || [geojson];
+          mapClipDef.selectAll('path')
+            .data(features)
             .join('path')
+            .attr('d', path as any);
+          tileGroup.attr('clip-path', `url(#${clipId})`);
+
+          // Draw subtle country/region borders on top of tiles
+          const isWorldMap = mapRegion === 'world';
+          mapGroup
+            .selectAll('path.region-border')
+            .data(features)
+            .join('path')
+            .attr('class', 'region-border')
             .attr('d', path as any)
-            .attr('fill', isWorldMap ? 'rgba(180, 180, 180, 0.3)' : 'rgba(200, 210, 220, 0.5)')
-            .attr('stroke', isWorldMap ? '#fff' : 'rgba(100, 120, 140, 0.5)')
+            .attr('fill', 'none')
+            .attr('stroke', isWorldMap ? 'rgba(150,150,150,0.3)' : 'rgba(100, 120, 140, 0.4)')
             .attr('stroke-width', isWorldMap ? 0.5 : 0.8)
             .style('pointer-events', 'none');
 
-          // Add region/country labels for non-world maps
-          if (!isWorldMap) {
-            mapGroup
-              .selectAll('text.region-label')
-              .data(geojson.features || [])
-              .join('text')
-              .attr('class', 'region-label')
-              .attr('transform', (d: any) => {
-                const centroid = path.centroid(d);
-                return centroid ? `translate(${centroid[0]},${centroid[1]})` : '';
-              })
-              .attr('text-anchor', 'middle')
-              .attr('fill', 'rgba(80, 100, 120, 0.5)')
-              .attr('font-size', mapRegion === 'netherlands' ? 8 : 7)
-              .attr('pointer-events', 'none')
-              .text((d: any) => d.properties?.name || d.properties?.NAME || '');
+          // After GeoJSON loads: re-apply boundary filtering to pin only in-region nodes
+          if (projection && simulationLocal) {
+            const pinnedIds = computePinnedNodeIds(simNodes, geojson as GeoPermissibleObjects);
+            // Clear geoTargets and rebuild with only boundary-filtered nodes
+            geoTargets.clear();
+            for (const node of simNodes) {
+              if (pinnedIds.has(node.data.id)) {
+                const loc = node.data.location!;
+                const projected = projection([loc.longitude!, loc.latitude!]);
+                if (projected) {
+                  geoTargets.set(node.data.id, { x: projected[0], y: projected[1] });
+                }
+              }
+            }
+            // Spread co-located nodes with organic jitter
+            spreadColocatedNodes(geoTargets);
+            // Re-pin/unpin nodes based on boundary filtering
+            for (const node of simNodes) {
+              const target = geoTargets.get(node.data.id);
+              if (target) {
+                node.fx = target.x;
+                node.fy = target.y;
+              } else if (!revealedNodeIds.has(node.data.id)) {
+                node.fx = null;
+                node.fy = null;
+              }
+            }
+            // Update repulsion force with new bounds and pinned set
+            const bounds = computeMapBounds(geojson as GeoPermissibleObjects, projection as (point: [number, number]) => [number, number] | null);
+            simulationLocal.force('map-repulsion', mapRepulsionForce(bounds, pinnedIds));
+            simulationLocal.alpha(0.3).restart();
           }
         })
         .catch(() => {
@@ -793,16 +1092,102 @@ export default function ForceGraph({
         });
     }
 
-    // Precompute geo target positions for nodes with location data
+    // Precompute geo target positions for nodes with location data.
+    // When cached GeoJSON is available, use boundary filtering (only pin nodes within region).
+    // On first render for a new region, pin all nodes; the async fetch callback will re-filter.
     const geoTargets = new Map<string, { x: number; y: number }>();
+    const cachedGeoJSON = mapGeoJSONCacheRef.current[mapRegion] ?? null;
     if (showMap && projection) {
+      const pinnedIds = cachedGeoJSON
+        ? computePinnedNodeIds(simNodes, cachedGeoJSON)
+        : null;
       for (const node of simNodes) {
+        // If we have cached GeoJSON, only pin nodes within the region
+        if (pinnedIds && !pinnedIds.has(node.data.id)) continue;
         const loc = node.data.location;
         if (loc && loc.longitude != null && loc.latitude != null) {
           const projected = projection([loc.longitude, loc.latitude]);
           if (projected) {
             geoTargets.set(node.data.id, { x: projected[0], y: projected[1] });
           }
+        }
+      }
+
+      // Spread co-located nodes with organic jitter so they cluster
+      // naturally within the same city area instead of stacking.
+      spreadColocatedNodes(geoTargets);
+    }
+
+    // Determine if we're in full geo mode (map active with pinned nodes)
+    const isGeoMode = showMap && geoTargets.size > 0;
+
+    // Detect theme for color-adaptive rendering
+    const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+
+    // Render city labels from geographic coordinates (not node positions)
+    if (isGeoMode && projection) {
+      // Collect unique cities with their lat/lon from node data
+      const cityGeo = new Map<string, { lat: number; lon: number }>();
+      for (const node of simNodes) {
+        if (!geoTargets.has(node.data.id)) continue;
+        const loc = node.data.location;
+        if (!loc?.city || loc.latitude == null || loc.longitude == null) continue;
+        if (!cityGeo.has(loc.city)) {
+          cityGeo.set(loc.city, { lat: loc.latitude, lon: loc.longitude });
+        }
+      }
+      // Project city coordinates to pixel positions
+      const cityLabels: { name: string; x: number; y: number }[] = [];
+      for (const [name, geo] of cityGeo) {
+        const projected = projection([geo.lon, geo.lat]);
+        if (projected) cityLabels.push({ name, x: projected[0], y: projected[1] });
+      }
+      const cityGroup = g.select('.map-layer').append('g').attr('class', 'city-labels');
+      cityGroup.selectAll('text.city-label')
+        .data(cityLabels)
+        .join('text')
+        .attr('class', 'city-label')
+        .attr('x', (d) => d.x)
+        .attr('y', (d) => d.y - 6)
+        .attr('text-anchor', 'middle')
+        .attr('font-size', 8)
+        .attr('font-weight', '300')
+        .attr('letter-spacing', '0.04em')
+        .style('font-style', 'italic')
+        .attr('fill', isDark ? 'rgba(148, 163, 184, 0.4)' : 'rgba(100, 110, 125, 0.4)')
+        .attr('filter', 'url(#city-label-backdrop)')
+        .attr('pointer-events', 'none')
+        .text((d) => d.name);
+    }
+
+    // In geo mode: push nodes without a location outside the map bounds
+    // so the repulsion force doesn't have to do all the heavy lifting.
+    if (isGeoMode && projection) {
+      const mapBnds = cachedGeoJSON
+        ? computeMapBounds(cachedGeoJSON, projection as (p: [number, number]) => [number, number] | null)
+        : { x: width * 0.15, y: height * 0.15, width: width * 0.7, height: height * 0.7 };
+      const outerMargin = 120;
+      for (const node of simNodes) {
+        if (geoTargets.has(node.data.id)) continue;
+        // Place along the edges outside the map rectangle
+        const side = Math.floor(Math.random() * 4);
+        switch (side) {
+          case 0: // left
+            node.x = mapBnds.x - outerMargin - Math.random() * 80;
+            node.y = mapBnds.y + Math.random() * mapBnds.height;
+            break;
+          case 1: // right
+            node.x = mapBnds.x + mapBnds.width + outerMargin + Math.random() * 80;
+            node.y = mapBnds.y + Math.random() * mapBnds.height;
+            break;
+          case 2: // top
+            node.x = mapBnds.x + Math.random() * mapBnds.width;
+            node.y = mapBnds.y - outerMargin - Math.random() * 80;
+            break;
+          default: // bottom
+            node.x = mapBnds.x + Math.random() * mapBnds.width;
+            node.y = mapBnds.y + mapBnds.height + outerMargin + Math.random() * 80;
+            break;
         }
       }
     }
@@ -817,12 +1202,13 @@ export default function ForceGraph({
       .attr('fill', 'none')
       .attr('stroke', (d) => EDGE_COLORS[d.data.type] || EDGE_COLORS.MEMBER)
       .attr('stroke-width', (d) => {
-        if (d.data.type === 'MEMBER') return 0.9;  // thin but visible
-        if (d.data.type === 'LEAD') return 1.4;
-        if (d.data.type === 'ADMIN') return 1.4;
-        return Math.max(0.7, Math.min(d.data.weight * 0.5, 2.0)); // CHILD
+        if (d.data.type === 'MEMBER') return 0.5;
+        if (d.data.type === 'LEAD') return 0.8;
+        if (d.data.type === 'ADMIN') return 0.8;
+        return Math.max(0.4, Math.min(d.data.weight * 0.35, 1.4)); // CHILD
       })
-      .attr('stroke-linecap', 'round');
+      .attr('stroke-linecap', 'round')
+      .attr('opacity', isGeoMode ? 0.15 : null);
 
     // Draw nodes
     const nodeSelection = g
@@ -859,7 +1245,8 @@ export default function ForceGraph({
           })
           .on('end', (event: any, d: any) => {
             if (!event.active) simulationRef.current?.alphaTarget(0);
-            // In geo mode, snap back to geographic position if node has one
+            // In geo mode, snap pinned nodes back to their geographic position;
+            // free-floating nodes stay where the user dropped them.
             const geoTarget = geoTargets.get(d.data.id);
             if (geoTarget) {
               d.fx = geoTarget.x;
@@ -899,24 +1286,69 @@ export default function ForceGraph({
       .attr('stdDeviation', 5)
       .attr('flood-color', 'rgba(99,102,241,0.5)');
 
-    // White halo/outline filter for label readability
-    const labelHalo = defs.append('filter')
-      .attr('id', 'label-halo')
-      .attr('x', '-5%').attr('y', '-15%')
-      .attr('width', '110%').attr('height', '130%');
-    labelHalo.append('feFlood')
-      .attr('flood-color', 'rgba(255,255,255,0.85)')
-      .attr('result', 'bg');
-    labelHalo.append('feComposite')
-      .attr('in', 'bg')
+    // Soft-blur backdrop filter for label readability — dilates the text
+    // shape, blurs it, then composites sharp text on top.
+    // Color adapts to current theme for proper contrast.
+    const backdropColor = isDark ? '#0f172a' : '#ffffff';
+
+    const labelBg = defs.append('filter')
+      .attr('id', 'label-backdrop')
+      .attr('x', '-15%').attr('y', '-40%')
+      .attr('width', '130%').attr('height', '180%');
+    labelBg.append('feFlood')
+      .attr('flood-color', backdropColor)
+      .attr('flood-opacity', isDark ? '0.82' : '0.88')
+      .attr('result', 'flood');
+    labelBg.append('feComposite')
+      .attr('in', 'flood')
       .attr('in2', 'SourceGraphic')
-      .attr('operator', 'over');
+      .attr('operator', 'in')
+      .attr('result', 'mask');
+    labelBg.append('feMorphology')
+      .attr('in', 'mask')
+      .attr('operator', 'dilate')
+      .attr('radius', '1.5')
+      .attr('result', 'dilated');
+    labelBg.append('feGaussianBlur')
+      .attr('in', 'dilated')
+      .attr('stdDeviation', '1.2')
+      .attr('result', 'blur');
+    const labelMerge = labelBg.append('feMerge');
+    labelMerge.append('feMergeNode').attr('in', 'blur');
+    labelMerge.append('feMergeNode').attr('in', 'SourceGraphic');
+
+    // Lighter variant for city labels (less prominent backdrop)
+    const cityBg = defs.append('filter')
+      .attr('id', 'city-label-backdrop')
+      .attr('x', '-15%').attr('y', '-40%')
+      .attr('width', '130%').attr('height', '180%');
+    cityBg.append('feFlood')
+      .attr('flood-color', backdropColor)
+      .attr('flood-opacity', isDark ? '0.7' : '0.75')
+      .attr('result', 'flood');
+    cityBg.append('feComposite')
+      .attr('in', 'flood')
+      .attr('in2', 'SourceGraphic')
+      .attr('operator', 'in')
+      .attr('result', 'mask');
+    cityBg.append('feMorphology')
+      .attr('in', 'mask')
+      .attr('operator', 'dilate')
+      .attr('radius', '1.2')
+      .attr('result', 'dilated');
+    cityBg.append('feGaussianBlur')
+      .attr('in', 'dilated')
+      .attr('stdDeviation', '1')
+      .attr('result', 'blur');
+    const cityMerge = cityBg.append('feMerge');
+    cityMerge.append('feMergeNode').attr('in', 'blur');
+    cityMerge.append('feMergeNode').attr('in', 'SourceGraphic');
 
     // Avatar / banner clip paths
     simNodes
       .filter((d) => !!nodeImageUrl(d.data))
       .forEach((d) => {
-        const r = nodeRadius(d);
+        const r = effectiveRadius(d, isGeoMode, currentZoomScale);
         defs
           .append('clipPath')
           .attr('id', `clip-avatar-${d.data.id}`)
@@ -927,7 +1359,7 @@ export default function ForceGraph({
     // Node circles — Kumu-inspired: spaces are filled, users/orgs get ring borders
     nodeSelection
       .append('circle')
-      .attr('r', (d) => nodeRadius(d))
+      .attr('r', (d) => effectiveRadius(d, isGeoMode, currentZoomScale))
       .attr('fill', (d) => {
         if (d.data.type === 'USER' || d.data.type === 'ORGANIZATION') {
           return d.data.avatarUrl ? 'white' : NODE_COLORS[d.data.type] || '#999';
@@ -936,34 +1368,78 @@ export default function ForceGraph({
         return nodeImageUrl(d.data) ? 'white' : NODE_COLORS[d.data.type] || '#999';
       })
       .attr('stroke', (d) => {
-        if (d.data.type === 'USER') return 'rgba(160,175,195,0.5)';
-        if (d.data.type === 'ORGANIZATION') return NODE_COLORS.ORGANIZATION;
-        if (d.data.type === 'SPACE_L0') return 'rgba(255,255,255,0.9)';
-        return 'rgba(255,255,255,0.7)';
+        if (d.data.type === 'USER') return 'rgba(180,190,205,0.35)';
+        if (d.data.type === 'ORGANIZATION') return 'rgba(180,190,205,0.35)';
+        if (d.data.type === 'SPACE_L0') return 'rgba(200,210,220,0.5)';
+        return 'rgba(200,210,220,0.4)';
       })
       .attr('stroke-width', (d) => {
-        if (d.data.type === 'USER') return 1.5;
-        if (d.data.type === 'ORGANIZATION') return 1.5;
-        if (d.data.type === 'SPACE_L0') return 2;
-        return 1;
+        if (d.data.type === 'USER') return 0.75;
+        if (d.data.type === 'ORGANIZATION') return 0.75;
+        if (d.data.type === 'SPACE_L0') return 1;
+        return 0.5;
       });
 
-    // Node images (avatars / banners) — clipped to circle, with fallback on error
-    nodeSelection
-      .filter((d) => !!nodeImageUrl(d.data))
+    // Node images (avatars / banners) — clipped to circle, with fallback on error.
+    // For space nodes using bannerUrl, pre-check via fetch to detect Alkemio default
+    // placeholder images (small files like the padlock icon) and skip them.
+    const imgNodes = nodeSelection.filter((d) => !!nodeImageUrl(d.data));
+
+    // Non-banner images: render immediately
+    imgNodes
+      .filter((d) => !(d.data.type.startsWith('SPACE_') && d.data.bannerUrl))
       .append('image')
       .attr('href', (d) => proxyImageUrl(nodeImageUrl(d.data)) ?? nodeImageUrl(d.data)!)
-      .attr('x', (d) => -nodeRadius(d))
-      .attr('y', (d) => -nodeRadius(d))
-      .attr('width', (d) => nodeRadius(d) * 2)
-      .attr('height', (d) => nodeRadius(d) * 2)
+      .attr('x', (d) => -effectiveRadius(d, isGeoMode, currentZoomScale))
+      .attr('y', (d) => -effectiveRadius(d, isGeoMode, currentZoomScale))
+      .attr('width', (d) => effectiveRadius(d, isGeoMode, currentZoomScale) * 2)
+      .attr('height', (d) => effectiveRadius(d, isGeoMode, currentZoomScale) * 2)
       .attr('clip-path', (d) => `url(#clip-avatar-${d.data.id})`)
       .attr('preserveAspectRatio', 'xMidYMid slice')
       .on('error', function () {
         d3.select(this).remove();
       });
 
-    // Visibility badge — lock/unlock icon overlay on space nodes (bottom-right)
+    // Space banner images: pre-check to filter out Alkemio default placeholders
+    imgNodes
+      .filter((d) => d.data.type.startsWith('SPACE_') && !!d.data.bannerUrl)
+      .each(function (d) {
+        const group = d3.select(this);
+        const url = proxyImageUrl(nodeImageUrl(d.data)) ?? nodeImageUrl(d.data)!;
+        fetch(url)
+          .then((res) => {
+            if (!res.ok) return;
+            const size = parseInt(res.headers.get('x-image-size') || res.headers.get('content-length') || '0', 10);
+            // Default Alkemio placeholders (padlock icon) are small files (< 100KB).
+            // Real uploaded banners are typically much larger.
+            if (size > 0 && size < 102400) return;
+            const r = effectiveRadius(d, isGeoMode, currentZoomScale);
+            // Insert image before the badge elements so badge stays on top
+            const firstBadge = group.select('.visibility-badge-bg').node() as Node | null;
+            const imgEl = document.createElementNS('http://www.w3.org/2000/svg', 'image');
+            const groupNode = group.node() as Element | null;
+            if (groupNode && firstBadge) {
+              groupNode.insertBefore(imgEl, firstBadge);
+            } else if (groupNode) {
+              groupNode.appendChild(imgEl);
+            }
+            d3.select(imgEl)
+              .attr('href', url)
+              .attr('x', -r)
+              .attr('y', -r)
+              .attr('width', r * 2)
+              .attr('height', r * 2)
+              .attr('clip-path', `url(#clip-avatar-${d.data.id})`)
+              .attr('preserveAspectRatio', 'xMidYMid slice')
+              .on('error', function () {
+                d3.select(this).remove();
+              });
+          })
+          .catch(() => { /* skip on fetch failure */ });
+      });
+
+    // Visibility badge — lock icon overlay on private space nodes (bottom-right).
+    // Uses a <g> wrapper so the whole badge can be raised above async-loaded images.
     const spaceNodes = nodeSelection.filter(
       (d) => d.data.type === 'SPACE_L0' || d.data.type === 'SPACE_L1' || d.data.type === 'SPACE_L2',
     );
@@ -971,53 +1447,35 @@ export default function ForceGraph({
     // Lock badge — shown on private spaces and restricted spaces
     const privateSpaceNodes = spaceNodes.filter((d) => d.data.privacyMode === 'PRIVATE' || d.data.restricted === true);
 
-    // White circle background for contrast
+    // Badge size scales with node radius so it stays visible at all zoom levels
+    const badgeRadius = (d: SimNode) => effectiveRadius(d, isGeoMode, currentZoomScale) * 0.25;
+    const badgeFontSize = (d: SimNode) => effectiveRadius(d, isGeoMode, currentZoomScale) * 0.3;
+
     privateSpaceNodes
       .append('circle')
       .attr('class', 'visibility-badge-bg')
-      .attr('cx', (d) => nodeRadius(d) * 0.6)
-      .attr('cy', (d) => nodeRadius(d) * 0.6)
-      .attr('r', (d) => (d.data.type === 'SPACE_L0' ? 7 : 5))
+      .attr('cx', (d) => effectiveRadius(d, isGeoMode, currentZoomScale) * 0.6)
+      .attr('cy', (d) => effectiveRadius(d, isGeoMode, currentZoomScale) * 0.6)
+      .attr('r', badgeRadius)
       .attr('fill', 'white')
       .attr('stroke', 'rgba(148,163,184,0.4)')
       .attr('stroke-width', 0.5)
       .attr('pointer-events', 'none');
 
-    // Lock emoji
     privateSpaceNodes
       .append('text')
       .attr('class', 'visibility-badge-icon')
-      .attr('x', (d) => nodeRadius(d) * 0.6)
-      .attr('y', (d) => nodeRadius(d) * 0.6)
+      .attr('x', (d) => effectiveRadius(d, isGeoMode, currentZoomScale) * 0.6)
+      .attr('y', (d) => effectiveRadius(d, isGeoMode, currentZoomScale) * 0.6)
       .attr('text-anchor', 'middle')
       .attr('dominant-baseline', 'central')
-      .attr('font-size', (d) => (d.data.type === 'SPACE_L0' ? 9 : 7))
+      .attr('font-size', badgeFontSize)
       .attr('pointer-events', 'none')
       .text('\u{1F512}');
 
-    // Node labels (for spaces and orgs) — with white halo for readability
-    // Each label gets a shadow text (white stroke outline) + foreground text
+    // Node labels (for spaces and orgs) — soft blur backdrop for readability
     const labelNodes = nodeSelection.filter((d) => d.data.type !== 'USER');
 
-    // White outline/halo behind the text
-    labelNodes
-      .append('text')
-      .attr('class', 'node-label-halo')
-      .text((d) => {
-        const name = d.data.displayName;
-        return name.length > LABEL_MAX_CHARS ? name.slice(0, LABEL_MAX_CHARS - 1) + '\u2026' : name;
-      })
-      .attr('font-size', (d) => (d.data.type === 'SPACE_L0' ? 13 : d.data.type === 'SPACE_L1' ? 10 : 9))
-      .attr('text-anchor', 'middle')
-      .attr('dy', (d) => nodeRadius(d) + 14)
-      .attr('fill', 'none')
-      .attr('stroke', 'white')
-      .attr('stroke-width', 4)
-      .attr('stroke-linejoin', 'round')
-      .attr('pointer-events', 'none')
-      .attr('opacity', 0);
-
-    // Foreground label text
     labelNodes
       .append('text')
       .attr('class', 'node-label')
@@ -1025,11 +1483,12 @@ export default function ForceGraph({
         const name = d.data.displayName;
         return name.length > LABEL_MAX_CHARS ? name.slice(0, LABEL_MAX_CHARS - 1) + '\u2026' : name;
       })
-      .attr('font-size', (d) => (d.data.type === 'SPACE_L0' ? 13 : d.data.type === 'SPACE_L1' ? 10 : 9))
-      .attr('font-weight', (d) => (d.data.type === 'SPACE_L0' ? '700' : d.data.type === 'SPACE_L1' ? '600' : '400'))
+      .attr('font-size', (d) => (d.data.type === 'SPACE_L0' ? 11 : d.data.type === 'SPACE_L1' ? 9 : 8))
+      .attr('font-weight', (d) => (d.data.type === 'SPACE_L0' ? '600' : d.data.type === 'SPACE_L1' ? '500' : '400'))
       .attr('text-anchor', 'middle')
-      .attr('dy', (d) => nodeRadius(d) + 14)
+      .attr('dy', (d) => effectiveRadius(d, isGeoMode, currentZoomScale) + 12)
       .attr('fill', 'var(--text-secondary)')
+      .attr('filter', 'url(#label-backdrop)')
       .attr('pointer-events', 'none')
       .attr('opacity', 0);
 
@@ -1040,7 +1499,6 @@ export default function ForceGraph({
     const badgeLayer = g.append('g').attr('class', 'cluster-badges');
 
     // Force simulation — adjust forces based on whether map mode is active
-    const isGeoMode = showMap && geoTargets.size > 0;
 
     const simulation = d3
       .forceSimulation(simNodes)
@@ -1081,7 +1539,7 @@ export default function ForceGraph({
       .force('center', isGeoMode ? null : d3.forceCenter(width / 2, height / 2).strength(0.03))
       .force('collision', d3.forceCollide().radius((d) => {
         const sn = d as SimNode;
-        return ((sn as any)._effectiveRadius ?? nodeRadius(sn)) + 8;
+        return ((sn as any)._effectiveRadius ?? effectiveRadius(sn, isGeoMode, currentZoomScale)) + 8;
       }))
       .force('radial-hierarchy', isGeoMode ? null : (alpha: number) => {
         for (const node of simNodes) {
@@ -1096,11 +1554,17 @@ export default function ForceGraph({
           node.vx = (node.vx || 0) + (target.x - (node.x || 0)) * alpha * strength;
           node.vy = (node.vy || 0) + (target.y - (node.y || 0)) * alpha * strength;
         }
-      });
+      })
+      .force('map-repulsion', isGeoMode && cachedGeoJSON
+        ? mapRepulsionForce(
+            computeMapBounds(cachedGeoJSON, projection as (point: [number, number]) => [number, number] | null),
+            new Set([...geoTargets.keys()]),
+          )
+        : null,
+      );
 
-    // Geographic pinning — fix nodes with lat/lon to their exact map position
-    // Uses fx/fy (immutable positions) like the old analytics-playground repo,
-    // so the simulation cannot drift them away from their geographic location.
+    // Geographic pinning — fix nodes within the selected map region to their map position.
+    // Nodes outside the region (or without location) are free-floating (fx/fy = null).
     if (isGeoMode) {
       for (const node of simNodes) {
         const target = geoTargets.get(node.data.id);
@@ -1110,6 +1574,10 @@ export default function ForceGraph({
           node.y = target.y;
           node.fx = target.x;
           node.fy = target.y;
+        } else {
+          // Ensure out-of-region nodes are free-floating
+          node.fx = null;
+          node.fy = null;
         }
       }
     }
@@ -1145,8 +1613,8 @@ export default function ForceGraph({
       // Label collision culling — hide labels that overlap higher-priority ones
       cullOverlappingLabels();
 
-      // Proximity clustering — only active in map overlay mode
-      if (showMap && simNodes.length <= MAX_NODES_FOR_CLUSTERING) {
+      // Proximity clustering — disabled in map mode per spec 012 (individual nodes always shown)
+      if (false && showMap && simNodes.length <= MAX_NODES_FOR_CLUSTERING) {
         // Build list of clusterable nodes — exclude revealed (fanned-out) nodes
         const clusterableNodes = simNodes
           .filter((n) => !revealedNodeIds.has(n.data.id))
@@ -1220,7 +1688,7 @@ export default function ForceGraph({
           .attr('r', 18)
           .attr('fill', '#f8f9ff')
           .attr('stroke', '#6366f1')
-          .attr('stroke-width', 2);
+          .attr('stroke-width', 1.5);
 
         // Count label
         enter.append('text')
@@ -1251,7 +1719,7 @@ export default function ForceGraph({
               .transition().duration(150)
               .attr('r', 21)
               .attr('fill', '#eef2ff')
-              .attr('stroke-width', 2.5);
+              .attr('stroke-width', 2);
             el.select('.badge-ring')
               .transition().duration(150)
               .attr('r', 26)
@@ -1272,7 +1740,7 @@ export default function ForceGraph({
               .transition().duration(150)
               .attr('r', 18)
               .attr('fill', '#f8f9ff')
-              .attr('stroke-width', 2);
+              .attr('stroke-width', 1.5);
             el.select('.badge-ring')
               .transition().duration(150)
               .attr('r', 22)
@@ -1370,7 +1838,7 @@ export default function ForceGraph({
             });
           merged.select('.badge-circle')
             .attr('stroke', (d) => matchesFn(d) ? '#f59e0b' : '#6366f1')
-            .attr('stroke-width', (d) => matchesFn(d) ? 3 : 2);
+            .attr('stroke-width', (d) => matchesFn(d) ? 2 : 1.5);
           merged.select('.badge-ring')
             .attr('stroke', (d) => matchesFn(d) ? 'rgba(245,158,11,0.4)' : 'rgba(99,102,241,0.15)');
           merged.select('.badge-text')
@@ -1384,7 +1852,7 @@ export default function ForceGraph({
           const hlMatchFn = (d: ProximityCluster) => d.memberIds.some((id) => hlSet.has(id));
           merged.select('.badge-circle')
             .attr('stroke', (d) => hlMatchFn(d) ? '#f59e0b' : '#6366f1')
-            .attr('stroke-width', (d) => hlMatchFn(d) ? 3 : 2);
+            .attr('stroke-width', (d) => hlMatchFn(d) ? 2 : 1.5);
           merged.select('.badge-ring')
             .attr('stroke', (d) => hlMatchFn(d) ? 'rgba(245,158,11,0.4)' : 'rgba(99,102,241,0.15)');
           merged.select('.badge-text')
@@ -1414,14 +1882,14 @@ export default function ForceGraph({
       const placed: { x: number; y: number; w: number; h: number }[] = [];
       const invK = 1 / currentZoomScale;
 
-      // Collect label nodes with priority
-      type LabelEntry = { el: SVGTextElement; haloEl: SVGTextElement | null; priority: number; sx: number; sy: number; w: number; h: number };
+      // Collect all labels (node + city) with priority
+      type LabelEntry = { el: SVGTextElement; priority: number; sx: number; sy: number; w: number; h: number };
       const entries: LabelEntry[] = [];
 
+      // Node labels — priority based on type and weight
       nodeSelection.each(function (d) {
         const group = d3.select(this);
         const label = group.select<SVGTextElement>('text.node-label').node();
-        const halo = group.select<SVGTextElement>('text.node-label-halo').node();
         if (!label) return;
 
         // Priority: L0=3, L1=2, others=1, scaled by weight
@@ -1430,46 +1898,63 @@ export default function ForceGraph({
         else if (d.data.type === 'SPACE_L1') priority = 2;
         priority += d.data.weight * 0.01;
 
-        // Approximate text dimensions (rough: 6px per char)
+        // Approximate text dimensions
         const text = label.textContent || '';
-        const fontSize = d.data.type === 'SPACE_L0' ? 13 : d.data.type === 'SPACE_L1' ? 10 : 9;
-        const charWidth = fontSize * 0.6;
+        const fontSize = d.data.type === 'SPACE_L0' ? 11 : d.data.type === 'SPACE_L1' ? 9 : 8;
+        const charWidth = fontSize * 0.55;
         const w = text.length * charWidth * invK;
-        const h = fontSize * 1.5 * invK;
-        const r = nodeRadius(d);
+        const h = fontSize * 1.4 * invK;
+        const r = isGeoMode ? effectiveRadius(d, true, currentZoomScale) : nodeRadius(d);
 
         entries.push({
           el: label,
-          haloEl: halo,
           priority,
           sx: (d.x || 0) - w / 2,
-          sy: (d.y || 0) + r + 6 * invK,
+          sy: (d.y || 0) + r + 4 * invK,
           w,
           h,
         });
       });
 
+      // City labels — lowest priority (0.5) so they yield to all node labels
+      if (isGeoMode) {
+        g.selectAll<SVGTextElement, { name: string; x: number; y: number }>('.city-label').each(function () {
+          const el = this as SVGTextElement;
+          const text = el.textContent || '';
+          const fontSize = 8;
+          const charWidth = fontSize * 0.5;
+          const w = text.length * charWidth * invK;
+          const h = fontSize * 1.4 * invK;
+          const x = parseFloat(el.getAttribute('x') || '0');
+          const y = parseFloat(el.getAttribute('y') || '0');
+          entries.push({
+            el,
+            priority: 0.5, // always yields to node labels
+            sx: x - w / 2,
+            sy: y - h,
+            w,
+            h,
+          });
+        });
+      }
+
       // Sort by priority descending (highest first = gets placed first)
       entries.sort((a, b) => b.priority - a.priority);
 
       for (const entry of entries) {
-        // All labels are candidates (no LOD gating) — collision culling
-        // is the sole mechanism for preventing overlaps
-
-        // Check overlap against already-placed labels
+        // Check overlap against already-placed labels (with small padding)
+        const pad = 2 * invK;
         const overlaps = placed.some((p) =>
-          entry.sx < p.x + p.w &&
-          entry.sx + entry.w > p.x &&
-          entry.sy < p.y + p.h &&
-          entry.sy + entry.h > p.y
+          entry.sx - pad < p.x + p.w &&
+          entry.sx + entry.w + pad > p.x &&
+          entry.sy - pad < p.y + p.h &&
+          entry.sy + entry.h + pad > p.y
         );
 
         if (overlaps) {
           d3.select(entry.el).attr('opacity', 0);
-          if (entry.haloEl) d3.select(entry.haloEl).attr('opacity', 0);
         } else {
           d3.select(entry.el).attr('opacity', 1);
-          if (entry.haloEl) d3.select(entry.haloEl).attr('opacity', 1);
           placed.push({ x: entry.sx, y: entry.sy, w: entry.w, h: entry.h });
         }
       }
@@ -1550,7 +2035,10 @@ export default function ForceGraph({
         .attr('stroke-width', 1.5)
         .attr('opacity', 0)
         .merge(hulls)
-        .attr('d', (d) => hullLine(d.points))
+        .attr('d', (d) => {
+          const valid = d.points.filter(([x, y]) => isFinite(x) && isFinite(y));
+          return valid.length >= 3 ? hullLine(valid) : null;
+        })
         .transition().duration(200)
         .attr('opacity', 1);
     }
@@ -1807,11 +2295,11 @@ export default function ForceGraph({
           .attr('r', activityRadius)
           // Tier-based stroke glow — dark-blue/light-blue palette
           .attr('stroke', tier === 'HIGH' ? '#1e3a5f' : tier === 'MEDIUM' ? '#38bdf8' : tier === 'LOW' ? '#7dd3fc' : (d.data.type === 'SPACE_L0' ? 'rgba(255,255,255,0.9)' : 'rgba(255,255,255,0.7)'))
-          .attr('stroke-width', tier === 'HIGH' ? Math.max(3.5, activityRadius * 0.08) : tier === 'MEDIUM' ? Math.max(2.5, activityRadius * 0.05) : tier === 'LOW' ? 1.5 : (d.data.type === 'SPACE_L0' ? 2 : 1))
+          .attr('stroke-width', tier === 'HIGH' ? Math.max(2, activityRadius * 0.05) : tier === 'MEDIUM' ? Math.max(1.5, activityRadius * 0.03) : tier === 'LOW' ? 0.8 : (d.data.type === 'SPACE_L0' ? 1 : 0.5))
           .style('filter', tier === 'HIGH'
-            ? `drop-shadow(0 0 ${Math.max(6, activityRadius * 0.15)}px #1e3a5f)`
+            ? `drop-shadow(0 0 ${Math.max(3, activityRadius * 0.08)}px rgba(30,58,95,0.4))`
             : tier === 'MEDIUM'
-              ? `drop-shadow(0 0 ${Math.max(4, activityRadius * 0.1)}px #38bdf8)`
+              ? `drop-shadow(0 0 ${Math.max(2, activityRadius * 0.06)}px rgba(56,189,248,0.3))`
               : 'none');
 
         // Transition image
@@ -1860,8 +2348,8 @@ export default function ForceGraph({
         el.select('circle')
           .transition().duration(duration).ease(d3.easeQuadOut)
           .attr('r', degreeR)
-          .attr('stroke', d.data.type === 'SPACE_L0' ? 'rgba(255,255,255,0.9)' : 'rgba(255,255,255,0.7)')
-          .attr('stroke-width', d.data.type === 'SPACE_L0' ? 2 : 1)
+          .attr('stroke', d.data.type === 'SPACE_L0' ? 'rgba(200,210,220,0.5)' : 'rgba(200,210,220,0.4)')
+          .attr('stroke-width', d.data.type === 'SPACE_L0' ? 1 : 0.5)
           .style('filter', 'none');
 
         el.select('image')
@@ -1950,7 +2438,7 @@ export default function ForceGraph({
       const hlSet = new Set(highlightedNodeIds);
       nodeSelection.select('circle')
         .attr('stroke', (d: any) => (hlSet.has(d.data.id) ? '#f59e0b' : null))
-        .attr('stroke-width', (d: any) => (hlSet.has(d.data.id) ? 3 : null));
+        .attr('stroke-width', (d: any) => (hlSet.has(d.data.id) ? 2 : null));
       nodeSelection.attr('opacity', (d: any) => (hlSet.has(d.data.id) ? 1 : 0.2));
     }
   }, [highlightedNodeIds, graphVersion]);
@@ -1998,16 +2486,16 @@ export default function ForceGraph({
       nodeSelection.select('circle')
         .transition().duration(300)
         .attr('stroke', (d: any) => {
-          if (d.data.id === selectedNodeId) return '#1e3a5f'; // dark blue
-          if (firstDegree.has(d.data.id)) return '#1e3a5f';   // dark blue
-          if (secondDegree.has(d.data.id)) return '#7dd3fc';   // light blue
-          return '#bfc9d1';
+          if (d.data.id === selectedNodeId) return '#1e3a5f';
+          if (firstDegree.has(d.data.id)) return 'rgba(30,58,95,0.6)';
+          if (secondDegree.has(d.data.id)) return 'rgba(125,211,252,0.5)';
+          return 'rgba(200,210,220,0.3)';
         })
         .attr('stroke-width', (d: any) => {
-          if (d.data.id === selectedNodeId) return 5;
-          if (firstDegree.has(d.data.id)) return 3.5;
-          if (secondDegree.has(d.data.id)) return 1.5;
-          return 1;
+          if (d.data.id === selectedNodeId) return 2.5;
+          if (firstDegree.has(d.data.id)) return 1.5;
+          if (secondDegree.has(d.data.id)) return 0.8;
+          return 0.5;
         });
 
       // Edges — bold 1st-degree, visible 2nd-degree, nearly hidden rest
@@ -2046,7 +2534,7 @@ export default function ForceGraph({
       nodeSelection.transition().duration(300).attr('opacity', 1);
       nodeSelection.select('circle')
         .transition().duration(300)
-        .attr('stroke', 'rgba(200,210,220,0.5)')
+        .attr('stroke', 'rgba(200,210,220,0.35)')
         .attr('stroke-width', 0.5);
 
       // For links: if pulse is active, only reset non-pulse properties (opacity);
@@ -2242,6 +2730,13 @@ export default function ForceGraph({
     const handleResize = () => renderGraph();
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
+  }, [renderGraph]);
+
+  // Re-render when theme changes so label backdrops use correct colors
+  useEffect(() => {
+    const observer = new MutationObserver(() => renderGraph());
+    observer.observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
+    return () => observer.disconnect();
   }, [renderGraph]);
 
   return <svg ref={svgRef} className={styles.svg} role="img" aria-label="Ecosystem network graph" />;

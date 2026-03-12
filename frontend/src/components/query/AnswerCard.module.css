@@ -1,0 +1,73 @@
+.card {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.content {
+  font-size: 14px;
+  line-height: 1.6;
+  color: var(--text-primary);
+  white-space: pre-wrap;
+}
+
+.entities {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.followups {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.followupChip {
+  padding: 6px 12px;
+  border-radius: 16px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text-primary);
+  font-size: 12px;
+  font-family: var(--font-family);
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.followupChip:hover {
+  background: var(--primary-faded, rgba(99, 102, 241, 0.1));
+  border-color: var(--primary);
+}
+
+.followupChip:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
+
+.footer {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.showOnGraphBtn {
+  padding: 6px 14px;
+  border-radius: 6px;
+  border: 1px solid var(--primary);
+  background: transparent;
+  color: var(--primary);
+  font-size: 12px;
+  font-family: var(--font-family);
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.showOnGraphBtn:hover {
+  background: var(--primary-faded, rgba(99, 102, 241, 0.1));
+}
+
+.showOnGraphBtn:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}

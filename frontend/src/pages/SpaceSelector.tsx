@@ -1,6 +1,7 @@
 import { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useSpaces } from '../hooks/useSpaces.js';
+import { useUserProfile } from '../hooks/useUserProfile.js';
 import UserProfileMenu from '../components/UserProfileMenu.js';
 import styles from './SpaceSelector.module.css';
 
@@ -14,6 +15,7 @@ interface SpaceSelectorProps {
 
 export default function SpaceSelector({ onLogout }: SpaceSelectorProps) {
   const { spaces, loading, error, reload } = useSpaces();
+  const profile = useUserProfile();
   const SELECTION_KEY = 'alkemio_selected_spaces';
   const [selected, setSelected] = useState<Set<string>>(() => {
     try {
@@ -27,10 +29,21 @@ export default function SpaceSelector({ onLogout }: SpaceSelectorProps) {
   const navigate = useNavigate();
 
   const filteredSpaces = useMemo(() => {
-    if (!search) return spaces;
-    const q = search.toLowerCase();
-    return spaces.filter((s) => s.displayName.toLowerCase().includes(q));
-  }, [spaces, search]);
+    const list = search
+      ? spaces.filter((s) => s.displayName.toLowerCase().includes(search.toLowerCase()))
+      : spaces;
+    // Sort selected spaces to the top
+    return [...list].sort((a, b) => {
+      const aSelected = selected.has(a.nameId) ? 0 : 1;
+      const bSelected = selected.has(b.nameId) ? 0 : 1;
+      return aSelected - bSelected;
+    });
+  }, [spaces, search, selected]);
+
+  const selectedSpaces = useMemo(
+    () => spaces.filter((s) => selected.has(s.nameId)),
+    [spaces, selected],
+  );
 
   const updateSelected = (next: Set<string>) => {
     setSelected(next);
@@ -49,7 +62,6 @@ export default function SpaceSelector({ onLogout }: SpaceSelectorProps) {
 
   const handleGenerate = () => {
     if (selected.size === 0) return;
-    // Pass selected space nameIDs to explorer via URL state
     navigate('/explorer', { state: { spaceIds: Array.from(selected) } });
   };
 
@@ -78,7 +90,9 @@ export default function SpaceSelector({ onLogout }: SpaceSelectorProps) {
       <div className={styles.card}>
         <div className={styles.header}>
           <div className={styles.headerRow}>
-            <h1 className={styles.title}>Select Top-Level Spaces</h1>
+            <h1 className={styles.title}>
+              {profile ? `Welcome, ${profile.displayName}` : 'Select Top-Level Spaces'}
+            </h1>
             <UserProfileMenu onLogout={onLogout} />
           </div>
           <p className={styles.description}>
@@ -110,6 +124,27 @@ export default function SpaceSelector({ onLogout }: SpaceSelectorProps) {
             Showing only spaces where you have Member or Lead access.
           </span>
         </div>
+
+        {/* Selected spaces chips */}
+        {selectedSpaces.length > 0 && (
+          <div className={styles.selectedChips}>
+            <div className={styles.selectedLabel}>
+              Selected ({selectedSpaces.length})
+            </div>
+            <div className={styles.chipList}>
+              {selectedSpaces.map((s) => (
+                <button
+                  key={s.nameId}
+                  className={styles.chip}
+                  onClick={() => toggleSpace(s.nameId)}
+                >
+                  {s.displayName}
+                  <span className={styles.chipRemove}>&times;</span>
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
 
         {spaces.length === 0 ? (
           <div className={styles.emptyState}>
