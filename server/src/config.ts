@@ -27,6 +27,10 @@ export interface QueryConfig {
   maxFeedbackLength: number;
 }
 
+export interface FeaturesConfig {
+  aiQueryEnabled: boolean;
+}
+
 export interface ServerConfig {
   alkemioServerUrl: string;
   alkemioGraphqlEndpoint: string;
@@ -36,6 +40,7 @@ export interface ServerConfig {
   cacheTtlHours: number;
   openai: OpenAIConfig;
   query: QueryConfig;
+  features: FeaturesConfig;
 }
 
 /** Resolve the YAML config file path (check env override, cwd, then relative to dist) */
@@ -104,6 +109,7 @@ export function loadConfig(): ServerConfig {
     limits: { max_spaces_per_query: number };
     openai: { api_key: string; base_url: string; model: string; max_tokens: number; temperature: number };
     query: { session_ttl_minutes: number; max_query_length: number; max_feedback_length: number };
+    features: { ai_query_enabled: boolean };
   };
 
   cachedConfig = {
@@ -128,6 +134,9 @@ export function loadConfig(): ServerConfig {
       sessionTtlMinutes: yml.query.session_ttl_minutes,
       maxQueryLength: yml.query.max_query_length,
       maxFeedbackLength: yml.query.max_feedback_length,
+    },
+    features: {
+      aiQueryEnabled: yml.features.ai_query_enabled,
     },
   };
 

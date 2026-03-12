@@ -1378,7 +1378,9 @@ export default function ForceGraph({
         return 0.5;
       });
 
-    // Node images (avatars / banners) — clipped to circle, with fallback on error
+    // Node images (avatars / banners) — clipped to circle, with fallback on error.
+    // After load, detect Alkemio's default placeholder images (small icons like padlocks)
+    // and remove them so the node falls back to its colored circle.
     nodeSelection
       .filter((d) => !!nodeImageUrl(d.data))
       .append('image')
@@ -1389,6 +1391,18 @@ export default function ForceGraph({
       .attr('height', (d) => effectiveRadius(d, isGeoMode, currentZoomScale) * 2)
       .attr('clip-path', (d) => `url(#clip-avatar-${d.data.id})`)
       .attr('preserveAspectRatio', 'xMidYMid slice')
+      .on('load', function () {
+        const svgImg = this as SVGImageElement;
+        const probe = new Image();
+        probe.onload = () => {
+          // Alkemio serves small default placeholder icons (e.g. padlock) for spaces
+          // without a custom banner. Real banners/avatars are typically > 256px.
+          if (probe.naturalWidth <= 256 && probe.naturalHeight <= 256) {
+            d3.select(svgImg).remove();
+          }
+        };
+        probe.src = svgImg.href.baseVal;
+      })
       .on('error', function () {
         d3.select(this).remove();
       });

@@ -728,6 +728,16 @@ export default function TemporalForceView({
           .attr('clip-path', `url(#${clipId})`)
           .attr('preserveAspectRatio', 'xMidYMid slice')
           .style('pointer-events', 'none')
+          .on('load', function () {
+            const svgImg = this as SVGImageElement;
+            const probe = new Image();
+            probe.onload = () => {
+              if (probe.naturalWidth <= 256 && probe.naturalHeight <= 256) {
+                d3.select(svgImg).remove();
+              }
+            };
+            probe.src = svgImg.href.baseVal;
+          })
           .on('error', function () { d3.select(this).remove(); });
       });
 

@@ -4,6 +4,7 @@ import { useGraph } from '../hooks/useGraph.js';
 import { useSpaces } from '../hooks/useSpaces.js';
 import { useViewState } from '../hooks/useViewState.js';
 import { useTheme } from '../hooks/useTheme.js';
+import { useFeatures } from '../hooks/useFeatures.js';
 import ForceGraph from '../components/graph/ForceGraph.js';
 import LoadingOverlay from '../components/graph/LoadingOverlay.js';
 import ViewSwitcher from '../components/graph/ViewSwitcher.js';
@@ -45,6 +46,7 @@ export default function Explorer({ onLogout }: ExplorerProps) {
   const { dataset, progress, loading, error, generate } = useGraph();
   const viewState = useViewState();
   const { theme, toggle: toggleTheme } = useTheme();
+  const { aiQueryEnabled } = useFeatures();
 
   const [showPeople, setShowPeople] = useState(true);
   const [showOrganizations, setShowOrganizations] = useState(true);
@@ -211,31 +213,33 @@ export default function Explorer({ onLogout }: ExplorerProps) {
             ))}
           </select>
         )}
-        <button
-          onClick={() => setQueryOverlayOpen(true)}
-          style={{
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: 8,
-            marginLeft: 12,
-            height: 36,
-            padding: '0 16px',
-            fontSize: 13,
-            fontWeight: 500,
-            color: '#ffffff',
-            background: '#2563eb',
-            border: 'none',
-            borderRadius: 8,
-            cursor: 'pointer',
-            fontFamily: 'inherit',
-            boxShadow: '0 1px 2px rgba(0,0,0,0.05)',
-          }}
-          onMouseEnter={(e) => { e.currentTarget.style.background = '#1d4ed8'; }}
-          onMouseLeave={(e) => { e.currentTarget.style.background = '#2563eb'; }}
-        >
-          <Sparkles style={{ width: 14, height: 14 }} />
-          Ask the Ecosystem
-        </button>
+        {aiQueryEnabled && (
+          <button
+            onClick={() => setQueryOverlayOpen(true)}
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 8,
+              marginLeft: 12,
+              height: 36,
+              padding: '0 16px',
+              fontSize: 13,
+              fontWeight: 500,
+              color: '#ffffff',
+              background: '#2563eb',
+              border: 'none',
+              borderRadius: 8,
+              cursor: 'pointer',
+              fontFamily: 'inherit',
+              boxShadow: '0 1px 2px rgba(0,0,0,0.05)',
+            }}
+            onMouseEnter={(e) => { e.currentTarget.style.background = '#1d4ed8'; }}
+            onMouseLeave={(e) => { e.currentTarget.style.background = '#2563eb'; }}
+          >
+            <Sparkles style={{ width: 14, height: 14 }} />
+            Ask the Ecosystem
+          </button>
+        )}
       </TopBar>
       <div className={styles.main}>
         {dataset && (
@@ -481,26 +485,28 @@ export default function Explorer({ onLogout }: ExplorerProps) {
         )}
       </div>
       {dataset && <MetricsBar metrics={dataset.metrics} />}
-      <QueryOverlay
-        hidden={!queryOverlayOpen}
-        onClose={() => setQueryOverlayOpen(false)}
-        onShowOnGraph={(entityIds, spaceNameIds) => {
-          // Find spaces that need to be loaded
-          const missingSpaces = spaceNameIds.filter((s) => !activeSpaceIds.includes(s));
-          if (missingSpaces.length > 0) {
-            const updated = [...activeSpaceIds, ...missingSpaces];
-            setActiveSpaceIds(updated);
-            generate(updated).then(() => {
+      {aiQueryEnabled && (
+        <QueryOverlay
+          hidden={!queryOverlayOpen}
+          onClose={() => setQueryOverlayOpen(false)}
+          onShowOnGraph={(entityIds, spaceNameIds) => {
+            // Find spaces that need to be loaded
+            const missingSpaces = spaceNameIds.filter((s) => !activeSpaceIds.includes(s));
+            if (missingSpaces.length > 0) {
+              const updated = [...activeSpaceIds, ...missingSpaces];
+              setActiveSpaceIds(updated);
+              generate(updated).then(() => {
+                setHighlightedNodeIds(entityIds);
+                setQueryOverlayOpen(false);
+              });
+            } else {
               setHighlightedNodeIds(entityIds);
               setQueryOverlayOpen(false);
-            });
-          } else {
-            setHighlightedNodeIds(entityIds);
-            setQueryOverlayOpen(false);
-          }
-        }}
-      />
-      {!queryOverlayOpen && highlightedNodeIds.length > 0 && (
+            }
+          }}
+        />
+      )}
+      {aiQueryEnabled && !queryOverlayOpen && highlightedNodeIds.length > 0 && (
         <Button
           variant="outline"
           className="fixed bottom-20 right-6 z-[100] gap-2 rounded-full shadow-lg"

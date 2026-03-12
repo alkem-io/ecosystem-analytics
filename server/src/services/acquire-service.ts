@@ -39,6 +39,7 @@ export interface AcquiredData {
 export async function acquireSpaces(
   bearerToken: string,
   spaceNameIds: string[],
+  onSpaceAcquired?: (nameId: string) => void,
 ): Promise<AcquiredData> {
   const logger = getLogger();
   const sdk = createAlkemioSdk(bearerToken);
@@ -64,6 +65,7 @@ export async function acquireSpaces(
 
     spacesL0.push({ space, nameId });
     collectContributorIds(space, userIds, orgIds);
+    onSpaceAcquired?.(nameId);
   }
 
   logger.info(`Acquired ${spacesL0.length} space(s), found ${userIds.size} users and ${orgIds.size} organizations`, { context: 'Acquire' });
