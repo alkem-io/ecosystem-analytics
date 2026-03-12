@@ -24,6 +24,21 @@ export function initDatabase(): void {
       PRIMARY KEY (user_id, space_id)
     )
   `);
+
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS query_feedback (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id TEXT NOT NULL,
+      message_id TEXT NOT NULL,
+      query_text TEXT NOT NULL,
+      answer_json TEXT NOT NULL,
+      comment TEXT,
+      created_at TEXT NOT NULL DEFAULT (datetime('now'))
+    )
+  `);
+
+  db.exec(`CREATE INDEX IF NOT EXISTS idx_query_feedback_user_id ON query_feedback (user_id)`);
+  db.exec(`CREATE INDEX IF NOT EXISTS idx_query_feedback_created_at ON query_feedback (created_at)`);
 }
 
 export function getDatabase(): DatabaseType {

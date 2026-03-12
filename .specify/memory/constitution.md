@@ -1,11 +1,12 @@
 <!--
 Sync Impact Report
-- Version change: 1.0.0 → 3.0.0
+- Version change: 1.0.0 → 3.1.0
 - Breaking change (2.0.0): Principle I redefined — auth moves from BFF-mediated SSO to frontend-direct popup
 - Breaking change (3.0.0): Principle I redefined again — auth moves to username/password via BFF Kratos API flow (non-interactive); Principle III tightened — frontend communicates exclusively with BFF (no direct Alkemio access)
 - Updated principles: I (Alkemio Identity Authentication), III (BFF Boundary)
 - Updated sections: Security Requirements
 - Rationale: Popup/SSO approach infeasible without Kratos tokenization infrastructure; username/password via Kratos API flow works today and matches analytics-playground pattern
+- Minor change (3.1.0): Principle I .env policy expanded to allow third-party service API keys (e.g., OpenAI)
 - Follow-up TODOs: none
 -->
 
@@ -20,7 +21,7 @@ Sync Impact Report
 - The BFF returns the Kratos `session_token` to the frontend. The frontend holds this token in memory and sends it as `Authorization: Bearer` with every BFF request.
 - The BFF forwards the token to the Alkemio GraphQL API.
 - User credentials MUST NOT be stored or logged by any component — they are used only for the initial Kratos authentication exchange.
-- Credentials MUST NOT be supplied via `.env` files, config files, or environment variables — `.env` is only for server deployment parameters (Alkemio URLs, port, cache TTL).
+- Credentials MUST NOT be supplied via `.env` files, config files, or environment variables — `.env` is only for server deployment parameters (Alkemio URLs, port, cache TTL) and third-party service API keys (e.g., OpenAI).
 - Session tokens MUST be held in frontend memory only and MUST NOT be persisted to any storage mechanism.
 
 ### II. Typed GraphQL Contract
@@ -60,7 +61,7 @@ Sync Impact Report
 
 ## Security Requirements
 
-- No user credentials in `.env` — only server deployment parameters (Alkemio URLs, Kratos URL, port, cache TTL).
+- No user credentials in `.env` — only server deployment parameters (Alkemio URLs, Kratos URL, port, cache TTL) and third-party service API keys (e.g., OpenAI).
 - User credentials (email/password) MUST NOT be stored or logged by any component — used only for the initial Kratos authentication exchange.
 - The BFF MUST validate that every protected request carries a bearer token before forwarding to the Alkemio GraphQL API.
 - All SQL uses parameterised queries via better-sqlite3 prepared statements.
@@ -88,4 +89,4 @@ Sync Impact Report
   3. An updated Sync Impact Report (HTML comment at top of this file).
 - The feature spec (`specs/001-ecosystem-analytics/spec.md`) contains the detailed functional, non-functional, and technical requirements. This constitution captures the overarching principles that govern how those requirements are implemented.
 
-**Version**: 3.0.0 | **Ratified**: 2026-02-21 | **Last Amended**: 2026-02-23
+**Version**: 3.1.0 | **Ratified**: 2026-02-21 | **Last Amended**: 2026-03-09

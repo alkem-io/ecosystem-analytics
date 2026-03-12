@@ -4,6 +4,7 @@ import { useGraph } from '../hooks/useGraph.js';
 import { useSpaces } from '../hooks/useSpaces.js';
 import { useViewState } from '../hooks/useViewState.js';
 import { useTheme } from '../hooks/useTheme.js';
+import { useFeatures } from '../hooks/useFeatures.js';
 import ForceGraph from '../components/graph/ForceGraph.js';
 import LoadingOverlay from '../components/graph/LoadingOverlay.js';
 import ViewSwitcher from '../components/graph/ViewSwitcher.js';
@@ -19,10 +20,13 @@ import DetailsDrawer from '../components/panels/DetailsDrawer.js';
 import MetricsBar from '../components/panels/MetricsBar.js';
 import type { MapRegion } from '../components/map/MapOverlay.js';
 import HoverCard from '../components/graph/HoverCard.js';
+import QueryOverlay from '../components/query/QueryOverlay.js';
+import { Button } from '../components/ui/button.js';
 import type { GraphNode } from '@server/types/graph.js';
 import type { ActivityPeriod } from '@server/types/graph.js';
 import { EdgeType, NodeType } from '@server/types/graph.js';
 import { api } from '../services/api.js';
+import { Sparkles, MessageCircle, AlertCircle } from 'lucide-react';
 import styles from './Explorer.module.css';
 
 /** Stable empty-array reference shared between state init and click handler. */
@@ -43,6 +47,7 @@ export default function Explorer({ onLogout }: ExplorerProps) {
   const [dismissedWarnings, setDismissedWarnings] = useState(false);
   const viewState = useViewState();
   const { theme, toggle: toggleTheme } = useTheme();
+  const { aiQueryEnabled } = useFeatures();
 
   const [showPeople, setShowPeople] = useState(true);
   const [showOrganizations, setShowOrganizations] = useState(true);
@@ -59,6 +64,7 @@ export default function Explorer({ onLogout }: ExplorerProps) {
   const [highlightedNodeIds, setHighlightedNodeIds] = useState<string[]>(EMPTY_IDS);
   const [mapRegion, setMapRegion] = useState<MapRegion>('europe');
   const [showMap, setShowMap] = useState(false);
+  const [queryOverlayOpen, setQueryOverlayOpen] = useState(false);
   const [activityPulseEnabled, setActivityPulseEnabled] = useState(false);
   const [spaceActivityEnabled, setSpaceActivityEnabled] = useState(false);
   const [activityPeriod, setActivityPeriod] = useState<ActivityPeriod>('allTime');
@@ -66,8 +72,19 @@ export default function Explorer({ onLogout }: ExplorerProps) {
   const canvasRef = useRef<HTMLDivElement>(null);
   const [canvasSize, setCanvasSize] = useState({ width: 0, height: 0 });
 
-  // Get spaceIds from navigation state
-  const spaceIds = (location.state as { spaceIds?: string[] })?.spaceIds;
+  // Prefer localStorage (kept in sync by setActiveSpaceIds) over navigation state,
+  // because nav state becomes stale when spaces are added/removed in Explorer.
+  const SELECTION_KEY = 'alkemio_selected_spaces';
+  const spaceIds = (() => {
+    try {
+      const saved = localStorage.getItem(SELECTION_KEY);
+      if (saved) {
+        const parsed = JSON.parse(saved) as string[];
+        if (parsed.length > 0) return parsed;
+      }
+    } catch { /* fall through */ }
+    return (location.state as { spaceIds?: string[] })?.spaceIds ?? null;
+  })();
 
   useEffect(() => {
     if (!spaceIds || spaceIds.length === 0) {
@@ -92,7 +109,11 @@ export default function Explorer({ onLogout }: ExplorerProps) {
     return () => ro.disconnect();
   }, []);
 
-  const [activeSpaceIds, setActiveSpaceIds] = useState<string[]>(spaceIds || []);
+  const [activeSpaceIds, setActiveSpaceIdsRaw] = useState<string[]>(spaceIds || []);
+  const setActiveSpaceIds = useCallback((ids: string[]) => {
+    setActiveSpaceIdsRaw(ids);
+    localStorage.setItem(SELECTION_KEY, JSON.stringify(ids));
+  }, []);
   const { spaces } = useSpaces();
 
   const availableSpaces = useMemo(
@@ -172,9 +193,10 @@ export default function Explorer({ onLogout }: ExplorerProps) {
 
   if (error) {
     return (
-      <div className={styles.errorContainer}>
-        <p>Failed to generate graph: {error}</p>
-        <button onClick={() => navigate('/spaces')}>Back to Space Selector</button>
+      <div className="flex flex-col items-center justify-center h-screen gap-4 font-sans">
+        <AlertCircle className="h-8 w-8 text-destructive" />
+        <p className="text-destructive text-sm">Failed to generate graph: {error}</p>
+        <Button variant="outline" onClick={() => navigate('/spaces')}>Back to Space Selector</Button>
       </div>
     );
   }
@@ -198,7 +220,19 @@ export default function Explorer({ onLogout }: ExplorerProps) {
       >
         {availableSpaces.length > 0 && (
           <select
-            className={styles.addSpaceSelect}
+            style={{
+              marginLeft: 12,
+              height: 36,
+              padding: '0 14px',
+              fontSize: 13,
+              borderRadius: 8,
+              border: '1.5px solid #e2e8f0',
+              background: '#f8fafc',
+              color: '#64748b',
+              cursor: 'pointer',
+              outline: 'none',
+              fontFamily: 'inherit',
+            }}
             value=""
             onChange={(e) => {
               if (e.target.value) handleExpandSpace(e.target.value);
@@ -209,6 +243,33 @@ export default function Explorer({ onLogout }: ExplorerProps) {
               <option key={s.nameId} value={s.nameId}>{s.displayName}</option>
             ))}
           </select>
+        )}
+        {aiQueryEnabled && (
+          <button
+            onClick={() => setQueryOverlayOpen(true)}
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 8,
+              marginLeft: 12,
+              height: 36,
+              padding: '0 16px',
+              fontSize: 13,
+              fontWeight: 500,
+              color: '#ffffff',
+              background: '#2563eb',
+              border: 'none',
+              borderRadius: 8,
+              cursor: 'pointer',
+              fontFamily: 'inherit',
+              boxShadow: '0 1px 2px rgba(0,0,0,0.05)',
+            }}
+            onMouseEnter={(e) => { e.currentTarget.style.background = '#1d4ed8'; }}
+            onMouseLeave={(e) => { e.currentTarget.style.background = '#2563eb'; }}
+          >
+            <Sparkles style={{ width: 14, height: 14 }} />
+            Ask the Ecosystem
+          </button>
         )}
       </TopBar>
       {warnings.length > 0 && !dismissedWarnings && (
@@ -470,6 +531,40 @@ export default function Explorer({ onLogout }: ExplorerProps) {
         )}
       </div>
       {dataset && <MetricsBar metrics={dataset.metrics} />}
+      {aiQueryEnabled && (
+        <QueryOverlay
+          hidden={!queryOverlayOpen}
+          onClose={() => setQueryOverlayOpen(false)}
+          onShowOnGraph={(entityIds, spaceNameIds) => {
+            // Find spaces that need to be loaded
+            const missingSpaces = spaceNameIds.filter((s) => !activeSpaceIds.includes(s));
+            if (missingSpaces.length > 0) {
+              const updated = [...activeSpaceIds, ...missingSpaces];
+              setActiveSpaceIds(updated);
+              generate(updated).then(() => {
+                setHighlightedNodeIds(entityIds);
+                setQueryOverlayOpen(false);
+              });
+            } else {
+              setHighlightedNodeIds(entityIds);
+              setQueryOverlayOpen(false);
+            }
+          }}
+        />
+      )}
+      {aiQueryEnabled && !queryOverlayOpen && highlightedNodeIds.length > 0 && (
+        <Button
+          variant="outline"
+          className="fixed bottom-20 right-6 z-[100] gap-2 rounded-full shadow-lg"
+          onClick={() => {
+            setHighlightedNodeIds(EMPTY_IDS);
+            setQueryOverlayOpen(true);
+          }}
+        >
+          <MessageCircle className="h-4 w-4" />
+          Back to conversation
+        </Button>
+      )}
     </div>
   );
 }

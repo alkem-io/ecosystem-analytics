@@ -15,6 +15,10 @@ Auto-generated from all feature plans. Last updated: 2026-01-20
 - SQLite cache (per-user per-space, via better-sqlite3) — no schema changes (006-role-filters)
 - TypeScript 5.9.3 (strict mode) + React 19.x, D3.js v7.9, Express 5, Vite 7.3.1, `@graphql-codegen/cli` (007-space-visibility)
 - better-sqlite3 (per-user per-space cache) (007-space-visibility)
+- TypeScript 5.9.3 (server + frontend) + Express 5, React 19, OpenAI Node SDK (>=4.x), `graphql-request` 7, `@graphql-codegen/cli` 6, D3.js 7 (011-ai-ecosystem-query)
+- SQLite (better-sqlite3) for server-side graph cache; in-memory session store for conversation contex (011-ai-ecosystem-query)
+- TypeScript 5.x (strict mode) + D3 v7 (d3-geo, d3-force, d3-selection, d3-zoom), React 18, Vite (012-map-location-filtering)
+- N/A (all changes are frontend rendering logic) (012-map-location-filtering)
 
 - Not applicable (documentation and design briefs) + Not applicable (content generation and analysis) (001-alkemio-design-brief)
 
@@ -34,12 +38,9 @@ tests/
 Not applicable (documentation and design briefs): Follow standard conventions
 
 ## Recent Changes
+- 012-map-location-filtering: Added TypeScript 5.x (strict mode) + D3 v7 (d3-geo, d3-force, d3-selection, d3-zoom), React 18, Vite
+- 011-ai-ecosystem-query: Added TypeScript 5.9.3 (server + frontend) + Express 5, React 19, OpenAI Node SDK (>=4.x), `graphql-request` 7, `@graphql-codegen/cli` 6, D3.js 7
 - 007-space-visibility: Added TypeScript 5.9.3 (strict mode) + React 19.x, D3.js v7.9, Express 5, Vite 7.3.1, `@graphql-codegen/cli`
-- 009-alternative-views: TypeScript 5.9.3, React 19, D3.js 7.9 (d3-hierarchy, d3-chord, d3-shape, d3-scale, d3-brush, d3-timer), Express 5, Vite 7.3.1
-- 009-alternative-views: New views: Treemap, Sunburst, Chord, Timeline, Temporal Force Graph
-- 009-alternative-views: Extended GraphNode (createdDate, visibility, tags), GraphEdge (createdDate), GraphDataset (timeSeries)
-- 009-alternative-views: New frontend types: ViewMode, ViewState, HierarchyDatum, ChordMatrixResult
-- 009-alternative-views: New hooks: useViewState, useHierarchyData, useChordMatrix, useTimeSeries
 
 
 <!-- MANUAL ADDITIONS START -->
