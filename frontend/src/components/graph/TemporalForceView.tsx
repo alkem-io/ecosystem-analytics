@@ -719,7 +719,7 @@ export default function TemporalForceView({
           .attr('id', clipId)
           .append('circle')
           .attr('r', r - 1);
-        g.append('image')
+        const imgEl = g.append('image')
           .attr('href', imgUrl)
           .attr('x', -(r - 1))
           .attr('y', -(r - 1))
@@ -728,17 +728,18 @@ export default function TemporalForceView({
           .attr('clip-path', `url(#${clipId})`)
           .attr('preserveAspectRatio', 'xMidYMid slice')
           .style('pointer-events', 'none')
-          .on('load', function () {
-            const svgImg = this as SVGImageElement;
-            const probe = new Image();
-            probe.onload = () => {
-              if (probe.naturalWidth <= 256 && probe.naturalHeight <= 256) {
-                d3.select(svgImg).remove();
-              }
-            };
-            probe.src = svgImg.href.baseVal;
-          })
           .on('error', function () { d3.select(this).remove(); });
+        // Detect Alkemio default placeholder banners (square padlock icons)
+        if (d.data.type.startsWith('SPACE_') && d.data.bannerUrl) {
+          const probe = new Image();
+          probe.onload = () => {
+            if (probe.naturalWidth / probe.naturalHeight < 1.3) {
+              imgEl.remove();
+            }
+          };
+          probe.onerror = () => imgEl.remove();
+          probe.src = imgUrl;
+        }
       });
 
       // Label (spaces only, with enough room)

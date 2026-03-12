@@ -1379,8 +1379,8 @@ export default function ForceGraph({
       });
 
     // Node images (avatars / banners) — clipped to circle, with fallback on error.
-    // After load, detect Alkemio's default placeholder images (small icons like padlocks)
-    // and remove them so the node falls back to its colored circle.
+    // On load, detect Alkemio default placeholder images (e.g. padlock icon) by checking
+    // aspect ratio: real banners are wide (> 1.3:1), placeholders are roughly square.
     nodeSelection
       .filter((d) => !!nodeImageUrl(d.data))
       .append('image')
@@ -1391,17 +1391,21 @@ export default function ForceGraph({
       .attr('height', (d) => effectiveRadius(d, isGeoMode, currentZoomScale) * 2)
       .attr('clip-path', (d) => `url(#clip-avatar-${d.data.id})`)
       .attr('preserveAspectRatio', 'xMidYMid slice')
-      .on('load', function () {
-        const svgImg = this as SVGImageElement;
-        const probe = new Image();
-        probe.onload = () => {
-          // Alkemio serves small default placeholder icons (e.g. padlock) for spaces
-          // without a custom banner. Real banners/avatars are typically > 256px.
-          if (probe.naturalWidth <= 256 && probe.naturalHeight <= 256) {
-            d3.select(svgImg).remove();
-          }
-        };
-        probe.src = svgImg.href.baseVal;
+      .each(function (d) {
+        // For space nodes using bannerUrl, verify the image is a real banner (wide aspect ratio)
+        if (d.data.type.startsWith('SPACE_') && d.data.bannerUrl) {
+          const svgImg = this as SVGImageElement;
+          const probe = new Image();
+          probe.onload = () => {
+            const ratio = probe.naturalWidth / probe.naturalHeight;
+            if (ratio < 1.3) {
+              // Square/portrait image — likely a default placeholder; remove it
+              d3.select(svgImg).remove();
+            }
+          };
+          probe.onerror = () => d3.select(svgImg).remove();
+          probe.src = svgImg.href.baseVal;
+        }
       })
       .on('error', function () {
         d3.select(this).remove();

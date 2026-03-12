@@ -96,7 +96,12 @@ export default function Explorer({ onLogout }: ExplorerProps) {
     return () => ro.disconnect();
   }, []);
 
-  const [activeSpaceIds, setActiveSpaceIds] = useState<string[]>(spaceIds || []);
+  const SELECTION_KEY = 'alkemio_selected_spaces';
+  const [activeSpaceIds, setActiveSpaceIdsRaw] = useState<string[]>(spaceIds || []);
+  const setActiveSpaceIds = useCallback((ids: string[]) => {
+    setActiveSpaceIdsRaw(ids);
+    localStorage.setItem(SELECTION_KEY, JSON.stringify(ids));
+  }, []);
   const { spaces } = useSpaces();
 
   const availableSpaces = useMemo(
