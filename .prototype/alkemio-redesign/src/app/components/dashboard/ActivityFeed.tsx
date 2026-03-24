@@ -1,0 +1,164 @@
+import { MoreHorizontal } from "lucide-react";
+
+interface ActivityItem {
+  id: string;
+  user: {
+    name: string;
+    avatar: string;
+  };
+  action: string;
+  target: string;
+  timestamp: string;
+}
+
+const mockActivities: Record<string, ActivityItem[]> = {
+  spaces: [
+    {
+      id: "1",
+      user: { name: "Sarah Chen", avatar: "https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=64&h=64" },
+      action: "posted a new challenge in",
+      target: "Innovation Lab",
+      timestamp: "2 hours ago"
+    },
+    {
+      id: "2",
+      user: { name: "Mike Ross", avatar: "https://images.unsplash.com/photo-1599566150163-29194dcaad36?auto=format&fit=crop&w=64&h=64" },
+      action: "commented on",
+      target: "Design Review",
+      timestamp: "4 hours ago"
+    },
+    {
+      id: "3",
+      user: { name: "Anna Smith", avatar: "https://images.unsplash.com/photo-1438761681033-6461ffad8d80?auto=format&fit=crop&w=64&h=64" },
+      action: "shared a file in",
+      target: "Marketing Strategy",
+      timestamp: "Yesterday"
+    },
+    {
+      id: "4",
+      user: { name: "David Kim", avatar: "https://images.unsplash.com/photo-1672685667592-0392f458f46f?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxwcm9mZXNzaW9uYWwlMjBwb3J0cmFpdCUyMG1hbnxlbnwxfHx8fDE3Njk0Nzg0NTZ8MA&ixlib=rb-4.1.0&q=80&w=64&h=64" },
+      action: "updated the description of",
+      target: "Product Roadmap",
+      timestamp: "Yesterday"
+    },
+    {
+      id: "5",
+      user: { name: "Elena Rodriguez", avatar: "https://images.unsplash.com/photo-1649589244330-09ca58e4fa64?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxwcm9mZXNzaW9uYWwlMjBwb3J0cmFpdCUyMHdvbWFufGVufDF8fHx8MTc2OTQ3ODMzMnww&ixlib=rb-4.1.0&q=80&w=64&h=64" },
+      action: "added 5 new members to",
+      target: "Community Hub",
+      timestamp: "2 days ago"
+    },
+    {
+      id: "6",
+      user: { name: "James Wilson", avatar: "https://images.unsplash.com/photo-1603143704710-99d6011f107e?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxkZXZlbG9wZXIlMjBoZWFkc2hvdHxlbnwxfHx8fDE3Njk1MzI5NjB8MA&ixlib=rb-4.1.0&q=80&w=64&h=64" },
+      action: "archived",
+      target: "Q3 Goals",
+      timestamp: "3 days ago"
+    },
+    {
+      id: "7",
+      user: { name: "Sarah Chen", avatar: "https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=64&h=64" },
+      action: "scheduled a meeting in",
+      target: "Innovation Lab",
+      timestamp: "3 days ago"
+    }
+  ],
+  personal: [
+    {
+      id: "8",
+      user: { name: "You", avatar: "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?auto=format&fit=crop&w=64&h=64" },
+      action: "created a new space",
+      target: "Project Alpha",
+      timestamp: "1 day ago"
+    },
+    {
+      id: "9",
+      user: { name: "You", avatar: "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?auto=format&fit=crop&w=64&h=64" },
+      action: "invited 3 members to",
+      target: "Team Sync",
+      timestamp: "2 days ago"
+    },
+    {
+      id: "10",
+      user: { name: "You", avatar: "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?auto=format&fit=crop&w=64&h=64" },
+      action: "joined",
+      target: "Data Science Team",
+      timestamp: "3 days ago"
+    },
+    {
+      id: "11",
+      user: { name: "You", avatar: "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?auto=format&fit=crop&w=64&h=64" },
+      action: "replied to a comment in",
+      target: "Design Review",
+      timestamp: "4 days ago"
+    },
+    {
+      id: "12",
+      user: { name: "You", avatar: "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?auto=format&fit=crop&w=64&h=64" },
+      action: "downloaded a report from",
+      target: "Analytics Dashboard",
+      timestamp: "1 week ago"
+    },
+    {
+      id: "13",
+      user: { name: "You", avatar: "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?auto=format&fit=crop&w=64&h=64" },
+      action: "updated your settings",
+      target: "Profile",
+      timestamp: "1 week ago"
+    }
+  ]
+};
+
+interface ActivityFeedProps {
+  title: string;
+  type: "spaces" | "personal";
+}
+
+export function ActivityFeed({ title, type }: ActivityFeedProps) {
+  const activities = mockActivities[type] || [];
+
+  return (
+    <div className="bg-card border border-border rounded-xl p-6 shadow-sm h-full">
+      <div className="flex items-center justify-between mb-6">
+        <h3 className="font-bold text-lg text-foreground">{title}</h3>
+        <button className="text-muted-foreground hover:text-foreground transition-colors">
+          <MoreHorizontal className="w-5 h-5" />
+        </button>
+      </div>
+
+      <div className="space-y-6">
+        {activities.map((activity) => (
+          <div key={activity.id} className="flex gap-4 group">
+            <div className="shrink-0">
+              <img 
+                src={activity.user.avatar} 
+                alt={activity.user.name} 
+                className="w-10 h-10 rounded-full object-cover border border-border"
+              />
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-sm text-foreground line-clamp-2">
+                <span className="font-semibold">{activity.user.name}</span>{" "}
+                <span className="text-muted-foreground">{activity.action}</span>{" "}
+                <span className="font-medium text-primary">{activity.target}</span>
+              </p>
+              <div className="flex items-center gap-2 mt-1">
+                <span className="text-xs text-muted-foreground">{activity.timestamp}</span>
+              </div>
+            </div>
+          </div>
+        ))}
+
+        {activities.length === 0 && (
+          <p className="text-sm text-muted-foreground py-4">No recent activity.</p>
+        )}
+      </div>
+
+      <div className="mt-6 pt-4 border-t border-border">
+        <button className="w-full text-center text-sm font-medium text-muted-foreground hover:text-primary transition-colors py-2">
+          Show more
+        </button>
+      </div>
+    </div>
+  );
+}

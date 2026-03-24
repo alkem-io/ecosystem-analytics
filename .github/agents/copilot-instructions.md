@@ -19,6 +19,8 @@ Auto-generated from all feature plans. Last updated: 2026-01-20
 - SQLite (better-sqlite3) for server-side graph cache; in-memory session store for conversation contex (011-ai-ecosystem-query)
 - TypeScript 5.x (strict mode) + D3 v7 (d3-geo, d3-force, d3-selection, d3-zoom), React 18, Vite (012-map-location-filtering)
 - N/A (all changes are frontend rendering logic) (012-map-location-filtering)
+- TypeScript 5.9.3 (server + frontend) + Express 5, D3.js 7, React 19, Vite 7, `graphql-request` 7, `@graphql-codegen/cli` 6, `better-sqlite3` (013-space-analytics-dashboard)
+- SQLite (better-sqlite3) for server-side per-user per-space cache (013-space-analytics-dashboard)
 
 - Not applicable (documentation and design briefs) + Not applicable (content generation and analysis) (001-alkemio-design-brief)
 
@@ -38,9 +40,9 @@ tests/
 Not applicable (documentation and design briefs): Follow standard conventions
 
 ## Recent Changes
+- 013-space-analytics-dashboard: Added TypeScript 5.9.3 (server + frontend) + Express 5, D3.js 7, React 19, Vite 7, `graphql-request` 7, `@graphql-codegen/cli` 6, `better-sqlite3`
 - 012-map-location-filtering: Added TypeScript 5.x (strict mode) + D3 v7 (d3-geo, d3-force, d3-selection, d3-zoom), React 18, Vite
 - 011-ai-ecosystem-query: Added TypeScript 5.9.3 (server + frontend) + Express 5, React 19, OpenAI Node SDK (>=4.x), `graphql-request` 7, `@graphql-codegen/cli` 6, D3.js 7
-- 007-space-visibility: Added TypeScript 5.9.3 (strict mode) + React 19.x, D3.js v7.9, Express 5, Vite 7.3.1, `@graphql-codegen/cli`
 
 
 <!-- MANUAL ADDITIONS START -->

@@ -15,6 +15,7 @@ import TimelineView from '../components/graph/TimelineView.js';
 import TemporalForceView from '../components/graph/TemporalForceView.js';
 import TemporalScrubber from '../components/graph/TemporalScrubber.js';
 import TopBar from '../components/panels/TopBar.js';
+import { Link } from 'react-router-dom';
 import ControlPanel from '../components/panels/ControlPanel.js';
 import DetailsDrawer from '../components/panels/DetailsDrawer.js';
 import MetricsBar from '../components/panels/MetricsBar.js';
@@ -218,6 +219,27 @@ export default function Explorer({ onLogout }: ExplorerProps) {
         theme={theme}
         onToggleTheme={toggleTheme}
       >
+        <Link
+          to="/dashboard"
+          style={{
+            marginLeft: 12,
+            height: 36,
+            padding: '0 14px',
+            fontSize: 13,
+            fontWeight: 500,
+            borderRadius: 8,
+            border: '1.5px solid var(--border)',
+            background: 'var(--surface)',
+            color: 'var(--text-secondary)',
+            cursor: 'pointer',
+            fontFamily: 'inherit',
+            textDecoration: 'none',
+            display: 'inline-flex',
+            alignItems: 'center',
+          }}
+        >
+          Dashboard
+        </Link>
         {availableSpaces.length > 0 && (
           <select
             style={{

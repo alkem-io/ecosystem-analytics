@@ -1,0 +1,117 @@
+fragment analyticsContributionFragment on CalloutContribution {
+  id
+  createdDate
+  createdBy {
+    id
+  }
+  post {
+    id
+    comments {
+      messagesCount
+      messages {
+        sender {
+          id
+        }
+        timestamp
+      }
+    }
+  }
+  link {
+    id
+  }
+  memo {
+    id
+  }
+  whiteboard {
+    id
+  }
+}
+
+fragment analyticsCalloutFragment on Callout {
+  id
+  nameID
+  createdDate
+  createdBy {
+    id
+  }
+  framing {
+    type
+    profile {
+      displayName
+    }
+  }
+  classification {
+    tagset(tagsetName: FLOW_STATE) {
+      tags
+    }
+  }
+  contributionsCount {
+    post
+    memo
+    link
+    whiteboard
+  }
+  contributions {
+    ...analyticsContributionFragment
+  }
+  comments {
+    messagesCount
+    messages {
+      sender {
+        id
+      }
+      timestamp
+    }
+  }
+}
+
+fragment analyticsCommunityFragment on Community {
+  id
+  roleSet {
+    memberUsers: usersInRole(role: MEMBER) {
+      id
+      profile {
+        displayName
+        avatar: visual(type: AVATAR) {
+          uri
+        }
+      }
+    }
+    leadUsers: usersInRole(role: LEAD) {
+      id
+      profile {
+        displayName
+        avatar: visual(type: AVATAR) {
+          uri
+        }
+      }
+    }
+    adminUsers: usersInRole(role: ADMIN) {
+      id
+      profile {
+        displayName
+        avatar: visual(type: AVATAR) {
+          uri
+        }
+      }
+    }
+    memberOrganizations: organizationsInRole(role: MEMBER) {
+      id
+      profile {
+        displayName
+        avatar: visual(type: AVATAR) {
+          uri
+        }
+      }
+    }
+    leadOrganizations: organizationsInRole(role: LEAD) {
+      id
+      profile {
+        displayName
+        avatar: visual(type: AVATAR) {
+          uri
+        }
+      }
+    }
+  }
+}

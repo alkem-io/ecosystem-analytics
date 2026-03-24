@@ -1,0 +1,50 @@
+query SpaceAnalytics($spaceId: UUID!) {
+  lookup {
+    space(ID: $spaceId) {
+      id
+      nameID
+      level
+      about {
+        profile {
+          displayName
+          tagline
+          avatar: visual(type: AVATAR) {
+            uri
+          }
+        }
+      }
+      community {
+        ...analyticsCommunityFragment
+      }
+      collaboration {
+        calloutsSet {
+          id
+          type
+          callouts {
+            ...analyticsCalloutFragment
+          }
+        }
+        innovationFlow {
+          states {
+            displayName
+            sortOrder
+          }
+        }
+      }
+      subspaces {
+        id
+        nameID
+        level
+        about {
+          profile {
+            displayName
+            tagline
+            avatar: visual(type: AVATAR) {
+              uri
+            }
+          }
+        }
+      }
+    }
+  }
+}

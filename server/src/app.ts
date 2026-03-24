@@ -6,6 +6,7 @@ import { spacesRouter } from './routes/spaces.js';
 import { graphRouter } from './routes/graph.js';
 import { imageProxyRouter } from './routes/image-proxy.js';
 import { queryRouter } from './routes/query.js';
+import { dashboardRouter } from './routes/dashboard.js';
 import { loadConfig } from './config.js';
 import { getLogger } from './logging/logger.js';
 import type { ApiError } from './types/api.js';
@@ -23,6 +24,7 @@ export function createApp() {
   app.use('/api/graph', graphRouter);
   app.use('/api/image-proxy', imageProxyRouter);
   app.use('/api/query', queryRouter);
+  app.use('/api/dashboard', dashboardRouter);
 
   // Feature flags (public, no auth required)
   app.get('/api/features', (_req, res) => {
