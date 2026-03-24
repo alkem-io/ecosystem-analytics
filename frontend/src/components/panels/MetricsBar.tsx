@@ -2,7 +2,6 @@ import { useState, useCallback } from 'react';
 import type { GraphMetrics } from '@server/types/graph.js';
 import type { EcosystemMetrics } from '../../hooks/useEcosystemMetrics.js';
 import { ChevronUp, ChevronDown, Users, Building2, Network, ArrowRightLeft, Trophy, BarChart3 } from 'lucide-react';
-import { ScrollArea } from '../ui/scroll-area.js';
 import { Badge } from '../ui/badge.js';
 import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from '../ui/tooltip.js';
 import styles from './MetricsBar.module.css';
@@ -139,8 +138,7 @@ export default function MetricsBar({
         {/* ── Expanded: detailed panels ── */}
         {expanded && (
           <div className={styles.expandedContent}>
-            <ScrollArea className="h-full">
-              <div className={styles.detailGrid}>
+            <div className={styles.detailGrid}>
                 {/* Busiest subspaces */}
                 <DetailSection title="Busiest Subspaces" icon={<BarChart3 size={12} />}>
                   {spaceRankings.length === 0 ? (
@@ -220,7 +218,7 @@ export default function MetricsBar({
                       <button
                         key={`${user.nodeId}-${user.l0SpaceId}`}
                         className={styles.detailRow}
-                        onClick={() => onHighlightNodes([user.nodeId])}
+                        onClick={() => onSelectNode(user.nodeId)}
                       >
                         <span className={styles.rowName}>{user.displayName}</span>
                         <span className={styles.rowMeta}>
@@ -245,8 +243,7 @@ export default function MetricsBar({
                   </DetailSection>
                 )}
               </div>
-            </ScrollArea>
-          </div>
+            </div>
         )}
       </div>
     </TooltipProvider>
@@ -314,7 +311,9 @@ function DetailSection({
         {icon}
         <span>{title}</span>
       </div>
-      {children}
+      <div className={styles.detailList}>
+        {children}
+      </div>
     </div>
   );
 }

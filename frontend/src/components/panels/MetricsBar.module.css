@@ -140,7 +140,7 @@
 /* ── Expanded Content ── */
 .expandedContent {
   border-top: 1px solid var(--border);
-  max-height: 35vh;
+  height: 25vh;
   overflow: hidden;
   background: var(--surface);
 }
@@ -150,6 +150,7 @@
   grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
   gap: 20px;
   padding: 14px 20px;
+  height: 100%;
 }
 
 /* ── Detail Section ── */
@@ -159,6 +160,7 @@
   gap: 2px;
   min-width: 0;
   overflow: hidden;
+  min-height: 0;
 }
 
 .detailTitle {
@@ -173,6 +175,36 @@
   margin-bottom: 6px;
   padding-bottom: 6px;
   border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+.detailList {
+  flex: 1;
+  overflow-y: auto;
+  min-height: 0;
+  scrollbar-width: none;
+}
+
+.detailList:hover {
+  scrollbar-width: thin;
+  scrollbar-color: var(--border) transparent;
+}
+
+.detailList::-webkit-scrollbar {
+  width: 4px;
+}
+
+.detailList::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.detailList::-webkit-scrollbar-thumb {
+  background: transparent;
+  border-radius: 2px;
+}
+
+.detailList:hover::-webkit-scrollbar-thumb {
+  background: var(--border);
 }
 
 .detailRow {
