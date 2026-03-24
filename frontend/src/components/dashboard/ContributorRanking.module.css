@@ -1,0 +1,15 @@
+.container {
+  width: 100%;
+}
+
+.container svg {
+  display: block;
+  width: 100%;
+}
+
+.empty {
+  color: var(--text-muted);
+  font-size: 0.875rem;
+  text-align: center;
+  padding: 24px 12px;
+}

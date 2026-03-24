@@ -1,0 +1,36 @@
+.wrapper {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  cursor: help;
+}
+
+.tooltip {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  width: max-content;
+  max-width: 260px;
+  padding: 8px 12px;
+  background: var(--surface-raised);
+  color: var(--text-primary);
+  font-size: 0.75rem;
+  font-weight: 400;
+  line-height: 1.5;
+  letter-spacing: normal;
+  text-transform: none;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--elevation-md);
+  z-index: 100;
+  pointer-events: none;
+  white-space: normal;
+}
+
+.below {
+  top: calc(100% + 6px);
+}
+
+.above {
+  bottom: calc(100% + 6px);
+}

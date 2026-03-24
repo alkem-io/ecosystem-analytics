@@ -1,0 +1,45 @@
+.container {
+  width: 100%;
+}
+
+.container svg {
+  display: block;
+  width: 100%;
+}
+
+.toggle {
+  display: flex;
+  gap: 0;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  width: fit-content;
+  margin-bottom: 8px;
+}
+
+.toggleBtn {
+  padding: 3px 12px;
+  font-size: 0.75rem;
+  font-weight: 500;
+  background: var(--surface);
+  color: var(--text-secondary);
+  border: none;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+
+.toggleBtn:not(:last-child) {
+  border-right: 1px solid var(--border);
+}
+
+.toggleBtn[data-active='true'] {
+  background: var(--primary);
+  color: var(--primary-foreground);
+}
+
+.empty {
+  color: var(--text-muted);
+  font-size: 0.875rem;
+  text-align: center;
+  padding: 40px 12px;
+}

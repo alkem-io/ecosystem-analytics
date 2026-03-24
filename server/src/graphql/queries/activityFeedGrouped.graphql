@@ -9,11 +9,5 @@ query ActivityFeedGrouped($args: ActivityFeedGroupedQueryArgs) {
     space {
       id
     }
-    ... on ActivityLogEntryMemberJoined {
-      contributor {
-        id
-      }
-      contributorType
-    }
   }
 }

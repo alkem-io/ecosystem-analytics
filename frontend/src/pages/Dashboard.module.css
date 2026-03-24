@@ -1,0 +1,103 @@
+.layout {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  background: var(--background);
+}
+
+.header {
+  padding: 16px 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface-raised);
+}
+
+.headerRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.error {
+  margin: 16px 24px;
+  padding: 12px 16px;
+  font-size: 0.875rem;
+  color: var(--error);
+  background: color-mix(in srgb, var(--error) 8%, transparent);
+  border-radius: var(--radius);
+}
+
+.placeholder {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-muted);
+  font-size: 1rem;
+}
+
+
+
+.cacheBadge {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 2px 8px;
+}
+
+.refreshBtn {
+  background: none;
+  border: none;
+  color: var(--text-secondary);
+  cursor: pointer;
+  font-size: 0.9rem;
+  padding: 0 2px;
+  line-height: 1;
+}
+
+.refreshBtn:hover {
+  color: var(--accent);
+}
+
+.refreshBtn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.grid {
+  flex: 1;
+  overflow-y: auto;
+  padding: 24px 32px 48px;
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 24px;
+  align-content: start;
+}
+
+.fullWidth {
+  grid-column: 1 / -1;
+}
+
+/* Responsive: single column on narrower screens */
+@media (max-width: 1200px) {
+  .grid {
+    grid-template-columns: 1fr;
+    padding: 16px;
+    gap: 16px;
+  }
+}
+
+/* Wide screens: 3 columns */
+@media (min-width: 2000px) {
+  .grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}

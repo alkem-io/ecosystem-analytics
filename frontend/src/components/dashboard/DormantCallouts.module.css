@@ -1,0 +1,107 @@
+.container {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.controls {
+  display: flex;
+  gap: 6px;
+}
+
+.chip {
+  padding: 4px 12px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 0.75rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.chip:hover {
+  border-color: var(--primary);
+  color: var(--primary);
+}
+
+.chip.active {
+  background: var(--primary);
+  border-color: var(--primary);
+  color: #fff;
+}
+
+.tableWrapper {
+  max-height: 340px;
+  overflow-y: auto;
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.8125rem;
+}
+
+.th,
+.thRight {
+  text-align: left;
+  padding: 8px 12px;
+  font-size: 0.6875rem;
+  font-weight: 700;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  border-bottom: 1px solid var(--border);
+  position: sticky;
+  top: 0;
+  background: var(--surface-raised);
+  z-index: 1;
+}
+
+.thRight {
+  text-align: right;
+}
+
+.row {
+  transition: background 0.1s;
+}
+
+.row:hover {
+  background: var(--surface);
+}
+
+.td,
+.tdRight {
+  padding: 10px 12px;
+  border-bottom: 1px solid color-mix(in srgb, var(--border) 50%, transparent);
+  color: var(--text-primary);
+  vertical-align: top;
+}
+
+.tdRight {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.calloutTitle {
+  font-weight: 500;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 240px;
+  display: block;
+}
+
+.phase {
+  font-size: 0.6875rem;
+  color: var(--text-muted);
+  margin-top: 2px;
+}
+
+.empty {
+  color: var(--text-muted);
+  font-size: 0.875rem;
+  text-align: center;
+  padding: 40px 12px;
+}

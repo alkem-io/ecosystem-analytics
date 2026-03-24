@@ -1,0 +1,51 @@
+.container {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+}
+
+.container svg {
+  display: block;
+  max-width: 280px;
+}
+
+.legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 20px;
+  justify-content: center;
+  width: 100%;
+}
+
+.legendItem {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.8125rem;
+}
+
+.swatch {
+  width: 10px;
+  height: 10px;
+  border-radius: 2px;
+  flex-shrink: 0;
+}
+
+.legendLabel {
+  color: var(--text-primary);
+  font-weight: 500;
+}
+
+.legendValue {
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.empty {
+  color: var(--text-muted);
+  font-size: 0.875rem;
+  text-align: center;
+  padding: 40px 12px;
+}

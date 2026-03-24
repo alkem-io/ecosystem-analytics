@@ -40,3 +40,9 @@ export interface ApiError {
   error: string;
   message: string;
 }
+
+/** Request body for dashboard generation */
+export interface DashboardGenerationRequest {
+  spaceId: string;
+  forceRefresh?: boolean;
+}

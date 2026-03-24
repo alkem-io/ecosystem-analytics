@@ -30,11 +30,11 @@ async function apiFetch<T>(path: string, options: RequestInit = {}): Promise<T> 
   }
 
   if (!response.ok) {
-    const error: ApiError = await response.json().catch(() => ({
+    const error = await response.json().catch(() => ({
       error: 'UNKNOWN',
       message: `HTTP ${response.status}`,
     }));
-    throw new Error(error.message);
+    throw new Error(error.detail ?? error.message ?? `HTTP ${response.status}`);
   }
 
   return response.json() as Promise<T>;
@@ -45,4 +45,11 @@ export const api = {
   post: <T>(path: string, body: unknown) =>
     apiFetch<T>(path, { method: 'POST', body: JSON.stringify(body) }),
   delete: <T>(path: string) => apiFetch<T>(path, { method: 'DELETE' }),
+
+  /** Generate a dashboard dataset for a single space */
+  generateDashboard: (spaceId: string, forceRefresh?: boolean) =>
+    apiFetch<import('@server/types/dashboard.js').DashboardDataset>('/api/dashboard/generate', {
+      method: 'POST',
+      body: JSON.stringify({ spaceId, forceRefresh }),
+    }),
 };
