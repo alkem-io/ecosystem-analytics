@@ -1,15 +1,322 @@
+/* ── Bottom Metrics Bar ── */
 .bar {
   display: flex;
-  gap: 16px;
-  padding: 6px 16px;
-  background: var(--surface);
+  flex-direction: column;
+  background: var(--surface-raised);
   border-top: 1px solid var(--border);
-  font-size: 12px;
-  color: var(--text-secondary);
+  flex-shrink: 0;
+  position: relative;
+  z-index: 20;
+}
+
+.barExpanded {
+  max-height: 50vh;
+}
+
+/* ── Stats Row (always visible) ── */
+.statsRow {
+  display: flex;
+  align-items: center;
+  gap: 0;
+  padding: 0 4px;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.statsRow::-webkit-scrollbar {
+  display: none;
+}
+
+/* ── Stat Card ── */
+.statCard {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  padding: 8px 14px;
+  min-width: 0;
+  border: none;
+  border-right: 1px solid var(--border);
+  border-radius: 0;
+  background: transparent;
+  font-family: inherit;
+  text-align: left;
+  cursor: default;
+  transition: background-color 0.15s;
+}
+
+.statCard:first-child {
+  padding-left: 16px;
+}
+
+.statCardClickable {
+  cursor: pointer;
+}
+
+.statCardClickable:hover {
+  background: color-mix(in srgb, var(--primary) 5%, transparent);
+}
+
+.statCardHighlight .statValue {
+  color: var(--primary);
+}
+
+.statCard:focus-visible {
+  outline: 2px solid var(--border-focus);
+  outline-offset: -2px;
+}
+
+.statHeader {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.statIcon {
+  color: var(--text-muted);
+  display: inline-flex;
   flex-shrink: 0;
 }
 
-.item strong {
-  font-weight: 600;
+.statLabel {
+  font-size: 10px;
+  font-weight: 500;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+}
+
+.statValue {
+  font-size: 16px;
+  font-weight: 700;
   color: var(--text-primary);
+  line-height: 1.3;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 160px;
+}
+
+.statSub {
+  font-size: 10px;
+  color: var(--text-secondary);
+}
+
+/* ── Expand Toggle ── */
+.expandToggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 8px 14px;
+  border: none;
+  border-left: 1px solid var(--border);
+  border-radius: 0;
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 11px;
+  font-family: inherit;
+  font-weight: 500;
+  cursor: pointer;
+  flex-shrink: 0;
+  margin-left: auto;
+  align-self: stretch;
+  transition: color 0.15s, background-color 0.15s;
+}
+
+.expandToggle:hover {
+  color: var(--primary);
+  background: color-mix(in srgb, var(--primary) 5%, transparent);
+}
+
+.expandToggle:focus-visible {
+  outline: 2px solid var(--border-focus);
+  outline-offset: -2px;
+}
+
+.expandLabel {
+  white-space: nowrap;
+}
+
+/* ── Expanded Content ── */
+.expandedContent {
+  border-top: 1px solid var(--border);
+  height: 25vh;
+  overflow: hidden;
+  background: var(--surface);
+}
+
+.detailGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 20px;
+  padding: 14px 20px;
+  height: 100%;
+}
+
+/* ── Detail Section ── */
+.detailSection {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  overflow: hidden;
+  min-height: 0;
+}
+
+.detailTitle {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: 6px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+.detailList {
+  flex: 1;
+  overflow-y: auto;
+  min-height: 0;
+  scrollbar-width: none;
+}
+
+.detailList:hover {
+  scrollbar-width: thin;
+  scrollbar-color: var(--border) transparent;
+}
+
+.detailList::-webkit-scrollbar {
+  width: 4px;
+}
+
+.detailList::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.detailList::-webkit-scrollbar-thumb {
+  background: transparent;
+  border-radius: 2px;
+}
+
+.detailList:hover::-webkit-scrollbar-thumb {
+  background: var(--border);
+}
+
+.detailRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 8px;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  font-size: 12px;
+  font-family: inherit;
+  color: var(--text-primary);
+  cursor: pointer;
+  text-align: left;
+  width: 100%;
+  min-width: 0;
+  overflow: hidden;
+  transition: background-color 0.15s;
+}
+
+.detailRow:hover {
+  background: color-mix(in srgb, var(--primary) 6%, transparent);
+}
+
+.detailRow:focus-visible {
+  outline: 2px solid var(--border-focus);
+  outline-offset: -1px;
+}
+
+.rank {
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--text-muted);
+  width: 18px;
+  height: 18px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--text-muted) 8%, transparent);
+  flex-shrink: 0;
+}
+
+.rowName {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.rowMeta {
+  font-size: 10px;
+  color: var(--text-secondary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 50%;
+  flex-shrink: 1;
+}
+
+.avatar {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  object-fit: cover;
+  flex-shrink: 0;
+}
+
+.avatarFallback {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: var(--primary);
+  color: white;
+  font-size: 10px;
+  font-weight: 600;
+  flex-shrink: 0;
+}
+
+.emptyMsg {
+  font-size: 12px;
+  color: var(--text-muted);
+  padding: 4px 8px;
+  margin: 0;
+}
+
+/* ── Responsive ── */
+@media (max-width: 768px) {
+  .statCard {
+    padding: 6px 10px;
+  }
+
+  .statValue {
+    font-size: 13px;
+  }
+
+  .statLabel {
+    font-size: 9px;
+  }
+
+  .expandLabel {
+    display: none;
+  }
+
+  .detailGrid {
+    grid-template-columns: 1fr;
+    gap: 12px;
+    padding: 10px 12px;
+  }
 }

@@ -4,6 +4,7 @@ import type { ActivityPeriod } from '@server/types/graph.js';
 import type { MapRegion } from '../map/MapOverlay.js';
 import type { ViewMode, HierarchySizeMetric, ChordMode } from '../../types/views.js';
 import FilterControls from './FilterControls.js';
+import { ChevronLeft, ChevronRight } from 'lucide-react';
 import styles from './ControlPanel.module.css';
 
 interface Props {
@@ -55,6 +56,9 @@ interface Props {
   /** 009: Timeline chart type */
   timelineChartType?: 'stacked' | 'stream';
   onTimelineChartTypeChange?: (type: 'stacked' | 'stream') => void;
+  /** 014: Collapsible panel */
+  collapsed?: boolean;
+  onToggleCollapse?: () => void;
 }
 
 export default function ControlPanel({
@@ -100,6 +104,8 @@ export default function ControlPanel({
   onToggleMemberLeaves,
   timelineChartType,
   onTimelineChartTypeChange,
+  collapsed = false,
+  onToggleCollapse,
 }: Props) {
   // Get L0 space nodes for scope chips
   const scopeSpaces = dataset.nodes.filter((n) => n.type === 'SPACE_L0');
@@ -116,7 +122,18 @@ export default function ControlPanel({
   const usesActivityPeriod = isForceView || activeView === 'treemap' || activeView === 'sunburst';
 
   return (
-    <div className={styles.panel}>
+    <div className={`${styles.panel} ${collapsed ? styles.panelCollapsed : ''}`}>
+      {onToggleCollapse && (
+        <button
+          className={styles.collapseToggle}
+          onClick={onToggleCollapse}
+          aria-label={collapsed ? 'Expand control panel' : 'Collapse control panel'}
+        >
+          {collapsed ? <ChevronRight size={14} /> : <ChevronLeft size={14} />}
+        </button>
+      )}
+      {collapsed ? null : (
+        <>
       {/* ─── Scope — always visible ─── */}
       <div className={styles.section}>
         <h3 className={styles.heading}>Scope</h3>
@@ -383,6 +400,8 @@ export default function ControlPanel({
             </div>
           </div>
         </div>
+      )}
+        </>
       )}
     </div>
   );

@@ -25,6 +25,7 @@ import { Button } from '../components/ui/button.js';
 import type { GraphNode } from '@server/types/graph.js';
 import type { ActivityPeriod } from '@server/types/graph.js';
 import { EdgeType, NodeType } from '@server/types/graph.js';
+import { useEcosystemMetrics } from '../hooks/useEcosystemMetrics.js';
 import { api } from '../services/api.js';
 import { Sparkles, MessageCircle, AlertCircle } from 'lucide-react';
 import styles from './Explorer.module.css';
@@ -71,6 +72,7 @@ export default function Explorer({ onLogout }: ExplorerProps) {
   const [directConnectionsOnly, setDirectConnectionsOnly] = useState(false);
   const canvasRef = useRef<HTMLDivElement>(null);
   const [canvasSize, setCanvasSize] = useState({ width: 0, height: 0 });
+  const [controlPanelCollapsed, setControlPanelCollapsed] = useState(false);
 
   // Prefer localStorage (kept in sync by setActiveSpaceIds) over navigation state,
   // because nav state becomes stale when spaces are added/removed in Explorer.
@@ -120,6 +122,22 @@ export default function Explorer({ onLogout }: ExplorerProps) {
     () => spaces.filter((s) => !activeSpaceIds.includes(s.nameId)),
     [spaces, activeSpaceIds],
   );
+
+  const ecosystemMetrics = useEcosystemMetrics(dataset ?? null, {
+    showPeople,
+    showOrganizations,
+    showSpaces,
+  });
+
+  const handleHighlightNodes = useCallback((ids: string[]) => {
+    setHighlightedNodeIds(ids);
+  }, []);
+
+  const handleSelectNode = useCallback((nodeId: string) => {
+    if (!dataset) return;
+    const node = dataset.nodes.find((n) => n.id === nodeId);
+    if (node) setSelectedNode(node);
+  }, [dataset]);
 
   const handleRefresh = useCallback(() => {
     if (activeSpaceIds.length > 0) generate(activeSpaceIds, true);
@@ -307,6 +325,8 @@ export default function Explorer({ onLogout }: ExplorerProps) {
             showPrivate={showPrivate}
             onTogglePublic={() => setShowPublic((p) => !p)}
             onTogglePrivate={() => setShowPrivate((p) => !p)}
+            collapsed={controlPanelCollapsed}
+            onToggleCollapse={() => setControlPanelCollapsed((c) => !c)}
             showMap={showMap}
             onToggleMap={() => setShowMap((m) => !m)}
             mapRegion={mapRegion}
@@ -530,7 +550,14 @@ export default function Explorer({ onLogout }: ExplorerProps) {
           <HoverCard node={hoveredNode} dataset={dataset} x={hoverPos.x} y={hoverPos.y} />
         )}
       </div>
-      {dataset && <MetricsBar metrics={dataset.metrics} />}
+      {dataset && (
+        <MetricsBar
+          metrics={dataset.metrics}
+          ecosystemMetrics={ecosystemMetrics}
+          onHighlightNodes={handleHighlightNodes}
+          onSelectNode={handleSelectNode}
+        />
+      )}
       {aiQueryEnabled && (
         <QueryOverlay
           hidden={!queryOverlayOpen}
