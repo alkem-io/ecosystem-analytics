@@ -390,6 +390,58 @@ const CITY_ALIASES: Record<string, string> = {
   's-gravenhage': 'Den Haag',
 };
 
+/** Fallback coordinates for cities when the API doesn't provide geoLocation. */
+const CITY_COORDINATES: Record<string, { latitude: number; longitude: number }> = {
+  'amsterdam': { latitude: 52.3676, longitude: 4.9041 },
+  'rotterdam': { latitude: 51.9225, longitude: 4.4792 },
+  'den haag': { latitude: 52.0705, longitude: 4.3007 },
+  'the hague': { latitude: 52.0705, longitude: 4.3007 },
+  'utrecht': { latitude: 52.0907, longitude: 5.1214 },
+  'eindhoven': { latitude: 51.4416, longitude: 5.4697 },
+  'groningen': { latitude: 53.2194, longitude: 6.5665 },
+  'tilburg': { latitude: 51.5555, longitude: 5.0913 },
+  'almere': { latitude: 52.3508, longitude: 5.2647 },
+  'breda': { latitude: 51.5719, longitude: 4.7683 },
+  'nijmegen': { latitude: 51.8426, longitude: 5.8527 },
+  'arnhem': { latitude: 51.9851, longitude: 5.8987 },
+  'haarlem': { latitude: 52.3874, longitude: 4.6462 },
+  'enschede': { latitude: 52.2215, longitude: 6.8937 },
+  'amersfoort': { latitude: 52.1561, longitude: 5.3878 },
+  'apeldoorn': { latitude: 52.2112, longitude: 5.9699 },
+  'zwolle': { latitude: 52.5168, longitude: 6.0830 },
+  'leiden': { latitude: 52.1601, longitude: 4.4970 },
+  'maastricht': { latitude: 50.8514, longitude: 5.6910 },
+  'dordrecht': { latitude: 51.8133, longitude: 4.6901 },
+  'delft': { latitude: 52.0116, longitude: 4.3571 },
+  'deventer': { latitude: 52.2554, longitude: 6.1600 },
+  'leeuwarden': { latitude: 53.2012, longitude: 5.7999 },
+  'den bosch': { latitude: 51.6978, longitude: 5.3037 },
+  "'s-hertogenbosch": { latitude: 51.6978, longitude: 5.3037 },
+  'hilversum': { latitude: 52.2292, longitude: 5.1669 },
+  'wageningen': { latitude: 51.9692, longitude: 5.6654 },
+  'zoetermeer': { latitude: 52.0575, longitude: 4.4939 },
+  'gouda': { latitude: 52.0115, longitude: 4.7104 },
+  'middelburg': { latitude: 51.4988, longitude: 3.6109 },
+  'brussels': { latitude: 50.8503, longitude: 4.3517 },
+  'antwerp': { latitude: 51.2194, longitude: 4.4025 },
+  'berlin': { latitude: 52.5200, longitude: 13.4050 },
+  'paris': { latitude: 48.8566, longitude: 2.3522 },
+  'london': { latitude: 51.5074, longitude: -0.1278 },
+  'lisbon': { latitude: 38.7223, longitude: -9.1393 },
+  'barcelona': { latitude: 41.3874, longitude: 2.1686 },
+  'madrid': { latitude: 40.4168, longitude: -3.7038 },
+  'vienna': { latitude: 48.2082, longitude: 16.3738 },
+  'copenhagen': { latitude: 55.6761, longitude: 12.5683 },
+  'stockholm': { latitude: 59.3293, longitude: 18.0686 },
+  'helsinki': { latitude: 60.1699, longitude: 24.9384 },
+  'oslo': { latitude: 59.9139, longitude: 10.7522 },
+  'zurich': { latitude: 47.3769, longitude: 8.5417 },
+  'geneva': { latitude: 46.2044, longitude: 6.1432 },
+  'munich': { latitude: 48.1351, longitude: 11.5820 },
+  'hamburg': { latitude: 53.5511, longitude: 9.9937 },
+  'frankfurt': { latitude: 50.1109, longitude: 8.6821 },
+};
+
 function normalizeCity(city: string | undefined | null): string | null {
   if (!city) return null;
   return CITY_ALIASES[city.toLowerCase()] ?? city;
@@ -400,11 +452,23 @@ function extractLocation(
 ): GraphLocation | null {
   if (!loc) return null;
   if (!loc.country && !loc.city && !loc.geoLocation) return null;
+  const city = normalizeCity(loc.city);
+  let latitude = loc.geoLocation?.latitude ?? null;
+  let longitude = loc.geoLocation?.longitude ?? null;
+  // Fallback: resolve coordinates from city name when API doesn't provide them
+  if (latitude == null || longitude == null) {
+    const key = (city ?? loc.city ?? '').toLowerCase();
+    const coords = CITY_COORDINATES[key];
+    if (coords) {
+      latitude = coords.latitude;
+      longitude = coords.longitude;
+    }
+  }
   return {
     country: loc.country || null,
-    city: normalizeCity(loc.city),
-    latitude: loc.geoLocation?.latitude ?? null,
-    longitude: loc.geoLocation?.longitude ?? null,
+    city,
+    latitude,
+    longitude,
   };
 }
 
