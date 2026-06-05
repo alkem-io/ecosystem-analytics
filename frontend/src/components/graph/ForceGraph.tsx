@@ -5,7 +5,7 @@ import type { GraphDataset, GraphNode, GraphEdge } from '@server/types/graph.js'
 import type { ActivityPeriod } from '@server/types/graph.js';
 import { computeClusters } from './clustering.js';
 import { computeProximityGroups, type ProximityCluster } from './proximityClustering.js';
-import { computePinnedNodeIds, computeMapBounds } from './mapBoundary.js';
+import { computePinnedNodeIds, computeMapBounds, isWithinRegion } from './mapBoundary.js';
 import type { MapRegion } from '../map/MapOverlay.js';
 import { getToken } from '../../services/auth.js';
 import styles from './ForceGraph.module.css';
@@ -296,11 +296,15 @@ function effectiveRadius(
   zoomScale: number,
 ): number {
   if (!isGeoMode) return nodeRadius(node);
-  // Flat base radius — no connection-based scaling in map mode
-  const base = BASE_RADIUS[node.data.type] ?? 8;
-  // Counter-scale: nodes shrink as you zoom in (compensate for the g-transform scale).
-  // Exponent < 1 so they don't fully counter-scale — they still grow a bit on screen.
-  const mapMultiplier = 1 / Math.pow(Math.max(zoomScale, 0.1), 0.7);
+  // In map mode: nodes get SMALLER as you zoom in, BIGGER as you zoom out.
+  let base = BASE_RADIUS[node.data.type] ?? 8;
+  if (node.data.type === 'USER' || node.data.type === 'ORGANIZATION') {
+    base *= 1.2;
+  } else {
+    base *= 1.4;
+  }
+  // Exponent 1.1 gives mild inverse zoom: screen = base * k^(-0.1)
+  const mapMultiplier = 1 / Math.pow(Math.max(zoomScale, 0.1), 1.1);
   return base * mapMultiplier;
 }
 
@@ -374,10 +378,17 @@ export default function ForceGraph({
     svg.selectAll('*').remove();
 
     // Filter nodes based on visibility toggles
+    const cachedGeo = showMap ? mapGeoJSONCacheRef.current[mapRegion] ?? null : null;
     const visibleNodes = dataset.nodes.filter((n) => {
       if (n.type === 'USER' && !showPeople) return false;
       if (n.type === 'ORGANIZATION' && !showOrganizations) return false;
       if ((n.type === 'SPACE_L0' || n.type === 'SPACE_L1' || n.type === 'SPACE_L2') && !showSpaces) return false;
+      // In map mode, hide nodes without a valid location or outside the selected region
+      if (showMap) {
+        const loc = n.location;
+        if (!loc || loc.latitude == null || loc.longitude == null) return false;
+        if (cachedGeo && !isWithinRegion(cachedGeo, loc.longitude, loc.latitude)) return false;
+      }
       return true;
     });
 
@@ -872,20 +883,18 @@ export default function ForceGraph({
           .attr('x', (d) => effectiveRadius(d, true, k) * 0.6)
           .attr('y', (d) => effectiveRadius(d, true, k) * 0.6)
           .attr('font-size', (d) => effectiveRadius(d, true, k) * 0.3);
-        // Label offsets and font size — counter-scale so text doesn't balloon on zoom
-        const textScale = 1 / Math.pow(Math.max(k, 0.1), 0.7);
+        // Labels: no counter-scale — they grow/shrink naturally with zoom alongside nodes
         nodeSelection.selectAll<SVGTextElement, SimNode>('.node-label')
-          .attr('dy', (d) => effectiveRadius(d, true, k) + 10 * textScale)
+          .attr('dy', (d) => effectiveRadius(d, true, k) + 3)
           .attr('font-size', (d) => {
-            const base = d.data.type === 'SPACE_L0' ? 11 : d.data.type === 'SPACE_L1' ? 9 : 8;
-            return base * textScale;
+            return d.data.type === 'SPACE_L0' ? 4 : d.data.type === 'SPACE_L1' ? 3.5 : 3;
           });
-        // City labels — same counter-scale
+        // City labels
         g.selectAll<SVGTextElement, unknown>('.city-label')
-          .attr('font-size', 8 * textScale);
+          .attr('font-size', 3);
         // Update collision force radius
         simulationLocal?.force('collision', d3.forceCollide<SimNode>().radius((d) =>
-          effectiveRadius(d, true, k) + 8));
+          effectiveRadius(d, true, k) + 3));
       }
 
       // Counter-scale edge stroke width in geo mode so lines thin as you zoom in
@@ -1222,14 +1231,22 @@ export default function ForceGraph({
         _event.stopPropagation();
         onNodeClickRef.current(d.data);
       })
-      .on('mouseenter', (_event: MouseEvent, d) => {
+      .on('mouseenter', function (_event: MouseEvent, d) {
         onNodeHoverRef.current?.(d.data, { x: _event.clientX, y: _event.clientY });
+        // In geo mode, reveal label on hover for non-L0 nodes
+        if (isGeoMode && d.data.type !== 'SPACE_L0') {
+          d3.select(this).select<SVGTextElement>('.node-label').attr('opacity', 1);
+        }
       })
       .on('mousemove', (_event: MouseEvent, d) => {
         onNodeHoverRef.current?.(d.data, { x: _event.clientX, y: _event.clientY });
       })
-      .on('mouseleave', () => {
+      .on('mouseleave', function () {
         onNodeHoverRef.current?.(null);
+        // In geo mode, hide label again for non-L0 nodes
+        if (isGeoMode && (this as any).__data__?.data?.type !== 'SPACE_L0') {
+          d3.select(this).select<SVGTextElement>('.node-label').attr('opacity', 0);
+        }
       })
       .call(
         (d3
@@ -1400,42 +1417,58 @@ export default function ForceGraph({
         d3.select(this).remove();
       });
 
-    // Space banner images: pre-check to filter out Alkemio default placeholders
+    // Space banner images: pre-check to filter out Alkemio default placeholders.
+    // Falls back to avatarUrl if the banner is a placeholder or fails to load.
     imgNodes
       .filter((d) => d.data.type.startsWith('SPACE_') && !!d.data.bannerUrl)
       .each(function (d) {
         const group = d3.select(this);
-        const url = proxyImageUrl(nodeImageUrl(d.data)) ?? nodeImageUrl(d.data)!;
-        fetch(url)
+        const bannerUrl = proxyImageUrl(d.data.bannerUrl) ?? d.data.bannerUrl!;
+        const avatarFallback = d.data.avatarUrl ? (proxyImageUrl(d.data.avatarUrl) ?? d.data.avatarUrl) : null;
+
+        const appendImage = (href: string) => {
+          const r = effectiveRadius(d, isGeoMode, currentZoomScale);
+          const firstBadge = group.select('.visibility-badge-bg').node() as Node | null;
+          const imgEl = document.createElementNS('http://www.w3.org/2000/svg', 'image');
+          const groupNode = group.node() as Element | null;
+          if (groupNode && firstBadge) {
+            groupNode.insertBefore(imgEl, firstBadge);
+          } else if (groupNode) {
+            groupNode.appendChild(imgEl);
+          }
+          d3.select(imgEl)
+            .attr('href', href)
+            .attr('x', -r)
+            .attr('y', -r)
+            .attr('width', r * 2)
+            .attr('height', r * 2)
+            .attr('clip-path', `url(#clip-avatar-${d.data.id})`)
+            .attr('preserveAspectRatio', 'xMidYMid slice')
+            .on('error', function () {
+              d3.select(this).remove();
+              // Try avatar as fallback on image load error
+              if (avatarFallback) appendImage(avatarFallback);
+            });
+        };
+
+        fetch(bannerUrl)
           .then((res) => {
-            if (!res.ok) return;
+            if (!res.ok) {
+              if (avatarFallback) appendImage(avatarFallback);
+              return;
+            }
             const size = parseInt(res.headers.get('x-image-size') || res.headers.get('content-length') || '0', 10);
             // Default Alkemio placeholders (padlock icon) are small files (< 100KB).
             // Real uploaded banners are typically much larger.
-            if (size > 0 && size < 102400) return;
-            const r = effectiveRadius(d, isGeoMode, currentZoomScale);
-            // Insert image before the badge elements so badge stays on top
-            const firstBadge = group.select('.visibility-badge-bg').node() as Node | null;
-            const imgEl = document.createElementNS('http://www.w3.org/2000/svg', 'image');
-            const groupNode = group.node() as Element | null;
-            if (groupNode && firstBadge) {
-              groupNode.insertBefore(imgEl, firstBadge);
-            } else if (groupNode) {
-              groupNode.appendChild(imgEl);
+            if (size > 0 && size < 102400) {
+              if (avatarFallback) appendImage(avatarFallback);
+              return;
             }
-            d3.select(imgEl)
-              .attr('href', url)
-              .attr('x', -r)
-              .attr('y', -r)
-              .attr('width', r * 2)
-              .attr('height', r * 2)
-              .attr('clip-path', `url(#clip-avatar-${d.data.id})`)
-              .attr('preserveAspectRatio', 'xMidYMid slice')
-              .on('error', function () {
-                d3.select(this).remove();
-              });
+            appendImage(bannerUrl);
           })
-          .catch(() => { /* skip on fetch failure */ });
+          .catch(() => {
+            if (avatarFallback) appendImage(avatarFallback);
+          });
       });
 
     // Visibility badge — lock icon overlay on private space nodes (bottom-right).
@@ -1483,7 +1516,10 @@ export default function ForceGraph({
         const name = d.data.displayName;
         return name.length > LABEL_MAX_CHARS ? name.slice(0, LABEL_MAX_CHARS - 1) + '\u2026' : name;
       })
-      .attr('font-size', (d) => (d.data.type === 'SPACE_L0' ? 11 : d.data.type === 'SPACE_L1' ? 9 : 8))
+      .attr('font-size', (d) => {
+        if (!isGeoMode) return d.data.type === 'SPACE_L0' ? 11 : d.data.type === 'SPACE_L1' ? 9 : 8;
+        return d.data.type === 'SPACE_L0' ? 4 : d.data.type === 'SPACE_L1' ? 3.5 : 3;
+      })
       .attr('font-weight', (d) => (d.data.type === 'SPACE_L0' ? '600' : d.data.type === 'SPACE_L1' ? '500' : '400'))
       .attr('text-anchor', 'middle')
       .attr('dy', (d) => effectiveRadius(d, isGeoMode, currentZoomScale) + 12)
@@ -1891,6 +1927,12 @@ export default function ForceGraph({
         const group = d3.select(this);
         const label = group.select<SVGTextElement>('text.node-label').node();
         if (!label) return;
+
+        // In geo mode, only show SPACE_L0 labels by default; others reveal on hover
+        if (isGeoMode && d.data.type !== 'SPACE_L0') {
+          d3.select(label).attr('opacity', 0);
+          return;
+        }
 
         // Priority: L0=3, L1=2, others=1, scaled by weight
         let priority = 1;
