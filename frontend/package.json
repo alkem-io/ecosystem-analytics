@@ -53,9 +53,5 @@
     "vite": "^7.3.1",
     "vitest": "^4.0.18"
   },
-  "pnpm": {
-    "onlyBuiltDependencies": [
-      "esbuild"
-    ]
-  }
+  "packageManager": "pnpm@11.7.0"
 }
