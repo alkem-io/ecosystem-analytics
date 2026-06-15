@@ -108,6 +108,8 @@ interface TemporalForceViewProps {
   showAdmins?: boolean;
   showPublic?: boolean;
   showPrivate?: boolean;
+  showL1Spaces?: boolean;
+  showL2Spaces?: boolean;
 }
 
 export default function TemporalForceView({
@@ -126,6 +128,8 @@ export default function TemporalForceView({
   showAdmins = true,
   showPublic = true,
   showPrivate = true,
+  showL1Spaces = true,
+  showL2Spaces = true,
 }: TemporalForceViewProps) {
   const svgRef = useRef<SVGSVGElement>(null);
   const simulationRef = useRef<d3.Simulation<SimNode, SimLink> | null>(null);
@@ -146,11 +150,13 @@ export default function TemporalForceView({
     showPeople, showOrganizations, showSpaces,
     showMembers, showLeads, showAdmins,
     showPublic, showPrivate,
+    showL1Spaces, showL2Spaces,
   });
   filtersRef.current = {
     showPeople, showOrganizations, showSpaces,
     showMembers, showLeads, showAdmins,
     showPublic, showPrivate,
+    showL1Spaces, showL2Spaces,
   };
 
   // ─── Build L0-color mapping ─────────────────────────────────
@@ -607,6 +613,8 @@ export default function TemporalForceView({
       const fShowAdmins = filtersRef.current.showAdmins;
       const fShowPublic = filtersRef.current.showPublic;
       const fShowPrivate = filtersRef.current.showPrivate;
+      const fShowL1 = filtersRef.current.showL1Spaces;
+      const fShowL2 = filtersRef.current.showL2Spaces;
 
       // Filter visible nodes: temporal + type/role/visibility filters
       const visibleNodes = simNodes.filter((n) => {
@@ -621,6 +629,9 @@ export default function TemporalForceView({
           if (n.data.privacyMode === 'PUBLIC' && !fShowPublic) return false;
           if (n.data.privacyMode === 'PRIVATE' && !fShowPrivate) return false;
         }
+        // Level filters. Hiding L1 cascades to L2 (all L2 are descendants of an L1).
+        if (t === NodeType.SPACE_L1 && !fShowL1) return false;
+        if (t === NodeType.SPACE_L2 && (!fShowL2 || !fShowL1)) return false;
         return true;
       });
       const visibleNodeIds = new Set(visibleNodes.map((n) => n.data.id));
@@ -869,7 +880,7 @@ export default function TemporalForceView({
     if (!updateFn) return;
     const cursor = temporalDateRef.current?.getTime();
     if (cursor != null) updateFn(cursor);
-  }, [showPeople, showOrganizations, showSpaces, showMembers, showLeads, showAdmins, showPublic, showPrivate]);
+  }, [showPeople, showOrganizations, showSpaces, showMembers, showLeads, showAdmins, showPublic, showPrivate, showL1Spaces, showL2Spaces]);
 
   // ── React to selection changes ────────────────────────────────
   useEffect(() => {
