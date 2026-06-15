@@ -130,6 +130,10 @@ interface Props {
   showPublic?: boolean;
   /** Whether private space nodes are visible (default: true) */
   showPrivate?: boolean;
+  /** Whether L1 subspaces are visible (default: true). Hiding L1 cascades to its L2 descendants. */
+  showL1Spaces?: boolean;
+  /** Whether L2 spaces are visible (default: true) */
+  showL2Spaces?: boolean;
   /** When true, prune redundant ancestor edges — keep only the deepest space connection per user */
   directConnectionsOnly?: boolean;
 }
@@ -328,6 +332,8 @@ export default function ForceGraph({
   activityPeriod = 'allTime',
   showPublic = true,
   showPrivate = true,
+  showL1Spaces = true,
+  showL2Spaces = true,
   directConnectionsOnly = false,
 }: Props) {
   const svgRef = useRef<SVGSVGElement>(null);
@@ -2197,7 +2203,13 @@ export default function ForceGraph({
       if (!isSpace) return;
       const pm = node.privacyMode;
       const isRestricted = node.restricted === true;
-      const hide = (pm === 'PUBLIC' && !isRestricted && !showPublic) || ((pm === 'PRIVATE' || isRestricted) && !showPrivate);
+      const hiddenByPrivacy =
+        (pm === 'PUBLIC' && !isRestricted && !showPublic) || ((pm === 'PRIVATE' || isRestricted) && !showPrivate);
+      // Level filters. Hiding L1 cascades to L2 (all L2 are descendants of an L1).
+      const hiddenByLevel =
+        (node.type === 'SPACE_L1' && !showL1Spaces) ||
+        (node.type === 'SPACE_L2' && (!showL2Spaces || !showL1Spaces));
+      const hide = hiddenByPrivacy || hiddenByLevel;
       if (hide) {
         hiddenSpaceIds.add(node.id);
         d3.select(this).style('display', 'none');
@@ -2255,7 +2267,7 @@ export default function ForceGraph({
       el.style('animation-play-state', isHidden ? 'paused' : 'running');
     });
 
-  }, [showPublic, showPrivate, graphVersion]);
+  }, [showPublic, showPrivate, showL1Spaces, showL2Spaces, graphVersion]);
 
   // ---------- Space Activity sizing + glow (T011/T012/T013) ----------
   // Scales space nodes by contribution volume on top of their degree-based radius.

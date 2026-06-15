@@ -37,6 +37,10 @@ interface Props {
   showPrivate?: boolean;
   onTogglePublic?: () => void;
   onTogglePrivate?: () => void;
+  showL1Spaces?: boolean;
+  showL2Spaces?: boolean;
+  onToggleL1Spaces?: () => void;
+  onToggleL2Spaces?: () => void;
   directConnectionsOnly?: boolean;
   onToggleDirectConnections?: () => void;
   /** 009: Active view mode for conditional controls */
@@ -91,6 +95,10 @@ export default function ControlPanel({
   showPrivate,
   onTogglePublic,
   onTogglePrivate,
+  showL1Spaces,
+  showL2Spaces,
+  onToggleL1Spaces,
+  onToggleL2Spaces,
   directConnectionsOnly = false,
   onToggleDirectConnections,
   activeView,
@@ -175,6 +183,10 @@ export default function ControlPanel({
           showPrivate={showPrivate}
           onTogglePublic={onTogglePublic}
           onTogglePrivate={onTogglePrivate}
+          showL1Spaces={showL1Spaces}
+          showL2Spaces={showL2Spaces}
+          onToggleL1Spaces={onToggleL1Spaces}
+          onToggleL2Spaces={onToggleL2Spaces}
         />
       )}
 

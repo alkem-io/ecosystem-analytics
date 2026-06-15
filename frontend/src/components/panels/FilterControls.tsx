@@ -20,6 +20,10 @@ interface Props {
   showPrivate?: boolean;
   onTogglePublic?: () => void;
   onTogglePrivate?: () => void;
+  showL1Spaces?: boolean;
+  showL2Spaces?: boolean;
+  onToggleL1Spaces?: () => void;
+  onToggleL2Spaces?: () => void;
 }
 
 export default function FilterControls({
@@ -40,10 +44,16 @@ export default function FilterControls({
   showPrivate = true,
   onTogglePublic,
   onTogglePrivate,
+  showL1Spaces = true,
+  showL2Spaces = true,
+  onToggleL1Spaces,
+  onToggleL2Spaces,
 }: Props) {
   const peopleCount = dataset.nodes.filter((n) => n.type === 'USER').length;
   const orgCount = dataset.nodes.filter((n) => n.type === 'ORGANIZATION').length;
   const spaceCount = dataset.nodes.filter((n) => n.type === 'SPACE_L0' || n.type === 'SPACE_L1' || n.type === 'SPACE_L2').length;
+  const l1SpaceCount = dataset.nodes.filter((n) => n.type === 'SPACE_L1').length;
+  const l2SpaceCount = dataset.nodes.filter((n) => n.type === 'SPACE_L2').length;
 
   // T026+T027: Compute unique user counts per role type (memoized)
   const roleCounts = useMemo(() => {
@@ -102,6 +112,29 @@ export default function FilterControls({
               disabled={!showSpaces}
             />
             <span>Private ({visibilityCounts.private})</span>
+          </label>
+        </div>
+      )}
+      {onToggleL1Spaces && onToggleL2Spaces && (
+        <div className={`${styles.roleFilters} ${!showSpaces ? styles.roleFiltersDisabled : ''}`}>
+          <span className={styles.heading} style={{ fontSize: '0.75rem', marginTop: 4 }}>Levels</span>
+          <label className={styles.toggle}>
+            <input
+              type="checkbox"
+              checked={showL1Spaces}
+              onChange={onToggleL1Spaces}
+              disabled={!showSpaces}
+            />
+            <span>Subspaces (L1) ({l1SpaceCount})</span>
+          </label>
+          <label className={styles.toggle}>
+            <input
+              type="checkbox"
+              checked={showL2Spaces}
+              onChange={onToggleL2Spaces}
+              disabled={!showSpaces || !showL1Spaces}
+            />
+            <span>Spaces (L2) ({l2SpaceCount})</span>
           </label>
         </div>
       )}

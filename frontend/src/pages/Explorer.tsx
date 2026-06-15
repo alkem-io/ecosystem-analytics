@@ -58,6 +58,8 @@ export default function Explorer({ onLogout }: ExplorerProps) {
   const [showAdmins, setShowAdmins] = useState(true);
   const [showPublic, setShowPublic] = useState(true);
   const [showPrivate, setShowPrivate] = useState(true);
+  const [showL1Spaces, setShowL1Spaces] = useState(true);
+  const [showL2Spaces, setShowL2Spaces] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedNode, setSelectedNode] = useState<GraphNode | null>(null);
   const [hoveredNode, setHoveredNode] = useState<GraphNode | null>(null);
@@ -325,6 +327,10 @@ export default function Explorer({ onLogout }: ExplorerProps) {
             showPrivate={showPrivate}
             onTogglePublic={() => setShowPublic((p) => !p)}
             onTogglePrivate={() => setShowPrivate((p) => !p)}
+            showL1Spaces={showL1Spaces}
+            showL2Spaces={showL2Spaces}
+            onToggleL1Spaces={() => setShowL1Spaces((p) => !p)}
+            onToggleL2Spaces={() => setShowL2Spaces((p) => !p)}
             collapsed={controlPanelCollapsed}
             onToggleCollapse={() => setControlPanelCollapsed((c) => !c)}
             showMap={showMap}
@@ -373,6 +379,8 @@ export default function Explorer({ onLogout }: ExplorerProps) {
               showAdmins={showAdmins}
               showPublic={showPublic}
               showPrivate={showPrivate}
+              showL1Spaces={showL1Spaces}
+              showL2Spaces={showL2Spaces}
               searchQuery={searchQuery}
               onNodeClick={handleNodeClick}
               onNodeHover={handleNodeHover}
@@ -434,6 +442,8 @@ export default function Explorer({ onLogout }: ExplorerProps) {
                   showAdmins={showAdmins}
                   showPublic={showPublic}
                   showPrivate={showPrivate}
+                  showL1Spaces={showL1Spaces}
+                  showL2Spaces={showL2Spaces}
                 />
                 <div style={{
                   position: 'absolute', bottom: 0, left: 0, right: 0,
