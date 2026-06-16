@@ -1,12 +1,25 @@
 <!--
 Sync Impact Report
-- Version change: 1.0.0 → 3.1.0
-- Breaking change (2.0.0): Principle I redefined — auth moves from BFF-mediated SSO to frontend-direct popup
-- Breaking change (3.0.0): Principle I redefined again — auth moves to username/password via BFF Kratos API flow (non-interactive); Principle III tightened — frontend communicates exclusively with BFF (no direct Alkemio access)
-- Updated principles: I (Alkemio Identity Authentication), III (BFF Boundary)
+- Version change: 3.1.0 → 4.0.0
+- Breaking change (4.0.0): Principle I redefined — auth moves from username/password via BFF Kratos
+  API flow to redirect-based Alkemio OIDC (Authorization Code + PKCE) with EA as its own registered
+  OAuth2 client; tokens move entirely server-side (encrypted at rest), browser holds only an opaque
+  session-id cookie. Principle III updated (BFF orchestrates OIDC, not Kratos password exchange).
+  Principle IV expanded (token encryption at rest, shared server-side session store).
+- Updated principles: I (Alkemio Identity Authentication → Alkemio OIDC Authentication),
+  III (BFF Boundary), IV (Data Sensitivity)
 - Updated sections: Security Requirements
-- Rationale: Popup/SSO approach infeasible without Kratos tokenization infrastructure; username/password via Kratos API flow works today and matches analytics-playground pattern
-- Minor change (3.1.0): Principle I .env policy expanded to allow third-party service API keys (e.g., OpenAI)
+- Rationale: Alkemio retired the Kratos password API in favor of OIDC (Ory Hydra); EA is registered
+  as the `ecosystem-analytics` OAuth2 client. The old flow no longer functions against production.
+  The redirect-based own-client model also enables local-against-production development (a `*.alkem.io`
+  cookie cannot reach localhost) and removes the present exposure of a real token in browser storage.
+  See specs/015-oidc-auth/ (spec.md, plan.md).
+- Earlier history (2.0.0): Principle I — auth moved from BFF-mediated SSO to frontend-direct popup.
+  (3.0.0): Principle I — auth moved to username/password via BFF Kratos API flow; Principle III tightened.
+  (3.1.0): Principle I .env policy expanded to allow third-party service API keys (e.g., OpenAI).
+- Templates: ✅ .specify/templates/plan-template.md (generic Constitution Check, no change needed)
+  ✅ .specify/templates/spec-template.md (no principle-specific text) ✅ .specify/templates/tasks-template.md
+  (no principle-specific text)
 - Follow-up TODOs: none
 -->
 
@@ -14,15 +27,30 @@ Sync Impact Report
 
 ## Core Principles
 
-### I. Alkemio Identity Authentication (Kratos API Flow)
+### I. Alkemio OIDC Authentication (Authorization Code + PKCE via BFF)
 
-- Users authenticate with their **Alkemio credentials** (email and password) via a login form in the frontend.
-- Credentials are sent to the BFF (`POST /api/auth/login`), which authenticates against Alkemio's Kratos identity service using the non-interactive API flow (`/self-service/login/api`).
-- The BFF returns the Kratos `session_token` to the frontend. The frontend holds this token in memory and sends it as `Authorization: Bearer` with every BFF request.
-- The BFF forwards the token to the Alkemio GraphQL API.
-- User credentials MUST NOT be stored or logged by any component — they are used only for the initial Kratos authentication exchange.
-- Credentials MUST NOT be supplied via `.env` files, config files, or environment variables — `.env` is only for server deployment parameters (Alkemio URLs, port, cache TTL) and third-party service API keys (e.g., OpenAI).
-- Session tokens MUST be held in frontend memory only and MUST NOT be persisted to any storage mechanism.
+- Users authenticate through **Alkemio's hosted OIDC login** (Ory Hydra), not an in-application
+  credential form. Ecosystem Analytics is registered as its own OAuth2/OIDC client
+  (`ecosystem-analytics`) and runs the redirect-based **Authorization Code + PKCE (S256)** flow.
+- The BFF orchestrates the entire flow server-side: it builds the authorization redirect (generating
+  `state`, `nonce`, and a PKCE `code_verifier`), handles the callback, exchanges the code at the token
+  endpoint, validates the ID token, and establishes EA's **own** server-side session. EA MUST NOT
+  collect Alkemio usernames or passwords, and MUST NOT render any method-specific sign-in UI
+  (including social-provider buttons) — method selection happens entirely on Alkemio's page.
+- EA authorizes Alkemio GraphQL calls with the access token Alkemio issues to the EA client (sent as
+  `Authorization: Bearer` from the BFF to the Alkemio API), refreshing it transparently via the
+  refresh-token grant while the grant remains valid. EA MUST NOT depend on inheriting Alkemio's
+  `*.alkem.io` browser session cookie.
+- All tokens (access, refresh) and the client secret MUST live only on the backend. The browser MUST
+  receive only an opaque, deployment-scoped session-id cookie — never a token, refresh grant, or
+  client secret. Tokens MUST NOT be persisted in any browser storage.
+- The flow MUST work identically in two deployments, differing only by configuration: hosted at
+  `ecosystem-analytics.alkem.io` (confidential client) and local-against-production (a separate public
+  PKCE client, so the production secret never lands on a developer machine).
+- Credentials and secrets MUST NOT be stored or logged by any component. `.env` is only for server
+  deployment parameters (Alkemio/OIDC URLs, client id, port, cache TTL, session encryption key) and
+  third-party service API keys (e.g., OpenAI); the confidential client secret is supplied to the
+  hosted backend by secret management, never to a developer machine.
 
 ### II. Typed GraphQL Contract
 
@@ -35,14 +63,18 @@ Sync Impact Report
 ### III. BFF Boundary
 
 - The React frontend MUST communicate **exclusively** with the BFF server — never directly with the Alkemio platform (not for authentication, not for GraphQL, not for any other purpose).
-- The BFF handles: (a) user authentication via Kratos API flow, (b) forwarding the session token to the Alkemio GraphQL API, (c) per-user per-Space caching, (d) static asset serving in production.
+- The BFF handles: (a) the redirect-based OIDC flow as the registered `ecosystem-analytics` client (authorization redirect, callback, token exchange, transparent refresh, revocation on sign-out), (b) authorizing Alkemio GraphQL API calls with the EA-issued access token, (c) per-user per-Space caching, (d) static asset serving in production.
 - This boundary keeps all Alkemio interactions server-side, avoids CORS issues, and centralises caching and access control.
 
 ### IV. Data Sensitivity
 
 - All Alkemio-derived data (graph datasets, user profiles, organisation profiles, community roles) MUST be treated as sensitive user data.
 - Cache entries MUST be scoped per-user and per-Space; data MUST NOT leak across users.
-- Bearer tokens, session cookies, and Kratos session tokens MUST NOT be logged at any level (including debug).
+- OIDC access/refresh tokens, the client secret, session identifiers, cookie values, and the
+  `code_verifier`/`state`/`nonce` MUST NOT be logged at any level (including debug).
+- OIDC access and refresh tokens MUST be persisted only server-side, **encrypted at rest**, keyed by
+  an opaque session id, in a shared store (not per-process), so the hosted deployment can run multiple
+  backend replicas without losing sessions. The browser holds only the opaque session-id reference.
 - SQL queries MUST use parameterised statements; no string interpolation of user-supplied values.
 - Cache access-control MUST be verified at read time — stale caches MUST NOT re-introduce unauthorised data.
 
@@ -61,13 +93,27 @@ Sync Impact Report
 
 ## Security Requirements
 
-- No user credentials in `.env` — only server deployment parameters (Alkemio URLs, Kratos URL, port, cache TTL) and third-party service API keys (e.g., OpenAI).
-- User credentials (email/password) MUST NOT be stored or logged by any component — used only for the initial Kratos authentication exchange.
-- The BFF MUST validate that every protected request carries a bearer token before forwarding to the Alkemio GraphQL API.
+- No user credentials in `.env` — only server deployment parameters (Alkemio/OIDC URLs, OIDC client
+  id, port, cache TTL, session encryption key) and third-party service API keys (e.g., OpenAI). The
+  confidential client secret is provided to the hosted backend via secret management only.
+- EA MUST NOT collect, store, or log Alkemio usernames or passwords; all credential entry happens on
+  Alkemio's hosted login page.
+- The BFF MUST resolve a valid server-side session for every protected request before authorizing the
+  Alkemio GraphQL API call; a missing, expired, or unrefreshable session results in 401 and a clean
+  redirect back through the Alkemio login.
+- The OIDC callback MUST be validated against forgery and replay: one-time pre-auth state, timing-safe
+  `state` comparison, `nonce` validation, and an allow-list check on the post-login return
+  destination (no open redirect).
 - All SQL uses parameterised queries via better-sqlite3 prepared statements.
-- Cache entries are keyed by `(user_id, space_id)` — every read verifies the requesting user matches the cache owner. The user ID is resolved by calling Alkemio's `me` query with the session token.
+- Cache entries are keyed by `(user_id, space_id)` — every read verifies the requesting session's
+  user matches the cache owner. The user id is the stable Alkemio identity (`alkemio_actor_id` claim)
+  carried on the session.
 - The `max_spaces_per_query` limit MUST be enforced server-side to prevent excessive resource consumption.
-- Session tokens are Kratos-issued; the BFF does not mint its own tokens. Token expiry is handled by the frontend (re-prompt login on 401).
+- Tokens are Alkemio/Hydra-issued; the BFF does not mint its own tokens, but it does mint its own
+  opaque EA session id. Access tokens are refreshed transparently server-side; session validity is
+  bounded by the refresh-grant lifetime plus a configurable idle timeout (default 8 hours). On
+  explicit sign-out the BFF MUST revoke its access and refresh tokens at Alkemio's revocation endpoint
+  and delete the session record.
 
 ## Development Workflow
 
@@ -89,4 +135,4 @@ Sync Impact Report
   3. An updated Sync Impact Report (HTML comment at top of this file).
 - The feature spec (`specs/001-ecosystem-analytics/spec.md`) contains the detailed functional, non-functional, and technical requirements. This constitution captures the overarching principles that govern how those requirements are implemented.
 
-**Version**: 3.1.0 | **Ratified**: 2026-02-21 | **Last Amended**: 2026-03-09
+**Version**: 4.0.0 | **Ratified**: 2026-02-21 | **Last Amended**: 2026-06-16

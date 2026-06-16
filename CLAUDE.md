@@ -114,6 +114,8 @@ Feature specifications live in `specs/NNN-feature-name/` with `spec.md`, `tasks.
 - TypeScript 5.x (strict mode, ESM) + React 19, Vite 7, Express 5, `@alkemio/client-lib`, `graphql-request`, D3.js v7 (010-sso-session-reuse)
 - SQLite (existing cache, no changes needed) (010-sso-session-reuse)
 - TypeScript 5.x (strict mode, ESM) + React 19, Vite 7, Express 5, D3.js v7, graphql-request, @graphql-codegen/cli (011-subspace-privacy-check)
+- TypeScript 5.x (strict mode, ESM), Node 24 + Express 5, `openid-client` v6 (OIDC RP: discovery, PKCE, code exchange, refresh, revocation), `cookie-parser` (session-id + pre-auth cookies), Node built-in `crypto` (AES-256-GCM token encryption at rest), `better-sqlite3` (existing), `graphql-request` + codegen SDK (existing); frontend React 19 + Vite 7 + react-router 7 (existing) (015-oidc-auth)
+- Existing SQLite (`better-sqlite3`, WAL). Two new tables — `oidc_sessions` (encrypted access/refresh tokens + identity + timestamps, keyed by opaque session id) and `oidc_auth_tx` (pre-auth `state`/`nonce`/`code_verifier`/`returnTo`, short TTL). No change to `cache_entries`/`query_feedback` schemas; cache scoping key (`user_id`) now sourced from the session record. (015-oidc-auth)
 
 ## Recent Changes
 - 005-k8s-deploy-cicd: Added YAML (GitHub Actions, Kubernetes manifests), HCL (Terraform), existing TypeScript/Node 20 app unchanged + GitHub Actions (`docker/build-push-action@v6`, `docker/metadata-action@v5`, `docker/login-action@v3`, `azure/k8s-set-context@v4`), Traefik CRDs (`traefik.containo.us/v1alpha1`), Azure DNS (`azurerm` Terraform provider)
