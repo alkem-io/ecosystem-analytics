@@ -1,11 +1,19 @@
 import { useMemo } from 'react';
+import { geoContains } from 'd3-geo';
 import type { GraphDataset } from '@server/types/graph.js';
 import type { ActivityPeriod } from '@server/types/graph.js';
 import type { MapRegion } from '../map/MapOverlay.js';
 import type { ViewMode, HierarchySizeMetric, ChordMode } from '../../types/views.js';
+import { useRegionGeoJson } from '../../hooks/useRegionGeoJson.js';
 import FilterControls from './FilterControls.js';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import styles from './ControlPanel.module.css';
+
+const REGION_LABELS: Record<MapRegion, string> = {
+  world: 'World',
+  europe: 'Europe',
+  netherlands: 'Netherlands',
+};
 
 interface Props {
   dataset: GraphDataset;
@@ -43,6 +51,9 @@ interface Props {
   onToggleL2Spaces?: () => void;
   directConnectionsOnly?: boolean;
   onToggleDirectConnections?: () => void;
+  /** Global node-size multiplier and its setter (force graph only) */
+  nodeSizeScale?: number;
+  onNodeSizeScaleChange?: (value: number) => void;
   /** 009: Active view mode for conditional controls */
   activeView?: ViewMode;
   /** 009: Hierarchy sizing metric for treemap/sunburst */
@@ -101,6 +112,8 @@ export default function ControlPanel({
   onToggleL2Spaces,
   directConnectionsOnly = false,
   onToggleDirectConnections,
+  nodeSizeScale = 1,
+  onNodeSizeScaleChange,
   activeView,
   sizeMetric,
   onSizeMetricChange,
@@ -128,6 +141,30 @@ export default function ControlPanel({
   const isForceView = !activeView || activeView === 'force-graph' || activeView === 'temporal-force';
   /** Whether the active view uses activity period for sizing/display */
   const usesActivityPeriod = isForceView || activeView === 'treemap' || activeView === 'sunburst';
+
+  // Geographic breakdown for the map overlay: of the nodes with location data,
+  // how many fall inside the selected region (and therefore plot on the map)
+  // versus outside it. Mirrors ForceGraph's own filter (lat/lon present +
+  // geoContains region), so the counts explain exactly what the map shows.
+  const regionGeo = useRegionGeoJson(mapRegion, showMap && isForceView);
+  const mapStats = useMemo(() => {
+    let withLocation = 0;
+    let inRegion = 0;
+    for (const n of dataset.nodes) {
+      const lat = n.location?.latitude;
+      const lon = n.location?.longitude;
+      if (lat == null || lon == null) continue;
+      withLocation++;
+      if (regionGeo && geoContains(regionGeo, [lon, lat])) inRegion++;
+    }
+    return {
+      withLocation,
+      withoutLocation: dataset.nodes.length - withLocation,
+      inRegion,
+      outsideRegion: withLocation - inRegion,
+      regionKnown: regionGeo != null,
+    };
+  }, [dataset.nodes, regionGeo]);
 
   return (
     <div className={`${styles.panel} ${collapsed ? styles.panelCollapsed : ''}`}>
@@ -205,6 +242,23 @@ export default function ControlPanel({
           <p className={styles.sectionHint}>
             Hide redundant parent-space edges when a person is also connected to a child space
           </p>
+          {onNodeSizeScaleChange && (
+            <div className={styles.sliderRow}>
+              <div className={styles.sliderLabel}>
+                <span>Node size</span>
+                <span className={styles.sliderValue}>{nodeSizeScale.toFixed(2)}×</span>
+              </div>
+              <input
+                type="range"
+                min={0.5}
+                max={2.5}
+                step={0.25}
+                value={nodeSizeScale}
+                onChange={(e) => onNodeSizeScaleChange(Number(e.target.value))}
+                aria-label="Node size"
+              />
+            </div>
+          )}
         </div>
       )}
 
@@ -277,10 +331,26 @@ export default function ControlPanel({
                 Nodes with location data snap to geographic position
               </p>
               <p className={styles.mapStats}>
-                {dataset.nodes.filter((n) => n.location?.latitude != null && n.location?.longitude != null).length} with location
-                {' / '}
-                {dataset.nodes.filter((n) => !n.location?.latitude || !n.location?.longitude).length} without
+                {mapStats.regionKnown ? (
+                  <>
+                    <strong>{mapStats.inRegion}</strong> shown in {REGION_LABELS[mapRegion]}
+                  </>
+                ) : (
+                  <>
+                    <strong>{mapStats.withLocation}</strong> with location
+                  </>
+                )}
               </p>
+              {mapStats.regionKnown && (mapStats.outsideRegion > 0 || mapStats.withoutLocation > 0) && (
+                <p className={styles.mapStatsMuted}>
+                  Not shown:
+                  {mapStats.outsideRegion > 0 && (
+                    <> {mapStats.outsideRegion} outside {REGION_LABELS[mapRegion]}</>
+                  )}
+                  {mapStats.outsideRegion > 0 && mapStats.withoutLocation > 0 && <>,</>}
+                  {mapStats.withoutLocation > 0 && <> {mapStats.withoutLocation} without location</>}
+                </p>
+              )}
             </>
           )}
         </div>
