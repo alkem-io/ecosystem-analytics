@@ -1,36 +1,18 @@
 import { Request, Response } from 'express';
-import { createAlkemioSdk } from '../graphql/client.js';
-import type { UserProfile } from '../types/api.js';
 
 /**
- * GET /api/auth/me
- * Queries Alkemio's `me` endpoint using the forwarded bearer token
- * and returns the authenticated user's profile.
+ * GET /api/auth/me — returns the current signed-in identity straight from the
+ * server-side session (FR-011). Never echoes tokens. Session-protected: runs
+ * behind {@link authMiddleware}, so `req.auth` is present here.
  */
-export async function meHandler(req: Request, res: Response) {
-  if (!req.auth?.bearerToken) {
+export function meHandler(req: Request, res: Response): void {
+  if (!req.auth) {
     res.status(401).json({ error: 'UNAUTHORIZED', message: 'Not authenticated' });
     return;
   }
-
-  try {
-    const sdk = createAlkemioSdk(req.auth);
-    const { data } = await sdk.me();
-    const user = data.me.user;
-
-    if (!user) {
-      res.status(401).json({ error: 'UNAUTHORIZED', message: 'Unable to resolve user identity' });
-      return;
-    }
-
-    const profile: UserProfile = {
-      id: user.id,
-      displayName: user.profile?.displayName ?? 'Unknown',
-      avatarUrl: null,
-    };
-
-    res.json(profile);
-  } catch {
-    res.status(401).json({ error: 'UNAUTHORIZED', message: 'Invalid or expired token' });
-  }
+  res.json({
+    userId: req.auth.userId,
+    displayName: req.auth.displayName ?? 'Unknown',
+    avatarUrl: req.auth.session.avatarUrl,
+  });
 }

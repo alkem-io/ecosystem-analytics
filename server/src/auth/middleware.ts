@@ -1,22 +1,30 @@
 import { Request, Response, NextFunction } from 'express';
+import type { SessionRecord } from '../cache/session-store.js';
+import {
+  resolveSession,
+  touchSession,
+  destroySession,
+  SESSION_COOKIE,
+  clearCookieOptions,
+} from './session.js';
 
-/** Auth mode: bearer token (manual login) or cookie (SSO session) */
-export type AuthMode = 'bearer' | 'cookie';
-
-/** Auth context attached to each authenticated request */
+/**
+ * Auth context attached to each authenticated request. Identity is sourced from
+ * EA's own server-side session (the browser only holds an opaque cookie); no
+ * token ever reaches the client.
+ */
 export interface AuthContext {
-  /** How the user authenticated */
-  mode: AuthMode;
-  /** The raw Alkemio-issued bearer token, forwarded to the GraphQL API */
-  bearerToken: string;
-  /** User ID resolved via Alkemio /me query (populated by resolveUser middleware) */
-  userId?: string;
-  /** Display name resolved via Alkemio /me query */
-  userDisplayName?: string;
+  /** The validated server-side session row (holds encrypted tokens). */
+  session: SessionRecord;
+  /** Stable Alkemio identity (`alkemio_actor_id`) — the cache scoping key. */
+  userId: string;
+  /** Display name for personalization (FR-011). */
+  displayName?: string;
 }
 
 /** Extend Express Request with auth context */
 declare global {
+  // eslint-disable-next-line @typescript-eslint/no-namespace
   namespace Express {
     interface Request {
       auth?: AuthContext;
@@ -25,35 +33,41 @@ declare global {
 }
 
 /**
- * Auth middleware — extracts the Alkemio-issued bearer token from the
- * Authorization header and attaches it to req.auth. The BFF does NOT
- * validate or decode the token; Alkemio's GraphQL API does that.
+ * Resolve the session from the `ea_session` cookie (was `Authorization: Bearer`).
+ * A missing/expired/idle session yields `401`; the stale cookie is cleared so the
+ * SPA routes cleanly to sign-in (FR-009). Activity refreshes `last_seen_at`,
+ * feeding the idle timeout (FR-009a).
  */
-/**
- * SSO cookie tokens are prefixed with this marker so the BFF can distinguish
- * them from regular Kratos session tokens and use cookie-based auth against
- * the interactive GraphQL endpoint.
- */
-export const SSO_COOKIE_PREFIX = 'sso-cookie:';
-
-export function authMiddleware(req: Request, res: Response, next: NextFunction) {
-  const authHeader = req.headers.authorization;
-
-  if (!authHeader || !authHeader.startsWith('Bearer ')) {
-    res.status(401).json({ error: 'UNAUTHORIZED', message: 'Missing or invalid authorization header' });
+export function authMiddleware(req: Request, res: Response, next: NextFunction): void {
+  const sessionId = req.cookies?.[SESSION_COOKIE];
+  if (!sessionId || typeof sessionId !== 'string') {
+    res.status(401).json({ error: 'UNAUTHORIZED', message: 'Not authenticated' });
     return;
   }
 
-  const bearerToken = authHeader.slice(7);
-  if (!bearerToken) {
-    res.status(401).json({ error: 'UNAUTHORIZED', message: 'Empty bearer token' });
+  const session = resolveSession(sessionId);
+  if (!session) {
+    res.clearCookie(SESSION_COOKIE, clearCookieOptions());
+    res.status(401).json({ error: 'UNAUTHORIZED', message: 'Session expired or invalid' });
     return;
   }
 
-  if (bearerToken.startsWith(SSO_COOKIE_PREFIX)) {
-    req.auth = { mode: 'cookie', bearerToken: bearerToken.slice(SSO_COOKIE_PREFIX.length) };
-  } else {
-    req.auth = { mode: 'bearer', bearerToken };
-  }
+  touchSession(session.sessionId);
+  req.auth = {
+    session,
+    userId: session.userId,
+    displayName: session.displayName ?? undefined,
+  };
   next();
+}
+
+/**
+ * Invalidate the current session and respond `401` — used when an upstream
+ * Alkemio call rejects auth in a way a refresh cannot fix (FR-009). Deletes the
+ * server-side record, clears the cookie, and tells the SPA to re-authenticate.
+ */
+export function invalidateAndReject(req: Request, res: Response): void {
+  if (req.auth?.session) destroySession(req.auth.session.sessionId);
+  res.clearCookie(SESSION_COOKIE, clearCookieOptions());
+  res.status(401).json({ error: 'UNAUTHORIZED', message: 'Session expired' });
 }

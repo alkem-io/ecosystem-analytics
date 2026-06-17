@@ -1,24 +1,20 @@
-import { getToken, clearToken } from './auth.js';
 import { api } from './api.js';
 import type { StreamEvent, SessionResponse } from '../types/query.js';
 
 const API_BASE = import.meta.env.VITE_API_URL || '';
 
 /**
- * POST /api/query/ask — streams  SSE events as an async iterable.
+ * POST /api/query/ask — streams SSE events as an async iterable.
+ * Authenticates via the httpOnly `ea_session` cookie (`credentials: 'include'`).
  */
 export async function* askQuery(
   query: string,
   sessionId?: string,
 ): AsyncGenerator<StreamEvent> {
-  const token = getToken();
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
     Accept: 'text/event-stream',
   };
-  if (token) {
-    headers['Authorization'] = `Bearer ${token}`;
-  }
 
   const body = JSON.stringify({ query, sessionId });
 
@@ -26,11 +22,12 @@ export async function* askQuery(
     method: 'POST',
     headers,
     body,
+    credentials: 'include',
   });
 
   if (response.status === 401) {
-    clearToken();
-    window.location.href = '/';
+    const returnTo = window.location.pathname + window.location.search;
+    window.location.href = `/api/auth/login?returnTo=${encodeURIComponent(returnTo)}`;
     throw new Error('Session expired');
   }
 

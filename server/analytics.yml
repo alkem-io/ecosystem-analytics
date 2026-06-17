@@ -3,8 +3,30 @@
 
 alkemio:
   server_url: ${ALKEMIO_SERVER_URL}:https://alkem.io
-  graphql_endpoint: ${ALKEMIO_GRAPHQL_ENDPOINT}:https://alkem.io/api/private/non-interactive/graphql
+  graphql_endpoint: ${ALKEMIO_GRAPHQL_ENDPOINT}:https://alkem.io/api/private/graphql
   kratos_public_url: ${ALKEMIO_KRATOS_PUBLIC_URL}
+
+# OIDC Relying Party — EA is its own Alkemio OAuth2/OIDC client (Ory Hydra).
+# Two registrations: hosted `ecosystem-analytics` = confidential (client_secret_basic,
+# secret backend-only); local `ecosystem-analytics-local` = public (none, PKCE-only,
+# no secret). Defaults below are the hosted client; local overrides via env. FR-006/FR-019.
+oidc:
+  issuer: ${OIDC_ISSUER}:https://identity.alkem.io/
+  client_id: ${OIDC_CLIENT_ID}:ecosystem-analytics
+  client_secret: "${OIDC_CLIENT_SECRET}:" # hosted: from k8s secret; local: EMPTY (public)
+  token_endpoint_auth_method: ${OIDC_TOKEN_AUTH_METHOD}:client_secret_basic # "none" for local public client
+  redirect_uri: ${OIDC_REDIRECT_URI}:https://ecosystem-analytics.alkem.io/api/auth/oidc/callback
+  scopes: ${OIDC_SCOPES}:openid profile email offline_access alkemio
+  audience: "${OIDC_AUDIENCE}:" # optional explicit audience if Hydra requires it
+  preauth_ttl_minutes: ${OIDC_PREAUTH_TTL_MINUTES}:10
+
+# EA's own server-side session. Browser holds only an opaque httpOnly cookie;
+# access/refresh tokens are encrypted at rest in SQLite (FR-018/FR-018a).
+session:
+  cookie_domain: "${SESSION_COOKIE_DOMAIN}:" # e.g. .alkem.io hosted; empty (host-only) local
+  idle_timeout_hours: ${SESSION_IDLE_TIMEOUT_HOURS}:8
+  enc_key: "${OIDC_SESSION_ENC_KEY}:" # REQUIRED: base64 32-byte AES-256 key
+  allowed_origins: "${SESSION_ALLOWED_ORIGINS}:http://localhost:5173" # CSV; CORS allow-list
 
 server:
   port: ${ECOSYSTEM_ANALYTICS_BACKEND_PORT}:4000
