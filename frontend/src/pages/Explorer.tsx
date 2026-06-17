@@ -65,13 +65,14 @@ export default function Explorer({ onLogout }: ExplorerProps) {
   const [hoveredNode, setHoveredNode] = useState<GraphNode | null>(null);
   const [hoverPos, setHoverPos] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
   const [highlightedNodeIds, setHighlightedNodeIds] = useState<string[]>(EMPTY_IDS);
-  const [mapRegion, setMapRegion] = useState<MapRegion>('europe');
+  const [mapRegion, setMapRegion] = useState<MapRegion>('netherlands');
   const [showMap, setShowMap] = useState(false);
   const [queryOverlayOpen, setQueryOverlayOpen] = useState(false);
   const [activityPulseEnabled, setActivityPulseEnabled] = useState(false);
   const [spaceActivityEnabled, setSpaceActivityEnabled] = useState(false);
   const [activityPeriod, setActivityPeriod] = useState<ActivityPeriod>('allTime');
   const [directConnectionsOnly, setDirectConnectionsOnly] = useState(false);
+  const [nodeSizeScale, setNodeSizeScale] = useState(1);
   const canvasRef = useRef<HTMLDivElement>(null);
   const [canvasSize, setCanvasSize] = useState({ width: 0, height: 0 });
   const [controlPanelCollapsed, setControlPanelCollapsed] = useState(false);
@@ -355,6 +356,8 @@ export default function Explorer({ onLogout }: ExplorerProps) {
             onActivityPeriodChange={setActivityPeriod}
             directConnectionsOnly={directConnectionsOnly}
             onToggleDirectConnections={() => setDirectConnectionsOnly((d) => !d)}
+            nodeSizeScale={nodeSizeScale}
+            onNodeSizeScaleChange={setNodeSizeScale}
             activeView={viewState.state.activeView}
             sizeMetric={viewState.state.sizeMetric}
             onSizeMetricChange={viewState.setSizeMetric}
@@ -400,6 +403,7 @@ export default function Explorer({ onLogout }: ExplorerProps) {
               spaceActivityEnabled={spaceActivityEnabled}
               activityPeriod={activityPeriod}
               directConnectionsOnly={directConnectionsOnly}
+              nodeSizeScale={nodeSizeScale}
             />
           )}
           {dataset && viewState.state.activeView === 'temporal-force' && (() => {

@@ -136,6 +136,8 @@ interface Props {
   showL2Spaces?: boolean;
   /** When true, prune redundant ancestor edges — keep only the deepest space connection per user */
   directConnectionsOnly?: boolean;
+  /** Global multiplier applied to all node radii (default 1). Driven by the "Node size" control. */
+  nodeSizeScale?: number;
 }
 
 interface SimNode extends d3.SimulationNodeDatum {
@@ -154,6 +156,13 @@ const BASE_RADIUS: Record<string, number> = {
   ORGANIZATION: 7,
   USER: 8,
 };
+/**
+ * Global node-size multiplier driven by the "Node size" control. Kept at module
+ * scope so the size functions (nodeRadius/effectiveRadius) apply it without
+ * threading a parameter through ~20 call sites; the component syncs it from the
+ * `nodeSizeScale` prop at the start of each render.
+ */
+let _nodeSizeScale = 1;
 /** Max scale factor per category — L0 capped lower to avoid dominating */
 const MAX_DEGREE_SCALE: Record<string, number> = {
   space: 1.5,   // L0/L1/L2 grow modestly
@@ -187,7 +196,7 @@ function nodeRadius(d: { data: { type: string; weight: number; id: string } }): 
   // Logarithmic scaling relative to peers in same category
   const t = maxDeg > 1 ? Math.log(1 + degree) / Math.log(1 + maxDeg) : 0;
   const scale = 1 + t * (maxScale - 1);
-  return base * scale;
+  return base * scale * _nodeSizeScale;
 }
 
 /**
@@ -309,7 +318,7 @@ function effectiveRadius(
   }
   // Exponent 1.1 gives mild inverse zoom: screen = base * k^(-0.1)
   const mapMultiplier = 1 / Math.pow(Math.max(zoomScale, 0.1), 1.1);
-  return base * mapMultiplier;
+  return base * mapMultiplier * _nodeSizeScale;
 }
 
 export default function ForceGraph({
@@ -326,7 +335,7 @@ export default function ForceGraph({
   selectedNodeId,
   highlightedNodeIds = [],
   showMap = false,
-  mapRegion = 'europe',
+  mapRegion = 'netherlands',
   activityPulseEnabled = false,
   spaceActivityEnabled = false,
   activityPeriod = 'allTime',
@@ -335,6 +344,7 @@ export default function ForceGraph({
   showL1Spaces = true,
   showL2Spaces = true,
   directConnectionsOnly = false,
+  nodeSizeScale = 1,
 }: Props) {
   const svgRef = useRef<SVGSVGElement>(null);
   const simulationRef = useRef<d3.Simulation<SimNode, SimLink>>(null);
@@ -375,6 +385,8 @@ export default function ForceGraph({
   const [graphVersion, setGraphVersion] = useState(0);
 
   const renderGraph = useCallback(() => {
+    // Sync the global node-size multiplier before any radius is computed.
+    _nodeSizeScale = nodeSizeScale;
     const svg = d3.select(svgRef.current);
     if (!svgRef.current) return;
 
@@ -2100,7 +2112,7 @@ export default function ForceGraph({
     // Signal that a fresh graph is ready — visual-state effects will re-apply
     queueMicrotask(() => setGraphVersion((v) => v + 1));
 
-  }, [dataset, showPeople, showOrganizations, showSpaces, showMap, mapRegion, directConnectionsOnly]);
+  }, [dataset, showPeople, showOrganizations, showSpaces, showMap, mapRegion, directConnectionsOnly, nodeSizeScale]);
 
   // ---------- Role filter visibility (T013-T016) ----------
   // Show/hide user→space edges by role type without rebuilding the graph.
@@ -2152,13 +2164,18 @@ export default function ForceGraph({
       }
     });
 
-    // Hide orphaned user nodes (users with no visible role edges)
-    nodeSelection.each(function (d: any) {
-      const node = d.data;
-      if (node.type !== 'USER') return;
-      const visible = usersWithVisibleEdge.has(node.id);
-      d3.select(this).style('display', visible ? '' : 'none');
-    });
+    // Hide orphaned user nodes (users with no visible role edges).
+    // Skipped in map mode: geo filtering drops off-map nodes (e.g. spaces
+    // without coordinates), so a located user's only edges may be filtered out,
+    // which would wrongly orphan-hide it and empty the map.
+    if (!showMap) {
+      nodeSelection.each(function (d: any) {
+        const node = d.data;
+        if (node.type !== 'USER') return;
+        const visible = usersWithVisibleEdge.has(node.id);
+        d3.select(this).style('display', visible ? '' : 'none');
+      });
+    }
 
     // Update visibleEdgesRef for selection highlighting composition (T014)
     const visibleEdgeData: typeof dataset.edges = [];
@@ -2185,7 +2202,7 @@ export default function ForceGraph({
       el.style('animation-play-state', isHidden ? 'paused' : 'running');
     });
 
-  }, [showMembers, showLeads, showAdmins, graphVersion]);
+  }, [showMembers, showLeads, showAdmins, showMap, graphVersion]);
 
   // ---------- Visibility filter (T018-T019) ----------
   // Show/hide space nodes by privacyMode without rebuilding the graph.
@@ -2237,17 +2254,23 @@ export default function ForceGraph({
       if (tId) nodesWithVisibleEdge.add(tId);
     });
 
-    nodeSelection.each(function (d: any) {
-      const node = d.data as GraphNode;
-      // Only orphan-hide users and orgs; spaces are handled above
-      if (node.type !== 'USER' && node.type !== 'ORGANIZATION') return;
-      // If already hidden by another filter, skip
-      const el = d3.select(this);
-      if (el.style('display') === 'none') return;
-      if (!nodesWithVisibleEdge.has(node.id)) {
-        el.style('display', 'none');
-      }
-    });
+    // Orphan-hiding is skipped in map mode: geo mode intentionally filters out
+    // off-map nodes (e.g. spaces without coordinates), which legitimately leaves
+    // located users/orgs edge-less. Hiding them would empty the map (see geo
+    // node filter above).
+    if (!showMap) {
+      nodeSelection.each(function (d: any) {
+        const node = d.data as GraphNode;
+        // Only orphan-hide users and orgs; spaces are handled above
+        if (node.type !== 'USER' && node.type !== 'ORGANIZATION') return;
+        // If already hidden by another filter, skip
+        const el = d3.select(this);
+        if (el.style('display') === 'none') return;
+        if (!nodesWithVisibleEdge.has(node.id)) {
+          el.style('display', 'none');
+        }
+      });
+    }
 
     // Update visibleEdgesRef for selection highlighting composition
     const visibleEdgeData: typeof dataset.edges = [];
@@ -2267,7 +2290,7 @@ export default function ForceGraph({
       el.style('animation-play-state', isHidden ? 'paused' : 'running');
     });
 
-  }, [showPublic, showPrivate, showL1Spaces, showL2Spaces, graphVersion]);
+  }, [showPublic, showPrivate, showL1Spaces, showL2Spaces, showMap, graphVersion]);
 
   // ---------- Space Activity sizing + glow (T011/T012/T013) ----------
   // Scales space nodes by contribution volume on top of their degree-based radius.
