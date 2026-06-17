@@ -13,7 +13,7 @@ const SPACES_CACHE_KEY = '__spaces__';
  * Uses the codegen-generated mySpacesHierarchical query (TR-016).
  */
 export async function listUserSpaces(auth: AuthContext): Promise<SpaceSelectionItem[]> {
-  const sdk = createAlkemioSdk(auth);
+  const sdk = await createAlkemioSdk(auth);
 
   const { data } = await sdk.mySpacesHierarchical();
   const currentUserId = data.me.user?.id;

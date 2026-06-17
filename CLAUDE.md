@@ -10,24 +10,24 @@ Ecosystem Analytics is a BFF + React SPA for visualizing Alkemio ecosystem conne
 
 ```
 frontend/   React 19 + Vite 7 + D3.js v7 SPA (port 5173)
-server/     Express 5 BFF — Kratos auth, GraphQL relay, SQLite cache (port 4000)
+server/     Express 5 BFF — OIDC auth, GraphQL relay, SQLite cache (port 4000)
 ```
 
 - Frontend communicates **exclusively** with the BFF (never directly with Alkemio)
-- BFF authenticates via Kratos API flow, forwards session tokens to Alkemio GraphQL API
+- BFF is EA's own Alkemio OIDC client (Ory Hydra): it runs the redirect-based Authorization Code + PKCE flow, holds the access/refresh tokens server-side (encrypted), and authorizes Alkemio GraphQL calls with the access token. The browser holds only an opaque `ea_session` cookie.
 - Cache is SQLite, scoped per-user per-Space with configurable TTL
 - Frontend imports server types via path alias: `import type { ... } from '@server/types/graph.js'`
 - Both packages use ESM (`"type": "module"`) and TypeScript strict mode
 
 ### Key data flow
 
-1. **Auth**: Frontend sends credentials to BFF → BFF exchanges with Kratos → returns session_token → Frontend sends as `Authorization: Bearer` on all requests
+1. **Auth (OIDC redirect)**: Frontend `login()` → BFF `GET /api/auth/login` (stashes state/nonce/PKCE in a pre-auth record, sets `ea_preauth` cookie) → 302 to Alkemio/Hydra → user authenticates by any method → 302 back to BFF `GET /api/auth/oidc/callback` → BFF exchanges the code for tokens, validates the ID token (incl. `alkemio_actor_id`), creates a server-side session (tokens AES-256-GCM encrypted at rest), sets the opaque `httpOnly` `ea_session` cookie → 302 to the requested page. The browser never holds a token; the BFF refreshes the access token transparently and authorizes GraphQL calls with it.
 2. **Graph generation**: Frontend POST `/api/graph/generate` with spaceIds → BFF acquires space hierarchies (L0/L1/L2) + users/orgs/roles via GraphQL → transforms to nodes/edges → computes metrics/insights → caches in SQLite → returns `GraphDataset`
 3. **Visualization**: Frontend renders `GraphDataset` as D3 force-directed graph with clustering, filtering, search, and detail panels
 
 ### Server module layout (`server/src/`)
 
-- `auth/` — Kratos login, Bearer middleware, user resolution
+- `auth/` — OIDC RP under `auth/oidc/` (client discovery, login, callback, refresh, logout, token crypto); `session.ts` (server-side session create/resolve/touch + cookie options); `middleware.ts` (session-cookie auth); `me.ts`, `resolve-user.ts`
 - `graphql/` — Codegen SDK (`generated/`), client factory, `.graphql` queries/fragments
 - `services/` — Space fetching, data acquisition, graph orchestration
 - `transform/` — Nodes/edges transformation, metrics computation, insights detection
@@ -40,7 +40,7 @@ server/     Express 5 BFF — Kratos auth, GraphQL relay, SQLite cache (port 400
 - `components/graph/` — ForceGraph (D3 force simulation), HoverCard, clustering
 - `components/panels/` — ControlPanel, TopBar, DetailsDrawer, MetricsBar, FilterControls
 - `hooks/` — useSpaces, useGraph (data fetching + state)
-- `services/` — auth (token management), api (fetch wrapper)
+- `services/` — auth (`login()`/`logout()` redirects + `fetchMe()`; session is the `ea_session` cookie, no client-side token), api (fetch wrapper, `credentials: 'include'`)
 - `styles/` — CSS Modules + CSS custom properties (design tokens)
 
 ## Development Commands
@@ -84,13 +84,15 @@ Server config is in `server/analytics.yml` with `${ENV_VAR}:default` substitutio
 
 - `ALKEMIO_SERVER_URL` — Alkemio server base URL
 - `ALKEMIO_GRAPHQL_ENDPOINT` — Alkemio GraphQL endpoint
-- `ALKEMIO_KRATOS_PUBLIC_URL` — Kratos public API URL
+- `OIDC_ISSUER` / `OIDC_CLIENT_ID` / `OIDC_CLIENT_SECRET` / `OIDC_TOKEN_AUTH_METHOD` / `OIDC_REDIRECT_URI` — OIDC client (Ory Hydra). Hosted = confidential (`client_secret_basic`); local-against-production = public (`none`, no secret)
+- `OIDC_SESSION_ENC_KEY` — base64 32-byte AES-256 key for token-at-rest encryption (required)
+- `SESSION_COOKIE_DOMAIN` / `SESSION_ALLOWED_ORIGINS` / `SESSION_IDLE_TIMEOUT_HOURS` — session cookie scope, CORS allow-list, idle timeout
 
 ## Constitution (Binding Principles)
 
 The project constitution (`.specify/memory/constitution.md`) defines six mandatory principles:
 
-1. **Kratos API Flow auth** — username/password via BFF, no credentials in .env or storage
+1. **Alkemio OIDC auth (Authorization Code + PKCE via BFF)** — EA is its own registered OAuth2/OIDC client; tokens held server-side encrypted, browser holds only an opaque session cookie; no user credentials in .env or storage
 2. **Typed GraphQL contract** — all queries use codegen SDK; no raw query strings in service code; run `pnpm run codegen` after changing `.graphql` files
 3. **BFF boundary** — frontend talks only to BFF, never directly to Alkemio
 4. **Data sensitivity** — per-user per-Space cache scoping, no token logging, parameterized SQL

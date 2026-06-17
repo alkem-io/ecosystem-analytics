@@ -1,7 +1,8 @@
 import { Router, Request, Response } from 'express';
-import { authMiddleware } from '../auth/middleware.js';
+import { authMiddleware, invalidateAndReject } from '../auth/middleware.js';
 import { resolveUser } from '../auth/resolve-user.js';
 import { listUserSpaces, listUserSpacesCached, findRelatedSpaces } from '../services/space-service.js';
+import { isAlkemioAuthError } from '../graphql/client.js';
 import { getLogger } from '../logging/logger.js';
 
 const logger = getLogger();
@@ -19,6 +20,10 @@ spacesRouter.get('/', async (req: Request, res: Response) => {
       : await listUserSpacesCached(req.auth!.userId!, req.auth!);
     res.json(spaces);
   } catch (err) {
+    if (isAlkemioAuthError(err)) {
+      invalidateAndReject(req, res);
+      return;
+    }
     logger.error(`Failed to list spaces: ${(err as Error).message}`, { context: 'Spaces' });
     res.status(502).json({ error: 'UPSTREAM_ERROR', message: 'Failed to fetch spaces from Alkemio' });
   }
@@ -33,6 +38,10 @@ spacesRouter.get('/:entityId/related', async (req: Request, res: Response) => {
     const related = await findRelatedSpaces(req.auth!, entityId, currentSpaceIds);
     res.json(related);
   } catch (err) {
+    if (isAlkemioAuthError(err)) {
+      invalidateAndReject(req, res);
+      return;
+    }
     logger.error(`Failed to find related spaces: ${(err as Error).message}`, { context: 'Spaces' });
     res.status(502).json({ error: 'UPSTREAM_ERROR', message: 'Failed to find related spaces' });
   }

@@ -31,6 +31,33 @@ export interface FeaturesConfig {
   aiQueryEnabled: boolean;
 }
 
+/** OIDC Relying Party configuration (EA as its own Alkemio/Hydra client). */
+export interface OidcConfig {
+  issuer: string;
+  clientId: string;
+  /** Empty string for a public (PKCE-only) client. */
+  clientSecret: string;
+  tokenEndpointAuthMethod: 'client_secret_basic' | 'client_secret_post' | 'none';
+  redirectUri: string;
+  /** Space-delimited scope string, e.g. "openid profile email offline_access alkemio". */
+  scopes: string;
+  /** Empty string when no explicit audience is required. */
+  audience: string;
+  /** Lifetime of a pre-auth (state/nonce/PKCE) record before it is rejected/purged. */
+  preauthTtlMinutes: number;
+}
+
+/** EA server-side session configuration. */
+export interface SessionConfig {
+  /** Empty => host-only cookie (localhost); e.g. ".alkem.io" hosted. */
+  cookieDomain: string;
+  idleTimeoutHours: number;
+  /** Decoded 32-byte AES-256-GCM key (never logged). */
+  encKey: Buffer;
+  /** CORS allow-list of trusted browser origins. */
+  allowedOrigins: string[];
+}
+
 export interface ServerConfig {
   alkemioServerUrl: string;
   alkemioGraphqlEndpoint: string;
@@ -42,6 +69,8 @@ export interface ServerConfig {
   openai: OpenAIConfig;
   query: QueryConfig;
   features: FeaturesConfig;
+  oidc: OidcConfig;
+  session: SessionConfig;
 }
 
 /** Resolve the YAML config file path (check env override, cwd, then relative to dist) */
@@ -111,7 +140,26 @@ export function loadConfig(): ServerConfig {
     openai: { api_key: string; base_url: string; model: string; max_tokens: number; temperature: number };
     query: { session_ttl_minutes: number; max_query_length: number; max_feedback_length: number };
     features: { ai_query_enabled: boolean };
+    oidc: {
+      issuer: string;
+      client_id: string;
+      client_secret: string;
+      token_endpoint_auth_method: string;
+      redirect_uri: string;
+      scopes: string;
+      audience: string;
+      preauth_ttl_minutes: number;
+    };
+    session: {
+      cookie_domain: string;
+      idle_timeout_hours: number;
+      enc_key: string;
+      allowed_origins: string;
+    };
   };
+
+  const oidc = parseOidcConfig(yml.oidc);
+  const session = parseSessionConfig(yml.session);
 
   cachedConfig = {
     alkemioServerUrl: String(yml.alkemio.server_url),
@@ -140,7 +188,92 @@ export function loadConfig(): ServerConfig {
     features: {
       aiQueryEnabled: yml.features.ai_query_enabled,
     },
+    oidc,
+    session,
   };
 
   return cachedConfig;
+}
+
+/** Parse + validate the OIDC block, failing fast on misconfiguration (FR-018/FR-019). */
+function parseOidcConfig(raw: {
+  issuer: string;
+  client_id: string;
+  client_secret: string;
+  token_endpoint_auth_method: string;
+  redirect_uri: string;
+  scopes: string;
+  audience: string;
+  preauth_ttl_minutes: number;
+}): OidcConfig {
+  const authMethod = String(raw.token_endpoint_auth_method || 'client_secret_basic');
+  if (!['client_secret_basic', 'client_secret_post', 'none'].includes(authMethod)) {
+    throw new Error(
+      `Invalid oidc.token_endpoint_auth_method '${authMethod}'. ` +
+        `Expected 'client_secret_basic', 'client_secret_post', or 'none'.`,
+    );
+  }
+
+  const clientSecret = raw.client_secret ? String(raw.client_secret) : '';
+  // Confidential clients MUST have a secret; public (PKCE-only) clients MUST NOT need one (FR-019).
+  if (authMethod !== 'none' && !clientSecret) {
+    throw new Error(
+      `OIDC client_secret is required when token_endpoint_auth_method='${authMethod}'. ` +
+        `Set OIDC_CLIENT_SECRET for the hosted confidential client, or use ` +
+        `OIDC_TOKEN_AUTH_METHOD=none for the local public client (FR-019).`,
+    );
+  }
+
+  const issuer = String(raw.issuer || '');
+  if (!issuer) throw new Error('OIDC_ISSUER is required.');
+  const clientId = String(raw.client_id || '');
+  if (!clientId) throw new Error('OIDC_CLIENT_ID is required.');
+  const redirectUri = String(raw.redirect_uri || '');
+  if (!redirectUri) throw new Error('OIDC_REDIRECT_URI is required.');
+
+  return {
+    issuer,
+    clientId,
+    clientSecret,
+    tokenEndpointAuthMethod: authMethod as OidcConfig['tokenEndpointAuthMethod'],
+    redirectUri,
+    scopes: String(raw.scopes || 'openid profile email offline_access alkemio'),
+    audience: raw.audience ? String(raw.audience) : '',
+    preauthTtlMinutes: Number(raw.preauth_ttl_minutes) || 10,
+  };
+}
+
+/** Parse + validate the session block; the AES key must decode to exactly 32 bytes (FR-018a). */
+function parseSessionConfig(raw: {
+  cookie_domain: string;
+  idle_timeout_hours: number;
+  enc_key: string;
+  allowed_origins: string;
+}): SessionConfig {
+  const encKeyB64 = raw.enc_key ? String(raw.enc_key) : '';
+  if (!encKeyB64) {
+    throw new Error(
+      'OIDC_SESSION_ENC_KEY is required (base64 of a 32-byte AES-256 key). ' +
+        'Generate one with: node -e "console.log(require(\'crypto\').randomBytes(32).toString(\'base64\'))"',
+    );
+  }
+  const encKey = Buffer.from(encKeyB64, 'base64');
+  if (encKey.length !== 32) {
+    throw new Error(
+      `OIDC_SESSION_ENC_KEY must decode to exactly 32 bytes (got ${encKey.length}). ` +
+        'It must be the base64 encoding of a 32-byte AES-256 key.',
+    );
+  }
+
+  const allowedOrigins = String(raw.allowed_origins || '')
+    .split(',')
+    .map((o) => o.trim())
+    .filter(Boolean);
+
+  return {
+    cookieDomain: raw.cookie_domain ? String(raw.cookie_domain) : '',
+    idleTimeoutHours: Number(raw.idle_timeout_hours) || 8,
+    encKey,
+    allowedOrigins,
+  };
 }

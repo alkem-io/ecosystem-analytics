@@ -1,25 +1,26 @@
 import { Router, Request, Response } from 'express';
-import { SSO_COOKIE_PREFIX } from '../auth/middleware.js';
+import { authMiddleware } from '../auth/middleware.js';
+import { ensureFreshAccessToken } from '../auth/oidc/refresh.js';
+import { decrypt } from '../auth/oidc/crypto.js';
+import { loadConfig } from '../config.js';
 
 export const imageProxyRouter = Router();
 
+// Session-protected: the browser sends the httpOnly `ea_session` cookie with
+// the <img> request (same-origin). The access token is sourced server-side from
+// the session — it is never present in the browser (FR-018).
+imageProxyRouter.use(authMiddleware);
+
 /**
- * GET /api/image-proxy?url=<encoded-alkemio-url>&token=<bearer-token>
- * Proxies image requests to Alkemio's private storage, forwarding the bearer token.
- * Accepts token via query param so <img> tags can use it directly.
+ * GET /api/image-proxy?url=<encoded-alkemio-url>
+ * Proxies image requests to Alkemio's private storage using the session's
+ * (refreshed) access token. Only alkem.io URLs are allowed.
  */
 imageProxyRouter.get('/', async (req: Request, res: Response) => {
   const imageUrl = req.query.url as string | undefined;
-  const token = req.query.token as string | undefined
-    || req.headers.authorization?.replace('Bearer ', '');
 
   if (!imageUrl) {
     res.status(400).json({ error: 'Missing url parameter' });
-    return;
-  }
-
-  if (!token) {
-    res.status(401).json({ error: 'Missing token' });
     return;
   }
 
@@ -36,30 +37,23 @@ imageProxyRouter.get('/', async (req: Request, res: Response) => {
   }
 
   try {
-    const headers: Record<string, string> = {};
-    if (token.startsWith(SSO_COOKIE_PREFIX)) {
-      headers['Cookie'] = `ory_kratos_session=${token.slice(SSO_COOKIE_PREFIX.length)}`;
-    } else {
-      headers['Authorization'] = `Bearer ${token}`;
-    }
-
-    const response = await fetch(imageUrl, { headers });
+    const session = await ensureFreshAccessToken(req.auth!.session);
+    const token = decrypt(session.accessTokenEnc, loadConfig().session.encKey);
+    const response = await fetch(imageUrl, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
 
     if (!response.ok) {
       res.status(response.status).end();
       return;
     }
 
-    // Forward content type and cache headers
     const contentType = response.headers.get('content-type');
     if (contentType) res.setHeader('Content-Type', contentType);
     res.setHeader('Cache-Control', 'public, max-age=3600');
 
     const buffer = Buffer.from(await response.arrayBuffer());
-
-    // Expose image byte size so clients can detect small default placeholders
     res.setHeader('X-Image-Size', buffer.length);
-
     res.send(buffer);
   } catch {
     res.status(502).json({ error: 'Failed to fetch image' });

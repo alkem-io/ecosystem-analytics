@@ -46,7 +46,7 @@ export async function acquireSpaces(
   onSpaceAcquired?: (nameId: string) => void,
 ): Promise<AcquiredData> {
   const logger = getLogger();
-  const sdk = createAlkemioSdk(auth);
+  const sdk = await createAlkemioSdk(auth);
 
   const spacesL0: AcquiredData['spacesL0'] = [];
   const userIds = new Set<string>();

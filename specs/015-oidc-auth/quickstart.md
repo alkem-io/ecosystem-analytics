@@ -40,11 +40,11 @@ OIDC_SESSION_ENC_KEY=<base64 32 bytes>
 ### Local-against-production `.env` (developer machine — NO production secret, FR-019)
 ```
 OIDC_ISSUER=https://identity.alkem.io/
-OIDC_CLIENT_ID=ecosystem-analytics-local        # the public client
+OIDC_CLIENT_ID=ecosystem-analytics        # the public client
 # OIDC_CLIENT_SECRET intentionally unset
 OIDC_TOKEN_AUTH_METHOD=none
 OIDC_REDIRECT_URI=http://localhost:5173/api/auth/oidc/callback
-ALKEMIO_GRAPHQL_ENDPOINT=https://alkem.io/api/private/non-interactive/graphql   # production data
+ALKEMIO_GRAPHQL_ENDPOINT=https://alkem.io/api/private/graphql   # production data (interactive, user Bearer token)
 SESSION_COOKIE_DOMAIN=                           # host-only cookie on localhost
 OIDC_SESSION_ENC_KEY=<base64 32 bytes, dev-local>
 ```
@@ -87,4 +87,7 @@ Confirm SC-004 by hand: load the app, then inspect browser DevTools → Applicat
 
 ## Constitution note
 
-Principle I (Kratos API Flow) must be amended to OIDC before implementation lands — run `/speckit.constitution`. See `plan.md` → Constitution Check.
+Principle I was amended from the Kratos API Flow to redirect-based Alkemio OIDC in
+`.specify/memory/constitution.md` (**v3.1.0 → v4.0.0**, Sync Impact Report at the top). The amendment
+is already applied — do **not** re-run `/speckit.constitution` (it would erroneously bump again). See
+`plan.md` → Constitution Check.
