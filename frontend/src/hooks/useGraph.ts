@@ -35,9 +35,15 @@ export function useGraph() {
       setDataset(result);
       if (result.errors && result.errors.length > 0) {
         setWarnings(result.errors);
+        // Surface non-fatal server-side warnings in the browser console so they
+        // aren't only visible in server logs.
+        for (const message of result.errors) {
+          console.warn(`[graph] ${message}`);
+        }
       }
       setProgress({ step: 'ready', spacesTotal: spaceIds.length, spacesCompleted: spaceIds.length });
     } catch (err) {
+      console.error('[graph] Failed to generate graph:', err);
       setError((err as Error).message);
     } finally {
       setLoading(false);

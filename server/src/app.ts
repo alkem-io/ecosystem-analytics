@@ -1,5 +1,6 @@
 import express from 'express';
 import cors from 'cors';
+import cookieParser from 'cookie-parser';
 import path from 'path';
 import { authRouter } from './routes/auth.js';
 import { spacesRouter } from './routes/spaces.js';
@@ -12,9 +13,31 @@ import type { ApiError } from './types/api.js';
 
 export function createApp() {
   const app = express();
+  const config = loadConfig();
 
-  // Middleware
-  app.use(cors({ origin: true, credentials: true }));
+  // Middleware — CORS is restricted to the configured deployment origin(s)
+  // (no longer `origin: true`). Same-origin requests (no Origin header) and
+  // requests from an allow-listed origin are permitted with credentials so the
+  // browser sends the httpOnly `ea_session` cookie.
+  const allowedOrigins = config.session.allowedOrigins;
+  app.use(
+    cors({
+      origin(origin, callback) {
+        // Same-origin / non-browser requests carry no Origin header → allow.
+        // A cross-origin request is allowed ONLY if explicitly allow-listed.
+        // An empty allow-list therefore denies all cross-origin requests — it is
+        // never treated as a wildcard (which, with credentials:true, would leak
+        // the session cookie to any site).
+        if (!origin || allowedOrigins.includes(origin)) {
+          callback(null, true);
+        } else {
+          callback(null, false);
+        }
+      },
+      credentials: true,
+    }),
+  );
+  app.use(cookieParser());
   app.use(express.json());
 
   // Routes

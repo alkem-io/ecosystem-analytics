@@ -1,7 +1,8 @@
 import { Router, Request, Response } from 'express';
-import { authMiddleware } from '../auth/middleware.js';
+import { authMiddleware, invalidateAndReject } from '../auth/middleware.js';
 import { resolveUser } from '../auth/resolve-user.js';
 import { generateGraph, getProgress } from '../services/graph-service.js';
+import { isAlkemioAuthError } from '../graphql/client.js';
 import { clearUserCache } from '../cache/cache-service.js';
 import { loadConfig } from '../config.js';
 import { getLogger } from '../logging/logger.js';
@@ -35,6 +36,10 @@ graphRouter.post('/generate', async (req: Request, res: Response) => {
     const dataset = await generateGraph(req.auth!.userId!, req.auth!, body);
     res.json(dataset);
   } catch (err) {
+    if (isAlkemioAuthError(err)) {
+      invalidateAndReject(req, res);
+      return;
+    }
     logger.error(`Graph generation failed: ${(err as Error).message}`, { context: 'Graph' });
     res.status(502).json({ error: 'GENERATION_FAILED', message: 'Failed to generate graph dataset' });
   }
@@ -65,6 +70,10 @@ graphRouter.post('/expand', async (req: Request, res: Response) => {
     });
     res.json(dataset);
   } catch (err) {
+    if (isAlkemioAuthError(err)) {
+      invalidateAndReject(req, res);
+      return;
+    }
     logger.error(`Graph expansion failed: ${(err as Error).message}`, { context: 'Graph' });
     res.status(502).json({ error: 'EXPANSION_FAILED', message: 'Failed to expand graph' });
   }
@@ -89,6 +98,10 @@ graphRouter.post('/export', async (req: Request, res: Response) => {
     res.setHeader('Content-Type', 'application/json');
     res.json(dataset);
   } catch (err) {
+    if (isAlkemioAuthError(err)) {
+      invalidateAndReject(req, res);
+      return;
+    }
     logger.error(`Graph export failed: ${(err as Error).message}`, { context: 'Graph' });
     res.status(502).json({ error: 'EXPORT_FAILED', message: 'Failed to export graph dataset' });
   }

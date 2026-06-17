@@ -70,9 +70,17 @@ export function clearUserCache(userId: string): number {
 }
 
 /**
- * Remove all expired cache entries (housekeeping).
+ * Remove all expired rows (housekeeping): cached datasets, spent pre-auth
+ * records, and dead/idle OIDC sessions. Runs on the existing cache sweep.
  */
 export function purgeExpired(): void {
   const db = getDatabase();
-  db.prepare('DELETE FROM cache_entries WHERE expires_at < ?').run(Date.now());
+  const now = Date.now();
+  const idleCutoff = now - loadConfig().session.idleTimeoutHours * 60 * 60 * 1000;
+
+  db.prepare('DELETE FROM cache_entries WHERE expires_at < ?').run(now);
+  db.prepare('DELETE FROM oidc_auth_tx WHERE expires_at < ?').run(now);
+  db.prepare(
+    'DELETE FROM oidc_sessions WHERE refresh_expires_at < ? OR last_seen_at < ?',
+  ).run(now, idleCutoff);
 }

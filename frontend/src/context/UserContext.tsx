@@ -1,11 +1,11 @@
 import { createContext, useState, useEffect, useCallback, type ReactNode } from 'react';
-import { getToken } from '../services/auth.js';
-import { api } from '../services/api.js';
-import type { UserProfile } from '@server/types/api.js';
+import { fetchMe } from '../services/auth.js';
 
 export interface UserContextState {
   displayName: string;
   avatarUrl: string | null;
+  /** Base URL of the Alkemio server the BFF is connected to (empty until loaded). */
+  alkemioServerUrl: string;
   loading: boolean;
   refresh: () => void;
 }
@@ -13,6 +13,7 @@ export interface UserContextState {
 const defaultState: UserContextState = {
   displayName: '',
   avatarUrl: null,
+  alkemioServerUrl: '',
   loading: true,
   refresh: () => {},
 };
@@ -22,24 +23,17 @@ export const UserContext = createContext<UserContextState>(defaultState);
 export function UserProvider({ children }: { children: ReactNode }) {
   const [displayName, setDisplayName] = useState('');
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
+  const [alkemioServerUrl, setAlkemioServerUrl] = useState('');
   const [loading, setLoading] = useState(true);
 
   const fetchProfile = useCallback(async () => {
-    const token = getToken();
-    if (!token) {
-      setLoading(false);
-      return;
+    const me = await fetchMe();
+    if (me) {
+      setDisplayName(me.displayName);
+      setAvatarUrl(me.avatarUrl);
+      setAlkemioServerUrl(me.alkemioServerUrl);
     }
-
-    try {
-      const profile = await api.get<UserProfile>('/api/auth/me');
-      setDisplayName(profile.displayName);
-      setAvatarUrl(profile.avatarUrl);
-    } catch {
-      // Token may be invalid — profile will remain empty
-    } finally {
-      setLoading(false);
-    }
+    setLoading(false);
   }, []);
 
   useEffect(() => {
@@ -47,7 +41,9 @@ export function UserProvider({ children }: { children: ReactNode }) {
   }, [fetchProfile]);
 
   return (
-    <UserContext.Provider value={{ displayName, avatarUrl, loading, refresh: fetchProfile }}>
+    <UserContext.Provider
+      value={{ displayName, avatarUrl, alkemioServerUrl, loading, refresh: fetchProfile }}
+    >
       {children}
     </UserContext.Provider>
   );
