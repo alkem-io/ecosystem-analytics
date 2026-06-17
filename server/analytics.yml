@@ -36,7 +36,7 @@ session:
   allowed_origins: "${SESSION_ALLOWED_ORIGINS}:http://localhost:5173" # CSV; CORS allow-list
 
 server:
-  port: ${ECOSYSTEM_ANALYTICS_BACKEND_PORT}:4000
+  port: ${ECOSYSTEM_ANALYTICS_BACKEND_PORT}:4100
 
 logging:
   level: ${LOG_LEVEL}:info
