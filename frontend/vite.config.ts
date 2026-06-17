@@ -11,6 +11,7 @@ export default defineConfig(({ mode }) => {
   // VITE_PROXY_TARGET in frontend/.env if the backend runs elsewhere.
   const env = loadEnv(mode, __dirname, "");
   const proxyTarget = env.VITE_PROXY_TARGET || "http://localhost:4100";
+  console.info(`[vite] Proxying /api → backend at ${proxyTarget}`);
   return {
     plugins: [tailwindcss(), react()],
     define: {
