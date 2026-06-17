@@ -768,9 +768,9 @@ export function estimateEdgeCreatedDate(
 
   for (const entry of activityEntries) {
     if (entry.type === 'MEMBER_JOINED') {
-      // For MEMBER_JOINED: match on contributor (the actual member) rather than
+      // For MEMBER_JOINED: match on actor (the actual member) rather than
       // triggeredBy (which may be the admin who added them)
-      const memberId = entry.contributor?.id ?? entry.triggeredBy.id;
+      const memberId = entry.actor?.id ?? entry.triggeredBy.id;
       if (memberId !== edge.sourceId) continue;
       const d = new Date(entry.createdDate);
 
