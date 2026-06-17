@@ -10,10 +10,10 @@ query ActivityFeedGrouped($args: ActivityFeedGroupedQueryArgs) {
       id
     }
     ... on ActivityLogEntryMemberJoined {
-      contributor {
+      actor {
         id
       }
-      contributorType
+      actorType
     }
   }
 }

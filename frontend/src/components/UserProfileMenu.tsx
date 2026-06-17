@@ -7,7 +7,7 @@ interface Props {
 }
 
 export default function UserProfileMenu({ onLogout }: Props) {
-  const { displayName, avatarUrl, loading } = useUser();
+  const { displayName, avatarUrl, alkemioServerUrl, loading } = useUser();
   const [open, setOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
   const [imgError, setImgError] = useState(false);
@@ -52,6 +52,14 @@ export default function UserProfileMenu({ onLogout }: Props) {
         <div className={styles.dropdown}>
           <div className={styles.dropdownHeader}>
             <span className={styles.dropdownName}>{displayName}</span>
+            {alkemioServerUrl && (
+              <span
+                className={styles.dropdownBackend}
+                title={`Connected to Alkemio server: ${alkemioServerUrl}`}
+              >
+                Connected to Alkemio server: {alkemioServerUrl}
+              </span>
+            )}
           </div>
           <div className={styles.dropdownDivider} />
           <button className={styles.dropdownItem} onClick={onLogout}>

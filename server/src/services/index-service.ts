@@ -119,12 +119,12 @@ export async function buildEcosystemIndex(userId: string, sdk: Sdk): Promise<Eco
         for (const user of userData.users) {
           indexedPeople.push({
             id: user.id,
-            name: user.profile.displayName,
-            skills: extractTags(user.profile.tagsets),
-            city: user.profile.location?.city ?? null,
-            country: user.profile.location?.country ?? null,
+            name: user.profile?.displayName ?? '',
+            skills: extractTags(user.profile?.tagsets),
+            city: user.profile?.location?.city ?? null,
+            country: user.profile?.location?.country ?? null,
             roles: userRolesMap.get(user.id) ?? [],
-            avatarUrl: user.profile.avatar?.uri ?? null,
+            avatarUrl: user.profile?.avatar?.uri ?? null,
           });
         }
       } catch (err) {
@@ -145,12 +145,12 @@ export async function buildEcosystemIndex(userId: string, sdk: Sdk): Promise<Eco
       if (org) {
         indexedOrgs.push({
           id: org.id,
-          name: org.profile.displayName,
-          tags: extractTags(org.profile.tagsets),
-          city: org.profile.location?.city ?? null,
-          country: org.profile.location?.country ?? null,
+          name: org.profile?.displayName ?? '',
+          tags: extractTags(org.profile?.tagsets),
+          city: org.profile?.location?.city ?? null,
+          country: org.profile?.location?.country ?? null,
           roles: orgRolesMap.get(org.id) ?? [],
-          avatarUrl: org.profile.avatar?.uri ?? null,
+          avatarUrl: org.profile?.avatar?.uri ?? null,
         });
       }
     } catch (err) {

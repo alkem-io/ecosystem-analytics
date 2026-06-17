@@ -54,12 +54,21 @@
 
 .dropdownHeader {
   padding: 10px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
 }
 
 .dropdownName {
   font-size: 13px;
   font-weight: 600;
   color: var(--text-primary);
+}
+
+.dropdownBackend {
+  font-size: 11px;
+  color: var(--text-secondary);
+  word-break: break-all;
 }
 
 .dropdownDivider {

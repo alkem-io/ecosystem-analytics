@@ -18,10 +18,10 @@ export interface RawActivityEntry {
   createdDate: Date;
   triggeredBy: { id: string };
   space?: { id: string };
-  /** For MEMBER_JOINED events: the actual contributor who joined (may differ from triggeredBy if an admin added them) */
-  contributor?: { id: string };
-  /** For MEMBER_JOINED events: whether the contributor is a user or organization */
-  contributorType?: string;
+  /** For MEMBER_JOINED events: the actual actor who joined (may differ from triggeredBy if an admin added them) */
+  actor?: { id: string };
+  /** For MEMBER_JOINED events: whether the actor is a user or organization */
+  actorType?: string;
 }
 
 /** Complete acquired data for a set of spaces */
@@ -157,12 +157,16 @@ export async function acquireSpaces(
 
   const users = usersResult.status === 'fulfilled' ? usersResult.value : new Map<string, RawUser>();
   if (usersResult.status === 'rejected') {
-    logger.warn(`Failed to fetch user profiles: ${(usersResult.reason as Error).message}`, { context: 'Acquire' });
+    const msg = `Failed to fetch user profiles: ${(usersResult.reason as Error).message}`;
+    logger.warn(msg, { context: 'Acquire' });
+    errors.push(msg);
   }
 
   const organizations = orgsResult.status === 'fulfilled' ? orgsResult.value : new Map<string, RawOrganization>();
   if (orgsResult.status === 'rejected') {
-    logger.warn(`Failed to fetch organization profiles: ${(orgsResult.reason as Error).message}`, { context: 'Acquire' });
+    const msg = `Failed to fetch organization profiles: ${(orgsResult.reason as Error).message}`;
+    logger.warn(msg, { context: 'Acquire' });
+    errors.push(msg);
   }
 
   let activityEntries: RawActivityEntry[] | undefined;
@@ -177,10 +181,14 @@ export async function acquireSpaces(
   } else {
     activityEntries = undefined;
     if (activityResult.status === 'rejected') {
-      logger.warn(`Failed to fetch activity data, pulse will be unavailable: ${(activityResult.reason as Error).message}`, { context: 'Acquire' });
+      const msg = `Failed to fetch activity data, pulse will be unavailable: ${(activityResult.reason as Error).message}`;
+      logger.warn(msg, { context: 'Acquire' });
+      errors.push(msg);
     }
     if (memberJoinedResult.status === 'rejected') {
-      logger.warn(`Failed to fetch MEMBER_JOINED events: ${(memberJoinedResult.reason as Error).message}`, { context: 'Acquire' });
+      const msg = `Failed to fetch MEMBER_JOINED events: ${(memberJoinedResult.reason as Error).message}`;
+      logger.warn(msg, { context: 'Acquire' });
+      errors.push(msg);
     }
   }
 
