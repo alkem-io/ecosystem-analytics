@@ -2,6 +2,15 @@ import type { ApiError } from '@server/types/api.js';
 
 const API_BASE = import.meta.env.VITE_ECOSYSTEM_ANALYTICS_BACKEND_URL || '';
 
+// Log the backend endpoint the frontend is connecting to. When API_BASE is
+// empty the browser hits the same origin (e.g. http://localhost:5173) and Vite
+// proxies `/api` to the backend (see VITE_PROXY_TARGET in vite.config.ts).
+console.info(
+  `[api] Connecting to backend at ${
+    API_BASE || `${window.location.origin} (proxied to backend via /api)`
+  }`,
+);
+
 /**
  * Base fetch wrapper. The frontend talks only to the BFF (FR-020) and
  * authenticates via the httpOnly `ea_session` cookie — sent automatically with

@@ -9,27 +9,34 @@ alkemio:
 # OIDC Relying Party — EA is its own Alkemio OAuth2/OIDC client (Ory Hydra).
 # Two registrations: hosted `ecosystem-analytics` = confidential (client_secret_basic,
 # secret backend-only); local `ecosystem-analytics-local` = public (none, PKCE-only,
-# no secret). Defaults below are the hosted client; local overrides via env. FR-006/FR-019.
+# no secret). FR-006/FR-019.
+#
+# DEFAULTS BELOW ARE THE LOCAL PUBLIC CLIENT so a fresh checkout boots with ZERO
+# .env edits (`pnpm run dev` just works). The HOSTED deploy MUST set every OIDC_*
+# and SESSION_* env var EXPLICITLY (k8s manifest) — it can no longer rely on these
+# defaults, since an unset var would now silently fall back to the local client.
 oidc:
   issuer: ${OIDC_ISSUER}:https://identity.alkem.io/
-  client_id: ${OIDC_CLIENT_ID}:ecosystem-analytics
-  client_secret: "${OIDC_CLIENT_SECRET}:" # hosted: from k8s secret; local: EMPTY (public)
-  token_endpoint_auth_method: ${OIDC_TOKEN_AUTH_METHOD}:client_secret_basic # "none" for local public client
-  redirect_uri: ${OIDC_REDIRECT_URI}:https://ecosystem-analytics.alkem.io/api/auth/oidc/callback
+  client_id: ${OIDC_CLIENT_ID}:ecosystem-analytics-local
+  client_secret: "${OIDC_CLIENT_SECRET}:" # local: EMPTY (public); hosted: from k8s secret
+  token_endpoint_auth_method: ${OIDC_TOKEN_AUTH_METHOD}:none # local public client; hosted sets client_secret_basic
+  redirect_uri: ${OIDC_REDIRECT_URI}:http://localhost:5173/api/auth/oidc/callback # hosted overrides
   scopes: ${OIDC_SCOPES}:openid profile email offline_access alkemio
-  audience: "${OIDC_AUDIENCE}:" # optional explicit audience if Hydra requires it
+  audience: "${OIDC_AUDIENCE}:ecosystem-analytics" # aud accepted by Alkemio's Bearer validator
   preauth_ttl_minutes: ${OIDC_PREAUTH_TTL_MINUTES}:10
 
 # EA's own server-side session. Browser holds only an opaque httpOnly cookie;
 # access/refresh tokens are encrypted at rest in SQLite (FR-018/FR-018a).
 session:
-  cookie_domain: "${SESSION_COOKIE_DOMAIN}:" # e.g. .alkem.io hosted; empty (host-only) local
+  cookie_domain: "${SESSION_COOKIE_DOMAIN}:" # empty (host-only) local; hosted sets .alkem.io
   idle_timeout_hours: ${SESSION_IDLE_TIMEOUT_HOURS}:8
-  enc_key: "${OIDC_SESSION_ENC_KEY}:" # REQUIRED: base64 32-byte AES-256 key
+  # Dev-only AES-256 key so local boots out of the box. Hosted MUST override with a
+  # fresh key from the k8s secret — NEVER reuse this value in any shared/hosted env.
+  enc_key: "${OIDC_SESSION_ENC_KEY}:GGvIJ/WJIRBGWoNO0thfWCd2XbEXqdhlokW+qVO484I="
   allowed_origins: "${SESSION_ALLOWED_ORIGINS}:http://localhost:5173" # CSV; CORS allow-list
 
 server:
-  port: ${ECOSYSTEM_ANALYTICS_BACKEND_PORT}:4000
+  port: ${ECOSYSTEM_ANALYTICS_BACKEND_PORT}:4100
 
 logging:
   level: ${LOG_LEVEL}:info
