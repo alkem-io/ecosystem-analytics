@@ -4,6 +4,8 @@ import { fetchMe } from '../services/auth.js';
 export interface UserContextState {
   displayName: string;
   avatarUrl: string | null;
+  /** Base URL of the Alkemio server the BFF is connected to (empty until loaded). */
+  alkemioServerUrl: string;
   loading: boolean;
   refresh: () => void;
 }
@@ -11,6 +13,7 @@ export interface UserContextState {
 const defaultState: UserContextState = {
   displayName: '',
   avatarUrl: null,
+  alkemioServerUrl: '',
   loading: true,
   refresh: () => {},
 };
@@ -20,6 +23,7 @@ export const UserContext = createContext<UserContextState>(defaultState);
 export function UserProvider({ children }: { children: ReactNode }) {
   const [displayName, setDisplayName] = useState('');
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
+  const [alkemioServerUrl, setAlkemioServerUrl] = useState('');
   const [loading, setLoading] = useState(true);
 
   const fetchProfile = useCallback(async () => {
@@ -27,6 +31,7 @@ export function UserProvider({ children }: { children: ReactNode }) {
     if (me) {
       setDisplayName(me.displayName);
       setAvatarUrl(me.avatarUrl);
+      setAlkemioServerUrl(me.alkemioServerUrl);
     }
     setLoading(false);
   }, []);
@@ -36,7 +41,9 @@ export function UserProvider({ children }: { children: ReactNode }) {
   }, [fetchProfile]);
 
   return (
-    <UserContext.Provider value={{ displayName, avatarUrl, loading, refresh: fetchProfile }}>
+    <UserContext.Provider
+      value={{ displayName, avatarUrl, alkemioServerUrl, loading, refresh: fetchProfile }}
+    >
       {children}
     </UserContext.Provider>
   );

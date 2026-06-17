@@ -17,6 +17,8 @@ export interface MeResponse {
   userId: string;
   displayName: string;
   avatarUrl: string | null;
+  /** Base URL of the Alkemio server the BFF is connected to. */
+  alkemioServerUrl: string;
 }
 
 /** Begin sign-in by redirecting to the BFF (which 302s to Alkemio). */

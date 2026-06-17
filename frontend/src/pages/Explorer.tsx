@@ -118,7 +118,7 @@ export default function Explorer({ onLogout }: ExplorerProps) {
     setActiveSpaceIdsRaw(ids);
     localStorage.setItem(SELECTION_KEY, JSON.stringify(ids));
   }, []);
-  const { spaces } = useSpaces();
+  const { spaces, reload: reloadSpaces } = useSpaces();
 
   const availableSpaces = useMemo(
     () => spaces.filter((s) => !activeSpaceIds.includes(s.nameId)),
@@ -142,8 +142,12 @@ export default function Explorer({ onLogout }: ExplorerProps) {
   }, [dataset]);
 
   const handleRefresh = useCallback(() => {
+    // Re-fetch the space membership list (clears localStorage + bypasses the
+    // server `__spaces__` cache via ?refresh=true) alongside the graph, so newly
+    // joined spaces appear in the "Add Space" list.
+    reloadSpaces();
     if (activeSpaceIds.length > 0) generate(activeSpaceIds, true);
-  }, [activeSpaceIds, generate]);
+  }, [activeSpaceIds, generate, reloadSpaces]);
 
   const [cacheCleared, setCacheCleared] = useState(false);
   const handleClearCache = useCallback(async () => {
@@ -151,11 +155,15 @@ export default function Explorer({ onLogout }: ExplorerProps) {
       await api.delete('/api/graph/cache');
       setCacheCleared(true);
       setTimeout(() => setCacheCleared(false), 2000);
+      // Also refresh the space membership list — clearUserCache wipes the server
+      // `__spaces__` entry, but the dropdown reads from localStorage and won't
+      // refetch on its own.
+      reloadSpaces();
       if (activeSpaceIds.length > 0) generate(activeSpaceIds, true);
     } catch {
       // Silently fail — next refresh will re-fetch anyway
     }
-  }, [activeSpaceIds, generate]);
+  }, [activeSpaceIds, generate, reloadSpaces]);
 
   const handleExpandSpace = useCallback(
     async (newSpaceId: string) => {
