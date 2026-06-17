@@ -19,7 +19,7 @@ oidc:
   token_endpoint_auth_method: ${OIDC_TOKEN_AUTH_METHOD}:client_secret_basic  # "none" for local
   redirect_uri: ${OIDC_REDIRECT_URI}:https://ecosystem-analytics.alkem.io/api/auth/oidc/callback
   scopes: ${OIDC_SCOPES}:openid profile email offline_access alkemio
-  audience: ${OIDC_AUDIENCE}:                            # if Hydra requires explicit audience
+  audience: ${OIDC_AUDIENCE}:ecosystem-analytics         # REQUIRED: must be in Alkemio's BEARER_AUD_ALLOW_LIST (FR-005a)
 session:
   cookie_domain: ${SESSION_COOKIE_DOMAIN}:               # e.g. .alkem.io hosted; empty (host-only) local
   idle_timeout_hours: ${SESSION_IDLE_TIMEOUT_HOURS}:8
@@ -33,35 +33,43 @@ OIDC_CLIENT_ID=ecosystem-analytics
 OIDC_CLIENT_SECRET=<from k8s secret ecosystem-analytics-client-secret>   # backend only
 OIDC_TOKEN_AUTH_METHOD=client_secret_basic
 OIDC_REDIRECT_URI=https://ecosystem-analytics.alkem.io/api/auth/oidc/callback
-SESSION_COOKIE_DOMAIN=.alkem.io
+OIDC_AUDIENCE=ecosystem-analytics                # REQUIRED — Alkemio rejects tokens with no allow-listed aud (FR-005a)
+SESSION_COOKIE_DOMAIN=.alkem.io                  # same-site as the IdP => session cookie is SameSite=Lax
 OIDC_SESSION_ENC_KEY=<base64 32 bytes>
 ```
 
 ### Local-against-production `.env` (developer machine — NO production secret, FR-019)
 ```
+# If :4000 is taken by a local Alkemio backend, move the BFF and point the Vite proxy at it:
+ECOSYSTEM_ANALYTICS_BACKEND_PORT=4100            # then set frontend/vite.config.ts proxy target to :4100
 OIDC_ISSUER=https://identity.alkem.io/
-OIDC_CLIENT_ID=ecosystem-analytics        # the public client
+OIDC_CLIENT_ID=ecosystem-analytics-local         # SEPARATE public client (PKCE, no secret)
 # OIDC_CLIENT_SECRET intentionally unset
 OIDC_TOKEN_AUTH_METHOD=none
 OIDC_REDIRECT_URI=http://localhost:5173/api/auth/oidc/callback
+OIDC_AUDIENCE=ecosystem-analytics                # REQUIRED — an allow-listed aud Alkemio accepts (FR-005a)
 ALKEMIO_GRAPHQL_ENDPOINT=https://alkem.io/api/private/graphql   # production data (interactive, user Bearer token)
-SESSION_COOKIE_DOMAIN=                           # host-only cookie on localhost
+SESSION_COOKIE_DOMAIN=                           # empty => host-only + SameSite=None;Secure (cross-site IdP, FR-021)
 OIDC_SESSION_ENC_KEY=<base64 32 bytes, dev-local>
 ```
 
 Generate an encryption key: `node -e "console.log(require('crypto').randomBytes(32).toString('base64'))"`.
 
+Provider-side, the `ecosystem-analytics-local` public client must whitelist `http://localhost:5173/api/auth/oidc/callback` and be allowed to request audience `ecosystem-analytics`.
+
 ## Run
 
 ```bash
 # server
-cd server && pnpm run dev      # :4000
+cd server && pnpm run dev      # :4000 (or :4100 if ECOSYSTEM_ANALYTICS_BACKEND_PORT is set)
 
-# frontend (proxies /api → :4000, so browser sees a single origin)
+# frontend (proxies /api → backend, so the browser sees a single origin for data calls)
 cd frontend && pnpm run dev    # :5173
 ```
 
 Open `http://localhost:5173` → you are redirected to Alkemio's hosted login → after authenticating you land back on the local app, signed in, seeing **production** data scoped to your own account.
+
+> Note: the dev proxy makes *data* calls same-origin, but the OIDC **callback** is still a cross-site redirect from `identity.alkem.io`. That is why the local session cookie must be `SameSite=None; Secure` (FR-021) — `Lax` is silently dropped on that redirect and produces a sign-in→re-login loop.
 
 ## Smoke test (maps to acceptance scenarios)
 

@@ -152,6 +152,8 @@
 - [X] T049 [P] Run `cd server && pnpm run build` and `cd frontend && pnpm run build` (tsc strict) + both `pnpm run test` suites; fix any breakage
 - [ ] T050 Update Playwright visual snapshots for the new login / not-authorized / redirecting states via root `pnpm run test:visual:update`
 - [X] T051 **GOVERNANCE GATE (verify — already applied)**: confirm `.specify/memory/constitution.md` already redefines Principle I (Kratos → OIDC) at **v4.0.0** with a Sync Impact Report, per plan.md Constitution Check. The MAJOR bump (3.1.0 → 4.0.0) is **done** — do NOT re-run `/speckit.constitution` (it would bump to 5.0.0). Just verify the committed text matches the feature.
+- [X] T052 **(FR-005a, found in first local-against-prod run)** Request an allow-listed token audience so Alkemio accepts the Bearer token: add `OIDC_AUDIENCE` (default `ecosystem-analytics`), passed by `login.ts`; without it `aud` is empty and GraphQL returns `UNAUTHENTICATED`. Documented in `.env.default`/quickstart. **Open follow-up**: `refresh.ts` does not re-send `audience` on refresh (relies on Hydra retaining it) — harden by re-requesting it.
+- [X] T053 **(FR-021, found in first local-against-prod run)** Make the session/pre-auth cookies survive the cross-site OIDC callback in the local deployment: `baseCookieOptions` uses `SameSite=None; Secure` when no `SESSION_COOKIE_DOMAIN` (local, cross-site IdP) and `SameSite=Lax` when one is set (hosted, same-site). `Secure` always on (localhost is a secure context). Fixes the sign-in→401→re-login loop. Test updated in `session.test.ts`.
 
 ---
 
