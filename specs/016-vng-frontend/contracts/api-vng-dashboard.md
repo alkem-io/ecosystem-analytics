@@ -9,16 +9,20 @@
 ```jsonc
 {
   "spaceIds": ["stad-utrecht", "…"],   // the effective selected-space set
-  "includeGemeentes": true              // mirror of the show/hide toggle (FR-034); default true
+  "includeGemeentes": true,             // mirror of the show/hide toggle (FR-034); default true
+  "includeInitiatives": false           // mirror of the GD-layer toggle (FR-039); selects the counting source
 }
 ```
 
 ## Response (200)
 
+When `includeInitiatives` is true and the GD layer is available, the counting unit is **GD initiatives**; otherwise it is **selected spaces** (FR-022, data-source aware).
+
 ```jsonc
 {
-  "totalSpaces": 19,                     // # of selected spaces counted (each = one "initiative", FR-022)
-  "uncategorisedCount": 2,               // spaces with no tag mapping to a category (shown as "Overig"/omitted)
+  "source": "spaces",                    // "spaces" | "gd-initiatives" — the active counting unit (shown on the chart)
+  "totalCounted": 19,                    // # of entities counted (spaces, or GD initiatives)
+  "uncategorisedCount": 2,               // counted entities with no tag mapping to a category ("Overig"/omitted)
   "dimensions": [
     {
       "key": "nds",                      // NDS categories chart
@@ -43,8 +47,9 @@
 
 ## Behaviour
 
-- For each selected space the user may view, read its tags and apply `vng.tagCategoryMapping.{nds,vng2030}` to increment category counts (each space contributes at most once per category present).
-- `includeGemeentes=false` excludes gemeente-organisation-derived counts so the dashboard stays consistent with a hidden-gemeente graph (FR-034). (Selected spaces themselves are unaffected unless a space *is* a gemeente.)
+- **Counting source** (FR-022): if `includeInitiatives` and the GD layer is available → count **GD initiatives** (their callout tags); else count **selected spaces** (their space tags). Echo the choice in `source`.
+- For each counted entity the user may view, read its tags and apply `vng.tagCategoryMapping.{nds,vng2030}` to increment category counts (each entity contributes at most once per category present).
+- `includeGemeentes=false` excludes gemeente-derived counts so the dashboard stays consistent with a hidden-gemeente graph (FR-034).
 - Categories with zero matches are returned with `count: 0` (frontend renders empty bars — FR-024, US3 scenario 3); `uncategorisedCount` surfaces missing-data transparency.
 - **Keys, not labels**: category/dimension `key`s are stable; the frontend maps them to localised Dutch/English labels.
 

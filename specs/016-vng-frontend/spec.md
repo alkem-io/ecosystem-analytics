@@ -21,6 +21,9 @@
 - Q: How are a GD initiative's gemeente/theme links recovered, given they survive into Alkemio only as Callout tag strings? → A: The server parses each Callout's tags and resolves them against the build-time snapshot registry (municipality display-name → `gemeente-<name>` organisation nameID; theme label → theme identity), creating one canonical node per gemeente/theme.
 - Q: What identifies the gemeentedelers space? → A: Its **nameID**, supplied via server configuration (`analytics.yml`).
 - Q: How long may GD initiative data be cached? → A: Longer than the standard 24h space cache — configurable, default ~1 week — as the GD corpus is archival.
+- Q: How is the design-fidelity principle (Principle VI) satisfied for the new VNG surface? → A: For now the VNG app reuses the **existing Alkemio branding and design system/tokens** (the 001 design-brief token system already in use); a VNG-specific visual identity is a deferred future enhancement. The app is still **labelled** "VNG Kenniscentrum Innovatie" in text.
+- Q: What should the dashboard charts count — selected spaces or GemeenteDelers initiatives? → A: **Data-source aware** — when the GemeenteDelers initiative layer is active, the charts count GD initiatives grouped by category; otherwise each selected space counts as one initiative. The chart indicates which source is active.
+- Q: What bounds a very large hub? → A: The existing server `max_spaces_per_query` limit is reused as the cap.
 
 ## User Scenarios & Testing *(mandatory)*
 
@@ -197,7 +200,7 @@ The user can turn on an **"include GemeenteDelers initiatives"** option on the g
 - **No default hub configured / default hub unavailable**: The experience must still load and let the user choose a hub or select spaces directly, with a clear message.
 - **Hub lists spaces the user cannot access**: Spaces the signed-in user is not permitted to see must be excluded or clearly marked, never exposing restricted content.
 - **Empty selection**: If the combined selected-space set is empty, the graph, details, and dashboard each show an empty state rather than errors.
-- **Large hubs**: A hub with a very large number of spaces must remain usable (responsive list, graph, and dashboard) or communicate limits.
+- **Large hubs**: A hub listing more spaces than the server `max_spaces_per_query` limit must be capped to that limit, remain usable (responsive list, graph, and dashboard), and clearly communicate that the set was truncated.
 - **Session expiry mid-use**: If the shared session expires while the VNG frontend is open, the user is prompted to re-authenticate and returns to where they were.
 - **Hub changed while direct selections exist**: The combined set must recompute predictably and the provenance (hub vs direct) must stay clear.
 - **Dashboard category data missing**: Spaces lacking the classification a chart needs must not break the dashboard.
@@ -250,8 +253,11 @@ The user can turn on an **"include GemeenteDelers initiatives"** option on the g
 #### Dashboard tab
 
 - **FR-020**: The Dashboard tab MUST display charts summarising the currently selected spaces, recomputing whenever the selected-space set changes.
-- **FR-021**: The dashboard MUST include bar-chart style breakdowns of counts grouped by category, following the reference image (initiatives grouped by NDS categories, and counts grouped by VNG-2030 themes).
-- **FR-022**: For the dashboard, each **selected space** counts as one "initiative". Its NDS-category and VNG-2030-theme classifications MUST be derived from the existing tags/taxonomy on that space (as exposed by the platform). The mapping from raw tags to the NDS / VNG-2030 categories MUST be maintained in **server-side configuration (`analytics.yml`)** so it can be changed without code changes, and the backend MUST apply it and return categorised counts. A space whose tags map to a category contributes to that category's count.
+- **FR-021**: The dashboard MUST include bar-chart style breakdowns of counts grouped by category, following the reference image (initiatives grouped by NDS categories, and counts grouped by VNG-2030 themes). Each chart MUST indicate which data source the counts are based on (see FR-022).
+- **FR-022**: The dashboard counting unit is **data-source aware**:
+  - When the **GemeenteDelers initiative layer is active**, each chart counts **GD initiatives** grouped by category.
+  - Otherwise, each **selected space** counts as one "initiative".
+  In both cases the NDS-category and VNG-2030-theme classifications MUST be derived from the existing tags/taxonomy on the counted entity (space tags, or GD-initiative callout tags) as exposed by the platform. The mapping from raw tags to the NDS / VNG-2030 categories MUST be maintained in **server-side configuration (`analytics.yml`)** so it can be changed without code changes, and the backend MUST apply it and return categorised counts plus the active source. An entity whose tags map to a category contributes to that category's count.
 - **FR-023**: For this release the dashboard MUST ship exactly the two charts shown (counts by NDS category and counts by VNG-2030 theme), but the dashboard MUST be structured so that additional charts can be added later without re-architecting it.
 - **FR-024**: The dashboard MUST handle missing or partial classification data gracefully, showing the charts for the spaces that have data and indicating where data is absent.
 
@@ -287,7 +293,7 @@ The user can turn on an **"include GemeenteDelers initiatives"** option on the g
 
 #### Branding & user guidance
 
-- **FR-025**: The VNG experience MUST carry clear branding identifying it as a custom dashboard for **VNG Kenniscentrum Innovatie**, persistently visible (e.g. in a header) across all tabs.
+- **FR-025**: The VNG experience MUST carry a clear, persistent header (visible across all tabs) that **labels it in text** as the dashboard for **VNG Kenniscentrum Innovatie**. For this release it reuses the **existing Alkemio branding and design system/tokens**; a VNG-specific visual identity is a deferred future enhancement (it MUST be straightforward to introduce later without restructuring).
 - **FR-026**: The VNG experience MUST display a prominent **warning notice** explaining that the user only sees ecosystem data they are authorised to access, and advising them to check their authorisation on the underlying spaces if the data appears limited.
 - **FR-027**: The authorisation warning MUST be presented in a recognisable "warning" visual style, distinct from ordinary informational content, so it draws attention.
 
@@ -301,7 +307,7 @@ The user can turn on an **"include GemeenteDelers initiatives"** option on the g
 - **Innovation Hub**: A curated grouping that lists a set of spaces. Has an identity/name and an associated list of member spaces. One hub is designated the default for the VNG experience; the user may switch the active hub.
 - **Space**: An ecosystem entity (as already modelled by the platform) with a name, profile, location, statistics, and relationships. Spaces are the unit selected (via hub or directly) and the subject of the graph, details, and dashboard.
 - **Selected-Space Set**: The effective working set driving all three tabs — the union of the active hub's spaces and the user's direct additions, minus direct removals, restricted to spaces the user may access. Each member carries provenance (from-hub vs added-directly).
-- **Initiative**: For the dashboard, the unit counted is a **selected space** — each selected space is one initiative. It is classified into category dimensions via its existing tags/taxonomy.
+- **Initiative (dashboard counting unit)**: Data-source aware — when the GemeenteDelers layer is active it is a **GD initiative** (a KB callout); otherwise it is a **selected space**. Classified into category dimensions via the counted entity's existing tags/taxonomy. (Distinct from the **GemeenteDelers Initiative** entity below, which is the graph node.)
 - **Category Dimension**: A way of grouping dashboard counts (e.g. "NDS category", "VNG-2030 theme"), each with a fixed set of categories used as chart axes. The dashboard ships two such dimensions and is structured to allow more later.
 - **Organisation**: An ecosystem actor (as modelled by the platform) that can be connected to one or more spaces. Clicking one reveals its connected spaces within the current graph. Gemeentes are a subset of organisations.
 - **Gemeente (Dutch Municipality)**: An organisation representing a Dutch municipality, published on the platform (display name `Gemeente <name>`, country NL). The known set (~342) is identified via a build-time snapshot of identities sourced from the `vng-gemeente-delers` repo, and can be shown or hidden via a toggle.
@@ -319,11 +325,11 @@ The user can turn on an **"include GemeenteDelers initiatives"** option on the g
 - **SC-003**: Switching the active innovation hub updates the graph, the selected-space list, and the dashboard to the new hub's spaces within 5 seconds, with no manual page reload.
 - **SC-004**: Adding or removing an individual space updates the selected-space list, graph, and dashboard consistently within 3 seconds, and the combined set always equals (hub spaces ∪ direct additions) − direct removals.
 - **SC-005**: At all times the user can see the current selected-space set and tell which spaces came from the hub versus direct selection, verified across every tab.
-- **SC-006**: The dashboard charts reflect the selected-space set: after any selection change, the displayed counts match the underlying spaces in 100% of test cases.
+- **SC-006**: The dashboard charts reflect the active data source: after any selection change (or toggling the GD layer), the displayed counts match the underlying entities (selected spaces, or GD initiatives when that layer is active) in 100% of test cases, and the chart states the active source.
 - **SC-007**: A first-time VNG user can go from sign-in to a populated graph and dashboard for the default hub without instruction in under 2 minutes.
 - **SC-008**: No restricted space the signed-in user is not authorised to view is ever shown in the selected-space list, graph, details, or dashboard.
-- **SC-009**: The VNG experience exposes a deliberately reduced control surface — measurably fewer top-level controls/options than the current frontend — while still completing the hub→graph→dashboard workflow.
-- **SC-010**: On every tab, a first-time user can identify within 5 seconds that the tool is the VNG Kenniscentrum Innovatie dashboard from visible branding.
+- **SC-009**: The VNG experience exposes a deliberately reduced control surface — fewer top-level controls/options than the current frontend (qualitative comparison; verified by a side-by-side control-count review) — while still completing the hub→graph→dashboard workflow.
+- **SC-010**: On every tab, a first-time user can identify within 5 seconds that the tool is the VNG Kenniscentrum Innovatie dashboard from the persistent header label (using Alkemio branding for this release).
 - **SC-011**: The authorisation warning is visible to 100% of users viewing ecosystem data and is recognised as a warning (not ordinary text) in usability checks.
 - **SC-012**: Clicking any organisation in the graph reveals its connected spaces within the current graph in under 1 second, and the revealed set exactly matches the organisation's space connections present in that graph.
 - **SC-013**: Toggling "hide gemeentes" removes 100% of known gemeente organisations from both the graph and the dashboard (and toggling back restores them), with zero non-gemeente organisations affected.
@@ -339,7 +345,8 @@ The user can turn on an **"include GemeenteDelers initiatives"** option on the g
 - **Authorisation reuse**: Space visibility/authorisation is enforced by the backend as it already is for the current frontend; the VNG experience inherits the same rules.
 - **Graph parity**: "Like the main graph now" means the VNG graph reuses the current graph's core rendering and interaction; the deliberately "simpler" nature comes from fewer surrounding controls, not a different graph engine.
 - **Netherlands-only map**: Only the Netherlands map region is offered in the VNG experience; region switching is not exposed.
-- **Dashboard charting**: Charts are rendered with summary data computed from the selected spaces. Each selected space is one "initiative"; NDS-category and VNG-2030-theme groupings come from the space's existing tags/taxonomy. The mapping from raw tags to the fixed category sets is maintained in server-side configuration (`analytics.yml`) and applied by the backend; spaces with no matching tag are counted as uncategorised/"Overig" or omitted.
+- **Dashboard charting**: Charts are rendered with summary data computed server-side. The counting unit is data-source aware: GD initiatives when the GemeenteDelers layer is active, otherwise selected spaces. NDS-category and VNG-2030-theme groupings come from the counted entity's existing tags/taxonomy. The mapping from raw tags to the fixed category sets is maintained in server-side configuration (`analytics.yml`) and applied by the backend; entities with no matching tag are counted as uncategorised/"Overig" or omitted. The exact source tags that populate each category are confirmed against real data during implementation (the mapping is operator-editable).
+- **Design fidelity via the existing Alkemio design system (Principle VI)**: The VNG app reuses the existing Alkemio branding and design tokens/typography (the 001 design-brief token system already shared via `@ea/shared`), so it inherits the established visual contract rather than introducing an unspecified new one. It is labelled "VNG Kenniscentrum Innovatie" in text; a VNG-specific visual identity (logo, palette) is a deferred, additive enhancement. This keeps Principle VI satisfied without a new pixel-level brief for this release.
 - **Styling already aligned with client-web (no MUI)**: The current ecosystem-analytics frontend already uses the same styling stack as the sibling `client-web` repository's MUI-removed branch (`story/9885-remove-mui-library-and-code`) — React 19, Vite 7, Tailwind v4, Radix UI primitives, `class-variance-authority`/`clsx`/`tailwind-merge`, `lucide-react` — i.e. a shadcn/ui-style system. No framework re-alignment of the current frontend is required; the VNG experience inherits this same stack. (Minor housekeeping only: `lucide-react` major version differs between the two repos.)
 - **Reusable primitives & assets from client-web**: The MUI-removed branch provides a complete `components/ui/` primitive set (tabs, alert, card, badge, select, chart, etc.) and existing VNG branding assets (e.g. `prototype/public/banners/vng-innovation-hub.png`) plus innovation-hub components, which can be lifted/adapted into the VNG experience rather than rebuilt.
 - **Chart library**: The dashboard charts adopt the same charting approach as client-web's MUI-removed branch — its `ui/chart.tsx` wraps **recharts**. The current ecosystem-analytics frontend does not yet include a chart library (it uses D3 only for the network graph), so a charting dependency will be added for the dashboard.
@@ -355,3 +362,4 @@ The user can turn on an **"include GemeenteDelers initiatives"** option on the g
 - Editing or managing innovation hubs or spaces (the experience is read/explore only).
 - Authoring or administering the NDS/VNG-2030 category taxonomies.
 - New authentication methods or identity providers (the existing sign-in is reused as-is).
+- A VNG-specific visual identity (custom logo, palette, typography) — this release uses Alkemio branding; VNG theming is a later, additive enhancement.

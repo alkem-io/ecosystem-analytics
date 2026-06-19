@@ -32,9 +32,9 @@ The BFF gains additive, typed-SDK capabilities: **innovation-hub listing/resolut
 | **III. BFF boundary** | ✅ Pass | VNG frontend calls only the BFF (`/api/*`, `credentials: 'include'`). Hub listing, GD callouts, dashboard counts, gemeente identity all resolved server-side. |
 | **IV. Data sensitivity** | ✅ Pass | GD-layer cache stays **per-user** (longer TTL only); access verified at read time (user must have READ on the gemeentedelers space). No token logging. Snapshot registry contains only public municipality/theme reference data. Parameterised SQL unchanged. |
 | **V. Graceful degradation** | ✅ Pass | Empty hub, unreadable gemeentedelers space, unresolved initiative tags, missing translations, missing category data all have defined non-fatal fallbacks (FR-017/024/044/043, edge cases). |
-| **VI. Design fidelity** | ⚠️ Advisory | The VNG app is a **new** experience not covered by the 001 design brief; it adopts the shadcn/Tailwind token system already in use and VNG branding. No conflict with the Explorer's brief (Explorer is unchanged). Recorded in Complexity Tracking. |
+| **VI. Design fidelity** | ✅ Pass | Per clarification, the VNG app reuses the **existing Alkemio branding and design tokens** (the 001 design-brief token system, shared via `@ea/shared`); it is labelled "VNG Kenniscentrum Innovatie" in text. A VNG-specific visual identity is deferred. It therefore inherits the established visual contract rather than introducing an unspecified new one — no new pixel-level brief required for this release. The Explorer is unchanged. |
 
-**Gate result**: PASS (no unjustified violations). The one advisory (VI) is inherent to introducing a new, separately-branded surface and is tracked below.
+**Gate result**: PASS (no unjustified violations).
 
 ## Project Structure
 
@@ -125,7 +125,7 @@ frontend/                      # NEW parent folder for all frontend packages
 | Violation / Deviation | Why Needed | Simpler Alternative Rejected Because |
 |-----------------------|------------|-------------------------------------|
 | `frontend/{shared,ecosystem-analytics,vng}` + pnpm workspace (3 packages); the existing Explorer is **moved** into `frontend/ecosystem-analytics` | Two apps must share graph/map/details/services without duplication; workspace dedupes React and deps; one `frontend/` parent keeps the surfaces together | Cross-importing one app's `src` from another risks duplicate React instances and couples builds; copy-paste would fork the graph engine |
-| New surface not in the 001 design brief (Principle VI advisory) | VNG is a distinct, separately-branded audience experience | Reusing the Explorer UI verbatim contradicts the explicit "much simpler" + VNG-branding requirements |
+| New audience surface, but reusing Alkemio branding/tokens for now (Principle VI satisfied) | VNG is a distinct, simpler audience experience; reusing the existing design system avoids a new pixel-level brief this release | A bespoke VNG visual identity now would add scope and a new design contract before it's needed; deferred as an additive enhancement |
 | Build-time snapshot registry committed into the server | GD themes/gemeentes survive into Alkemio only as flat tag strings; structured links exist only in the `vng-gemeente-delers` vault | Live cross-repo read at runtime couples deployments; deriving solely from the `gemeente` keyword can't recover theme links or municipality→nameID mapping |
 | Per-user GD cache with a separate long TTL | Constitution IV requires per-user/per-space scoping; GD corpus is archival so a 1-week TTL avoids refetch | A shared global GD cache would violate per-user scoping; the standard 24h TTL would refetch 305 callouts needlessly |
 

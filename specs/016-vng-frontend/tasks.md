@@ -125,10 +125,10 @@ Web app, **pnpm workspace**: BFF in `server/`; all frontend packages under `fron
 
 ### Implementation for User Story 3
 
-- [ ] T037 [US3] `POST /api/vng/dashboard` route + service applying `vng.tagCategoryMapping` over selected spaces in `server/src/routes/vng.ts` and `server/src/services/vng-dashboard-service.ts` (per contracts/api-vng-dashboard.md)
+- [ ] T037 [US3] `POST /api/vng/dashboard` route + **data-source-aware** service applying `vng.tagCategoryMapping`: count GD initiatives when `includeInitiatives` and the GD layer is available, else selected spaces; return `source` + counts in `server/src/routes/vng.ts` and `server/src/services/vng-dashboard-service.ts` (per contracts/api-vng-dashboard.md, FR-022)
 - [ ] T038 [P] [US3] `useDashboard` hook in `frontend/vng/src/hooks/useDashboard.ts`
 - [ ] T039 [P] [US3] `NdsChart` + `Vng2030Chart` recharts components (via shared `ui/chart`) in `frontend/vng/src/components/charts/`
-- [ ] T040 [US3] `DashboardTab` assembling charts, empty-category and missing-data handling (FR-024) in `frontend/vng/src/pages/DashboardTab.tsx`
+- [ ] T040 [US3] `DashboardTab` assembling charts, a per-chart **active-source indicator** (spaces vs GD initiatives, FR-021), empty-category and missing-data handling (FR-024) in `frontend/vng/src/pages/DashboardTab.tsx`
 
 **Checkpoint**: US1–US3 independently functional.
 
@@ -154,7 +154,7 @@ Web app, **pnpm workspace**: BFF in `server/`; all frontend packages under `fron
 
 **Independent Test**: Open the app; VNG branding visible on all tabs; a warning-styled notice explains authorised-data-only.
 
-- [ ] T044 [P] [US6] `BrandingHeader` (VNG logo/asset, persistent across tabs) + branding assets in `frontend/vng/src/components/BrandingHeader.tsx`, `frontend/vng/src/branding/` (FR-025)
+- [ ] T044 [P] [US6] `BrandingHeader` persistent across tabs, using **existing Alkemio branding/tokens** (from `@ea/shared`) with a **text label** "VNG Kenniscentrum Innovatie"; structure it so a VNG-specific visual identity can be dropped in later, in `frontend/vng/src/components/BrandingHeader.tsx` (FR-025)
 - [ ] T045 [P] [US6] `AuthorizationWarning` banner using shared `alert` (warning variant), localized, in `frontend/vng/src/components/AuthorizationWarning.tsx` (FR-026/027)
 - [ ] T046 [US6] Mount header + warning in the app shell (`frontend/vng/src/App.tsx`)
 
@@ -181,7 +181,7 @@ Web app, **pnpm workspace**: BFF in `server/`; all frontend packages under `fron
 
 **Independent Test**: Toggle hide → gemeente nodes leave graph + dashboard; toggle back restores; no non-gemeente affected.
 
-- [ ] T049 [US8] Server: set `GraphNode.isGemeente` by matching `ORGANIZATION.nameId` against the registry, in `server/src/transform/transformer.ts` / `server/src/services/graph-service.ts` (FR-032/035)
+- [ ] T049 [US8] Server: set `GraphNode.isGemeente` by matching `ORGANIZATION.nameId` against the registry (assert **no false positives** — non-gemeente orgs stay `isGemeente:false`), in `server/src/transform/transformer.ts` / `server/src/services/graph-service.ts` (FR-032/035)
 - [ ] T050 [P] [US8] `GemeenteToggle` component in `frontend/vng/src/components/GemeenteToggle.tsx`
 - [ ] T051 [US8] Apply the toggle: filter `isGemeente` nodes/edges in the graph and pass `includeGemeentes` to `/api/vng/dashboard`, consistently (FR-034) in GraphTab + DashboardTab
 
@@ -233,7 +233,7 @@ Web app, **pnpm workspace**: BFF in `server/`; all frontend packages under `fron
 - [ ] T064 [P] Ensure `tsc --noEmit` passes on `server`, `frontend/ecosystem-analytics`, `frontend/vng`, `frontend/shared`
 - [ ] T065 [P] Add Playwright visual snapshots for the VNG app tabs (root `pnpm run test:visual:update`)
 - [ ] T066 [P] Update `CLAUDE.md` + README dev instructions for the VNG app, workspace, and snapshot regeneration
-- [ ] T067 Run `quickstart.md` smoke validation across all 11 checks (maps to SC-001…SC-015)
+- [ ] T067 Run `quickstart.md` smoke validation across all 11 checks (maps to SC-001…SC-015), including a side-by-side **control-count review** vs the Explorer (SC-009) and confirming the large-hub cap message at `max_spaces_per_query`
 - [ ] T068 [P] Performance verification: first load ≤5s (SC-002), hub switch ≤5s (SC-003), selection change ≤3s (SC-004), org reveal <1s (SC-012)
 - [ ] T069 Security pass: no token logging, per-user cache scoping (incl. GD entry), parameterised SQL, gemeentedelers READ enforcement (Principle IV)
 

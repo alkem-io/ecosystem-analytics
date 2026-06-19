@@ -174,5 +174,5 @@ User direct selection ─────────────┘
 Space ──(MEMBER/LEAD)── Organization ──(isGemeente)──> [gemeente subset, registry-matched]
 INITIATIVE ──INITIATIVE_GEMEENTE──> Organization(gemeente)   (reuses existing node)
 INITIATIVE ──INITIATIVE_THEME─────> Theme (canonical theme:<slug>)
-Dashboard counts: each Selected Space → NDS category + VNG-2030 category via analytics.yml mapping
+Dashboard counts (data-source aware): GD initiatives when the GD layer is active, else each Selected Space → NDS category + VNG-2030 category via analytics.yml mapping
 ```
