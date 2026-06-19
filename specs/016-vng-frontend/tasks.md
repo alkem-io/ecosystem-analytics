@@ -47,9 +47,9 @@ Web app, **pnpm workspace**: BFF in `server/`; all frontend packages under `fron
 - [ ] T010 [P] Bootstrap i18n in `frontend/vng/src/i18n/index.ts` with `nl.json` (default + fallback) and `en.json`; expose a language switcher hook (Dutch default per FR-036)
 - [ ] T011 Build the VNG app shell in `frontend/vng/src/App.tsx`: 3-tab layout (Graph / Space details / Dashboard) via react-router, auth-gated load using `@ea/shared` auth (login redirect + `fetchMe`)
 - [ ] T012 [P] Wire the `frontend/vng` API client from `@ea/shared` services (`credentials: 'include'`) in `frontend/vng/src/services/api.ts`
-- [ ] T013 [P] Add `VngConfig` interface + parsing in `server/src/config.ts`; add `vng:` block to `server/analytics.yml` and keys to `server/.env.default` (`defaultHubNameId`, `gemeentedelersSpaceNameId`, `gdCacheTtlHours:168`, `tagCategoryMapping`)
-- [ ] T014 [P] Create snapshot generator `server/scripts/generate-vng-snapshot.mts` (reads `../vng-gemeente-delers` vault → `municipalities.json`/`themes.json`/`meta.json`) and add `gen:vng-snapshot` script to `server/package.json` (per contracts/snapshot-registry.md)
-- [ ] T015 Generate and commit `server/src/data/vng/{municipalities.json,themes.json,meta.json}`; add registry loader `server/src/services/vng-registry.ts` (lookup maps: municipality title→`alkemioNameId`, theme title/priorLabel→slug)
+- [X] T013 [P] Add `VngConfig` interface + parsing in `server/src/config.ts`; add `vng:` block to `server/analytics.yml` and keys to `server/.env.default` (`defaultHubNameId`, `gemeentedelersSpaceNameId`, `gdCacheTtlHours:168`, `tagCategoryMapping`)
+- [X] T014 [P] Create snapshot generator `server/scripts/generate-vng-snapshot.mts` (reads `../vng-gemeente-delers` vault → `municipalities.json`/`themes.json`/`meta.json`) and add `gen:vng-snapshot` script to `server/package.json` (per contracts/snapshot-registry.md)
+- [X] T015 Generate and commit `server/src/data/vng/{municipalities.json,themes.json,meta.json}`; add registry loader `server/src/services/vng-registry.ts` (lookup maps: municipality title→`alkemioNameId`, theme title/priorLabel→slug)
 - [ ] T016 [P] Confirm cross-origin session support: `SESSION_COOKIE_DOMAIN` (parent domain) + `SESSION_ALLOWED_ORIGINS` (both subdomains) handling in `server/src/auth/session.ts`; document in `server/.env.default`
 
 **Checkpoint**: Workspace builds; VNG app shell loads behind auth; Explorer unchanged; config + registry available.
