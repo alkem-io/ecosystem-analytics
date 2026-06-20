@@ -30,9 +30,10 @@ export function countDashboard(
   ];
 
   // Pre-seed every category key (so zero-count bars still render — US3 scenario 3).
-  const counts: Record<string, Map<string, number>> = {};
+  // Each category accumulates the entity LABELS that fall into it (for tooltips).
+  const items: Record<string, Map<string, string[]>> = {};
   for (const dim of dimensionDefs) {
-    counts[dim.key] = new Map(Object.values(dim.map).map((cat) => [cat, 0]));
+    items[dim.key] = new Map(Object.values(dim.map).map((cat) => [cat, []]));
   }
 
   let uncategorisedCount = 0;
@@ -48,7 +49,7 @@ export function countDashboard(
         if (category) hit.add(category);
       }
       for (const category of hit) {
-        counts[dim.key].set(category, (counts[dim.key].get(category) ?? 0) + 1);
+        items[dim.key].get(category)?.push(entity.label);
         categorisedAnywhere = true;
       }
     }
@@ -58,7 +59,11 @@ export function countDashboard(
 
   const dimensions: DashboardDimension[] = dimensionDefs.map((dim) => ({
     key: dim.key,
-    categories: [...counts[dim.key].entries()].map(([key, count]) => ({ key, count })),
+    categories: [...items[dim.key].entries()].map(([key, labels]) => ({
+      key,
+      count: labels.length,
+      items: labels.sort((a, b) => a.localeCompare(b)),
+    })),
   }));
 
   return { source, totalCounted: entities.length, uncategorisedCount, dimensions };
@@ -82,14 +87,19 @@ export async function assembleDashboard(
   if (includeInitiatives) {
     source = 'gd-initiatives';
     const callouts = await fetchGemeentedelersCallouts(auth, sdk);
-    entities = callouts.map((c) => ({ id: c.id, tags: c.tags }));
+    entities = callouts.map((c) => ({ id: c.id, label: c.displayName, tags: c.tags }));
   } else {
     source = 'spaces';
     const tagsPerSpace = await Promise.all(
       spaceIds.map(async (nameId) => {
         const res = await sdk.SpaceProfileTags({ nameId });
-        const tagsets = res.data.lookupByName.space?.about.profile.tagsets ?? [];
-        return { id: nameId, tags: tagsets.flatMap((ts) => ts.tags) };
+        const space = res.data.lookupByName.space;
+        const tagsets = space?.about.profile.tagsets ?? [];
+        return {
+          id: nameId,
+          label: space?.about.profile.displayName ?? nameId,
+          tags: tagsets.flatMap((ts) => ts.tags),
+        };
       }),
     );
     entities = tagsPerSpace;

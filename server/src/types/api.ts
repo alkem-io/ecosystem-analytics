@@ -34,7 +34,8 @@ export interface GdCalloutInput {
 /** Dimension key → category counts for the VNG dashboard. */
 export interface DashboardDimension {
   key: string;
-  categories: { key: string; count: number }[];
+  /** Each category carries its count plus the names of the entities in it (for tooltips). */
+  categories: { key: string; count: number; items: string[] }[];
 }
 
 /** Response for POST /api/vng/dashboard (feature 016, US3). */
@@ -49,6 +50,8 @@ export interface VngDashboardResponse {
 /** An entity (space or GD initiative) counted by the dashboard, with its tags. */
 export interface DashboardCountable {
   id: string;
+  /** Display name (for the per-category tooltip list). */
+  label: string;
   tags: string[];
 }
 

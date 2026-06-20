@@ -15423,7 +15423,7 @@ export type SpaceProfileTagsQueryVariables = Exact<{
 }>;
 
 
-export type SpaceProfileTagsQuery = { lookupByName: { space?: { id: string, nameID: string, about: { profile: { tagsets?: Array<{ name: string, tags: Array<string> }> | undefined } } } | undefined } };
+export type SpaceProfileTagsQuery = { lookupByName: { space?: { id: string, nameID: string, about: { profile: { displayName: string, tagsets?: Array<{ name: string, tags: Array<string> }> | undefined } } } | undefined } };
 
 export type SubspaceDetailsQueryVariables = Exact<{
   spaceId: Scalars['UUID']['input'];

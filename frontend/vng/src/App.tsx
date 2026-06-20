@@ -9,6 +9,7 @@ import { HubSelector } from './components/HubSelector.js';
 import { GemeenteToggle } from './components/GemeenteToggle.js';
 import { InitiativesToggle } from './components/InitiativesToggle.js';
 import { SelectedSpacesPanel } from './components/SelectedSpacesPanel.js';
+import { ErrorBoundary } from './components/ErrorBoundary.js';
 import { SelectionProvider, useSelectionContext } from './hooks/SelectionContext.js';
 import { GraphTab } from './pages/GraphTab.js';
 import { SpaceDetailsTab } from './pages/SpaceDetailsTab.js';
@@ -174,20 +175,24 @@ function AppShell() {
       </nav>
 
       <div className="flex min-h-0 flex-1">
-        <SelectedSpacesPanel />
+        <ErrorBoundary label="Selectie">
+          <SelectedSpacesPanel />
+        </ErrorBoundary>
         <main className="min-h-0 min-w-0 flex-1">
-          {active === 'graph' && (
-            <GraphTab
-              spaceIds={effectiveSpaceIds}
-              includeInitiatives={state.includeInitiatives}
-              showGemeentes={state.showGemeentes}
-              refreshNonce={refreshNonce}
-            />
-          )}
-          {active === 'details' && (
-            <SpaceDetailsTab openSpaceId={openSpaceId} openSpaceSeq={openSpaceSeq} />
-          )}
-          {active === 'dashboard' && <DashboardTab />}
+          <ErrorBoundary key={active} label={t(`tabs.${active}`)}>
+            {active === 'graph' && (
+              <GraphTab
+                spaceIds={effectiveSpaceIds}
+                includeInitiatives={state.includeInitiatives}
+                showGemeentes={state.showGemeentes}
+                refreshNonce={refreshNonce}
+              />
+            )}
+            {active === 'details' && (
+              <SpaceDetailsTab openSpaceId={openSpaceId} openSpaceSeq={openSpaceSeq} />
+            )}
+            {active === 'dashboard' && <DashboardTab />}
+          </ErrorBoundary>
         </main>
       </div>
     </div>
