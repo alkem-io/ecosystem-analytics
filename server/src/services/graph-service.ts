@@ -4,6 +4,9 @@ import { transformToGraph, computeActivityTiers } from '../transform/transformer
 import { computeMetrics } from '../transform/metrics.js';
 import { computeInsights } from '../transform/insights.js';
 import { getCacheEntry, setCacheEntry, invalidateCache } from '../cache/cache-service.js';
+import { loadVngRegistry } from './vng-registry.js';
+import { fetchGemeentedelersCallouts } from './gd-initiatives-service.js';
+import { buildInitiativeLayer } from '../transform/initiatives.js';
 import { getLogger } from '../logging/logger.js';
 import { type GraphDataset, type GraphNode, type GraphEdge, type SpaceCacheInfo, type SpaceTimeSeries, type ActivityPeriodCounts, NodeType, EdgeType, ActivityTier } from '../types/graph.js';
 import type { GraphGenerationRequest, GraphProgress } from '../types/api.js';
@@ -128,6 +131,41 @@ export async function generateGraph(
   // without requiring a force-refresh.
   recomputeSpaceActivity(allNodes, allEdges);
 
+  // Tag gemeente organisations from the snapshot registry (FR-032/035).
+  const registry = loadVngRegistry();
+  for (const node of allNodes) {
+    if (node.type === NodeType.ORGANIZATION) {
+      node.isGemeente = registry.isGemeenteNameId(node.nameId);
+    }
+  }
+
+  // Optionally fold in the GemeenteDelers initiative layer (US10). Non-fatal.
+  let gdLayer: GraphDataset['gdLayer'];
+  if (request.includeInitiatives) {
+    const meta = registry.meta();
+    const source = {
+      programme: meta.programme.name,
+      years: meta.programme.years,
+      url: meta.programme.sourceUrl,
+    };
+    try {
+      const callouts = await fetchGemeentedelersCallouts(auth);
+      const orgNodeByNameId = new Map<string, string>();
+      for (const node of allNodes) {
+        if (node.type === NodeType.ORGANIZATION && node.nameId) orgNodeByNameId.set(node.nameId, node.id);
+      }
+      const layer = buildInitiativeLayer(callouts, registry, (gemeenteNameId) =>
+        orgNodeByNameId.get(gemeenteNameId) ?? null,
+      );
+      allNodes.push(...layer.nodes);
+      allEdges.push(...layer.edges);
+      gdLayer = { available: true, initiativeCount: callouts.length, source };
+    } catch (err) {
+      logger.warn(`GD initiative layer unavailable: ${(err as Error).message}`, { context: 'Graph' });
+      gdLayer = { available: false, initiativeCount: 0, source, error: 'GD_LAYER_UNAVAILABLE' };
+    }
+  }
+
   // Compute metrics and insights
   const metrics = computeMetrics(allNodes, allEdges);
   const insights = computeInsights(allNodes, allEdges);
@@ -152,6 +190,7 @@ export async function generateGraph(
     hasActivityData: hasActivity,
     timeSeries,
     errors: errors.length > 0 ? errors : undefined,
+    gdLayer,
   };
 }
 

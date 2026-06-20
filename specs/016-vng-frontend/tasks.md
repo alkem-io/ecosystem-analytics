@@ -27,13 +27,13 @@ Web app, **pnpm workspace**: BFF in `server/`; all frontend packages under `fron
 
 **Purpose**: Workspace + new-app scaffolding
 
-- [ ] T001 Create `pnpm-workspace.yaml` at repo root with packages `server` and `frontend/*` (i.e. `frontend/shared`, `frontend/ecosystem-analytics`, `frontend/vng`); add root dev script to run all three (concurrently) in root `package.json`
-- [ ] T001a **Move the existing Explorer** from top-level `frontend/` into `frontend/ecosystem-analytics/` (`git mv`), preserving history; update its `package.json` name and any internal relative paths so it builds in the new location
-- [ ] T002 [P] Scaffold `frontend/vng/` Vite + React 19 + TS app (port 5174, `/api` proxy to server): `frontend/vng/{package.json,vite.config.ts,tsconfig.json,index.html,src/main.tsx,src/App.tsx}`
-- [ ] T003 [P] Create `frontend/shared/` package skeleton: `frontend/shared/{package.json,tsconfig.json,src/index.ts}` with workspace name `@ea/shared`
-- [ ] T004 [P] Add `frontend/vng` dependencies aligned with `frontend/ecosystem-analytics` versions: `recharts`, `i18next`, `react-i18next`, `react-router-dom`, Radix UI primitives, Tailwind v4 (`@tailwindcss/vite`), `class-variance-authority`/`clsx`/`tailwind-merge`, `lucide-react`, plus `vitest` in `frontend/vng/package.json`
-- [ ] T005 [P] Configure Tailwind v4 + design tokens + shadcn-style setup in `frontend/vng/` (`frontend/vng/src/styles/`, Tailwind config, `index.css`)
-- [ ] T006 [P] Copy map basemaps and required public assets into `frontend/vng/public/maps/` (incl. `netherlands.geojson`) so the shared map renders in the VNG app
+- [X] T001 Create `pnpm-workspace.yaml` at repo root with packages `server` and `frontend/*` (i.e. `frontend/shared`, `frontend/ecosystem-analytics`, `frontend/vng`); add root dev script to run all three (concurrently) in root `package.json`
+- [X] T001a **Move the existing Explorer** from top-level `frontend/` into `frontend/ecosystem-analytics/` (`git mv`), preserving history; update its `package.json` name and any internal relative paths so it builds in the new location
+- [X] T002 [P] Scaffold `frontend/vng/` Vite + React 19 + TS app (port 5174, `/api` proxy to server): `frontend/vng/{package.json,vite.config.ts,tsconfig.json,index.html,src/main.tsx,src/App.tsx}`
+- [X] T003 [P] Create `frontend/shared/` package skeleton: `frontend/shared/{package.json,tsconfig.json,src/index.ts}` with workspace name `@ea/shared`
+- [X] T004 [P] Add `frontend/vng` dependencies aligned with `frontend/ecosystem-analytics` versions: `recharts`, `i18next`, `react-i18next`, `react-router-dom`, Radix UI primitives, Tailwind v4 (`@tailwindcss/vite`), `class-variance-authority`/`clsx`/`tailwind-merge`, `lucide-react`, plus `vitest` in `frontend/vng/package.json`
+- [X] T005 [P] Configure Tailwind v4 + design tokens + shadcn-style setup in `frontend/vng/` (`frontend/vng/src/styles/`, Tailwind config, `index.css`)
+- [X] T006 [P] Copy map basemaps and required public assets into `frontend/vng/public/maps/` (incl. `netherlands.geojson`) so the shared map renders in the VNG app
 
 ---
 
@@ -41,12 +41,12 @@ Web app, **pnpm workspace**: BFF in `server/`; all frontend packages under `fron
 
 **Purpose**: Shared-code extraction, VNG app shell, server config + snapshot registry. **No user story can start until this is done.**
 
-- [ ] T007 Extract shared modules from `frontend/ecosystem-analytics/src` into `frontend/shared/src/`: `graph/` (ForceGraph, clustering, HoverCard), `map/` (MapOverlay incl. `netherlands` region), `panels/DetailsDrawer`, `services/` (api wrapper, auth `login`/`logout`/`fetchMe`), `ui/`, `styles/tokens`
+- [X] T007 Extract shared modules from `frontend/ecosystem-analytics/src` into `frontend/shared/src/`: `graph/` (ForceGraph, clustering, HoverCard), `map/` (MapOverlay incl. `netherlands` region), `panels/DetailsDrawer`, `services/` (api wrapper, auth `login`/`logout`/`fetchMe`), `ui/`, `styles/tokens`
 - [ ] T008 Rewire `frontend/ecosystem-analytics/src` imports to consume `@ea/shared` (no behaviour change); confirm `tsc --noEmit` passes and `pnpm run test:visual` snapshots are unchanged for the Explorer
 - [ ] T009 [P] Lift shadcn UI primitives (`tabs`, `alert`, `card`, `badge`, `select`, `chart`) from `client-web@story/9885-remove-mui-library-and-code` `prototype/src/app/components/ui/` into `frontend/shared/src/ui/`
-- [ ] T010 [P] Bootstrap i18n in `frontend/vng/src/i18n/index.ts` with `nl.json` (default + fallback) and `en.json`; expose a language switcher hook (Dutch default per FR-036)
-- [ ] T011 Build the VNG app shell in `frontend/vng/src/App.tsx`: 3-tab layout (Graph / Space details / Dashboard) via react-router, auth-gated load using `@ea/shared` auth (login redirect + `fetchMe`)
-- [ ] T012 [P] Wire the `frontend/vng` API client from `@ea/shared` services (`credentials: 'include'`) in `frontend/vng/src/services/api.ts`
+- [X] T010 [P] Bootstrap i18n in `frontend/vng/src/i18n/index.ts` with `nl.json` (default + fallback) and `en.json`; expose a language switcher hook (Dutch default per FR-036)
+- [X] T011 Build the VNG app shell in `frontend/vng/src/App.tsx`: 3-tab layout (Graph / Space details / Dashboard) via react-router, auth-gated load using `@ea/shared` auth (login redirect + `fetchMe`)
+- [X] T012 [P] Wire the `frontend/vng` API client from `@ea/shared` services (`credentials: 'include'`) in `frontend/vng/src/services/api.ts`
 - [X] T013 [P] Add `VngConfig` interface + parsing in `server/src/config.ts`; add `vng:` block to `server/analytics.yml` and keys to `server/.env.default` (`defaultHubNameId`, `gemeentedelersSpaceNameId`, `gdCacheTtlHours:168`, `tagCategoryMapping`)
 - [X] T014 [P] Create snapshot generator `server/scripts/generate-vng-snapshot.mts` (reads `../vng-gemeente-delers` vault → `municipalities.json`/`themes.json`/`meta.json`) and add `gen:vng-snapshot` script to `server/package.json` (per contracts/snapshot-registry.md)
 - [X] T015 Generate and commit `server/src/data/vng/{municipalities.json,themes.json,meta.json}`; add registry loader `server/src/services/vng-registry.ts` (lookup maps: municipality title→`alkemioNameId`, theme title/priorLabel→slug)
@@ -64,20 +64,20 @@ Web app, **pnpm workspace**: BFF in `server/`; all frontend packages under `fron
 
 ### Tests for User Story 1
 
-- [ ] T017 [P] [US1] Unit test `hub-service` (`listHubs`, `resolveHubSpaceIds`, restricted-space exclusion) in `server/src/services/__tests__/hub-service.test.ts`
+- [X] T017 [P] [US1] Unit test `hub-service` (`listHubs`, `resolveHubSpaceIds`, restricted-space exclusion) in `server/src/services/__tests__/hub-service.test.ts`
 
 ### Implementation for User Story 1
 
-- [ ] T018 [P] [US1] Add `innovationHubs.graphql` and `innovationHubByNameId.graphql` (with hub fragment incl. `spaceListFilter`) in `server/src/graphql/queries/`
-- [ ] T019 [US1] Run `pnpm -C server run codegen` to regenerate the typed SDK (depends on T018); commit `server/src/graphql/generated/`
-- [ ] T020 [US1] Implement `server/src/services/hub-service.ts` (`listHubs`, `resolveHubSpaceIds`) via SDK, filtering to spaces the user may view (FR-009/014)
-- [ ] T021 [US1] Implement routes `GET /api/hubs` and `GET /api/hubs/:nameId/spaces` in `server/src/routes/hubs.ts` (per contracts/api-hubs.md) and register in `server/src/app.ts`
-- [ ] T022 [P] [US1] `useHubs` hook (fetch `/api/hubs`, expose default) in `frontend/vng/src/hooks/useHubs.ts`
-- [ ] T023 [P] [US1] `HubSelector` component (choose from all available hubs) in `frontend/vng/src/components/HubSelector.tsx`
-- [ ] T024 [US1] `useSelectedSpaces` hook with default-hub resolution + effective-set computation in `frontend/vng/src/hooks/useSelectedSpaces.ts` (SelectionState per data-model §3)
-- [ ] T025 [US1] `GraphTab` + `useVngGraph` hook: POST `/api/graph/generate` and render `@ea/shared` ForceGraph over MapOverlay `netherlands` in `frontend/vng/src/pages/GraphTab.tsx`, `frontend/vng/src/hooks/useVngGraph.ts`
-- [ ] T026 [US1] `SelectedSpacesPanel` persistent list (visible on every tab) in `frontend/vng/src/components/SelectedSpacesPanel.tsx`
-- [ ] T027 [US1] Empty/error/loading states for empty hub or failed graph (FR-017) in `GraphTab`
+- [X] T018 [P] [US1] Add `innovationHubs.graphql` and `innovationHubByNameId.graphql` (with hub fragment incl. `spaceListFilter`) in `server/src/graphql/queries/`
+- [X] T019 [US1] Run `pnpm -C server run codegen` to regenerate the typed SDK (depends on T018); commit `server/src/graphql/generated/`
+- [X] T020 [US1] Implement `server/src/services/hub-service.ts` (`listHubs`, `resolveHubSpaceIds`) via SDK, filtering to spaces the user may view (FR-009/014)
+- [X] T021 [US1] Implement routes `GET /api/hubs` and `GET /api/hubs/:nameId/spaces` in `server/src/routes/hubs.ts` (per contracts/api-hubs.md) and register in `server/src/app.ts`
+- [X] T022 [P] [US1] `useHubs` hook (fetch `/api/hubs`, expose default) in `frontend/vng/src/hooks/useHubs.ts`
+- [X] T023 [P] [US1] `HubSelector` component (choose from all available hubs) in `frontend/vng/src/components/HubSelector.tsx`
+- [X] T024 [US1] `useSelectedSpaces` hook with default-hub resolution + effective-set computation in `frontend/vng/src/hooks/useSelectedSpaces.ts` (SelectionState per data-model §3)
+- [X] T025 [US1] `GraphTab` + `useVngGraph` hook: POST `/api/graph/generate` and render `@ea/shared` ForceGraph over MapOverlay `netherlands` in `frontend/vng/src/pages/GraphTab.tsx`, `frontend/vng/src/hooks/useVngGraph.ts`
+- [X] T026 [US1] `SelectedSpacesPanel` persistent list (visible on every tab) in `frontend/vng/src/components/SelectedSpacesPanel.tsx`
+- [X] T027 [US1] Empty/error/loading states for empty hub or failed graph (FR-017) in `GraphTab`
 
 **Checkpoint**: MVP — hub-driven graph over the NL map works end to end.
 
@@ -104,10 +104,10 @@ Web app, **pnpm workspace**: BFF in `server/`; all frontend packages under `fron
 
 **Independent Test**: With a hub selected, add one space and remove one hub space; panel, graph, dashboard reflect the union.
 
-- [ ] T032 [P] [US2] `SpacePicker` (search/add spaces via existing `/api/spaces`) in `frontend/vng/src/components/SpacePicker.tsx`
-- [ ] T033 [US2] Extend `useSelectedSpaces` with `directAdded`/`directRemoved` and hub-switch recomputation (retain still-applicable selections) in `frontend/vng/src/hooks/useSelectedSpaces.ts` (FR-011/012)
-- [ ] T034 [US2] `SelectedSpacesPanel` shows provenance (hub vs direct) + remove control (FR-013)
-- [ ] T035 [US2] Ensure GraphTab + DashboardTab consume the combined effective set consistently
+- [X] T032 [P] [US2] `SpacePicker` (search/add spaces via existing `/api/spaces`) in `frontend/vng/src/components/SpacePicker.tsx`
+- [X] T033 [US2] Extend `useSelectedSpaces` with `directAdded`/`directRemoved` and hub-switch recomputation (retain still-applicable selections) in `frontend/vng/src/hooks/useSelectedSpaces.ts` (FR-011/012)
+- [X] T034 [US2] `SelectedSpacesPanel` shows provenance (hub vs direct) + remove control (FR-013)
+- [X] T035 [US2] Ensure GraphTab + DashboardTab consume the combined effective set consistently
 
 **Checkpoint**: US1 + US2 work independently.
 
@@ -121,14 +121,14 @@ Web app, **pnpm workspace**: BFF in `server/`; all frontend packages under `fron
 
 ### Tests for User Story 3
 
-- [ ] T036 [P] [US3] Unit test dashboard category counting (tag→category mapping, uncategorised handling) in `server/src/services/__tests__/vng-dashboard.test.ts`
+- [X] T036 [P] [US3] Unit test dashboard category counting (tag→category mapping, uncategorised handling) in `server/src/services/__tests__/vng-dashboard.test.ts`
 
 ### Implementation for User Story 3
 
-- [ ] T037 [US3] `POST /api/vng/dashboard` route + **data-source-aware** service applying `vng.tagCategoryMapping`: count GD initiatives when `includeInitiatives` and the GD layer is available, else selected spaces; return `source` + counts in `server/src/routes/vng.ts` and `server/src/services/vng-dashboard-service.ts` (per contracts/api-vng-dashboard.md, FR-022)
-- [ ] T038 [P] [US3] `useDashboard` hook in `frontend/vng/src/hooks/useDashboard.ts`
-- [ ] T039 [P] [US3] `NdsChart` + `Vng2030Chart` recharts components (via shared `ui/chart`) in `frontend/vng/src/components/charts/`
-- [ ] T040 [US3] `DashboardTab` assembling charts, a per-chart **active-source indicator** (spaces vs GD initiatives, FR-021), empty-category and missing-data handling (FR-024) in `frontend/vng/src/pages/DashboardTab.tsx`
+- [X] T037 [US3] `POST /api/vng/dashboard` route + **data-source-aware** service applying `vng.tagCategoryMapping`: count GD initiatives when `includeInitiatives` and the GD layer is available, else selected spaces; return `source` + counts in `server/src/routes/vng.ts` and `server/src/services/vng-dashboard-service.ts` (per contracts/api-vng-dashboard.md, FR-022)
+- [X] T038 [P] [US3] `useDashboard` hook in `frontend/vng/src/hooks/useDashboard.ts`
+- [X] T039 [P] [US3] `NdsChart` + `Vng2030Chart` recharts components (via shared `ui/chart`) in `frontend/vng/src/components/charts/`
+- [X] T040 [US3] `DashboardTab` assembling charts, a per-chart **active-source indicator** (spaces vs GD initiatives, FR-021), empty-category and missing-data handling (FR-024) in `frontend/vng/src/pages/DashboardTab.tsx`
 
 **Checkpoint**: US1–US3 independently functional.
 
@@ -140,7 +140,7 @@ Web app, **pnpm workspace**: BFF in `server/`; all frontend packages under `fron
 
 **Independent Test**: Pick a space in the details tab (and click a graph node) → its details show; missing fields degrade gracefully.
 
-- [ ] T041 [US4] `SpaceDetailsTab` with a dedicated space picker, reusing `@ea/shared` DetailsDrawer in `frontend/vng/src/pages/SpaceDetailsTab.tsx` (FR-018)
+- [X] T041 [US4] `SpaceDetailsTab` with a dedicated space picker, reusing `@ea/shared` DetailsDrawer in `frontend/vng/src/pages/SpaceDetailsTab.tsx` (FR-018)
 - [ ] T042 [US4] Cross-tab navigation: clicking a space node in GraphTab opens SpaceDetailsTab for that space (FR-015) via shared selection/route state
 - [ ] T043 [US4] Verify graceful degradation for missing optional fields (FR-019)
 
@@ -154,9 +154,9 @@ Web app, **pnpm workspace**: BFF in `server/`; all frontend packages under `fron
 
 **Independent Test**: Open the app; VNG branding visible on all tabs; a warning-styled notice explains authorised-data-only.
 
-- [ ] T044 [P] [US6] `BrandingHeader` persistent across tabs, using **existing Alkemio branding/tokens** (from `@ea/shared`) with a **text label** "VNG Kenniscentrum Innovatie"; structure it so a VNG-specific visual identity can be dropped in later, in `frontend/vng/src/components/BrandingHeader.tsx` (FR-025)
-- [ ] T045 [P] [US6] `AuthorizationWarning` banner using shared `alert` (warning variant), localized, in `frontend/vng/src/components/AuthorizationWarning.tsx` (FR-026/027)
-- [ ] T046 [US6] Mount header + warning in the app shell (`frontend/vng/src/App.tsx`)
+- [X] T044 [P] [US6] `BrandingHeader` persistent across tabs, using **existing Alkemio branding/tokens** (from `@ea/shared`) with a **text label** "VNG Kenniscentrum Innovatie"; structure it so a VNG-specific visual identity can be dropped in later, in `frontend/vng/src/components/BrandingHeader.tsx` (FR-025)
+- [X] T045 [P] [US6] `AuthorizationWarning` banner using shared `alert` (warning variant), localized, in `frontend/vng/src/components/AuthorizationWarning.tsx` (FR-026/027)
+- [X] T046 [US6] Mount header + warning in the app shell (`frontend/vng/src/App.tsx`)
 
 **Checkpoint**: Branding + warning present everywhere.
 
@@ -168,8 +168,8 @@ Web app, **pnpm workspace**: BFF in `server/`; all frontend packages under `fron
 
 **Independent Test**: Click an org node → its connected spaces are listed/highlighted (<1s); empty-state when none.
 
-- [ ] T047 [US7] On organisation-node click, derive connected spaces from current `GraphEdge[]` and display in `frontend/vng/src/components/OrgConnections.tsx` (reuse DetailsDrawer connections logic) (FR-030)
-- [ ] T048 [US7] Highlight connected spaces in the graph + navigation to Space details; clear empty-state when the org has no in-graph connections (FR-031)
+- [X] T047 [US7] On organisation-node click, derive connected spaces from current `GraphEdge[]` and display in `frontend/vng/src/components/OrgConnections.tsx` (reuse DetailsDrawer connections logic) (FR-030)
+- [X] T048 [US7] Highlight connected spaces in the graph + navigation to Space details; clear empty-state when the org has no in-graph connections (FR-031)
 
 **Checkpoint**: US7 functional.
 
@@ -181,7 +181,7 @@ Web app, **pnpm workspace**: BFF in `server/`; all frontend packages under `fron
 
 **Independent Test**: Toggle hide → gemeente nodes leave graph + dashboard; toggle back restores; no non-gemeente affected.
 
-- [ ] T049 [US8] Server: set `GraphNode.isGemeente` by matching `ORGANIZATION.nameId` against the registry (assert **no false positives** — non-gemeente orgs stay `isGemeente:false`), in `server/src/transform/transformer.ts` / `server/src/services/graph-service.ts` (FR-032/035)
+- [X] T049 [US8] Server: set `GraphNode.isGemeente` by matching `ORGANIZATION.nameId` against the registry (assert **no false positives** — non-gemeente orgs stay `isGemeente:false`), in `server/src/transform/transformer.ts` / `server/src/services/graph-service.ts` (FR-032/035)
 - [ ] T050 [P] [US8] `GemeenteToggle` component in `frontend/vng/src/components/GemeenteToggle.tsx`
 - [ ] T051 [US8] Apply the toggle: filter `isGemeente` nodes/edges in the graph and pass `includeGemeentes` to `/api/vng/dashboard`, consistently (FR-034) in GraphTab + DashboardTab
 
@@ -195,9 +195,9 @@ Web app, **pnpm workspace**: BFF in `server/`; all frontend packages under `fron
 
 **Independent Test**: App loads in Dutch; switch to English → all labels update; switch back.
 
-- [ ] T052 [P] [US9] Populate `frontend/vng/src/i18n/nl.json` + `en.json` with all UI labels, navigation, chart titles, and category names (seed from `client-web` `i18n/*.nl.json`/`*.en.json`) (FR-037)
-- [ ] T053 [US9] Apply `useTranslation` across all `frontend/vng` components; mount language switcher in `BrandingHeader`; persist selection for the session (FR-036/038)
-- [ ] T054 [US9] Localize dashboard category labels by `key` and add missing-key fallback (edge case) in `frontend/vng/src/components/charts/`
+- [X] T052 [P] [US9] Populate `frontend/vng/src/i18n/nl.json` + `en.json` with all UI labels, navigation, chart titles, and category names (seed from `client-web` `i18n/*.nl.json`/`*.en.json`) (FR-037)
+- [X] T053 [US9] Apply `useTranslation` across all `frontend/vng` components; mount language switcher in `BrandingHeader`; persist selection for the session (FR-036/038)
+- [X] T054 [US9] Localize dashboard category labels by `key` and add missing-key fallback (edge case) in `frontend/vng/src/components/charts/`
 
 **Checkpoint**: US9 functional.
 
@@ -211,18 +211,18 @@ Web app, **pnpm workspace**: BFF in `server/`; all frontend packages under `fron
 
 ### Tests for User Story 10
 
-- [ ] T055 [P] [US10] Unit test GD tag→node/edge resolution (gemeente reuse by nameId, theme canonicalisation `theme:<slug>`, no duplicate identity, unmatched-tag handling) in `server/src/transform/__tests__/initiatives.test.ts`
+- [X] T055 [P] [US10] Unit test GD tag→node/edge resolution (gemeente reuse by nameId, theme canonicalisation `theme:<slug>`, no duplicate identity, unmatched-tag handling) in `server/src/transform/__tests__/initiatives.test.ts`
 
 ### Implementation for User Story 10
 
-- [ ] T056 [P] [US10] Add `spaceKnowledgeCallouts.graphql` (gemeentedelers KB callouts + `framing.profile.tags`, `nameID`, link contributions) and `organizationByNameId.graphql` in `server/src/graphql/queries/`
-- [ ] T057 [US10] Run `pnpm -C server run codegen` (depends on T056); commit generated SDK
-- [ ] T058 [US10] Extend graph types in `server/src/types/graph.ts` (`NodeType.INITIATIVE`/`THEME`, `EdgeType.INITIATIVE_GEMEENTE`/`INITIATIVE_THEME`, new `GraphNode` fields) and `server/src/types/api.ts` (`GraphGenerationRequest.includeInitiatives`)
-- [ ] T059 [US10] Implement `server/src/services/gd-initiatives-service.ts` (fetch callouts) + `server/src/transform/initiatives.ts` (resolve tags via registry → INITIATIVE/THEME nodes + edges)
-- [ ] T060 [US10] Fold-in in `server/src/services/graph-service.ts` when `includeInitiatives`: dedupe `ORGANIZATION` by `nameId`, resolve missing gemeente orgs once via `organizationByNameId`, attach `gdLayer` metadata (per contracts/api-graph-generate.md) (FR-040/043)
+- [X] T056 [P] [US10] Add `spaceKnowledgeCallouts.graphql` (gemeentedelers KB callouts + `framing.profile.tags`, `nameID`, link contributions) and `organizationByNameId.graphql` in `server/src/graphql/queries/`
+- [X] T057 [US10] Run `pnpm -C server run codegen` (depends on T056); commit generated SDK
+- [X] T058 [US10] Extend graph types in `server/src/types/graph.ts` (`NodeType.INITIATIVE`/`THEME`, `EdgeType.INITIATIVE_GEMEENTE`/`INITIATIVE_THEME`, new `GraphNode` fields) and `server/src/types/api.ts` (`GraphGenerationRequest.includeInitiatives`)
+- [X] T059 [US10] Implement `server/src/services/gd-initiatives-service.ts` (fetch callouts) + `server/src/transform/initiatives.ts` (resolve tags via registry → INITIATIVE/THEME nodes + edges)
+- [X] T060 [US10] Fold-in in `server/src/services/graph-service.ts` when `includeInitiatives`: dedupe `ORGANIZATION` by `nameId`, resolve missing gemeente orgs once via `organizationByNameId`, attach `gdLayer` metadata (per contracts/api-graph-generate.md) (FR-040/043)
 - [ ] T061 [US10] Per-user GD cache entry (`space_id="__gd_initiatives__"`, TTL `gdCacheTtlHours`) with READ check on the gemeentedelers space; non-fatal fallback when unreadable (FR-044/046) in `server/src/services/graph-service.ts` + `server/src/cache/`
-- [ ] T062 [P] [US10] `InitiativesToggle` + provenance note (from `gdLayer.source`, links `vng.nl/praktijkvoorbeelden`) in `frontend/vng/src/components/InitiativesToggle.tsx` (FR-039/047)
-- [ ] T063 [US10] GraphTab: pass `includeInitiatives`, style/legend INITIATIVE + THEME nodes and their edges, remove cleanly on disable, handle hidden-gemeente edges + non-fatal errors (FR-042, edge cases)
+- [X] T062 [P] [US10] `InitiativesToggle` + provenance note (from `gdLayer.source`, links `vng.nl/praktijkvoorbeelden`) in `frontend/vng/src/components/InitiativesToggle.tsx` (FR-039/047)
+- [X] T063 [US10] GraphTab: pass `includeInitiatives`, style/legend INITIATIVE + THEME nodes and their edges, remove cleanly on disable, handle hidden-gemeente edges + non-fatal errors (FR-042, edge cases)
 
 **Checkpoint**: All user stories independently functional.
 

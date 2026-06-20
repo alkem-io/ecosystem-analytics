@@ -4,6 +4,10 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
+    "dev:server": "pnpm -C server dev",
+    "dev:explorer": "pnpm -C frontend/ecosystem-analytics dev",
+    "dev:vng": "pnpm -C frontend/vng dev",
+    "build:frontends": "pnpm -r --filter \"./frontend/**\" build",
     "test:visual": "playwright test",
     "test:visual:update": "playwright test --update-snapshots",
     "setup:prototype": "npm --prefix .prototype/alkemio-redesign install",

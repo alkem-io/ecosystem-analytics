@@ -5,6 +5,10 @@ export enum NodeType {
   SPACE_L2 = 'SPACE_L2',
   ORGANIZATION = 'ORGANIZATION',
   USER = 'USER',
+  /** GemeenteDelers initiative (a Knowledge Base callout). Feature 016, US10. */
+  INITIATIVE = 'INITIATIVE',
+  /** GemeenteDelers theme. Feature 016, US10. */
+  THEME = 'THEME',
 }
 
 /** Edge types representing relationships */
@@ -13,6 +17,10 @@ export enum EdgeType {
   MEMBER = 'MEMBER',
   LEAD = 'LEAD',
   ADMIN = 'ADMIN',
+  /** GemeenteDelers initiative → gemeente organisation. Feature 016, US10. */
+  INITIATIVE_GEMEENTE = 'INITIATIVE_GEMEENTE',
+  /** GemeenteDelers initiative → theme. Feature 016, US10. */
+  INITIATIVE_THEME = 'INITIATIVE_THEME',
 }
 
 /** Activity tier classification based on percentile distribution */
@@ -49,6 +57,8 @@ export const NODE_WEIGHT: Record<NodeType, number> = {
   [NodeType.SPACE_L2]: 8,
   [NodeType.ORGANIZATION]: 5,
   [NodeType.USER]: 3,
+  [NodeType.INITIATIVE]: 4,
+  [NodeType.THEME]: 6,
 };
 
 /** Visual weight per edge type */
@@ -57,6 +67,8 @@ export const EDGE_WEIGHT: Record<EdgeType, number> = {
   [EdgeType.LEAD]: 2,
   [EdgeType.ADMIN]: 2,
   [EdgeType.MEMBER]: 1,
+  [EdgeType.INITIATIVE_GEMEENTE]: 1,
+  [EdgeType.INITIATIVE_THEME]: 1,
 };
 
 /** Aggregated tag data from profile tagsets */
@@ -132,6 +144,17 @@ export interface GraphNode {
   spaceActivityTier?: ActivityTier;
   /** Per-period activity counts for time-based filtering (L0/L1/L2 only) */
   activityByPeriod?: ActivityPeriodCounts;
+  // ── Feature 016 (VNG) additions ──
+  /** true when an ORGANIZATION node matches the gemeente registry (FR-032). */
+  isGemeente?: boolean;
+  /** INITIATIVE: year from a `gd-<jaartal>` tag, if present. */
+  initiativeYear?: number;
+  /** INITIATIVE: GemeenteDelers classifications (winner/finalist/…). */
+  initiativeClassifications?: string[];
+  /** INITIATIVE: Global Goals (`sdg-NN`) tags, if present. */
+  globalGoals?: string[];
+  /** INITIATIVE: original vng.nl/praktijkvoorbeelden source link. */
+  sourceUrl?: string | null;
 }
 
 /** An edge in the graph dataset */
@@ -194,4 +217,11 @@ export interface GraphDataset {
   timeSeries?: SpaceTimeSeries[];
   /** Non-fatal errors encountered during graph generation (logged server-side, surfaced to frontend) */
   errors?: string[];
+  /** GemeenteDelers initiative layer metadata (feature 016, US10/FR-047). */
+  gdLayer?: {
+    available: boolean;
+    initiativeCount: number;
+    source: { programme: string; years: string; url: string };
+    error?: string;
+  };
 }
