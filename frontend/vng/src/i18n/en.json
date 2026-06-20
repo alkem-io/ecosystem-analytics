@@ -4,9 +4,15 @@
     "subtitle": "Innovation ecosystem dashboard"
   },
   "tabs": {
-    "graph": "Network",
+    "label": "Views",
+    "graph": "Graph",
     "details": "Space details",
     "dashboard": "Dashboard"
+  },
+  "user": {
+    "menu": "User menu",
+    "signedIn": "Signed in",
+    "logout": "Sign out"
   },
   "hub": {
     "label": "Innovation hub",
@@ -46,8 +52,27 @@
     "uncategorisedCount": "{{count}} uncategorised"
   },
   "categories": {
-    "nds": {},
-    "vng2030": {}
+    "nds": {
+      "cloud": "Cloud",
+      "data": "Data",
+      "ai": "Artificial Intelligence",
+      "dienstverlening": "Central services",
+      "weerbaarheid": "Digital resilience",
+      "vakmanschap": "Digital craftsmanship"
+    },
+    "vng2030": {
+      "bedrijfsvoering": "Operations & municipal services",
+      "wonen-ruimte": "Housing & Space",
+      "bestaanszekerheid": "Livelihood security",
+      "klimaat-energie": "Climate & energy",
+      "kansengelijkheid": "Equal opportunity/youth",
+      "vergrijzing": "Ageing/healthy living",
+      "een-sterke-bestuurslaag": "One strong governance layer",
+      "samenwerken-in-regios": "Collaborating in regions",
+      "knooppunt-van-netwerken": "Hub of networks",
+      "bestuurskracht": "Administrative capacity & quality of execution",
+      "kwalitatieve-besluitvorming": "Quality decision-making & mandate"
+    }
   },
   "warning": {
     "authTitle": "Please note",

@@ -3,10 +3,15 @@ import { useTranslation } from 'react-i18next';
 import { ForceGraph, HoverCard, MapOverlay } from '@ea/shared';
 import type { GraphDataset, GraphNode } from '@server/types/graph.js';
 import { useVngGraph } from '../hooks/useVngGraph.js';
+import { MapToggle } from '../components/MapToggle.js';
+import { GraphMetricsBar } from '../components/GraphMetricsBar.js';
+import { InitiativeGemeentesPanel } from '../components/InitiativeGemeentesPanel.js';
 
 /**
- * Graph tab (US1/US7/US10) — the force-directed network of the selected spaces
- * laid out over a map of the Netherlands.
+ * Graph tab (US1/US7/US10) — the force-directed graph of the selected spaces.
+ * The Netherlands basemap is optional (off by default): when the "show map"
+ * toggle is on, nodes are geo-pinned onto the map; when off the graph uses a
+ * free force layout.
  *
  * Selection source: GraphTab accepts an optional `spaceIds`/`includeInitiatives`
  * override (so App can pass a shared selection later), but by default it reads the
@@ -164,6 +169,8 @@ export function GraphTab({
   }, []);
 
   // ── Interaction state ──────────────────────────────────────────────────────
+  // Map underlay is OPTIONAL and OFF BY DEFAULT (internal GraphTab state).
+  const [showMap, setShowMap] = useState(false);
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
   const [hover, setHover] = useState<{ node: GraphNode; x: number; y: number } | null>(null);
 
@@ -187,6 +194,22 @@ export function GraphTab({
       .filter((n): n is GraphNode => !!n && spaceTypes.has(n.type));
   }, [dataset, selectedNode]);
 
+  // Gemeente organisation nodes a selected INITIATIVE connects to via
+  // INITIATIVE_GEMEENTE edges (mirrors the org → connected-spaces relationship).
+  const participatingGemeentes = useMemo(() => {
+    if (!dataset || !selectedNode || selectedNode.type !== 'INITIATIVE') return [];
+    const byId = new Map(dataset.nodes.map((n) => [n.id, n]));
+    const ids = new Set<string>();
+    for (const e of dataset.edges) {
+      if (e.type !== 'INITIATIVE_GEMEENTE') continue;
+      if (e.sourceId === selectedNode.id) ids.add(e.targetId);
+      else if (e.targetId === selectedNode.id) ids.add(e.sourceId);
+    }
+    return [...ids]
+      .map((id) => byId.get(id))
+      .filter((n): n is GraphNode => !!n && n.type === 'ORGANIZATION' && n.isGemeente === true);
+  }, [dataset, selectedNode]);
+
   const handleNodeClick = useCallback((node: GraphNode) => {
     setSelectedNodeId((prev) => (prev === node.id ? null : node.id));
     // Bridge to the Space details tab (US4 scenario 2): a space click broadcasts
@@ -208,8 +231,12 @@ export function GraphTab({
     [],
   );
 
-  // US7 — highlight the connected spaces when an organisation is selected.
-  const highlightedNodeIds = useMemo(() => connectedSpaces.map((s) => s.id), [connectedSpaces]);
+  // Highlight the connected spaces (org selected) or participating gemeentes
+  // (initiative selected).
+  const highlightedNodeIds = useMemo(
+    () => [...connectedSpaces.map((s) => s.id), ...participatingGemeentes.map((g) => g.id)],
+    [connectedSpaces, participatingGemeentes],
+  );
 
   // ── States ──────────────────────────────────────────────────────────────────
   const isEmpty = !loading && !error && spaceIds.length === 0;
@@ -223,13 +250,18 @@ export function GraphTab({
         </div>
       )}
 
+      {/* Graph view controls */}
+      <div className="flex shrink-0 items-center justify-end border-b border-border bg-background/95 px-6 py-2">
+        <MapToggle checked={showMap} onChange={setShowMap} />
+      </div>
+
       <div ref={containerRef} className="relative min-h-0 flex-1 overflow-hidden">
-        {/* Netherlands basemap underlay */}
-        {size.width > 0 && size.height > 0 && (
+        {/* Netherlands basemap underlay (optional, off by default) */}
+        {showMap && size.width > 0 && size.height > 0 && (
           <MapOverlay region="netherlands" width={size.width} height={size.height} visible />
         )}
 
-        {/* Force-directed network */}
+        {/* Force-directed graph — geo-pinned when the map is on, free layout when off */}
         {dataset && !loading && (
           <ForceGraph
             dataset={dataset}
@@ -241,7 +273,7 @@ export function GraphTab({
             onNodeHover={handleNodeHover}
             selectedNodeId={selectedNodeId}
             highlightedNodeIds={highlightedNodeIds}
-            showMap
+            showMap={showMap}
             mapRegion="netherlands"
           />
         )}
@@ -307,7 +339,20 @@ export function GraphTab({
             )}
           </aside>
         )}
+
+        {/* Initiative → participating gemeentes panel */}
+        {selectedNode && selectedNode.type === 'INITIATIVE' && dataset && (
+          <InitiativeGemeentesPanel
+            initiative={selectedNode}
+            dataset={dataset}
+            onSelectNode={(id) => setSelectedNodeId(id)}
+            onClose={() => setSelectedNodeId(null)}
+          />
+        )}
       </div>
+
+      {/* Bottom metrics bar */}
+      {dataset && dataset.nodes.length > 0 && <GraphMetricsBar dataset={dataset} />}
     </div>
   );
 }

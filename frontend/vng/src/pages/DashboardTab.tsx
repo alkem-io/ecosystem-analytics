@@ -15,20 +15,24 @@ export function DashboardTab() {
   const { t } = useTranslation();
   const { effectiveSpaceIds, state } = useSelectionContext();
 
+  // The dashboard ALWAYS counts the selected spaces (VNG Groei initiatives) by
+  // their NDS / VNG-2030 profile tags — it is decoupled from the graph's
+  // "include GD initiatives" toggle (GD callouts use the 92 GemeenteDelers themes,
+  // not NDS/VNG-2030, so counting them here would be all-uncategorised).
   const request = useMemo(
     () => ({
       spaceIds: effectiveSpaceIds,
       includeGemeentes: state.showGemeentes,
-      includeInitiatives: state.includeInitiatives,
+      includeInitiatives: false,
     }),
-    [effectiveSpaceIds, state.showGemeentes, state.includeInitiatives],
+    [effectiveSpaceIds, state.showGemeentes],
   );
 
   const { data, loading, error } = useDashboard(request);
 
   const ndsDimension = data?.dimensions.find((d) => d.key === 'nds');
   const vng2030Dimension = data?.dimensions.find((d) => d.key === 'vng2030');
-  const source = data?.source ?? (state.includeInitiatives ? 'gd-initiatives' : 'spaces');
+  const source = data?.source ?? 'spaces';
 
   if (effectiveSpaceIds.length === 0) {
     return (
