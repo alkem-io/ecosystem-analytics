@@ -4,8 +4,10 @@ import { transformToGraph, computeActivityTiers } from '../transform/transformer
 import { computeMetrics } from '../transform/metrics.js';
 import { computeInsights } from '../transform/insights.js';
 import { getCacheEntry, setCacheEntry, invalidateCache } from '../cache/cache-service.js';
+import { loadConfig } from '../config.js';
+import { createAlkemioSdk } from '../graphql/client.js';
 import { loadVngRegistry } from './vng-registry.js';
-import { fetchGemeentedelersCallouts } from './gd-initiatives-service.js';
+import { fetchGemeentedelersCallouts, resolveGemeenteOrgNode } from './gd-initiatives-service.js';
 import { buildInitiativeLayer } from '../transform/initiatives.js';
 import { getLogger } from '../logging/logger.js';
 import { type GraphDataset, type GraphNode, type GraphEdge, type SpaceCacheInfo, type SpaceTimeSeries, type ActivityPeriodCounts, NodeType, EdgeType, ActivityTier } from '../types/graph.js';
@@ -149,17 +151,22 @@ export async function generateGraph(
       url: meta.programme.sourceUrl,
     };
     try {
-      const callouts = await fetchGemeentedelersCallouts(auth);
-      const orgNodeByNameId = new Map<string, string>();
+      const subgraph = await loadGdSubgraph(userId, auth, registry, forceRefresh);
+
+      // Dedupe ORGANIZATION nodes by nameId so initiatives attach to existing
+      // gemeente nodes rather than spawning duplicates (FR-040/043).
+      const orgNameIdsInGraph = new Set<string>();
       for (const node of allNodes) {
-        if (node.type === NodeType.ORGANIZATION && node.nameId) orgNodeByNameId.set(node.nameId, node.id);
+        if (node.type === NodeType.ORGANIZATION && node.nameId) orgNameIdsInGraph.add(node.nameId);
       }
-      const layer = buildInitiativeLayer(callouts, registry, (gemeenteNameId) =>
-        orgNodeByNameId.get(gemeenteNameId) ?? null,
-      );
-      allNodes.push(...layer.nodes);
-      allEdges.push(...layer.edges);
-      gdLayer = { available: true, initiativeCount: callouts.length, source };
+      for (const node of subgraph.nodes) {
+        if (node.type === NodeType.ORGANIZATION && node.nameId && orgNameIdsInGraph.has(node.nameId)) {
+          continue; // already present in the base graph
+        }
+        allNodes.push(node);
+      }
+      allEdges.push(...subgraph.edges);
+      gdLayer = { available: true, initiativeCount: subgraph.initiativeCount, source };
     } catch (err) {
       logger.warn(`GD initiative layer unavailable: ${(err as Error).message}`, { context: 'Graph' });
       gdLayer = { available: false, initiativeCount: 0, source, error: 'GD_LAYER_UNAVAILABLE' };
@@ -192,6 +199,85 @@ export async function generateGraph(
     errors: errors.length > 0 ? errors : undefined,
     gdLayer,
   };
+}
+
+/**
+ * Reserved cache space_id for the per-user, long-TTL GemeenteDelers initiative
+ * subgraph (FR-046). Not a real space nameID, so it never collides with one.
+ */
+const GD_CACHE_SPACE_ID = '__gd_initiatives__';
+
+interface GdSubgraph {
+  nodes: GraphNode[];
+  edges: GraphEdge[];
+  initiativeCount: number;
+}
+
+/**
+ * Build (or load from the long-TTL per-user cache) the GemeenteDelers initiative
+ * subgraph: INITIATIVE/THEME nodes, resolved gemeente ORGANIZATION nodes, and the
+ * INITIATIVE_GEMEENTE/INITIATIVE_THEME edges. Org node ids are the real Alkemio
+ * UUIDs, so the subgraph is independent of which spaces are currently selected and
+ * can be cached once per user (Constitution IV). Throws if the GD space is
+ * unreadable so the caller can fall back to gdLayer.available=false (FR-044).
+ */
+async function loadGdSubgraph(
+  userId: string,
+  auth: AuthContext,
+  registry: ReturnType<typeof loadVngRegistry>,
+  forceRefresh: boolean | undefined,
+): Promise<GdSubgraph> {
+  if (!forceRefresh) {
+    const cached = getCacheEntry(userId, GD_CACHE_SPACE_ID);
+    if (cached) {
+      logger.info(`GD initiative subgraph served from cache for user ${userId}`, { context: 'Graph' });
+      return JSON.parse(cached.datasetJson) as GdSubgraph;
+    }
+  }
+
+  const sdk = await createAlkemioSdk(auth);
+  const callouts = await fetchGemeentedelersCallouts(auth, sdk);
+
+  // First pass: build the layer, collecting gemeente nameIds we couldn't resolve
+  // to a node (the GD subgraph starts with no org nodes of its own).
+  const resolvedOrgNodeIdByNameId = new Map<string, string>();
+  const firstPass = buildInitiativeLayer(
+    callouts,
+    registry,
+    (nameId) => resolvedOrgNodeIdByNameId.get(nameId) ?? null,
+  );
+
+  // Resolve each missing gemeente org exactly once (dedup via the map), creating
+  // one ORGANIZATION node per gemeente (FR-043). Non-fatal: unresolvable ones are
+  // simply dropped from the edge set.
+  const extraOrgNodes: GraphNode[] = [];
+  for (const gemeenteNameId of firstPass.unresolvedGemeenteNameIds) {
+    if (resolvedOrgNodeIdByNameId.has(gemeenteNameId)) continue;
+    const node = await resolveGemeenteOrgNode(sdk, gemeenteNameId);
+    if (!node) continue;
+    resolvedOrgNodeIdByNameId.set(gemeenteNameId, node.id);
+    extraOrgNodes.push(node);
+  }
+
+  // Second pass: now the resolver knows the newly added org node ids, so the
+  // INITIATIVE_GEMEENTE edges to previously-missing gemeentes get created.
+  const finalLayer = buildInitiativeLayer(
+    callouts,
+    registry,
+    (nameId) => resolvedOrgNodeIdByNameId.get(nameId) ?? null,
+  );
+
+  const subgraph: GdSubgraph = {
+    nodes: [...finalLayer.nodes, ...extraOrgNodes],
+    edges: finalLayer.edges,
+    initiativeCount: callouts.length,
+  };
+
+  // Cache under the reserved space_id with the long archival TTL (FR-046).
+  const ttlHours = loadConfig().vng.gdCacheTtlHours;
+  setCacheEntry(userId, GD_CACHE_SPACE_ID, JSON.stringify(subgraph), ttlHours);
+
+  return subgraph;
 }
 
 /** Get current generation progress for a user */

@@ -43,13 +43,25 @@ SESSION_ALLOWED_ORIGINS=https://app.example.org,https://vng.example.org
 
 ## Run (development)
 
+Run the backend and both frontends together from the repo root (requires the
+`concurrently` devDependency — run `pnpm install` once after pulling this change):
+
 ```bash
-pnpm -C server run dev        # BFF on :4000 (or :4100 per config)
-pnpm -C frontend/ecosystem-analytics run dev   # Explorer on :5173 (proxies /api)
-pnpm -C frontend/vng run dev                   # VNG app on :5174 (proxies /api to the same server)
+pnpm run dev          # server (:4000/:4100) + Explorer (:5173) + VNG (:5174)
 ```
 
-Open the VNG app at `http://localhost:5174`. Sign in once (either app) — the `ea_session` cookie is recognised by both in dev when both proxy the same backend.
+…or run each individually:
+
+```bash
+pnpm run dev:server     # BFF on :4000 (or :4100 per config)
+pnpm run dev:explorer   # Explorer on :5173 (proxies /api)
+pnpm run dev:vng        # VNG app on :5174 (proxies /api to the same server)
+```
+
+Open the VNG app at `http://localhost:5174` and the Explorer at `http://localhost:5173`.
+Sign in once (either app) — the `ea_session` cookie is recognised by both in dev when
+both proxy the same backend. List both dev origins in `SESSION_ALLOWED_ORIGINS`
+(`http://localhost:5173,http://localhost:5174`).
 
 ## Smoke validation (maps to spec acceptance / SC)
 

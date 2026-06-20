@@ -11,10 +11,32 @@ import { useSelectionContext } from '../hooks/SelectionContext.js';
  * now — the shared DetailsDrawer is owned by another agent — wired to the fields
  * available from the selection state, degrading gracefully (FR-019).
  */
-export function SpaceDetailsTab() {
+interface SpaceDetailsTabProps {
+  /**
+   * A space requested from elsewhere (a graph node click → `vng:openSpace`, T042).
+   * The id is the graph node id, which for VNG spaces is the space nameId/slug; we
+   * match it against the effective set's nameId. Ignored if it isn't in the set.
+   */
+  openSpaceId?: string | null;
+  /** Bumped on each request so re-clicking the same space re-selects it. */
+  openSpaceSeq?: number;
+}
+
+export function SpaceDetailsTab({ openSpaceId, openSpaceSeq }: SpaceDetailsTabProps = {}) {
   const { t } = useTranslation();
   const { selectedSpaces } = useSelectionContext();
   const [selected, setSelected] = useState<string | null>(null);
+
+  // T042 — honour an externally requested space (from a graph node click). Runs
+  // whenever a new request arrives (tracked by openSpaceSeq) and the requested
+  // space is part of the effective set.
+  useEffect(() => {
+    if (!openSpaceId) return;
+    if (selectedSpaces.some((s) => s.nameId === openSpaceId)) {
+      setSelected(openSpaceId);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [openSpaceSeq, openSpaceId, selectedSpaces]);
 
   // Keep a valid selection as the effective set changes.
   useEffect(() => {

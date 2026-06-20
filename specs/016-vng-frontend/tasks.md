@@ -50,7 +50,7 @@ Web app, **pnpm workspace**: BFF in `server/`; all frontend packages under `fron
 - [X] T013 [P] Add `VngConfig` interface + parsing in `server/src/config.ts`; add `vng:` block to `server/analytics.yml` and keys to `server/.env.default` (`defaultHubNameId`, `gemeentedelersSpaceNameId`, `gdCacheTtlHours:168`, `tagCategoryMapping`)
 - [X] T014 [P] Create snapshot generator `server/scripts/generate-vng-snapshot.mts` (reads `../vng-gemeente-delers` vault → `municipalities.json`/`themes.json`/`meta.json`) and add `gen:vng-snapshot` script to `server/package.json` (per contracts/snapshot-registry.md)
 - [X] T015 Generate and commit `server/src/data/vng/{municipalities.json,themes.json,meta.json}`; add registry loader `server/src/services/vng-registry.ts` (lookup maps: municipality title→`alkemioNameId`, theme title/priorLabel→slug)
-- [ ] T016 [P] Confirm cross-origin session support: `SESSION_COOKIE_DOMAIN` (parent domain) + `SESSION_ALLOWED_ORIGINS` (both subdomains) handling in `server/src/auth/session.ts`; document in `server/.env.default`
+- [X] T016 [P] Confirm cross-origin session support: `SESSION_COOKIE_DOMAIN` (parent domain) + `SESSION_ALLOWED_ORIGINS` (both subdomains) handling in `server/src/auth/session.ts`; document in `server/.env.default`
 
 **Checkpoint**: Workspace builds; VNG app shell loads behind auth; Explorer unchanged; config + registry available.
 
@@ -89,9 +89,9 @@ Web app, **pnpm workspace**: BFF in `server/`; all frontend packages under `fron
 
 **Independent Test**: Start backend + both frontends; sign in on one, confirm the other recognises the session; sign out invalidates both.
 
-- [ ] T028 [US5] Production serving as sibling subdomains: update deployment/ingress (Traefik/k8s manifests under `specs/005-k8s-deploy-cicd` infra or `Dockerfile`/serve config) + parent-domain cookie config (FR-002/003)
-- [ ] T029 [US5] Verify dev coexistence: root `concurrently` script runs server + `frontend/ecosystem-analytics` (5173) + `frontend/vng` (5174), both proxying `/api`; document in `quickstart.md`
-- [ ] T030 [US5] 401/session-expiry handling in `frontend/vng` (redirect through Alkemio login, return to prior context) reusing `@ea/shared` auth (FR-026/029) in `frontend/vng/src/services/api.ts`
+- [X] T028 [US5] Production serving as sibling subdomains: update deployment/ingress (Traefik/k8s manifests under `specs/005-k8s-deploy-cicd` infra or `Dockerfile`/serve config) + parent-domain cookie config (FR-002/003)
+- [X] T029 [US5] Verify dev coexistence: root `concurrently` script runs server + `frontend/ecosystem-analytics` (5173) + `frontend/vng` (5174), both proxying `/api`; document in `quickstart.md`
+- [X] T030 [US5] 401/session-expiry handling in `frontend/vng` (redirect through Alkemio login, return to prior context) reusing `@ea/shared` auth (FR-026/029) in `frontend/vng/src/services/api.ts`
 - [ ] T031 [US5] Validate sign-out in one app invalidates the session in both (integration check; record in quickstart smoke step 10)
 
 **Checkpoint**: Both P1 stories complete — deployable demo.
@@ -142,7 +142,7 @@ Web app, **pnpm workspace**: BFF in `server/`; all frontend packages under `fron
 
 - [X] T041 [US4] `SpaceDetailsTab` with a dedicated space picker, reusing `@ea/shared` DetailsDrawer in `frontend/vng/src/pages/SpaceDetailsTab.tsx` (FR-018)
 - [ ] T042 [US4] Cross-tab navigation: clicking a space node in GraphTab opens SpaceDetailsTab for that space (FR-015) via shared selection/route state
-- [ ] T043 [US4] Verify graceful degradation for missing optional fields (FR-019)
+- [X] T043 [US4] Verify graceful degradation for missing optional fields (FR-019)
 
 **Checkpoint**: US1–US4 independently functional.
 
@@ -182,7 +182,7 @@ Web app, **pnpm workspace**: BFF in `server/`; all frontend packages under `fron
 **Independent Test**: Toggle hide → gemeente nodes leave graph + dashboard; toggle back restores; no non-gemeente affected.
 
 - [X] T049 [US8] Server: set `GraphNode.isGemeente` by matching `ORGANIZATION.nameId` against the registry (assert **no false positives** — non-gemeente orgs stay `isGemeente:false`), in `server/src/transform/transformer.ts` / `server/src/services/graph-service.ts` (FR-032/035)
-- [ ] T050 [P] [US8] `GemeenteToggle` component in `frontend/vng/src/components/GemeenteToggle.tsx`
+- [X] T050 [P] [US8] `GemeenteToggle` component in `frontend/vng/src/components/GemeenteToggle.tsx`
 - [ ] T051 [US8] Apply the toggle: filter `isGemeente` nodes/edges in the graph and pass `includeGemeentes` to `/api/vng/dashboard`, consistently (FR-034) in GraphTab + DashboardTab
 
 **Checkpoint**: US8 functional.

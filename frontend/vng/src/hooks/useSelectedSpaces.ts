@@ -85,13 +85,19 @@ export function useSelectedSpaces(): UseSelectedSpacesResult {
   // Display names for resolved spaces (hub + direct), keyed by nameId.
   const [displayNames, setDisplayNames] = useState<Record<string, string>>({});
 
-  // Persist on every change.
+  // Persist on every change, then notify same-tab listeners. The browser's
+  // 'storage' event does NOT fire in the tab that performed the write, so we
+  // dispatch a custom 'vng:selection' event for in-tab consumers (e.g. GraphTab
+  // when it is reading from localStorage rather than props).
   useEffect(() => {
     if (typeof localStorage === 'undefined') return;
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
     } catch {
       /* ignore quota / serialization errors */
+    }
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new Event('vng:selection'));
     }
   }, [state]);
 

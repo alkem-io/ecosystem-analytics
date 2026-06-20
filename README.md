@@ -4,12 +4,16 @@ Allowing the visualisation and analysis of ecosystem level connectivity and acti
 
 ## Architecture
 
+This repo is a **pnpm workspace** with two frontends on one backend:
+
 ```
-frontend/   React 19 + Vite + D3 v7 SPA
-server/     Express BFF (GraphQL relay, SQLite cache)
+server/                        Express BFF (OIDC auth, GraphQL relay, SQLite cache)
+frontend/shared/               @ea/shared — shared UI / graph / map / services
+frontend/ecosystem-analytics/  Explorer SPA   (React 19 + Vite + D3 v7, dev port 5173)
+frontend/vng/                  VNG Kenniscentrum Innovatie SPA  (dev port 5174)
 ```
 
-The frontend communicates exclusively with the BFF server. The BFF handles authentication (Kratos API flow), GraphQL relay, and caching. The frontend never contacts the Alkemio platform directly.
+Both frontends communicate exclusively with the BFF server (never the Alkemio platform directly). The BFF handles authentication (Alkemio OIDC via the BFF), GraphQL relay, and caching. The server (`server/`) is a standalone install and is intentionally **not** a workspace member; the three `frontend/*` packages share one deduped `node_modules`.
 
 ## Prerequisites
 
@@ -29,26 +33,37 @@ Edit `server/.env` with your Alkemio instance details.
 
 ### 2. Install dependencies
 
+The server is a standalone install; the frontends share one workspace install:
+
 ```bash
+# From repo root — workspace install (frontend/shared + Explorer + VNG)
+pnpm install
+
+# Server (standalone, not a workspace member)
 cd server && pnpm install
-cd ../frontend && pnpm install
 ```
 
 ### 3. Start development servers
 
-In two terminals:
+Run the backend and both frontends together from the repo root:
 
 ```bash
-# Terminal 1 — BFF server (port 4000)
-cd server
-pnpm run dev
-
-# Terminal 2 — Frontend dev server (port 5173, proxies /api to :4000)
-cd frontend
-pnpm run dev
+pnpm run dev          # server (:4000) + Explorer (:5173) + VNG (:5174), concurrently
 ```
 
-Open http://localhost:5173 in your browser.
+…or run each individually:
+
+```bash
+pnpm run dev:server     # BFF server  (:4000, or :4100 per config)
+pnpm run dev:explorer   # Explorer SPA (:5173, proxies /api to the server)
+pnpm run dev:vng        # VNG SPA      (:5174, proxies /api to the same server)
+```
+
+Open the Explorer at http://localhost:5173 and the VNG app at http://localhost:5174.
+
+Both dev servers proxy `/api` to the same backend, so a single sign-in (on either
+app) is recognised by both — the shared `ea_session` cookie works across them in
+dev even with an empty `SESSION_COOKIE_DOMAIN`.
 
 ### 4. Login
 
@@ -101,12 +116,28 @@ User enters email + password in the login form
 ## Production build
 
 ```bash
-cd server && pnpm run build
-cd ../frontend && pnpm run build
-cd ../server && NODE_ENV=production pnpm start
+pnpm -C frontend/ecosystem-analytics run build   # → frontend/ecosystem-analytics/dist
+pnpm -C frontend/vng run build                    # → frontend/vng/dist
+cd server && pnpm run build && NODE_ENV=production pnpm start
 ```
 
-In production the server serves the frontend static files from `frontend/dist/`.
+In production the server serves the **Explorer** static build from `../frontend/dist`
+(relative to its compiled output). The **VNG** build is served separately.
+
+### Shared session across both frontends (subdomains)
+
+Per feature 016, the Explorer and the VNG app are deployed as **sibling subdomains**
+under one parent domain (e.g. `app.<domain>` and `vng.<domain>`) sharing a single
+`ea_session`. To make one sign-in apply to both (and one sign-out invalidate both),
+scope the session cookie to the shared parent domain and allow-list both origins on
+the backend:
+
+```bash
+SESSION_COOKIE_DOMAIN=.example.org
+SESSION_ALLOWED_ORIGINS=https://app.example.org,https://vng.example.org
+```
+
+See `server/.env.default` for details.
 
 ## Docker
 
@@ -114,6 +145,12 @@ In production the server serves the frontend static files from `frontend/dist/`.
 docker build -t ecosystem-analytics .
 docker run -p 4000:4000 --env-file server/.env ecosystem-analytics
 ```
+
+The image builds the server and **both** frontends from the workspace. The Explorer
+build is placed where the BFF serves it (`/app/frontend/dist`); the VNG build is
+copied to a sibling location (`/app/frontend-vng/dist`) for separate serving. The
+ingress that maps each subdomain to its bundle (and routes `/api` to the BFF) is
+provided by the k8s/Traefik deployment manifests (out of scope for this image).
 
 ## GraphQL Codegen
 

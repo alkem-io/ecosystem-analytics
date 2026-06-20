@@ -72,6 +72,28 @@ describe('buildInitiativeLayer', () => {
     expect(layer.edges).toHaveLength(0);
   });
 
+  it('resolves the INITIATIVE_GEMEENTE edge on a second pass once the resolver gains the nameId (no duplicate edges)', () => {
+    const callouts: GdCalloutInput[] = [
+      { id: 'cal-3', nameId: 'utrecht-case', displayName: 'Utrecht', tags: ['Utrecht'] },
+      { id: 'cal-4', nameId: 'utrecht-case-2', displayName: 'Utrecht 2', tags: ['Utrecht'] },
+    ];
+
+    // First pass: Utrecht is unresolvable → recorded once (dedup), no edges.
+    const first = buildInitiativeLayer(callouts, registry, resolveGemeenteNodeId);
+    expect(first.unresolvedGemeenteNameIds).toEqual(['gemeente-utrecht']);
+    expect(first.edges.filter((e) => e.type === EdgeType.INITIATIVE_GEMEENTE)).toHaveLength(0);
+
+    // Caller resolves the missing org once, then re-runs with an enriched resolver.
+    const enriched = (nameId: string): string | null =>
+      nameId === 'gemeente-utrecht' ? 'org-utrecht' : resolveGemeenteNodeId(nameId);
+    const second = buildInitiativeLayer(callouts, registry, enriched);
+
+    const gemeenteEdges = second.edges.filter((e) => e.type === EdgeType.INITIATIVE_GEMEENTE);
+    expect(second.unresolvedGemeenteNameIds).toEqual([]);
+    expect(gemeenteEdges).toHaveLength(2); // one per initiative, both to the single org node
+    expect(gemeenteEdges.every((e) => e.targetId === 'org-utrecht')).toBe(true);
+  });
+
   it('canonicalises a shared theme to one node across initiatives (no duplicates)', () => {
     const callouts: GdCalloutInput[] = [
       { id: 'a', nameId: 'a', displayName: 'A', tags: ['Energietransitie'] },

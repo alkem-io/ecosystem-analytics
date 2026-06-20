@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ForceGraph, HoverCard, MapOverlay } from '@ea/shared';
-import type { GraphNode } from '@server/types/graph.js';
+import type { GraphDataset, GraphNode } from '@server/types/graph.js';
 import { useVngGraph } from '../hooks/useVngGraph.js';
 
 /**
@@ -31,13 +31,19 @@ interface PersistedSelection {
 interface EffectiveSelection {
   spaceIds: string[];
   includeInitiatives: boolean;
+  showGemeentes: boolean;
 }
 
 function readSelection(): EffectiveSelection {
-  if (typeof localStorage === 'undefined') return { spaceIds: [], includeInitiatives: false };
+  const empty: EffectiveSelection = {
+    spaceIds: [],
+    includeInitiatives: false,
+    showGemeentes: true,
+  };
+  if (typeof localStorage === 'undefined') return empty;
   try {
     const raw = localStorage.getItem(SELECTION_STORAGE_KEY);
-    if (!raw) return { spaceIds: [], includeInitiatives: false };
+    if (!raw) return empty;
     const parsed = JSON.parse(raw) as PersistedSelection;
     const removed = new Set(parsed.directRemoved ?? []);
     const seen = new Set<string>();
@@ -47,9 +53,14 @@ function readSelection(): EffectiveSelection {
       seen.add(id);
       spaceIds.push(id);
     }
-    return { spaceIds, includeInitiatives: parsed.includeInitiatives ?? false };
+    return {
+      spaceIds,
+      includeInitiatives: parsed.includeInitiatives ?? false,
+      // showGemeentes defaults to true (matches useSelectedSpaces DEFAULT_STATE).
+      showGemeentes: parsed.showGemeentes ?? true,
+    };
   } catch {
-    return { spaceIds: [], includeInitiatives: false };
+    return empty;
   }
 }
 
@@ -57,28 +68,45 @@ interface GraphTabProps {
   /** Optional override; when omitted the effective set is read from localStorage. */
   spaceIds?: string[];
   includeInitiatives?: boolean;
+  /** When false, gemeente organisation nodes (and their edges) are hidden (T051). */
+  showGemeentes?: boolean;
 }
 
-export function GraphTab({ spaceIds: spaceIdsProp, includeInitiatives: initProp }: GraphTabProps = {}) {
+export function GraphTab({
+  spaceIds: spaceIdsProp,
+  includeInitiatives: initProp,
+  showGemeentes: showGemeentesProp,
+}: GraphTabProps = {}) {
   const { t } = useTranslation();
+
+  // GraphTab is "controlled" when App passes the shared selection via props.
+  const controlled = spaceIdsProp != null;
 
   // ── Selection (prop override, else persisted `vng_selection`) ──────────────
   const [selection, setSelection] = useState<EffectiveSelection>(() =>
-    spaceIdsProp
-      ? { spaceIds: spaceIdsProp, includeInitiatives: initProp ?? false }
+    controlled
+      ? {
+          spaceIds: spaceIdsProp ?? [],
+          includeInitiatives: initProp ?? false,
+          showGemeentes: showGemeentesProp ?? true,
+        }
       : readSelection(),
   );
 
   useEffect(() => {
-    if (spaceIdsProp) {
-      setSelection({ spaceIds: spaceIdsProp, includeInitiatives: initProp ?? false });
+    if (controlled) {
+      setSelection({
+        spaceIds: spaceIdsProp ?? [],
+        includeInitiatives: initProp ?? false,
+        showGemeentes: showGemeentesProp ?? true,
+      });
     }
-  }, [spaceIdsProp, initProp]);
+  }, [controlled, spaceIdsProp, initProp, showGemeentesProp]);
 
   // Refresh from storage on cross-tab writes, focus, and a same-tab custom event
   // that other selection controls may dispatch.
   useEffect(() => {
-    if (spaceIdsProp) return; // controlled by props
+    if (controlled) return; // controlled by props
     const refresh = () => setSelection(readSelection());
     const onStorage = (e: StorageEvent) => {
       if (e.key === SELECTION_STORAGE_KEY) refresh();
@@ -91,12 +119,35 @@ export function GraphTab({ spaceIds: spaceIdsProp, includeInitiatives: initProp 
       window.removeEventListener('focus', refresh);
       window.removeEventListener('vng:selection', refresh as EventListener);
     };
-  }, [spaceIdsProp]);
+  }, [controlled]);
 
   const spaceIds = selection.spaceIds;
   const includeInitiatives = selection.includeInitiatives;
+  const showGemeentes = selection.showGemeentes;
 
-  const { dataset, loading, error, warnings } = useVngGraph(spaceIds, { includeInitiatives });
+  const { dataset: rawDataset, loading, error, warnings } = useVngGraph(spaceIds, {
+    includeInitiatives,
+  });
+
+  // ── T051 — hide gemeente organisation nodes (and any edges touching them) ──
+  // when the "show gemeentes" toggle is off. Filtering client-side keeps the
+  // server response cacheable regardless of the toggle. No dangling edges: an
+  // edge is dropped if either endpoint was removed.
+  const dataset = useMemo<GraphDataset | null>(() => {
+    if (!rawDataset) return null;
+    if (showGemeentes) return rawDataset;
+    const hiddenIds = new Set(
+      rawDataset.nodes
+        .filter((n) => n.type === 'ORGANIZATION' && n.isGemeente === true)
+        .map((n) => n.id),
+    );
+    if (hiddenIds.size === 0) return rawDataset;
+    const nodes = rawDataset.nodes.filter((n) => !hiddenIds.has(n.id));
+    const edges = rawDataset.edges.filter(
+      (e) => !hiddenIds.has(e.sourceId) && !hiddenIds.has(e.targetId),
+    );
+    return { ...rawDataset, nodes, edges };
+  }, [rawDataset, showGemeentes]);
 
   // ── Container measurement for the SVG / map projection ─────────────────────
   const containerRef = useRef<HTMLDivElement>(null);
@@ -139,9 +190,13 @@ export function GraphTab({ spaceIds: spaceIdsProp, includeInitiatives: initProp 
   const handleNodeClick = useCallback((node: GraphNode) => {
     setSelectedNodeId((prev) => (prev === node.id ? null : node.id));
     // Bridge to the Space details tab (US4 scenario 2): a space click broadcasts
-    // its id; the shell may listen and switch tabs. Non-fatal if nobody listens.
+    // the space's nameId — the key the effective set / details picker matches on
+    // (graph node ids are Alkemio UUIDs). The shell may listen and switch tabs;
+    // non-fatal if nobody listens.
     if (node.type === 'SPACE_L0' || node.type === 'SPACE_L1' || node.type === 'SPACE_L2') {
-      window.dispatchEvent(new CustomEvent('vng:openSpace', { detail: { spaceId: node.id } }));
+      window.dispatchEvent(
+        new CustomEvent('vng:openSpace', { detail: { spaceId: node.nameId ?? node.id } }),
+      );
     }
   }, []);
 
@@ -238,7 +293,9 @@ export function GraphTab({ spaceIds: spaceIdsProp, includeInitiatives: initProp 
                       onClick={() => {
                         setSelectedNodeId(space.id);
                         window.dispatchEvent(
-                          new CustomEvent('vng:openSpace', { detail: { spaceId: space.id } }),
+                          new CustomEvent('vng:openSpace', {
+                            detail: { spaceId: space.nameId ?? space.id },
+                          }),
                         );
                       }}
                     >

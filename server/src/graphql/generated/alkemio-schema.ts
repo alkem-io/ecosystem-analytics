@@ -15390,6 +15390,13 @@ export type OrganizationByIdQueryVariables = Exact<{
 
 export type OrganizationByIdQuery = { lookup: { organization?: { id: string, nameID: string, website?: string | undefined, contactEmail?: string | undefined, profile?: { displayName: string, description?: any | undefined, tagline?: string | undefined, url: string, avatar?: { uri: string } | undefined, location?: { country?: string | undefined, city?: string | undefined, geoLocation: { latitude?: number | undefined, longitude?: number | undefined } } | undefined, references?: Array<{ name: string, uri: string, description?: string | undefined }> | undefined, tagsets?: Array<{ name: string, tags: Array<string>, type: TagsetType }> | undefined } | undefined, roleSet: { owners: Array<{ id: string, profile?: { displayName: string } | undefined }>, associates: Array<{ id: string }> } } | undefined } };
 
+export type OrganizationByNameIdQueryVariables = Exact<{
+  nameId: Scalars['NameID']['input'];
+}>;
+
+
+export type OrganizationByNameIdQuery = { lookupByName: { organization?: string | undefined } };
+
 export type SpaceByNameQueryVariables = Exact<{
   nameId: Scalars['NameID']['input'];
 }>;

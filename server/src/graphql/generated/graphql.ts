@@ -15316,6 +15316,13 @@ export type OrganizationByIdQueryVariables = SchemaTypes.Exact<{
 
 export type OrganizationByIdQuery = { lookup: { organization?: { id: string, nameID: string, website?: string | undefined, contactEmail?: string | undefined, profile?: { displayName: string, description?: any | undefined, tagline?: string | undefined, url: string, avatar?: { uri: string } | undefined, location?: { country?: string | undefined, city?: string | undefined, geoLocation: { latitude?: number | undefined, longitude?: number | undefined } } | undefined, references?: Array<{ name: string, uri: string, description?: string | undefined }> | undefined, tagsets?: Array<{ name: string, tags: Array<string>, type: SchemaTypes.TagsetType }> | undefined } | undefined, roleSet: { owners: Array<{ id: string, profile?: { displayName: string } | undefined }>, associates: Array<{ id: string }> } } | undefined } };
 
+export type OrganizationByNameIdQueryVariables = SchemaTypes.Exact<{
+  nameId: SchemaTypes.Scalars['NameID']['input'];
+}>;
+
+
+export type OrganizationByNameIdQuery = { lookupByName: { organization?: string | undefined } };
+
 export type SpaceByNameQueryVariables = SchemaTypes.Exact<{
   nameId: SchemaTypes.Scalars['NameID']['input'];
 }>;
@@ -15614,6 +15621,13 @@ export const OrganizationByIdDocument = gql`
   }
 }
     `;
+export const OrganizationByNameIdDocument = gql`
+    query OrganizationByNameId($nameId: NameID!) {
+  lookupByName {
+    organization(NAMEID: $nameId)
+  }
+}
+    `;
 export const SpaceByNameDocument = gql`
     query spaceByName($nameId: NameID!) {
   lookupByName {
@@ -15695,6 +15709,7 @@ const InnovationHubsDocumentString = print(InnovationHubsDocument);
 const MeDocumentString = print(MeDocument);
 const MySpacesHierarchicalDocumentString = print(MySpacesHierarchicalDocument);
 const OrganizationByIdDocumentString = print(OrganizationByIdDocument);
+const OrganizationByNameIdDocumentString = print(OrganizationByNameIdDocument);
 const SpaceByNameDocumentString = print(SpaceByNameDocument);
 const SpaceProfileTagsDocumentString = print(SpaceProfileTagsDocument);
 const SubspaceDetailsDocumentString = print(SubspaceDetailsDocument);
@@ -15718,6 +15733,9 @@ export function getSdk(client: GraphQLClient, withWrapper: SdkFunctionWrapper = 
     },
     organizationByID(variables: SchemaTypes.OrganizationByIdQueryVariables, requestHeaders?: GraphQLClientRequestHeaders): Promise<{ data: SchemaTypes.OrganizationByIdQuery; errors?: GraphQLError[]; extensions?: any; headers: Headers; status: number; }> {
         return withWrapper((wrappedRequestHeaders) => client.rawRequest<SchemaTypes.OrganizationByIdQuery>(OrganizationByIdDocumentString, variables, {...requestHeaders, ...wrappedRequestHeaders}), 'organizationByID', 'query', variables);
+    },
+    OrganizationByNameId(variables: SchemaTypes.OrganizationByNameIdQueryVariables, requestHeaders?: GraphQLClientRequestHeaders): Promise<{ data: SchemaTypes.OrganizationByNameIdQuery; errors?: GraphQLError[]; extensions?: any; headers: Headers; status: number; }> {
+        return withWrapper((wrappedRequestHeaders) => client.rawRequest<SchemaTypes.OrganizationByNameIdQuery>(OrganizationByNameIdDocumentString, variables, {...requestHeaders, ...wrappedRequestHeaders}), 'OrganizationByNameId', 'query', variables);
     },
     spaceByName(variables: SchemaTypes.SpaceByNameQueryVariables, requestHeaders?: GraphQLClientRequestHeaders): Promise<{ data: SchemaTypes.SpaceByNameQuery; errors?: GraphQLError[]; extensions?: any; headers: Headers; status: number; }> {
         return withWrapper((wrappedRequestHeaders) => client.rawRequest<SchemaTypes.SpaceByNameQuery>(SpaceByNameDocumentString, variables, {...requestHeaders, ...wrappedRequestHeaders}), 'spaceByName', 'query', variables);
