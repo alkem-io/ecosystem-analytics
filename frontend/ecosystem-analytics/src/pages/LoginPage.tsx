@@ -1,6 +1,7 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { login } from '../services/auth.js';
+import { AlkemioLogo } from '../components/AlkemioLogo.js';
 import styles from './LoginPage.module.css';
 
 /** Public environment info shown before sign-in (which Alkemio env we connect to). */
@@ -15,6 +16,16 @@ function useEnvironmentUrl(): string | null {
   return url;
 }
 
+/** Derive a friendly environment name from the Alkemio server URL. */
+function deriveEnvironmentName(url: string | null): string | null {
+  if (!url) return null;
+  const lower = url.toLowerCase();
+  if (lower.includes('acc-alkem.io')) return 'Acceptance';
+  if (lower.includes('alkem.io')) return 'Production';
+  if (lower.includes('localhost') || lower.includes('127.0.0.1')) return 'Local';
+  return null;
+}
+
 /**
  * Identity gate. There is no in-app credential form (FR-002) — signing in
  * redirects to Alkemio's hosted login, where the user picks any method
@@ -26,13 +37,18 @@ export default function LoginPage() {
   const [params] = useSearchParams();
   const error = params.get('error');
   const environmentUrl = useEnvironmentUrl();
+  const environmentName = useMemo(() => deriveEnvironmentName(environmentUrl), [environmentUrl]);
 
   return (
     <div className={styles.container}>
       <div className={styles.card}>
         <div className={styles.header}>
+          <div className={styles.brand}>
+            <AlkemioLogo className={styles.brandLogo} />
+            <span className={styles.brandName}>Alkemio</span>
+          </div>
           <h1 className={styles.title}>Ecosystem Analytics</h1>
-          <p className={styles.subtitle}>by Alkemio</p>
+          <p className={styles.subtitle}>Safe Spaces for Collaboration</p>
         </div>
 
         <div className={styles.body}>
@@ -60,9 +76,13 @@ export default function LoginPage() {
           </button>
 
           {environmentUrl && (
-            <p className={styles.environment}>
-              Connecting to <strong>{environmentUrl}</strong>
-            </p>
+            <div className={styles.environment}>
+              <span className={styles.environmentLabel}>Connecting to </span>
+              {environmentName && (
+                <strong className={styles.environmentName}>{environmentName}</strong>
+              )}
+              <span className={styles.environmentUrl}>{environmentUrl}</span>
+            </div>
           )}
         </div>
 

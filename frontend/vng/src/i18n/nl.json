@@ -3,6 +3,13 @@
     "title": "VNG Kenniscentrum Innovatie",
     "subtitle": "Innovatie-ecosysteem dashboard"
   },
+  "login": {
+    "enterDashboard": "Meld u aan om het VNG Kenniscentrum Innovatie Analytics Dashboard te openen",
+    "prompt": "Meld u aan met uw Alkemio-account om door te gaan.",
+    "cta": "Aanmelden met Alkemio",
+    "connectingTo": "Verbinden met",
+    "tagline": "Safe Spaces for Collaboration"
+  },
   "tabs": {
     "label": "Weergaven",
     "graph": "Grafiek",
