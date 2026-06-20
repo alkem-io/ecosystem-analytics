@@ -5,8 +5,11 @@ packages:
   - frontend/ecosystem-analytics
   - frontend/vng
 
-# Build-script approvals (esbuild needs its install script to fetch its binary).
-onlyBuiltDependencies:
+# Build-script handling. esbuild ships a prebuilt platform binary via its optional
+# @esbuild/<platform> dependency, so it does NOT need its own postinstall to work.
+# We explicitly acknowledge its skipped build here so pnpm 11's CI `--frozen-lockfile`
+# does not fail with ERR_PNPM_IGNORED_BUILDS (esbuild still functions at build time).
+ignoredBuiltDependencies:
   - esbuild
 
 # Supply-chain age gate: disabled for build reproducibility.
