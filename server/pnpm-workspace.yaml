@@ -1,4 +1,7 @@
-# pnpm 11 reads build-script approvals from here (no longer the package.json "pnpm" field).
-allowBuilds:
-  better-sqlite3: true
-  esbuild: true
+# pnpm 11 makes ignored dependency build scripts a FATAL error under
+# `--frozen-lockfile` (ERR_PNPM_IGNORED_BUILDS). better-sqlite3 needs its native
+# build and esbuild a prebuilt binary. On pnpm 11.7.0 neither `allowBuilds` nor
+# `onlyBuiltDependencies` was honored in CI; only `dangerouslyAllowAllBuilds`
+# reliably allows these build scripts to run (verified). The lockfile is
+# committed/reviewed, so allowing build scripts during the image build is acceptable.
+dangerouslyAllowAllBuilds: true
