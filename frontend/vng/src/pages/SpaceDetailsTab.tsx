@@ -1,9 +1,13 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import * as Select from '@radix-ui/react-select';
 import { Check, ChevronDown } from 'lucide-react';
 import { cn } from '@ea/shared';
+import type { GraphNode } from '@server/types/graph.js';
 import { useSelectionContext } from '../hooks/SelectionContext.js';
+import { useVngGraph } from '../hooks/useVngGraph.js';
+
+const SPACE_TYPES = new Set(['SPACE_L0', 'SPACE_L1', 'SPACE_L2']);
 
 /**
  * Space details tab (US4). Provides a dedicated picker to choose any space from
@@ -24,8 +28,14 @@ interface SpaceDetailsTabProps {
 
 export function SpaceDetailsTab({ openSpaceId, openSpaceSeq }: SpaceDetailsTabProps = {}) {
   const { t } = useTranslation();
-  const { selectedSpaces } = useSelectionContext();
+  const { selectedSpaces, effectiveSpaceIds, state } = useSelectionContext();
   const [selected, setSelected] = useState<string | null>(null);
+
+  // Graph data for the effective set — used to resolve the gemeentes connected to
+  // the selected initiative (the user reported the cities were never shown).
+  const { dataset, loading: graphLoading } = useVngGraph(effectiveSpaceIds, {
+    includeInitiatives: state.includeInitiatives,
+  });
 
   // T042 — honour an externally requested space (from a graph node click). Runs
   // whenever a new request arrives (tracked by openSpaceSeq) and the requested
@@ -48,6 +58,27 @@ export function SpaceDetailsTab({ openSpaceId, openSpaceSeq }: SpaceDetailsTabPr
       setSelected(selectedSpaces[0].nameId);
     }
   }, [selectedSpaces, selected]);
+
+  // Gemeente ORGANIZATION nodes connected (via ANY edge) to the selected
+  // initiative's graph node (the space node whose nameId matches the picked one).
+  const connectedGemeentes = useMemo<GraphNode[]>(() => {
+    if (!dataset || !selected) return [];
+    const initiativeNode = dataset.nodes.find(
+      (n) => SPACE_TYPES.has(n.type) && n.nameId === selected,
+    );
+    if (!initiativeNode) return [];
+    const neighbourIds = new Set<string>();
+    for (const e of dataset.edges) {
+      if (e.sourceId === initiativeNode.id) neighbourIds.add(e.targetId);
+      else if (e.targetId === initiativeNode.id) neighbourIds.add(e.sourceId);
+    }
+    return dataset.nodes
+      .filter(
+        (n) =>
+          n.type === 'ORGANIZATION' && n.isGemeente === true && neighbourIds.has(n.id),
+      )
+      .sort((a, b) => a.displayName.localeCompare(b.displayName));
+  }, [dataset, selected]);
 
   if (selectedSpaces.length === 0) {
     return (
@@ -115,7 +146,40 @@ export function SpaceDetailsTab({ openSpaceId, openSpaceSeq }: SpaceDetailsTabPr
               {current.origin === 'hub' ? t('selection.fromHub') : t('selection.added')}
             </dd>
           </dl>
-          <p className="mt-4 text-xs text-muted-foreground">{t('details.placeholderNote')}</p>
+
+          <section className="mt-6 border-t border-border pt-4">
+            <h3 className="text-sm font-semibold text-foreground">
+              {t('details.connectedGemeentes')}
+            </h3>
+            {graphLoading && !dataset ? (
+              <p className="mt-2 text-sm text-muted-foreground">{t('details.loading')}</p>
+            ) : connectedGemeentes.length === 0 ? (
+              <p className="mt-2 text-sm text-muted-foreground">{t('details.noGemeentes')}</p>
+            ) : (
+              <ul className="mt-3 space-y-2">
+                {connectedGemeentes.map((gemeente) => {
+                  const city = gemeente.location?.city ?? null;
+                  const country = gemeente.location?.country ?? null;
+                  const place = [city, country].filter(Boolean).join(', ');
+                  return (
+                    <li
+                      key={gemeente.id}
+                      className="rounded-md border border-border bg-background px-3 py-2"
+                    >
+                      <div className="text-sm font-medium text-foreground">
+                        {gemeente.displayName}
+                      </div>
+                      {place && (
+                        <div className="mt-0.5 text-xs text-muted-foreground">
+                          {t('details.city')}: {place}
+                        </div>
+                      )}
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
+          </section>
         </div>
       )}
     </div>

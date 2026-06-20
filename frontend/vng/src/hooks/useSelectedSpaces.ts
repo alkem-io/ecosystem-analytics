@@ -64,8 +64,20 @@ export interface UseSelectedSpacesResult {
   setActiveHub: (nameId: string) => void;
   addSpace: (space: { nameId: string; displayName: string }) => void;
   removeSpace: (nameId: string) => void;
+  /** Bulk-remove spaces (used by the panel's "Remove selected" action). */
+  removeSpaces: (nameIds: string[]) => void;
+  /** Ensure every space of the active hub is back in the effective set. */
+  selectAllHubSpaces: () => void;
+  /** Re-fetch the active hub's listed spaces and select them all again. */
+  loadHubSpaces: () => void;
+  /** Empty the whole effective set (drops hub spaces and direct additions). */
+  clearSelection: () => void;
   setShowGemeentes: (value: boolean) => void;
   setIncludeInitiatives: (value: boolean) => void;
+  /** Monotonically increasing token; bumped by {@link refresh} to force reloads. */
+  refreshNonce: number;
+  /** Force a cache-bypassing reload of the graph and dashboard. */
+  refresh: () => void;
 }
 
 /**
@@ -81,6 +93,9 @@ export function useSelectedSpaces(): UseSelectedSpacesResult {
   const [state, setState] = useState<SelectionState>(loadState);
   const [resolvingHub, setResolvingHub] = useState(false);
   const [hubResolveError, setHubResolveError] = useState<string | null>(null);
+
+  // Bumped by refresh() to force a cache-bypassing reload of the graph/dashboard.
+  const [refreshNonce, setRefreshNonce] = useState(0);
 
   // Display names for resolved spaces (hub + direct), keyed by nameId.
   const [displayNames, setDisplayNames] = useState<Record<string, string>>({});
@@ -177,6 +192,77 @@ export function useSelectedSpaces(): UseSelectedSpacesResult {
     });
   }, []);
 
+  const removeSpaces = useCallback((nameIds: string[]) => {
+    if (nameIds.length === 0) return;
+    const toRemove = new Set(nameIds);
+    setState((s) => {
+      const directAdded = s.directAdded.filter((id) => !toRemove.has(id));
+      // Record explicit removals for any hub spaces so they stay excluded.
+      const directRemoved = [...s.directRemoved];
+      const removedSet = new Set(directRemoved);
+      for (const id of nameIds) {
+        if (s.hubSpaceIds.includes(id) && !removedSet.has(id)) {
+          directRemoved.push(id);
+          removedSet.add(id);
+        }
+      }
+      return { ...s, directAdded, directRemoved };
+    });
+  }, []);
+
+  const selectAllHubSpaces = useCallback(() => {
+    // Clear any removals that hid hub spaces so all hubSpaceIds are included again.
+    setState((s) => {
+      const hubSet = new Set(s.hubSpaceIds);
+      const directRemoved = s.directRemoved.filter((id) => !hubSet.has(id));
+      return directRemoved.length === s.directRemoved.length
+        ? s
+        : { ...s, directRemoved };
+    });
+  }, []);
+
+  const loadHubSpaces = useCallback(() => {
+    if (!activeHubNameId) return;
+    let cancelled = false;
+    setResolvingHub(true);
+    setHubResolveError(null);
+    fetchHubSpaces(activeHubNameId)
+      .then((spaces: HubSpace[]) => {
+        if (cancelled) return;
+        const ids = spaces.map((sp) => sp.nameId);
+        setDisplayNames((prev) => {
+          const next = { ...prev };
+          for (const sp of spaces) next[sp.nameId] = sp.displayName;
+          return next;
+        });
+        // Set the hub spaces and clear any removals that hid them so they all
+        // become selected again.
+        setState((s) => {
+          const idSet = new Set(ids);
+          const directRemoved = s.directRemoved.filter((id) => !idSet.has(id));
+          return { ...s, hubSpaceIds: ids, directRemoved };
+        });
+      })
+      .catch((err: unknown) => {
+        if (cancelled) return;
+        setHubResolveError(err instanceof Error ? err.message : String(err));
+      })
+      .finally(() => {
+        if (!cancelled) setResolvingHub(false);
+      });
+  }, [activeHubNameId, fetchHubSpaces]);
+
+  const clearSelection = useCallback(() => {
+    // Empty the effective set: drop direct additions and remove every hub space.
+    setState((s) => ({
+      ...s,
+      directAdded: [],
+      directRemoved: [...new Set([...s.directRemoved, ...s.hubSpaceIds])],
+    }));
+  }, []);
+
+  const refresh = useCallback(() => setRefreshNonce((n) => n + 1), []);
+
   const setShowGemeentes = useCallback((value: boolean) => {
     setState((s) => ({ ...s, showGemeentes: value }));
   }, []);
@@ -220,7 +306,13 @@ export function useSelectedSpaces(): UseSelectedSpacesResult {
     setActiveHub,
     addSpace,
     removeSpace,
+    removeSpaces,
+    selectAllHubSpaces,
+    loadHubSpaces,
+    clearSelection,
     setShowGemeentes,
     setIncludeInitiatives,
+    refreshNonce,
+    refresh,
   };
 }

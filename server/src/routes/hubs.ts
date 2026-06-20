@@ -1,7 +1,7 @@
 import { Router, Request, Response } from 'express';
 import { authMiddleware, invalidateAndReject } from '../auth/middleware.js';
 import { resolveUser } from '../auth/resolve-user.js';
-import { fetchInnovationHubs } from '../services/hub-service.js';
+import { fetchInnovationHubs, resolveHubByNameId } from '../services/hub-service.js';
 import { isAlkemioAuthError } from '../graphql/client.js';
 import { loadConfig } from '../config.js';
 import { getLogger } from '../logging/logger.js';
@@ -17,8 +17,18 @@ hubsRouter.get('/', async (req: Request, res: Response) => {
   try {
     const config = loadConfig();
     const hubs = await fetchInnovationHubs(req.auth!);
+    const defaultNameId = config.vng.defaultHubNameId || null;
+
+    // The configured default hub may NOT be store-listed (so absent from the list
+    // above). Resolve it directly by nameID and prepend it so it is always
+    // selectable + preselectable on first load.
+    if (defaultNameId && !hubs.some((h) => h.nameId === defaultNameId)) {
+      const def = await resolveHubByNameId(req.auth!, defaultNameId).catch(() => null);
+      if (def) hubs.unshift(def);
+    }
+
     res.json({
-      defaultHubNameId: config.vng.defaultHubNameId || null,
+      defaultHubNameId: defaultNameId,
       hubs: hubs.map((h) => ({
         nameId: h.nameId,
         displayName: h.displayName,
@@ -35,8 +45,8 @@ hubsRouter.get('/', async (req: Request, res: Response) => {
 // GET /api/hubs/:nameId/spaces — resolve a hub's listed spaces (FR-009).
 hubsRouter.get('/:nameId/spaces', async (req: Request, res: Response) => {
   try {
-    const hubs = await fetchInnovationHubs(req.auth!);
-    const hub = hubs.find((h) => h.nameId === req.params.nameId);
+    // Resolve directly by nameID so non-store-listed hubs (e.g. the VNG hubs) work.
+    const hub = await resolveHubByNameId(req.auth!, String(req.params.nameId));
     if (!hub) {
       res.status(404).json({ error: 'HUB_NOT_FOUND', message: 'Innovation hub not found' });
       return;

@@ -13,7 +13,7 @@ import { GdProvenanceNote } from '../components/GdProvenanceNote.js';
  */
 export function DashboardTab() {
   const { t } = useTranslation();
-  const { effectiveSpaceIds, state } = useSelectionContext();
+  const { effectiveSpaceIds, state, refreshNonce } = useSelectionContext();
 
   // The dashboard ALWAYS counts the selected spaces (VNG Groei initiatives) by
   // their NDS / VNG-2030 profile tags — it is decoupled from the graph's
@@ -28,7 +28,7 @@ export function DashboardTab() {
     [effectiveSpaceIds, state.showGemeentes],
   );
 
-  const { data, loading, error } = useDashboard(request);
+  const { data, loading, error } = useDashboard(request, { refreshNonce });
 
   const ndsDimension = data?.dimensions.find((d) => d.key === 'nds');
   const vng2030Dimension = data?.dimensions.find((d) => d.key === 'vng2030');

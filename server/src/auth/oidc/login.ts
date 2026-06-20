@@ -10,27 +10,48 @@ import { generateOpaqueId, PREAUTH_COOKIE, preauthCookieOptions } from '../sessi
 export const DEFAULT_RETURN_TO = '/spaces';
 
 /**
- * Validate the requested post-login landing path against an open-redirect
- * allow-list (FR-013). Only clean EA-internal SPA paths are accepted; anything
- * absolute, protocol-relative, API-targeted, or malformed falls back to the
- * default landing page.
+ * Validate the requested post-login landing target against an open-redirect
+ * allow-list (FR-013).
+ *
+ * Accepts EITHER:
+ *  - a clean EA-internal SPA path (relative, `/…`), OR
+ *  - an ABSOLUTE URL whose origin is in the trusted `allowedOrigins` list — this
+ *    is what lets sign-in started from the VNG frontend (a different origin/port
+ *    than the OIDC `redirect_uri`) land back on the VNG app rather than the
+ *    Explorer (US5 cross-frontend auth). The two frontends share the `ea_session`
+ *    cookie (parent-domain in prod; port-agnostic `localhost` in dev).
+ *
+ * Anything protocol-relative, API-targeted, cross-origin-but-not-allow-listed, or
+ * malformed falls back to the default landing page.
  */
-export function validateReturnTo(raw: unknown): string {
+export function validateReturnTo(raw: unknown, allowedOrigins: string[] = []): string {
   if (typeof raw !== 'string' || raw.length === 0) return DEFAULT_RETURN_TO;
-  // Internal SPA paths are printable ASCII only. This rejects control chars,
-  // spaces, and Unicode slash look-alikes (e.g. U+FF0F fullwidth solidus) that
-  // a downstream parser might normalize to '/'.
+  // Printable ASCII only — rejects control chars, spaces, and Unicode slash
+  // look-alikes (e.g. U+FF0F) a downstream parser might normalize to '/'.
   for (let i = 0; i < raw.length; i++) {
     const c = raw.charCodeAt(i);
     if (c < 0x21 || c > 0x7e) return DEFAULT_RETURN_TO;
   }
-  if (!raw.startsWith('/')) return DEFAULT_RETURN_TO; // must be relative
-  if (raw.startsWith('//')) return DEFAULT_RETURN_TO; // protocol-relative //host
   if (raw.includes('\\')) return DEFAULT_RETURN_TO; // backslash tricks
   if (/%2f|%5c/i.test(raw)) return DEFAULT_RETURN_TO; // encoded slash/backslash smuggling
+
+  // Absolute URL → accept only if its origin is explicitly allow-listed.
+  if (/^https?:\/\//i.test(raw)) {
+    try {
+      const u = new URL(raw);
+      if (allowedOrigins.includes(u.origin) && !u.pathname.startsWith('/api')) {
+        return raw;
+      }
+    } catch {
+      /* fall through to default */
+    }
+    return DEFAULT_RETURN_TO;
+  }
+
+  // Otherwise must be a clean relative same-origin path.
+  if (!raw.startsWith('/')) return DEFAULT_RETURN_TO;
+  if (raw.startsWith('//')) return DEFAULT_RETURN_TO; // protocol-relative //host
   if (raw.startsWith('/api')) return DEFAULT_RETURN_TO; // SPA paths only, not the BFF
-  // Final guard: the value must resolve to a same-origin path. Anything that
-  // escapes to another authority (absolute or protocol-relative) is rejected.
   try {
     const base = 'http://ea.internal';
     const resolved = new URL(raw, base);
@@ -53,7 +74,7 @@ export async function loginHandler(req: Request, res: Response): Promise<void> {
     const config = loadConfig();
     const oidcConfig = await getOidcConfiguration();
 
-    const returnTo = validateReturnTo(req.query.returnTo);
+    const returnTo = validateReturnTo(req.query.returnTo, config.session.allowedOrigins);
     const state = oidc.randomState();
     const nonce = oidc.randomNonce();
     const codeVerifier = oidc.randomPKCECodeVerifier();

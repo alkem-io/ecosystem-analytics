@@ -21,9 +21,9 @@ export interface UseVngGraphResult {
 
 export function useVngGraph(
   spaceIds: string[],
-  options: { includeInitiatives?: boolean } = {},
+  options: { includeInitiatives?: boolean; refreshNonce?: number } = {},
 ): UseVngGraphResult {
-  const { includeInitiatives = false } = options;
+  const { includeInitiatives = false, refreshNonce = 0 } = options;
   const [dataset, setDataset] = useState<GraphDataset | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -32,6 +32,10 @@ export function useVngGraph(
 
   // Track the latest request so out-of-order responses don't clobber state.
   const requestRef = useRef(0);
+
+  // Track which external refresh tokens have already forced a cache-bypass, so a
+  // bump of refreshNonce sends exactly one `forceRefresh: true` request.
+  const forcedNonceRef = useRef(0);
 
   const reload = useCallback(() => setNonce((n) => n + 1), []);
 
@@ -53,10 +57,17 @@ export function useVngGraph(
     setError(null);
     setWarnings([]);
 
+    // Bypass both the per-space cache and the long-TTL GD-initiative cache only
+    // when the user explicitly refreshed (refreshNonce advanced past the last
+    // value we forced). Selection/toggle changes still use the cache.
+    const forceRefresh = refreshNonce > forcedNonceRef.current;
+    forcedNonceRef.current = refreshNonce;
+
     api
       .post<GraphDataset>('/api/graph/generate', {
         spaceIds,
         includeInitiatives,
+        forceRefresh,
       })
       .then((result) => {
         if (cancelled || requestId !== requestRef.current) return;
@@ -80,9 +91,10 @@ export function useVngGraph(
     return () => {
       cancelled = true;
     };
-    // `signature` captures spaceIds + includeInitiatives; `nonce` forces reloads.
+    // `signature` captures spaceIds + includeInitiatives; `nonce` (internal) and
+    // `refreshNonce` (external, cache-bypassing) force reloads.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [signature, nonce]);
+  }, [signature, nonce, refreshNonce]);
 
   return { dataset, loading, error, warnings, reload };
 }

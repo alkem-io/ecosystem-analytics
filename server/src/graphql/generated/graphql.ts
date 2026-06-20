@@ -15292,6 +15292,20 @@ export type GemeentedelersCalloutsQueryVariables = SchemaTypes.Exact<{
 
 export type GemeentedelersCalloutsQuery = { lookupByName: { space?: { id: string, nameID: string, collaboration: { calloutsSet: { callouts: Array<{ id: string, nameID: string, framing: { profile: { displayName: string, tagsets?: Array<{ name: string, tags: Array<string> }> | undefined } } }> } } } | undefined } };
 
+export type InnovationHubByIdQueryVariables = SchemaTypes.Exact<{
+  id: SchemaTypes.Scalars['UUID']['input'];
+}>;
+
+
+export type InnovationHubByIdQuery = { lookup: { innovationHub?: { id: string, nameID: string, profile: { displayName: string }, spaceListFilter?: Array<{ id: string, nameID: string, visibility: SchemaTypes.SpaceVisibility, about: { profile: { displayName: string } } }> | undefined } | undefined } };
+
+export type InnovationHubByNameIdQueryVariables = SchemaTypes.Exact<{
+  nameId: SchemaTypes.Scalars['NameID']['input'];
+}>;
+
+
+export type InnovationHubByNameIdQuery = { lookupByName: { innovationHub?: string | undefined } };
+
 export type InnovationHubsQueryVariables = SchemaTypes.Exact<{ [key: string]: never; }>;
 
 
@@ -15486,6 +15500,36 @@ export const GemeentedelersCalloutsDocument = gql`
         }
       }
     }
+  }
+}
+    `;
+export const InnovationHubByIdDocument = gql`
+    query InnovationHubById($id: UUID!) {
+  lookup {
+    innovationHub(ID: $id) {
+      id
+      nameID
+      profile {
+        displayName
+      }
+      spaceListFilter {
+        id
+        nameID
+        visibility
+        about {
+          profile {
+            displayName
+          }
+        }
+      }
+    }
+  }
+}
+    `;
+export const InnovationHubByNameIdDocument = gql`
+    query InnovationHubByNameId($nameId: NameID!) {
+  lookupByName {
+    innovationHub(NAMEID: $nameId)
   }
 }
     `;
@@ -15705,6 +15749,8 @@ export type SdkFunctionWrapper = <T>(action: (requestHeaders?:Record<string, str
 const defaultWrapper: SdkFunctionWrapper = (action, _operationName, _operationType, _variables) => action();
 const ActivityFeedGroupedDocumentString = print(ActivityFeedGroupedDocument);
 const GemeentedelersCalloutsDocumentString = print(GemeentedelersCalloutsDocument);
+const InnovationHubByIdDocumentString = print(InnovationHubByIdDocument);
+const InnovationHubByNameIdDocumentString = print(InnovationHubByNameIdDocument);
 const InnovationHubsDocumentString = print(InnovationHubsDocument);
 const MeDocumentString = print(MeDocument);
 const MySpacesHierarchicalDocumentString = print(MySpacesHierarchicalDocument);
@@ -15721,6 +15767,12 @@ export function getSdk(client: GraphQLClient, withWrapper: SdkFunctionWrapper = 
     },
     GemeentedelersCallouts(variables: SchemaTypes.GemeentedelersCalloutsQueryVariables, requestHeaders?: GraphQLClientRequestHeaders): Promise<{ data: SchemaTypes.GemeentedelersCalloutsQuery; errors?: GraphQLError[]; extensions?: any; headers: Headers; status: number; }> {
         return withWrapper((wrappedRequestHeaders) => client.rawRequest<SchemaTypes.GemeentedelersCalloutsQuery>(GemeentedelersCalloutsDocumentString, variables, {...requestHeaders, ...wrappedRequestHeaders}), 'GemeentedelersCallouts', 'query', variables);
+    },
+    InnovationHubById(variables: SchemaTypes.InnovationHubByIdQueryVariables, requestHeaders?: GraphQLClientRequestHeaders): Promise<{ data: SchemaTypes.InnovationHubByIdQuery; errors?: GraphQLError[]; extensions?: any; headers: Headers; status: number; }> {
+        return withWrapper((wrappedRequestHeaders) => client.rawRequest<SchemaTypes.InnovationHubByIdQuery>(InnovationHubByIdDocumentString, variables, {...requestHeaders, ...wrappedRequestHeaders}), 'InnovationHubById', 'query', variables);
+    },
+    InnovationHubByNameId(variables: SchemaTypes.InnovationHubByNameIdQueryVariables, requestHeaders?: GraphQLClientRequestHeaders): Promise<{ data: SchemaTypes.InnovationHubByNameIdQuery; errors?: GraphQLError[]; extensions?: any; headers: Headers; status: number; }> {
+        return withWrapper((wrappedRequestHeaders) => client.rawRequest<SchemaTypes.InnovationHubByNameIdQuery>(InnovationHubByNameIdDocumentString, variables, {...requestHeaders, ...wrappedRequestHeaders}), 'InnovationHubByNameId', 'query', variables);
     },
     InnovationHubs(variables?: SchemaTypes.InnovationHubsQueryVariables, requestHeaders?: GraphQLClientRequestHeaders): Promise<{ data: SchemaTypes.InnovationHubsQuery; errors?: GraphQLError[]; extensions?: any; headers: Headers; status: number; }> {
         return withWrapper((wrappedRequestHeaders) => client.rawRequest<SchemaTypes.InnovationHubsQuery>(InnovationHubsDocumentString, variables, {...requestHeaders, ...wrappedRequestHeaders}), 'InnovationHubs', 'query', variables);
