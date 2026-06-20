@@ -1,6 +1,6 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { ForceGraph, HoverCard, MapOverlay } from '@ea/shared';
+import { ForceGraph, HoverCard } from '@ea/shared';
 import type { GraphDataset, GraphNode } from '@server/types/graph.js';
 import { useVngGraph } from '../hooks/useVngGraph.js';
 import { MapToggle } from '../components/MapToggle.js';
@@ -154,22 +154,10 @@ export function GraphTab({
     return { ...rawDataset, nodes, edges };
   }, [rawDataset, showGemeentes]);
 
-  // ── Container measurement for the SVG / map projection ─────────────────────
-  const containerRef = useRef<HTMLDivElement>(null);
-  const [size, setSize] = useState({ width: 0, height: 0 });
-  useEffect(() => {
-    const el = containerRef.current;
-    if (!el) return;
-    const observer = new ResizeObserver((entries) => {
-      const rect = entries[0]?.contentRect;
-      if (rect) setSize({ width: Math.round(rect.width), height: Math.round(rect.height) });
-    });
-    observer.observe(el);
-    return () => observer.disconnect();
-  }, []);
-
   // ── Interaction state ──────────────────────────────────────────────────────
-  // Map underlay is OPTIONAL and OFF BY DEFAULT (internal GraphTab state).
+  // Map is OPTIONAL and OFF BY DEFAULT (internal GraphTab state). When on,
+  // ForceGraph renders its OWN projected Netherlands basemap — we must NOT also
+  // render a separate static MapOverlay (that produced the misaligned "two maps").
   const [showMap, setShowMap] = useState(false);
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
   const [hover, setHover] = useState<{ node: GraphNode; x: number; y: number } | null>(null);
@@ -250,18 +238,14 @@ export function GraphTab({
         </div>
       )}
 
-      {/* Graph view controls */}
-      <div className="flex shrink-0 items-center justify-end border-b border-border bg-background/95 px-6 py-2">
-        <MapToggle checked={showMap} onChange={setShowMap} />
-      </div>
+      <div className="relative min-h-0 flex-1 overflow-hidden">
+        {/* Floating map toggle (top-left), overlaid on the canvas */}
+        <div className="absolute left-4 top-4 z-10 rounded-md border border-border bg-background/95 px-3 py-1.5 shadow-sm">
+          <MapToggle checked={showMap} onChange={setShowMap} />
+        </div>
 
-      <div ref={containerRef} className="relative min-h-0 flex-1 overflow-hidden">
-        {/* Netherlands basemap underlay (optional, off by default) */}
-        {showMap && size.width > 0 && size.height > 0 && (
-          <MapOverlay region="netherlands" width={size.width} height={size.height} visible />
-        )}
-
-        {/* Force-directed graph — geo-pinned when the map is on, free layout when off */}
+        {/* Force-directed graph — ForceGraph draws its own projected NL basemap when
+            showMap is on (no separate overlay), free force layout when off. */}
         {dataset && !loading && (
           <ForceGraph
             dataset={dataset}

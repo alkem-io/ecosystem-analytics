@@ -20,7 +20,10 @@ async function apiFetch<T>(path: string, options: RequestInit = {}): Promise<T> 
   });
 
   if (response.status === 401) {
-    const returnTo = window.location.pathname + window.location.search;
+    // Absolute origin so re-auth lands back on THIS frontend (the OIDC callback
+    // runs on a single registered origin; an allow-listed absolute returnTo
+    // bounces the user back here — Explorer or VNG). See server validateReturnTo.
+    const returnTo = window.location.origin + window.location.pathname + window.location.search;
     window.location.href = `/api/auth/login?returnTo=${encodeURIComponent(returnTo)}`;
     throw new Error('Session expired');
   }

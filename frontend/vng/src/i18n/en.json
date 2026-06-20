@@ -4,11 +4,15 @@
     "subtitle": "Innovation ecosystem dashboard"
   },
   "login": {
-    "enterDashboard": "Sign in to enter the VNG Kenniscentrum Innovatie Analytics Dashboard",
+    "dashboardLabel": "Analytics Dashboard",
+    "signInHeading": "Sign in",
     "prompt": "Sign in with your Alkemio account to continue.",
+    "heroDescription": "Explore the innovation ecosystem of Dutch municipalities — the network of spaces, organisations and GemeenteDelers initiatives.",
     "cta": "Sign in with Alkemio",
-    "connectingTo": "Connecting to",
-    "tagline": "Safe Spaces for Collaboration"
+    "environment": "Environment",
+    "envDetecting": "detecting…",
+    "envUnknown": "not reported by server",
+    "disclaimer": "Prototype for exploration"
   },
   "tabs": {
     "label": "Views",

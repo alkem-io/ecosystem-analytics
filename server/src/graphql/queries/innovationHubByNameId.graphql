@@ -1,0 +1,5 @@
+query InnovationHubByNameId($nameId: NameID!) {
+  lookupByName {
+    innovationHub(NAMEID: $nameId)
+  }
+}
