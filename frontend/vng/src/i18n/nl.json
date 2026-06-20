@@ -8,7 +8,7 @@
     "signInHeading": "Aanmelden",
     "prompt": "Meld u aan met uw Alkemio-account om door te gaan.",
     "heroDescription": "Verken het innovatie-ecosysteem van Nederlandse gemeenten — het netwerk van ruimtes, organisaties en GemeenteDelers-initiatieven.",
-    "cta": "Aanmelden met Alkemio",
+    "cta": "Aanmelden",
     "environment": "Omgeving",
     "envDetecting": "detecteren…",
     "envUnknown": "niet gemeld door server",
@@ -16,7 +16,7 @@
   },
   "tabs": {
     "label": "Weergaven",
-    "graph": "Grafiek",
+    "graph": "Graph",
     "details": "Initiatief informatie",
     "dashboard": "Dashboard"
   },
@@ -68,7 +68,11 @@
     "connectedGemeentes": "Deelnemende gemeenten",
     "noGemeentes": "Geen gemeenten gekoppeld aan dit initiatief.",
     "loading": "Gemeenten laden…",
-    "city": "Plaats"
+    "city": "Plaats",
+    "tagline": "Over dit initiatief",
+    "mapTitle": "Deelnemende gemeenten op de kaart",
+    "gemeentesTitle": "Deelnemende gemeenten",
+    "count": "Aantal"
   },
   "toggles": {
     "showGemeentes": "Gemeentes tonen",
@@ -82,7 +86,8 @@
     "uncategorised": "Overig",
     "noData": "Geen gegevens beschikbaar",
     "totalCounted": "{{count}} geteld",
-    "uncategorisedCount": "{{count}} zonder categorie"
+    "uncategorisedCount": "{{count}} zonder categorie",
+    "count": "Aantal"
   },
   "categories": {
     "nds": {

@@ -110,7 +110,7 @@ export function SpacePicker({ excludeNameIds, onAdd }: SpacePickerProps) {
               >
                 <span className="flex min-w-0 items-center gap-1.5">
                   <span className="truncate">{space.displayName}</span>
-                  {space.status !== 'ACTIVE' && (
+                  {space.status && space.status !== 'ACTIVE' && (
                     <span className="shrink-0 rounded bg-muted px-1.5 py-0.5 text-[10px] uppercase leading-none text-muted-foreground">
                       {t(`space.status.${space.status.toLowerCase()}`, space.status)}
                     </span>

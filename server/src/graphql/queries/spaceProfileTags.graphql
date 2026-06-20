@@ -5,6 +5,7 @@ query SpaceProfileTags($nameId: NameID!) {
       nameID
       about {
         profile {
+          displayName
           tagsets {
             name
             tags
