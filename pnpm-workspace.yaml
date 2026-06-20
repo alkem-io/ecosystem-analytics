@@ -5,12 +5,13 @@ packages:
   - frontend/ecosystem-analytics
   - frontend/vng
 
-# Build-script handling. esbuild ships a prebuilt platform binary via its optional
-# @esbuild/<platform> dependency, so it does NOT need its own postinstall to work.
-# We explicitly acknowledge its skipped build here so pnpm 11's CI `--frozen-lockfile`
-# does not fail with ERR_PNPM_IGNORED_BUILDS (esbuild still functions at build time).
-ignoredBuiltDependencies:
-  - esbuild
+# Build-script handling. pnpm 11 makes ignored build scripts a FATAL error under
+# `--frozen-lockfile` (ERR_PNPM_IGNORED_BUILDS). On pnpm 11.7.0 neither `allowBuilds`,
+# `onlyBuiltDependencies`, nor `ignoredBuiltDependencies` were honored in CI; only
+# `dangerouslyAllowAllBuilds` reliably allows dependency build scripts to run (verified
+# against pnpm 11.7.0). Our lockfile is committed and reviewed, so allowing build
+# scripts during the image build is acceptable.
+dangerouslyAllowAllBuilds: true
 
 # Supply-chain age gate: disabled for build reproducibility.
 #
