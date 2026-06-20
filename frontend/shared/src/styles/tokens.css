@@ -1,7 +1,8 @@
 /* Design tokens from the Ecosystem Analytics design brief */
 /* Source of truth: specs/001-ecosystem-analytics/design-brief-figma-make.md */
-
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+/* NOTE: the Inter webfont is loaded via a <link> in each app's index.html, not a
+   CSS @import — an @import here is not guaranteed to precede other rules once this
+   file is itself @imported after globals.css, which makes postcss/Vite error. */
 
 :root {
   /* Typography */
@@ -116,13 +117,18 @@
   --view-color-inactive: #475569;
 }
 
-/* Base reset */
-*,
-*::before,
-*::after {
-  box-sizing: border-box;
-  margin: 0;
-  padding: 0;
+/* Base reset — MUST be inside @layer base. Tailwind v4 puts utilities in
+   @layer utilities, and unlayered CSS beats ALL layered CSS regardless of
+   specificity, so an unlayered `* { margin:0; padding:0 }` silently overrides
+   every mt-*/p-*/gap-* utility. Layering it lets utilities win again. */
+@layer base {
+  *,
+  *::before,
+  *::after {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+  }
 }
 
 body {

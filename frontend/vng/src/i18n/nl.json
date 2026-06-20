@@ -3,6 +3,17 @@
     "title": "VNG Kenniscentrum Innovatie",
     "subtitle": "Innovatie-ecosysteem dashboard"
   },
+  "login": {
+    "dashboardLabel": "Analytics-dashboard",
+    "signInHeading": "Aanmelden",
+    "prompt": "Meld u aan met uw Alkemio-account om door te gaan.",
+    "heroDescription": "Verken het innovatie-ecosysteem van Nederlandse gemeenten — het netwerk van ruimtes, organisaties en GemeenteDelers-initiatieven.",
+    "cta": "Aanmelden met Alkemio",
+    "environment": "Omgeving",
+    "envDetecting": "detecteren…",
+    "envUnknown": "niet gemeld door server",
+    "disclaimer": "Prototype ter verkenning"
+  },
   "tabs": {
     "label": "Weergaven",
     "graph": "Grafiek",

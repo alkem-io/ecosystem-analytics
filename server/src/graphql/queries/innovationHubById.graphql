@@ -1,0 +1,21 @@
+query InnovationHubById($id: UUID!) {
+  lookup {
+    innovationHub(ID: $id) {
+      id
+      nameID
+      profile {
+        displayName
+      }
+      spaceListFilter {
+        id
+        nameID
+        visibility
+        about {
+          profile {
+            displayName
+          }
+        }
+      }
+    }
+  }
+}
