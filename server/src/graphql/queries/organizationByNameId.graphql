@@ -1,0 +1,5 @@
+query OrganizationByNameId($nameId: NameID!) {
+  lookupByName {
+    organization(NAMEID: $nameId)
+  }
+}

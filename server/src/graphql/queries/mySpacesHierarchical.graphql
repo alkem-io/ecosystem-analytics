@@ -1,4 +1,4 @@
-query mySpacesHierarchical {
+query mySpacesHierarchical($limit: Float = 200) {
   me {
     user {
       id
@@ -20,7 +20,7 @@ query mySpacesHierarchical {
       }
       email
     }
-    spaceMembershipsHierarchical {
+    spaceMembershipsHierarchical(limit: $limit) {
       space {
         ...SpaceGraphInfoFragment
       }

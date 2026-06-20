@@ -7,6 +7,8 @@ import { spacesRouter } from './routes/spaces.js';
 import { graphRouter } from './routes/graph.js';
 import { imageProxyRouter } from './routes/image-proxy.js';
 import { queryRouter } from './routes/query.js';
+import { hubsRouter } from './routes/hubs.js';
+import { vngRouter } from './routes/vng.js';
 import { loadConfig } from './config.js';
 import { getLogger } from './logging/logger.js';
 import type { ApiError } from './types/api.js';
@@ -46,11 +48,18 @@ export function createApp() {
   app.use('/api/graph', graphRouter);
   app.use('/api/image-proxy', imageProxyRouter);
   app.use('/api/query', queryRouter);
+  app.use('/api/hubs', hubsRouter);
+  app.use('/api/vng', vngRouter);
 
-  // Feature flags (public, no auth required)
+  // Feature flags + environment info (public, no auth required).
+  // `alkemioServerUrl` lets the login screens display which environment they
+  // connect to (user feedback) — shown before sign-in, so it must be public.
   app.get('/api/features', (_req, res) => {
     const config = loadConfig();
-    res.json({ aiQueryEnabled: config.features.aiQueryEnabled });
+    res.json({
+      aiQueryEnabled: config.features.aiQueryEnabled,
+      alkemioServerUrl: config.alkemioServerUrl,
+    });
   });
 
   // Health check

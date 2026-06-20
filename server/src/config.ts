@@ -58,6 +58,21 @@ export interface SessionConfig {
   allowedOrigins: string[];
 }
 
+/** VNG Kenniscentrum Innovatie frontend configuration (feature 016-vng-frontend). */
+export interface VngConfig {
+  /** Default innovation hub nameID applied on first load (empty => none). FR-010. */
+  defaultHubNameId: string;
+  /** nameID of the GemeenteDelers space whose Knowledge Base holds the GD initiatives. FR-045. */
+  gemeentedelersSpaceNameId: string;
+  /** Long cache TTL for the archival GD initiative layer. FR-046. */
+  gdCacheTtlHours: number;
+  /** Raw space/callout tag (lower-cased) → dashboard category key, per dimension. FR-022. */
+  tagCategoryMapping: {
+    nds: Record<string, string>;
+    vng2030: Record<string, string>;
+  };
+}
+
 export interface ServerConfig {
   alkemioServerUrl: string;
   alkemioGraphqlEndpoint: string;
@@ -71,6 +86,7 @@ export interface ServerConfig {
   features: FeaturesConfig;
   oidc: OidcConfig;
   session: SessionConfig;
+  vng: VngConfig;
 }
 
 /** Resolve the YAML config file path (check env override, cwd, then relative to dist) */
@@ -156,10 +172,20 @@ export function loadConfig(): ServerConfig {
       enc_key: string;
       allowed_origins: string;
     };
+    vng?: {
+      default_hub_nameid?: string;
+      gemeentedelers_space_nameid?: string;
+      gd_cache_ttl_hours?: number;
+      tag_category_mapping?: {
+        nds?: Record<string, unknown>;
+        vng2030?: Record<string, unknown>;
+      };
+    };
   };
 
   const oidc = parseOidcConfig(yml.oidc);
   const session = parseSessionConfig(yml.session);
+  const vng = parseVngConfig(yml.vng);
 
   cachedConfig = {
     alkemioServerUrl: String(yml.alkemio.server_url),
@@ -190,9 +216,33 @@ export function loadConfig(): ServerConfig {
     },
     oidc,
     session,
+    vng,
   };
 
   return cachedConfig;
+}
+
+/** Parse the optional `vng:` block, applying defaults so a fresh checkout boots. */
+function parseVngConfig(raw?: {
+  default_hub_nameid?: string;
+  gemeentedelers_space_nameid?: string;
+  gd_cache_ttl_hours?: number;
+  tag_category_mapping?: { nds?: Record<string, unknown>; vng2030?: Record<string, unknown> };
+}): VngConfig {
+  const stringMap = (m?: Record<string, unknown>): Record<string, string> =>
+    Object.fromEntries(Object.entries(m ?? {}).map(([k, v]) => [k.toLowerCase(), String(v)]));
+
+  return {
+    defaultHubNameId: raw?.default_hub_nameid ? String(raw.default_hub_nameid) : '',
+    gemeentedelersSpaceNameId: raw?.gemeentedelers_space_nameid
+      ? String(raw.gemeentedelers_space_nameid)
+      : 'gemeentedelers',
+    gdCacheTtlHours: Number(raw?.gd_cache_ttl_hours) || 168,
+    tagCategoryMapping: {
+      nds: stringMap(raw?.tag_category_mapping?.nds),
+      vng2030: stringMap(raw?.tag_category_mapping?.vng2030),
+    },
+  };
 }
 
 /** Parse + validate the OIDC block, failing fast on misconfiguration (FR-018/FR-019). */

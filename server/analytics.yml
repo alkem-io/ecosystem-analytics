@@ -63,3 +63,34 @@ query:
 
 features:
   ai_query_enabled: ${FEATURE_AI_QUERY_ENABLED}:false
+
+# VNG Kenniscentrum Innovatie frontend (feature 016-vng-frontend).
+vng:
+  default_hub_nameid: "${VNG_DEFAULT_HUB_NAMEID}:" # innovation hub preselected on first load
+  gemeentedelers_space_nameid: ${VNG_GD_SPACE_NAMEID}:gemeentedelers
+  gd_cache_ttl_hours: ${VNG_GD_CACHE_TTL_HOURS}:168 # ~1 week (archival GD corpus)
+  # Space tag (lower-cased) -> dashboard category key, per dimension. Keys are the
+  # EXACT label strings the VNG Groei publisher emits as profile tags (see
+  # vng-gemeente-delers publisher/src/groei/vocab.ts), lower-cased. Operator-editable.
+  tag_category_mapping:
+    nds:
+      "cloud": cloud
+      "data": data
+      "artificiële intelligentie": ai
+      "centrale (digitale) dienstverlening": dienstverlening
+      "digitale weerbaarheid en autonomie": weerbaarheid
+      "digitaal vakmanschap en moderne werkomgeving": vakmanschap
+    vng2030:
+      # Omkeringsthema's (the 6 shown on the VNG-2030 chart)
+      "bedrijfsvoering & gemeentediensten": bedrijfsvoering
+      "wonen en ruimte": wonen-ruimte
+      "bestaanszekerheid": bestaanszekerheid
+      "klimaat en energie": klimaat-energie
+      "kansengelijkheid/jeugd": kansengelijkheid
+      "vergrijzing/gezond leven": vergrijzing
+      # Ontwikkelthema's (also valid VNG-2030 themes)
+      "een sterke bestuurslaag": een-sterke-bestuurslaag
+      "samenwerken in regio's": samenwerken-in-regios
+      "knooppunt van netwerken": knooppunt-van-netwerken
+      "bestuurskracht en kwaliteit van uitvoering": bestuurskracht
+      "kwalitatieve besluitvorming en mandaat": kwalitatieve-besluitvorming

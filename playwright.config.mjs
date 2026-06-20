@@ -6,6 +6,11 @@ import { fileURLToPath } from 'node:url';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
+// Visual regression targets the Explorer (now at frontend/ecosystem-analytics/ after the
+// 016 workspace move). This config does NOT launch the Explorer's source app directly:
+// it either drives the local Figma Make export under .prototype/alkemio-redesign, or any
+// running app via BASE_URL (e.g. BASE_URL=http://localhost:5173 for the Explorer dev server,
+// which still runs on :5173). No old top-level `frontend/` path is referenced here.
 const prototypeDir = path.join(__dirname, '.prototype', 'alkemio-redesign');
 const hasPrototype = fs.existsSync(path.join(prototypeDir, 'package.json'));
 

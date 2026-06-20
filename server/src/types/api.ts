@@ -11,6 +11,42 @@ export interface SpaceSelectionItem {
 export interface GraphGenerationRequest {
   spaceIds: string[];
   forceRefresh?: boolean;
+  /** Fold in the GemeenteDelers initiative layer (feature 016, US10/FR-039). */
+  includeInitiatives?: boolean;
+}
+
+/** A GemeenteDelers initiative as fetched from a Knowledge Base callout. */
+export interface GdCalloutInput {
+  /** Callout UUID (becomes the INITIATIVE node id). */
+  id: string;
+  /** Callout nameID (alkemio_nameid). */
+  nameId: string;
+  displayName: string;
+  /** Flat tag strings on the callout (themes, gemeente names, gd-YYYY, sdg-NN, classifications). */
+  tags: string[];
+  /** Original vng.nl source link, if present. */
+  sourceUrl?: string | null;
+}
+
+/** Dimension key → category counts for the VNG dashboard. */
+export interface DashboardDimension {
+  key: string;
+  categories: { key: string; count: number }[];
+}
+
+/** Response for POST /api/vng/dashboard (feature 016, US3). */
+export interface VngDashboardResponse {
+  /** Active counting unit: selected spaces or GD initiatives (FR-022). */
+  source: 'spaces' | 'gd-initiatives';
+  totalCounted: number;
+  uncategorisedCount: number;
+  dimensions: DashboardDimension[];
+}
+
+/** An entity (space or GD initiative) counted by the dashboard, with its tags. */
+export interface DashboardCountable {
+  id: string;
+  tags: string[];
 }
 
 /** Progressive loading status */

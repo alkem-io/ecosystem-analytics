@@ -1,0 +1,30 @@
+# pnpm workspace — frontend packages share one deduped node_modules (single React/D3).
+# The server (server/) remains a standalone install and is intentionally NOT a member.
+packages:
+  - frontend/shared
+  - frontend/ecosystem-analytics
+  - frontend/vng
+
+# Build-script handling. pnpm 11 makes ignored build scripts a FATAL error under
+# `--frozen-lockfile` (ERR_PNPM_IGNORED_BUILDS). On pnpm 11.7.0 neither `allowBuilds`,
+# `onlyBuiltDependencies`, nor `ignoredBuiltDependencies` were honored in CI; only
+# `dangerouslyAllowAllBuilds` reliably allows dependency build scripts to run (verified
+# against pnpm 11.7.0). Our lockfile is committed and reviewed, so allowing build
+# scripts during the image build is acceptable.
+dangerouslyAllowAllBuilds: true
+
+# Supply-chain age gate: disabled for build reproducibility.
+#
+# pnpm 11's `minimumReleaseAge` quarantines packages published within the last N
+# minutes/days and makes `--frozen-lockfile` FAIL when the committed lockfile
+# already pins such a package. Our CI runner (pnpm 11.7.0, corepack) inherits a
+# non-zero `minimumReleaseAge` from a global/org-level config, so the Docker
+# `pnpm install --frozen-lockfile` step rejected the freshly published
+# @rollup/rollup-* 4.62.2 binaries that the lockfile legitimately pins.
+#
+# Setting it to 0 here overrides any inherited policy and keeps the install
+# deterministic: a committed, validated lockfile must always install regardless
+# of how recently its transitive deps were published. (The age gate is a
+# resolution-time guard for *new* additions; it has no business blocking an
+# already-pinned, reviewed lockfile.)
+minimumReleaseAge: 0

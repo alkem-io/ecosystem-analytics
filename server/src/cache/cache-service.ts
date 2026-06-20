@@ -30,13 +30,19 @@ export function getCacheEntry(userId: string, spaceId: string): CachedDataset | 
 
 /**
  * Store a dataset in the cache for a specific user + space.
- * Replaces any existing entry (upsert).
+ * Replaces any existing entry (upsert). Uses the standard `cacheTtlHours` TTL
+ * unless `ttlHours` is provided (e.g. the long-lived archival GD layer, FR-046).
  */
-export function setCacheEntry(userId: string, spaceId: string, datasetJson: string): void {
+export function setCacheEntry(
+  userId: string,
+  spaceId: string,
+  datasetJson: string,
+  ttlHours?: number,
+): void {
   const db = getDatabase();
   const config = loadConfig();
   const now = Date.now();
-  const expiresAt = now + config.cacheTtlHours * 60 * 60 * 1000;
+  const expiresAt = now + (ttlHours ?? config.cacheTtlHours) * 60 * 60 * 1000;
 
   db.prepare(`
     INSERT INTO cache_entries (user_id, space_id, dataset_json, created_at, expires_at)

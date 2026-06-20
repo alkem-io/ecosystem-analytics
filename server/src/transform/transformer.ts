@@ -343,7 +343,19 @@ function ensureOrgNode(
   }
 
   nodeIds.add(id);
-  const org = orgs.get(id);
+  nodes.push(buildOrgNode(id, orgs.get(id), [scopeGroup]));
+}
+
+/**
+ * Build an ORGANIZATION GraphNode from a raw organization profile.
+ * Shared by the transformer (community contributors) and the GD initiative
+ * layer (resolving missing gemeente orgs by nameID — FR-043).
+ */
+export function buildOrgNode(
+  id: string,
+  org: RawOrganization | undefined,
+  scopeGroups: string[],
+): GraphNode {
   const location = extractLocation(org?.profile?.location);
 
   // Extract references (external links) from org profile
@@ -359,7 +371,7 @@ function ensureOrgNode(
   const ownerName = roleSet?.owners?.[0]?.profile?.displayName ?? null;
   const associateCount = roleSet?.associates?.length;
 
-  nodes.push({
+  return {
     id,
     type: NodeType.ORGANIZATION,
     displayName: org?.profile?.displayName || 'Unknown Organization',
@@ -368,7 +380,7 @@ function ensureOrgNode(
     bannerUrl: null,
     url: org?.profile?.url || null,
     location,
-    scopeGroups: [scopeGroup],
+    scopeGroups,
     nameId: org?.nameID || null,
     tagline: (org?.profile as Record<string, unknown> | undefined)?.tagline as string | null ?? null,
     parentSpaceId: null,
@@ -380,7 +392,7 @@ function ensureOrgNode(
     owner: ownerName,
     associateCount: associateCount ?? undefined,
     tags: extractTags((org?.profile as Record<string, unknown> | undefined)?.tagsets as SpaceLike['about']['profile']['tagsets']),
-  });
+  };
 }
 
 /** Canonical city name mapping — normalizes alternate spellings to a single form. */
@@ -768,9 +780,9 @@ export function estimateEdgeCreatedDate(
 
   for (const entry of activityEntries) {
     if (entry.type === 'MEMBER_JOINED') {
-      // For MEMBER_JOINED: match on contributor (the actual member) rather than
+      // For MEMBER_JOINED: match on actor (the actual member) rather than
       // triggeredBy (which may be the admin who added them)
-      const memberId = entry.contributor?.id ?? entry.triggeredBy.id;
+      const memberId = entry.actor?.id ?? entry.triggeredBy.id;
       if (memberId !== edge.sourceId) continue;
       const d = new Date(entry.createdDate);
 

@@ -1,0 +1,23 @@
+query InnovationHubs {
+  platform {
+    library {
+      innovationHubs {
+        id
+        nameID
+        profile {
+          displayName
+        }
+        spaceListFilter {
+          id
+          nameID
+          visibility
+          about {
+            profile {
+              displayName
+            }
+          }
+        }
+      }
+    }
+  }
+}
