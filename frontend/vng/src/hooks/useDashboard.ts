@@ -9,6 +9,11 @@ export interface DashboardRequest {
   includeInitiatives: boolean;
 }
 
+/** Options for {@link useDashboard}; `refreshNonce` forces a re-fetch when bumped. */
+export interface UseDashboardOptions {
+  refreshNonce?: number;
+}
+
 interface UseDashboardResult {
   data: VngDashboardResponse | null;
   loading: boolean;
@@ -19,13 +24,18 @@ interface UseDashboardResult {
  * Fetch the data-source-aware dashboard counts for the current selection (US3).
  * Recomputes whenever the effective space set or the relevant toggles change.
  */
-export function useDashboard(req: DashboardRequest): UseDashboardResult {
+export function useDashboard(
+  req: DashboardRequest,
+  options: UseDashboardOptions = {},
+): UseDashboardResult {
+  const { refreshNonce = 0 } = options;
   const [data, setData] = useState<VngDashboardResponse | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Serialize the request so the effect re-runs on any meaningful change.
-  const key = JSON.stringify(req);
+  // Serialize the request so the effect re-runs on any meaningful change. The
+  // refreshNonce is folded in so an explicit refresh re-fetches the counts too.
+  const key = `${JSON.stringify(req)}|${refreshNonce}`;
 
   useEffect(() => {
     if (req.spaceIds.length === 0) {

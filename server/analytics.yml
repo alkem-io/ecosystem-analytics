@@ -50,7 +50,7 @@ cache:
   ttl_hours: ${CACHE_TTL_HOURS}:24
 
 limits:
-  max_spaces_per_query: ${MAX_SPACES_PER_QUERY}:10
+  max_spaces_per_query: ${MAX_SPACES_PER_QUERY}:100
 
 openai:
   api_key: ${OPENAI_API_KEY}
@@ -94,9 +94,3 @@ vng:
       "klimaat en energie": klimaat-energie
       "kansengelijkheid/jeugd": kansengelijkheid
       "vergrijzing/gezond leven": vergrijzing
-      # Ontwikkelthema's (also valid VNG-2030 themes)
-      "een sterke bestuurslaag": een-sterke-bestuurslaag
-      "samenwerken in regio's": samenwerken-in-regios
-      "knooppunt van netwerken": knooppunt-van-netwerken
-      "bestuurskracht en kwaliteit van uitvoering": bestuurskracht
-      "kwalitatieve besluitvorming en mandaat": kwalitatieve-besluitvorming

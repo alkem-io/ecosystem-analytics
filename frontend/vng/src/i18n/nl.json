@@ -17,7 +17,7 @@
   "tabs": {
     "label": "Weergaven",
     "graph": "Grafiek",
-    "details": "Ruimtedetails",
+    "details": "Initiatief informatie",
     "dashboard": "Dashboard"
   },
   "user": {
@@ -28,25 +28,47 @@
   "hub": {
     "label": "Innovation hub",
     "placeholder": "Kies een innovation hub",
-    "spacesFromHub": "Ruimtes uit hub"
+    "spacesFromHub": "Initiatieven uit hub"
   },
   "selection": {
-    "title": "Geselecteerde ruimtes",
+    "title": "Geselecteerde initiatieven",
     "fromHub": "uit hub",
     "added": "toegevoegd",
-    "empty": "Nog geen ruimtes geselecteerd",
+    "empty": "Nog geen initiatieven geselecteerd",
     "remove": "Verwijderen",
-    "count": "{{count}} ruimte(s)"
+    "count": "{{count}} initiatieven"
+  },
+  "panel": {
+    "refresh": "Gegevens vernieuwen",
+    "selectAllHub": "Alle hub-initiatieven selecteren",
+    "selectAllRows": "Alles selecteren",
+    "removeSelected": "Geselecteerde verwijderen",
+    "clearAll": "Alles wissen",
+    "selectRow": "Selecteer {{name}}"
   },
   "picker": {
-    "placeholder": "Ruimte toevoegen…",
-    "noResults": "Geen ruimtes gevonden"
+    "placeholder": "Initiatief toevoegen…",
+    "noResults": "Geen initiatieven gevonden"
+  },
+  "controls": {
+    "loadHubSpaces": "Hub-initiatieven laden"
+  },
+  "space": {
+    "status": {
+      "demo": "Demo",
+      "archived": "Gearchiveerd",
+      "inactive": "Inactief"
+    }
   },
   "details": {
-    "pickSpace": "Kies een ruimte",
+    "pickSpace": "Kies een initiatief",
     "nameId": "NameID",
     "origin": "Herkomst",
-    "placeholderNote": "Uitgebreide ruimtedetails volgen zodra het gedeelde detailpaneel beschikbaar is."
+    "placeholderNote": "Uitgebreide ruimtedetails volgen zodra het gedeelde detailpaneel beschikbaar is.",
+    "connectedGemeentes": "Deelnemende gemeenten",
+    "noGemeentes": "Geen gemeenten gekoppeld aan dit initiatief.",
+    "loading": "Gemeenten laden…",
+    "city": "Plaats"
   },
   "toggles": {
     "showGemeentes": "Gemeentes tonen",
@@ -99,7 +121,11 @@
   },
   "states": {
     "loading": "Laden…",
-    "emptyGraph": "Geen ruimtes om te tonen",
+    "emptyGraph": "Geen initiatieven om te tonen",
     "error": "Er is iets misgegaan"
+  },
+  "graph": {
+    "offMapTitle": "{{count}} knooppunten worden niet op de kaart weergegeven",
+    "offMapNode": "Knooppunt"
   }
 }

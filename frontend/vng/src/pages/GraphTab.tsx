@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { ForceGraph, HoverCard } from '@ea/shared';
+import { ForceGraph, HoverCard, isWithinRegion } from '@ea/shared';
+import type { GeoPermissibleObjects } from 'd3-geo';
 import type { GraphDataset, GraphNode } from '@server/types/graph.js';
 import { useVngGraph } from '../hooks/useVngGraph.js';
 import { MapToggle } from '../components/MapToggle.js';
@@ -75,12 +76,15 @@ interface GraphTabProps {
   includeInitiatives?: boolean;
   /** When false, gemeente organisation nodes (and their edges) are hidden (T051). */
   showGemeentes?: boolean;
+  /** Bumped to force a cache-bypassing reload of the graph (Refresh control). */
+  refreshNonce?: number;
 }
 
 export function GraphTab({
   spaceIds: spaceIdsProp,
   includeInitiatives: initProp,
   showGemeentes: showGemeentesProp,
+  refreshNonce,
 }: GraphTabProps = {}) {
   const { t } = useTranslation();
 
@@ -132,6 +136,7 @@ export function GraphTab({
 
   const { dataset: rawDataset, loading, error, warnings } = useVngGraph(spaceIds, {
     includeInitiatives,
+    refreshNonce,
   });
 
   // ── T051 — hide gemeente organisation nodes (and any edges touching them) ──
@@ -161,6 +166,36 @@ export function GraphTab({
   const [showMap, setShowMap] = useState(false);
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
   const [hover, setHover] = useState<{ node: GraphNode; x: number; y: number } | null>(null);
+
+  // Netherlands region boundary — fetched once, used to decide which nodes can't
+  // be pinned on the map (off-map notice at the bottom of the graph area).
+  const [regionGeo, setRegionGeo] = useState<GeoPermissibleObjects | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    fetch('/maps/netherlands.geojson')
+      .then((res) => (res.ok ? res.json() : null))
+      .then((geo) => {
+        if (!cancelled && geo) setRegionGeo(geo as GeoPermissibleObjects);
+      })
+      .catch(() => {
+        /* off-map notice simply stays empty if the boundary can't be loaded */
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  // Nodes that can't be placed on the map: no valid lat/lng, or outside the NL
+  // region. Computed from the gemeente-filtered dataset.
+  const offMapNodes = useMemo<GraphNode[]>(() => {
+    if (!dataset) return [];
+    return dataset.nodes.filter((n) => {
+      const { latitude, longitude } = n.location ?? { latitude: null, longitude: null };
+      if (latitude == null || longitude == null) return true;
+      if (!regionGeo) return false; // can't determine region yet → assume placeable
+      return !isWithinRegion(regionGeo, longitude, latitude);
+    });
+  }, [dataset, regionGeo]);
 
   const selectedNode = useMemo(
     () => dataset?.nodes.find((n) => n.id === selectedNodeId) ?? null,
@@ -332,6 +367,27 @@ export function GraphTab({
             onSelectNode={(id) => setSelectedNodeId(id)}
             onClose={() => setSelectedNodeId(null)}
           />
+        )}
+
+        {/* Off-map notice — only when the map is shown and some nodes can't be
+            placed on it (no valid location or outside the Netherlands region). */}
+        {showMap && offMapNodes.length > 0 && (
+          <div className="absolute inset-x-4 bottom-4 z-10 rounded-md border border-border bg-background/95 p-3 shadow-md">
+            <p className="text-xs font-semibold text-foreground">
+              {t('graph.offMapTitle', { count: offMapNodes.length })}
+            </p>
+            <ul className="mt-1 max-h-32 space-y-0.5 overflow-auto">
+              {offMapNodes.map((node) => (
+                <li
+                  key={node.id}
+                  className="truncate text-xs text-muted-foreground"
+                  title={node.displayName}
+                >
+                  {node.displayName || t('graph.offMapNode')}
+                </li>
+              ))}
+            </ul>
+          </div>
         )}
       </div>
 

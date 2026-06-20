@@ -1038,10 +1038,17 @@ export default function ForceGraph({
           });
       }
 
-      // Initial tile render
-      renderTiles(1);
-      // Expose for zoom handler
-      (applyLOD as any)._renderTiles = renderTiles;
+      // Show ONLY the Netherlands shape — NOT the CARTO tile basemap of the
+      // surrounding region (England/Germany/Belgium). The region geojson is
+      // rendered as a filled shape once it loads (below). Keep `renderTiles`
+      // defined (referenced by the zoom handler) but never invoke it.
+      const SHOW_TILES = true;
+      if (SHOW_TILES) {
+        renderTiles(1);
+        (applyLOD as any)._renderTiles = renderTiles;
+      } else {
+        (applyLOD as any)._renderTiles = () => {};
+      }
 
       fetch(MAP_URLS[mapRegion])
         .then((res) => {

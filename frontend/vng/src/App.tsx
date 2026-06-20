@@ -1,5 +1,6 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { RefreshCw } from 'lucide-react';
 import { cn, fetchMe, type MeResponse } from '@ea/shared';
 import { LoginScreen } from './components/LoginScreen.js';
 import { BrandingHeader } from './components/BrandingHeader.js';
@@ -18,6 +19,7 @@ const TABS: TabKey[] = ['graph', 'details', 'dashboard'];
 
 /** Controls bar: hub selection + the gemeente/initiatives toggles (US1/US6/US8/US10). */
 function ControlsBar() {
+  const { t } = useTranslation();
   const {
     hubs,
     hubsLoading,
@@ -25,7 +27,27 @@ function ControlsBar() {
     setActiveHub,
     setShowGemeentes,
     setIncludeInitiatives,
+    selectAllHubSpaces,
+    loadHubSpaces,
+    refresh,
   } = useSelectionContext();
+
+  // Brief spinner on the Refresh button while the cache-bypassing reload runs.
+  const [refreshing, setRefreshing] = useState(false);
+  const refreshTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(
+    () => () => {
+      if (refreshTimer.current) clearTimeout(refreshTimer.current);
+    },
+    [],
+  );
+
+  const onRefresh = () => {
+    refresh();
+    setRefreshing(true);
+    if (refreshTimer.current) clearTimeout(refreshTimer.current);
+    refreshTimer.current = setTimeout(() => setRefreshing(false), 1200);
+  };
 
   return (
     <div className="flex flex-wrap items-center gap-x-6 gap-y-3 border-b border-border px-6 py-3">
@@ -35,11 +57,54 @@ function ControlsBar() {
         onChange={setActiveHub}
         loading={hubsLoading}
       />
+      {state.activeHubNameId && (
+        <button
+          type="button"
+          onClick={loadHubSpaces}
+          className={cn(
+            'rounded-md border border-border bg-card px-3 py-1.5 text-sm font-medium text-foreground',
+            'transition-colors hover:bg-muted',
+            'focus:outline-none focus-visible:ring-2 focus-visible:ring-primary',
+          )}
+        >
+          {t('controls.loadHubSpaces')}
+        </button>
+      )}
       <GemeenteToggle checked={state.showGemeentes} onChange={setShowGemeentes} />
       <InitiativesToggle
         checked={state.includeInitiatives}
         onChange={setIncludeInitiatives}
       />
+
+      <div className="ml-auto flex items-center gap-3">
+        {state.activeHubNameId && (
+          <button
+            type="button"
+            onClick={selectAllHubSpaces}
+            className={cn(
+              'rounded-md border border-border bg-card px-3 py-1.5 text-sm font-medium text-foreground',
+              'transition-colors hover:bg-muted',
+              'focus:outline-none focus-visible:ring-2 focus-visible:ring-primary',
+            )}
+          >
+            {t('panel.selectAllHub')}
+          </button>
+        )}
+        <button
+          type="button"
+          onClick={onRefresh}
+          disabled={refreshing}
+          aria-label={t('panel.refresh')}
+          title={t('panel.refresh')}
+          className={cn(
+            'inline-flex h-9 w-9 items-center justify-center rounded-md border border-border bg-card text-foreground',
+            'transition-colors hover:bg-muted disabled:opacity-60',
+            'focus:outline-none focus-visible:ring-2 focus-visible:ring-primary',
+          )}
+        >
+          <RefreshCw className={cn('h-4 w-4', refreshing && 'animate-spin')} aria-hidden />
+        </button>
+      </div>
     </div>
   );
 }
@@ -56,7 +121,7 @@ function ControlsBar() {
 function AppShell() {
   const { t } = useTranslation();
   const [active, setActive] = useState<TabKey>('graph');
-  const { effectiveSpaceIds, state } = useSelectionContext();
+  const { effectiveSpaceIds, state, refreshNonce } = useSelectionContext();
 
   // The space whose details should be shown when the Space details tab opens
   // via a graph node click. Bumped together with `requestSeq` so re-clicking the
@@ -116,6 +181,7 @@ function AppShell() {
               spaceIds={effectiveSpaceIds}
               includeInitiatives={state.includeInitiatives}
               showGemeentes={state.showGemeentes}
+              refreshNonce={refreshNonce}
             />
           )}
           {active === 'details' && (

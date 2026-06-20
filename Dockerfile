@@ -76,6 +76,10 @@ COPY --from=build-frontend /app/frontend/vng/dist ./frontend-vng/dist
 RUN pnpm install --frozen-lockfile --prod
 
 ENV NODE_ENV=production
-EXPOSE 4000
+# Explorer + /api on 4000; the VNG SPA + the same /api on 4001 (vngPort = port+1).
+# A single container backs both subdomains (e.g. analytics.* and vih-analytics.*),
+# sharing the `ea_session` cookie. Override VNG_FRONTEND_PORT to change the second port.
+ENV ECOSYSTEM_ANALYTICS_BACKEND_PORT=4000
+EXPOSE 4000 4001
 
 CMD ["node", "dist/index.js"]

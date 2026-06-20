@@ -4,7 +4,10 @@ export interface SpaceSelectionItem {
   nameId: string;
   displayName: string;
   role: 'MEMBER' | 'LEAD';
+  /** Content visibility (public/private) derived from `about.isContentPublic`. */
   visibility: 'PUBLIC' | 'PRIVATE';
+  /** Lifecycle status of the space (ACTIVE/ARCHIVED/DEMO/INACTIVE) — shown as a badge. */
+  status: 'ACTIVE' | 'ARCHIVED' | 'DEMO' | 'INACTIVE';
 }
 
 /** Request body for graph generation */

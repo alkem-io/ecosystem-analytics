@@ -30,7 +30,8 @@ export async function listUserSpaces(auth: AuthContext): Promise<SpaceSelectionI
       nameId: space.nameID,
       displayName: space.about.profile.displayName,
       role: isLead ? 'LEAD' : 'MEMBER',
-      visibility: 'PUBLIC',
+      visibility: space.about.isContentPublic ? 'PUBLIC' : 'PRIVATE',
+      status: space.visibility,
     } satisfies SpaceSelectionItem;
   });
 
