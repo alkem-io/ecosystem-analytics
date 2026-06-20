@@ -108,7 +108,14 @@ export function SpacePicker({ excludeNameIds, onAdd }: SpacePickerProps) {
                 onClick={() => handleAdd(space)}
                 className="flex w-full items-center justify-between gap-2 px-3 py-1.5 text-left text-sm text-foreground hover:bg-accent hover:text-accent-foreground"
               >
-                <span className="truncate">{space.displayName}</span>
+                <span className="flex min-w-0 items-center gap-1.5">
+                  <span className="truncate">{space.displayName}</span>
+                  {space.status !== 'ACTIVE' && (
+                    <span className="shrink-0 rounded bg-muted px-1.5 py-0.5 text-[10px] uppercase leading-none text-muted-foreground">
+                      {t(`space.status.${space.status.toLowerCase()}`, space.status)}
+                    </span>
+                  )}
+                </span>
                 <Plus className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden />
               </button>
             ))}

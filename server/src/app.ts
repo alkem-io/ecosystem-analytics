@@ -13,7 +13,13 @@ import { loadConfig } from './config.js';
 import { getLogger } from './logging/logger.js';
 import type { ApiError } from './types/api.js';
 
-export function createApp() {
+/**
+ * Build an Express app exposing the BFF `/api` + (in production) a static SPA.
+ * Called twice in production: once for the Explorer (`../frontend/dist`) and once
+ * for the VNG SPA (`../frontend-vng/dist`), on two ports sharing the same session
+ * store. `staticDirRelative` is relative to the compiled `dist/` directory.
+ */
+export function createApp(staticDirRelative = '../frontend/dist') {
   const app = express();
   const config = loadConfig();
 
@@ -67,9 +73,9 @@ export function createApp() {
     res.json({ status: 'ok' });
   });
 
-  // Serve frontend static files in production
+  // Serve the SPA static files in production (the chosen build — Explorer or VNG).
   if (process.env.NODE_ENV === 'production') {
-    const frontendDist = path.resolve(import.meta.dirname, '../frontend/dist');
+    const frontendDist = path.resolve(import.meta.dirname, staticDirRelative);
     app.use(express.static(frontendDist));
     app.get('{*path}', (_req, res) => {
       res.sendFile(path.join(frontendDist, 'index.html'));

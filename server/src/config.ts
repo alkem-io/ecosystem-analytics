@@ -77,7 +77,10 @@ export interface ServerConfig {
   alkemioServerUrl: string;
   alkemioGraphqlEndpoint: string;
   alkemioKratosPublicUrl: string;
+  /** Primary port — serves the Explorer SPA + /api (feature 016: VNG served on `vngPort`). */
   port: number;
+  /** Second port serving the VNG SPA + the same /api (shared session). Defaults to port+1. */
+  vngPort: number;
   logging: LoggingConfig;
   maxSpacesPerQuery: number;
   cacheTtlHours: number;
@@ -192,6 +195,7 @@ export function loadConfig(): ServerConfig {
     alkemioGraphqlEndpoint: String(yml.alkemio.graphql_endpoint),
     alkemioKratosPublicUrl: String(yml.alkemio.kratos_public_url),
     port: yml.server.port,
+    vngPort: Number(process.env.VNG_FRONTEND_PORT) || yml.server.port + 1,
     logging: {
       level: yml.logging.level,
       consoleEnabled: yml.logging.console_enabled,

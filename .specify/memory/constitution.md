@@ -1,6 +1,14 @@
 <!--
 Sync Impact Report
-- Version change: 3.1.0 → 4.0.0
+- Version change: 4.0.0 → 4.1.0
+- MINOR (4.1.0): Development Workflow updated for the pnpm-workspace, multi-SPA layout
+  (frontend/{shared,ecosystem-analytics,vng,…}) and the **multi-dashboard serving pattern** —
+  one BFF container serving many SPAs on distinct ports (Explorer :4000, VNG :4001, …), each
+  on its own subdomain with shared parent-domain `ea_session` sign-in. Documents the standard
+  "add a new dashboard" steps (feature 016-vng-frontend; app-side of the vih-analytics.alkem.io
+  rollout). Also records: dangerouslyAllowAllBuilds for pnpm 11; the @layer-base CSS-reset rule.
+  No principle added/removed/redefined. CLAUDE.md architecture section also updated.
+- Earlier history:
 - Breaking change (4.0.0): Principle I redefined — auth moves from username/password via BFF Kratos
   API flow to redirect-based Alkemio OIDC (Authorization Code + PKCE) with EA as its own registered
   OAuth2 client; tokens move entirely server-side (encrypted at rest), browser holds only an opaque
@@ -117,13 +125,13 @@ Sync Impact Report
 
 ## Development Workflow
 
-- **Package manager**: pnpm (>= 9). No npm or yarn lock files.
-- **Repository structure**: two separate applications — `server/` (Express BFF) and `frontend/` (React SPA). Shared types live in `server/src/types/` and are imported by the frontend via TypeScript path alias.
-- **TypeScript strict mode**: `tsc --noEmit` MUST pass on both `server/` and `frontend/` before any merge to the main branch.
+- **Package manager**: pnpm (>= 9). No npm or yarn lock files. The repo is a pnpm workspace (`pnpm-workspace.yaml`: `server`, `frontend/*`). Dependency build scripts are allowed via `dangerouslyAllowAllBuilds: true` in `pnpm-workspace.yaml` (pnpm 11 makes ignored builds a fatal `--frozen-lockfile` error; this is the only key that works across 11.x).
+- **Repository structure**: one BFF (`server/`, Express) plus a `frontend/` parent containing multiple SPA packages — `frontend/shared` (`@ea/shared`: graph/map/details/services/ui/tokens shared by all SPAs), `frontend/ecosystem-analytics` (the Explorer), `frontend/vng` (the VNG Kenniscentrum Innovatie dashboard), and any future dashboards. Shared server types live in `server/src/types/` and are imported via the `@server/types` path alias; shared frontend code via `@ea/shared`.
+- **TypeScript strict mode**: `tsc --noEmit` MUST pass on `server/` and every `frontend/*` package before any merge to the main branch.
 - **Codegen workflow**: when `.graphql` query or fragment files are added or modified, run `pnpm run codegen` in `server/` to regenerate the typed SDK. Generated files (`src/graphql/generated/`) MUST be committed.
-- **Frontend tooling**: Vite for dev server and production builds. CSS Modules for component styles. Design tokens as CSS custom properties in `styles/tokens.css`.
-- **Dev servers**: `pnpm run dev` in `server/` (port 4000, tsx watch) and `frontend/` (port 5173, Vite with `/api` proxy to :4000).
-- **Production build**: `pnpm run build` in both packages. The server serves frontend static files from `frontend/dist/` when `NODE_ENV=production`.
+- **Frontend tooling**: Vite + Tailwind v4 + Radix (shadcn-style) per SPA. Design tokens as CSS custom properties in `@ea/shared` `styles/tokens.css`; per-dashboard overrides go in that app's entry stylesheet. NOTE: any global CSS reset MUST be inside `@layer base` — unlayered CSS overrides ALL Tailwind utilities in v4.
+- **Dev servers**: `pnpm run dev` at the root runs the BFF + all SPAs concurrently (BFF tsx watch; each SPA on its own Vite port proxying `/api` to the BFF — e.g. Explorer :5173, VNG :5174).
+- **Multi-dashboard serving (one BFF, many SPAs, distinct ports)**: a SINGLE BFF container serves every SPA, each on its own port, all sharing the same `/api` routes and SQLite session/cache store. `createApp(staticDir)` is invoked once per SPA in `server/src/index.ts`; ports are `config.port` (Explorer, `../frontend/dist`) and `config.vngPort = port+1` (VNG, `../frontend-vng/dist`), with `EXPOSE`d container ports (4000, 4001, …). Each SPA is fronted by its own subdomain (e.g. `analytics.alkem.io`, `vih-analytics.alkem.io`) routed by infra to the matching port; sign-in is shared via the parent-domain `ea_session` cookie (`SESSION_COOKIE_DOMAIN=.alkem.io`, every subdomain origin in `SESSION_ALLOWED_ORIGINS`). **To add a new dashboard**: create `frontend/<name>` (consume `@ea/shared`), build it to `frontend/<name>/dist`, COPY it into the image, add a `createApp('../<name>/dist')` listener on the next port, `EXPOSE` it, and add the subdomain route + allowed-origin. This is the standard pattern — more dashboards are expected.
 
 ## Governance
 
@@ -135,4 +143,4 @@ Sync Impact Report
   3. An updated Sync Impact Report (HTML comment at top of this file).
 - The feature spec (`specs/001-ecosystem-analytics/spec.md`) contains the detailed functional, non-functional, and technical requirements. This constitution captures the overarching principles that govern how those requirements are implemented.
 
-**Version**: 4.0.0 | **Ratified**: 2026-02-21 | **Last Amended**: 2026-06-16
+**Version**: 4.1.0 | **Ratified**: 2026-02-21 | **Last Amended**: 2026-06-20

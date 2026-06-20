@@ -17,7 +17,7 @@
   "tabs": {
     "label": "Views",
     "graph": "Graph",
-    "details": "Space details",
+    "details": "Initiative information",
     "dashboard": "Dashboard"
   },
   "user": {
@@ -28,25 +28,47 @@
   "hub": {
     "label": "Innovation hub",
     "placeholder": "Choose an innovation hub",
-    "spacesFromHub": "Spaces from hub"
+    "spacesFromHub": "Initiatives from hub"
   },
   "selection": {
-    "title": "Selected spaces",
+    "title": "Selected initiatives",
     "fromHub": "from hub",
     "added": "added",
-    "empty": "No spaces selected yet",
+    "empty": "No initiatives selected yet",
     "remove": "Remove",
-    "count": "{{count}} space(s)"
+    "count": "{{count}} initiative(s)"
+  },
+  "panel": {
+    "refresh": "Refresh data",
+    "selectAllHub": "Select all hub initiatives",
+    "selectAllRows": "Select all",
+    "removeSelected": "Remove selected",
+    "clearAll": "Clear all",
+    "selectRow": "Select {{name}}"
   },
   "picker": {
-    "placeholder": "Add a space…",
-    "noResults": "No spaces found"
+    "placeholder": "Add an initiative…",
+    "noResults": "No initiatives found"
+  },
+  "controls": {
+    "loadHubSpaces": "Load hub initiatives"
+  },
+  "space": {
+    "status": {
+      "demo": "Demo",
+      "archived": "Archived",
+      "inactive": "Inactive"
+    }
   },
   "details": {
-    "pickSpace": "Choose a space",
+    "pickSpace": "Choose an initiative",
     "nameId": "NameID",
     "origin": "Origin",
-    "placeholderNote": "Detailed space information will appear once the shared details panel is available."
+    "placeholderNote": "Detailed space information will appear once the shared details panel is available.",
+    "connectedGemeentes": "Participating municipalities",
+    "noGemeentes": "No municipalities linked to this initiative.",
+    "loading": "Loading municipalities…",
+    "city": "City"
   },
   "toggles": {
     "showGemeentes": "Show gemeentes",
@@ -99,7 +121,11 @@
   },
   "states": {
     "loading": "Loading…",
-    "emptyGraph": "No spaces to display",
+    "emptyGraph": "No initiatives to display",
     "error": "Something went wrong"
+  },
+  "graph": {
+    "offMapTitle": "{{count}} nodes not displaying on the map",
+    "offMapNode": "Node"
   }
 }
