@@ -2050,11 +2050,15 @@ export type CreateInnovationFlowStateInput = {
 export type CreateInnovationFlowStateSettingsData = {
   /** The flag to set. */
   allowNewCallouts: Scalars['Boolean']['output'];
+  /** Optional. Whether the phase is shown in member-facing navigation. Defaults to true when omitted. */
+  visible?: Maybe<Scalars['Boolean']['output']>;
 };
 
 export type CreateInnovationFlowStateSettingsInput = {
   /** The flag to set. */
   allowNewCallouts: Scalars['Boolean']['input'];
+  /** Optional. Whether the phase is shown in member-facing navigation. Defaults to true when omitted. */
+  visible?: InputMaybe<Scalars['Boolean']['input']>;
 };
 
 export type CreateInnovationHubOnAccountInput = {
@@ -3241,6 +3245,8 @@ export type InnovationFlowState = {
 export type InnovationFlowStateSettings = {
   /** Whether new callouts can be added to this State. */
   allowNewCallouts: Scalars['Boolean']['output'];
+  /** Whether this State/phase is shown in the member-facing navigation. Default true. UI-affordance only: it does NOT gate access to the phase content. */
+  visible: Scalars['Boolean']['output'];
 };
 
 export type InnovationHub = {
@@ -8889,8 +8895,10 @@ export type UpdateInnovationFlowStateInput = {
 };
 
 export type UpdateInnovationFlowStateSettingsInput = {
-  /** The flag to set. */
-  allowNewCallouts: Scalars['Boolean']['input'];
+  /** Optional. Sets whether new callouts can be added to this State; omission leaves the stored value unchanged. */
+  allowNewCallouts?: InputMaybe<Scalars['Boolean']['input']>;
+  /** Optional. Sets whether the phase is shown in member-facing navigation; omission leaves the stored value unchanged. */
+  visible?: InputMaybe<Scalars['Boolean']['input']>;
 };
 
 export type UpdateInnovationFlowStatesSortOrderInput = {
@@ -9265,7 +9273,7 @@ export type UpdateUserSettingsCommunicationInput = {
 export type UpdateUserSettingsEntityInput = {
   /** Settings related to this users Communication preferences. */
   communication?: InputMaybe<UpdateUserSettingsCommunicationInput>;
-  /** Update the user's design version. Any integer accepted (1 = legacy design generation; 2 = current default design generation; 3+ reserved for future generations). */
+  /** Update the user's design version. Any integer accepted (1 = legacy design generation, deprecated and scheduled for removal; 2 = current default design generation; 3+ reserved for future generations). */
   designVersion?: InputMaybe<Scalars['Int']['input']>;
   /** Settings related to Home Space. */
   homeSpace?: InputMaybe<UpdateUserSettingsHomeSpaceInput>;
@@ -9747,7 +9755,7 @@ export type UserSettings = {
   communication: UserSettingsCommunication;
   /** The date at which the entity was created. */
   createdDate: Scalars['DateTime']['output'];
-  /** The design version this User has selected (1 = legacy design generation; 2 = current default design generation; 3+ reserved for future generations). */
+  /** The design version this User has selected (1 = legacy design generation, deprecated and scheduled for removal; 2 = current default design generation; 3+ reserved for future generations). */
   designVersion: Scalars['Int']['output'];
   /** The home space settings for this User. */
   homeSpace: UserSettingsHomeSpace;
@@ -12460,6 +12468,7 @@ export type CreateInnovationFlowStateDataResolvers<ContextType = any, ParentType
 
 export type CreateInnovationFlowStateSettingsDataResolvers<ContextType = any, ParentType extends ResolversParentTypes['CreateInnovationFlowStateSettingsData'] = ResolversParentTypes['CreateInnovationFlowStateSettingsData']> = {
   allowNewCallouts?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
+  visible?: Resolver<SchemaTypes.Maybe<ResolversTypes['Boolean']>, ParentType, ContextType>;
 };
 
 export type CreateLinkDataResolvers<ContextType = any, ParentType extends ResolversParentTypes['CreateLinkData'] = ResolversParentTypes['CreateLinkData']> = {
@@ -12864,6 +12873,7 @@ export type InnovationFlowStateResolvers<ContextType = any, ParentType extends R
 
 export type InnovationFlowStateSettingsResolvers<ContextType = any, ParentType extends ResolversParentTypes['InnovationFlowStateSettings'] = ResolversParentTypes['InnovationFlowStateSettings']> = {
   allowNewCallouts?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
+  visible?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
 };
 
 export type InnovationHubResolvers<ContextType = any, ParentType extends ResolversParentTypes['InnovationHub'] = ResolversParentTypes['InnovationHub']> = {
@@ -15275,6 +15285,18 @@ export type ActivityFeedGroupedQuery = { activityFeedGrouped: Array<
     | { id: string, type: SchemaTypes.ActivityEventType, createdDate: Date, triggeredBy: { id: string }, space?: { id: string } | undefined }
   > };
 
+export type GemeentedelersCalloutsQueryVariables = SchemaTypes.Exact<{
+  nameId: SchemaTypes.Scalars['NameID']['input'];
+}>;
+
+
+export type GemeentedelersCalloutsQuery = { lookupByName: { space?: { id: string, nameID: string, collaboration: { calloutsSet: { callouts: Array<{ id: string, nameID: string, framing: { profile: { displayName: string, tagsets?: Array<{ name: string, tags: Array<string> }> | undefined } } }> } } } | undefined } };
+
+export type InnovationHubsQueryVariables = SchemaTypes.Exact<{ [key: string]: never; }>;
+
+
+export type InnovationHubsQuery = { platform: { library: { innovationHubs: Array<{ id: string, nameID: string, profile: { displayName: string }, spaceListFilter?: Array<{ id: string, nameID: string, visibility: SchemaTypes.SpaceVisibility, about: { profile: { displayName: string } } }> | undefined }> } } };
+
 export type MeQueryVariables = SchemaTypes.Exact<{ [key: string]: never; }>;
 
 
@@ -15294,12 +15316,26 @@ export type OrganizationByIdQueryVariables = SchemaTypes.Exact<{
 
 export type OrganizationByIdQuery = { lookup: { organization?: { id: string, nameID: string, website?: string | undefined, contactEmail?: string | undefined, profile?: { displayName: string, description?: any | undefined, tagline?: string | undefined, url: string, avatar?: { uri: string } | undefined, location?: { country?: string | undefined, city?: string | undefined, geoLocation: { latitude?: number | undefined, longitude?: number | undefined } } | undefined, references?: Array<{ name: string, uri: string, description?: string | undefined }> | undefined, tagsets?: Array<{ name: string, tags: Array<string>, type: SchemaTypes.TagsetType }> | undefined } | undefined, roleSet: { owners: Array<{ id: string, profile?: { displayName: string } | undefined }>, associates: Array<{ id: string }> } } | undefined } };
 
+export type OrganizationByNameIdQueryVariables = SchemaTypes.Exact<{
+  nameId: SchemaTypes.Scalars['NameID']['input'];
+}>;
+
+
+export type OrganizationByNameIdQuery = { lookupByName: { organization?: string | undefined } };
+
 export type SpaceByNameQueryVariables = SchemaTypes.Exact<{
   nameId: SchemaTypes.Scalars['NameID']['input'];
 }>;
 
 
 export type SpaceByNameQuery = { lookupByName: { space?: { id: string, nameID: string, createdDate: Date, visibility: SchemaTypes.SpaceVisibility, account: { host?: { id: string } | undefined }, about: { id: string, isContentPublic: boolean, membership: { myPrivileges?: Array<SchemaTypes.AuthorizationPrivilege> | undefined }, profile: { id: string, displayName: string, tagline?: string | undefined, url: string, location?: { country?: string | undefined, city?: string | undefined, geoLocation: { latitude?: number | undefined, longitude?: number | undefined } } | undefined, avatar?: { uri: string } | undefined, banner?: { uri: string } | undefined, bannerWide?: { uri: string } | undefined, tagsets?: Array<{ name: string, tags: Array<string>, type: SchemaTypes.TagsetType, allowedValues: Array<string> }> | undefined } }, community: { id: string, roleSet: { memberUsers: Array<{ id: string }>, memberOrganizations: Array<{ id: string }>, leadOrganizations: Array<{ id: string }>, leadUsers: Array<{ id: string }>, adminUsers: Array<{ id: string }> } }, subspaces: Array<{ id: string, nameID: string, createdDate: Date, visibility: SchemaTypes.SpaceVisibility, about: { id: string, isContentPublic: boolean, membership: { myPrivileges?: Array<SchemaTypes.AuthorizationPrivilege> | undefined }, profile: { id: string, displayName: string, tagline?: string | undefined, url: string, location?: { country?: string | undefined, city?: string | undefined, geoLocation: { latitude?: number | undefined, longitude?: number | undefined } } | undefined, avatar?: { uri: string } | undefined, banner?: { uri: string } | undefined, bannerWide?: { uri: string } | undefined, tagsets?: Array<{ name: string, tags: Array<string>, type: SchemaTypes.TagsetType, allowedValues: Array<string> }> | undefined } } }> } | undefined } };
+
+export type SpaceProfileTagsQueryVariables = SchemaTypes.Exact<{
+  nameId: SchemaTypes.Scalars['NameID']['input'];
+}>;
+
+
+export type SpaceProfileTagsQuery = { lookupByName: { space?: { id: string, nameID: string, about: { profile: { tagsets?: Array<{ name: string, tags: Array<string> }> | undefined } } } | undefined } };
 
 export type SubspaceDetailsQueryVariables = SchemaTypes.Exact<{
   spaceId: SchemaTypes.Scalars['UUID']['input'];
@@ -15426,6 +15462,58 @@ export const ActivityFeedGroupedDocument = gql`
   }
 }
     `;
+export const GemeentedelersCalloutsDocument = gql`
+    query GemeentedelersCallouts($nameId: NameID!) {
+  lookupByName {
+    space(NAMEID: $nameId) {
+      id
+      nameID
+      collaboration {
+        calloutsSet {
+          callouts {
+            id
+            nameID
+            framing {
+              profile {
+                displayName
+                tagsets {
+                  name
+                  tags
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
+    `;
+export const InnovationHubsDocument = gql`
+    query InnovationHubs {
+  platform {
+    library {
+      innovationHubs {
+        id
+        nameID
+        profile {
+          displayName
+        }
+        spaceListFilter {
+          id
+          nameID
+          visibility
+          about {
+            profile {
+              displayName
+            }
+          }
+        }
+      }
+    }
+  }
+}
+    `;
 export const MeDocument = gql`
     query me {
   me {
@@ -15533,6 +15621,13 @@ export const OrganizationByIdDocument = gql`
   }
 }
     `;
+export const OrganizationByNameIdDocument = gql`
+    query OrganizationByNameId($nameId: NameID!) {
+  lookupByName {
+    organization(NAMEID: $nameId)
+  }
+}
+    `;
 export const SpaceByNameDocument = gql`
     query spaceByName($nameId: NameID!) {
   lookupByName {
@@ -15547,6 +15642,24 @@ export const SpaceByNameDocument = gql`
   }
 }
     ${SpaceGraphInfoFragmentFragmentDoc}`;
+export const SpaceProfileTagsDocument = gql`
+    query SpaceProfileTags($nameId: NameID!) {
+  lookupByName {
+    space(NAMEID: $nameId) {
+      id
+      nameID
+      about {
+        profile {
+          tagsets {
+            name
+            tags
+          }
+        }
+      }
+    }
+  }
+}
+    `;
 export const SubspaceDetailsDocument = gql`
     query subspaceDetails($spaceId: UUID!) {
   lookup {
@@ -15591,16 +15704,26 @@ export type SdkFunctionWrapper = <T>(action: (requestHeaders?:Record<string, str
 
 const defaultWrapper: SdkFunctionWrapper = (action, _operationName, _operationType, _variables) => action();
 const ActivityFeedGroupedDocumentString = print(ActivityFeedGroupedDocument);
+const GemeentedelersCalloutsDocumentString = print(GemeentedelersCalloutsDocument);
+const InnovationHubsDocumentString = print(InnovationHubsDocument);
 const MeDocumentString = print(MeDocument);
 const MySpacesHierarchicalDocumentString = print(MySpacesHierarchicalDocument);
 const OrganizationByIdDocumentString = print(OrganizationByIdDocument);
+const OrganizationByNameIdDocumentString = print(OrganizationByNameIdDocument);
 const SpaceByNameDocumentString = print(SpaceByNameDocument);
+const SpaceProfileTagsDocumentString = print(SpaceProfileTagsDocument);
 const SubspaceDetailsDocumentString = print(SubspaceDetailsDocument);
 const UsersByIDsDocumentString = print(UsersByIDsDocument);
 export function getSdk(client: GraphQLClient, withWrapper: SdkFunctionWrapper = defaultWrapper) {
   return {
     ActivityFeedGrouped(variables?: SchemaTypes.ActivityFeedGroupedQueryVariables, requestHeaders?: GraphQLClientRequestHeaders): Promise<{ data: SchemaTypes.ActivityFeedGroupedQuery; errors?: GraphQLError[]; extensions?: any; headers: Headers; status: number; }> {
         return withWrapper((wrappedRequestHeaders) => client.rawRequest<SchemaTypes.ActivityFeedGroupedQuery>(ActivityFeedGroupedDocumentString, variables, {...requestHeaders, ...wrappedRequestHeaders}), 'ActivityFeedGrouped', 'query', variables);
+    },
+    GemeentedelersCallouts(variables: SchemaTypes.GemeentedelersCalloutsQueryVariables, requestHeaders?: GraphQLClientRequestHeaders): Promise<{ data: SchemaTypes.GemeentedelersCalloutsQuery; errors?: GraphQLError[]; extensions?: any; headers: Headers; status: number; }> {
+        return withWrapper((wrappedRequestHeaders) => client.rawRequest<SchemaTypes.GemeentedelersCalloutsQuery>(GemeentedelersCalloutsDocumentString, variables, {...requestHeaders, ...wrappedRequestHeaders}), 'GemeentedelersCallouts', 'query', variables);
+    },
+    InnovationHubs(variables?: SchemaTypes.InnovationHubsQueryVariables, requestHeaders?: GraphQLClientRequestHeaders): Promise<{ data: SchemaTypes.InnovationHubsQuery; errors?: GraphQLError[]; extensions?: any; headers: Headers; status: number; }> {
+        return withWrapper((wrappedRequestHeaders) => client.rawRequest<SchemaTypes.InnovationHubsQuery>(InnovationHubsDocumentString, variables, {...requestHeaders, ...wrappedRequestHeaders}), 'InnovationHubs', 'query', variables);
     },
     me(variables?: SchemaTypes.MeQueryVariables, requestHeaders?: GraphQLClientRequestHeaders): Promise<{ data: SchemaTypes.MeQuery; errors?: GraphQLError[]; extensions?: any; headers: Headers; status: number; }> {
         return withWrapper((wrappedRequestHeaders) => client.rawRequest<SchemaTypes.MeQuery>(MeDocumentString, variables, {...requestHeaders, ...wrappedRequestHeaders}), 'me', 'query', variables);
@@ -15611,8 +15734,14 @@ export function getSdk(client: GraphQLClient, withWrapper: SdkFunctionWrapper = 
     organizationByID(variables: SchemaTypes.OrganizationByIdQueryVariables, requestHeaders?: GraphQLClientRequestHeaders): Promise<{ data: SchemaTypes.OrganizationByIdQuery; errors?: GraphQLError[]; extensions?: any; headers: Headers; status: number; }> {
         return withWrapper((wrappedRequestHeaders) => client.rawRequest<SchemaTypes.OrganizationByIdQuery>(OrganizationByIdDocumentString, variables, {...requestHeaders, ...wrappedRequestHeaders}), 'organizationByID', 'query', variables);
     },
+    OrganizationByNameId(variables: SchemaTypes.OrganizationByNameIdQueryVariables, requestHeaders?: GraphQLClientRequestHeaders): Promise<{ data: SchemaTypes.OrganizationByNameIdQuery; errors?: GraphQLError[]; extensions?: any; headers: Headers; status: number; }> {
+        return withWrapper((wrappedRequestHeaders) => client.rawRequest<SchemaTypes.OrganizationByNameIdQuery>(OrganizationByNameIdDocumentString, variables, {...requestHeaders, ...wrappedRequestHeaders}), 'OrganizationByNameId', 'query', variables);
+    },
     spaceByName(variables: SchemaTypes.SpaceByNameQueryVariables, requestHeaders?: GraphQLClientRequestHeaders): Promise<{ data: SchemaTypes.SpaceByNameQuery; errors?: GraphQLError[]; extensions?: any; headers: Headers; status: number; }> {
         return withWrapper((wrappedRequestHeaders) => client.rawRequest<SchemaTypes.SpaceByNameQuery>(SpaceByNameDocumentString, variables, {...requestHeaders, ...wrappedRequestHeaders}), 'spaceByName', 'query', variables);
+    },
+    SpaceProfileTags(variables: SchemaTypes.SpaceProfileTagsQueryVariables, requestHeaders?: GraphQLClientRequestHeaders): Promise<{ data: SchemaTypes.SpaceProfileTagsQuery; errors?: GraphQLError[]; extensions?: any; headers: Headers; status: number; }> {
+        return withWrapper((wrappedRequestHeaders) => client.rawRequest<SchemaTypes.SpaceProfileTagsQuery>(SpaceProfileTagsDocumentString, variables, {...requestHeaders, ...wrappedRequestHeaders}), 'SpaceProfileTags', 'query', variables);
     },
     subspaceDetails(variables: SchemaTypes.SubspaceDetailsQueryVariables, requestHeaders?: GraphQLClientRequestHeaders): Promise<{ data: SchemaTypes.SubspaceDetailsQuery; errors?: GraphQLError[]; extensions?: any; headers: Headers; status: number; }> {
         return withWrapper((wrappedRequestHeaders) => client.rawRequest<SchemaTypes.SubspaceDetailsQuery>(SubspaceDetailsDocumentString, variables, {...requestHeaders, ...wrappedRequestHeaders}), 'subspaceDetails', 'query', variables);

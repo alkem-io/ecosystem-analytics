@@ -1,0 +1,94 @@
+{
+  "app": {
+    "title": "VNG Kenniscentrum Innovatie",
+    "subtitle": "Innovation ecosystem dashboard"
+  },
+  "tabs": {
+    "label": "Views",
+    "graph": "Graph",
+    "details": "Space details",
+    "dashboard": "Dashboard"
+  },
+  "user": {
+    "menu": "User menu",
+    "signedIn": "Signed in",
+    "logout": "Sign out"
+  },
+  "hub": {
+    "label": "Innovation hub",
+    "placeholder": "Choose an innovation hub",
+    "spacesFromHub": "Spaces from hub"
+  },
+  "selection": {
+    "title": "Selected spaces",
+    "fromHub": "from hub",
+    "added": "added",
+    "empty": "No spaces selected yet",
+    "remove": "Remove",
+    "count": "{{count}} space(s)"
+  },
+  "picker": {
+    "placeholder": "Add a space…",
+    "noResults": "No spaces found"
+  },
+  "details": {
+    "pickSpace": "Choose a space",
+    "nameId": "NameID",
+    "origin": "Origin",
+    "placeholderNote": "Detailed space information will appear once the shared details panel is available."
+  },
+  "toggles": {
+    "showGemeentes": "Show gemeentes",
+    "includeInitiatives": "Show GemeenteDelers initiatives"
+  },
+  "dashboard": {
+    "nds": "Initiatives by NDS",
+    "vng2030": "Number of initiatives by VNG-2030",
+    "sourceSpaces": "Based on selected spaces",
+    "sourceInitiatives": "Based on GemeenteDelers initiatives",
+    "uncategorised": "Other",
+    "noData": "No data available",
+    "totalCounted": "{{count}} counted",
+    "uncategorisedCount": "{{count}} uncategorised"
+  },
+  "categories": {
+    "nds": {
+      "cloud": "Cloud",
+      "data": "Data",
+      "ai": "Artificial Intelligence",
+      "dienstverlening": "Central services",
+      "weerbaarheid": "Digital resilience",
+      "vakmanschap": "Digital craftsmanship"
+    },
+    "vng2030": {
+      "bedrijfsvoering": "Operations & municipal services",
+      "wonen-ruimte": "Housing & Space",
+      "bestaanszekerheid": "Livelihood security",
+      "klimaat-energie": "Climate & energy",
+      "kansengelijkheid": "Equal opportunity/youth",
+      "vergrijzing": "Ageing/healthy living",
+      "een-sterke-bestuurslaag": "One strong governance layer",
+      "samenwerken-in-regios": "Collaborating in regions",
+      "knooppunt-van-netwerken": "Hub of networks",
+      "bestuurskracht": "Administrative capacity & quality of execution",
+      "kwalitatieve-besluitvorming": "Quality decision-making & mandate"
+    }
+  },
+  "warning": {
+    "authTitle": "Please note",
+    "authBody": "You only see data you are authorised to access. Seeing limited data? Check your authorisation on the underlying spaces."
+  },
+  "provenance": {
+    "gd": "GemeenteDelers was a VNG programme (2021–2025) with around 305 initiatives, originally published at vng.nl/praktijkvoorbeelden."
+  },
+  "language": {
+    "label": "Language",
+    "nl": "Dutch",
+    "en": "English"
+  },
+  "states": {
+    "loading": "Loading…",
+    "emptyGraph": "No spaces to display",
+    "error": "Something went wrong"
+  }
+}

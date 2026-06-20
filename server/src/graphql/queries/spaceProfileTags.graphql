@@ -1,0 +1,16 @@
+query SpaceProfileTags($nameId: NameID!) {
+  lookupByName {
+    space(NAMEID: $nameId) {
+      id
+      nameID
+      about {
+        profile {
+          tagsets {
+            name
+            tags
+          }
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,94 @@
+{
+  "app": {
+    "title": "VNG Kenniscentrum Innovatie",
+    "subtitle": "Innovatie-ecosysteem dashboard"
+  },
+  "tabs": {
+    "label": "Weergaven",
+    "graph": "Grafiek",
+    "details": "Ruimtedetails",
+    "dashboard": "Dashboard"
+  },
+  "user": {
+    "menu": "Gebruikersmenu",
+    "signedIn": "Aangemeld",
+    "logout": "Afmelden"
+  },
+  "hub": {
+    "label": "Innovation hub",
+    "placeholder": "Kies een innovation hub",
+    "spacesFromHub": "Ruimtes uit hub"
+  },
+  "selection": {
+    "title": "Geselecteerde ruimtes",
+    "fromHub": "uit hub",
+    "added": "toegevoegd",
+    "empty": "Nog geen ruimtes geselecteerd",
+    "remove": "Verwijderen",
+    "count": "{{count}} ruimte(s)"
+  },
+  "picker": {
+    "placeholder": "Ruimte toevoegen…",
+    "noResults": "Geen ruimtes gevonden"
+  },
+  "details": {
+    "pickSpace": "Kies een ruimte",
+    "nameId": "NameID",
+    "origin": "Herkomst",
+    "placeholderNote": "Uitgebreide ruimtedetails volgen zodra het gedeelde detailpaneel beschikbaar is."
+  },
+  "toggles": {
+    "showGemeentes": "Gemeentes tonen",
+    "includeInitiatives": "GemeenteDelers-initiatieven tonen"
+  },
+  "dashboard": {
+    "nds": "Initiatieven volgens NDS",
+    "vng2030": "Aantal initiatieven volgens VNG-2030",
+    "sourceSpaces": "Op basis van geselecteerde ruimtes",
+    "sourceInitiatives": "Op basis van GemeenteDelers-initiatieven",
+    "uncategorised": "Overig",
+    "noData": "Geen gegevens beschikbaar",
+    "totalCounted": "{{count}} geteld",
+    "uncategorisedCount": "{{count}} zonder categorie"
+  },
+  "categories": {
+    "nds": {
+      "cloud": "Cloud",
+      "data": "Data",
+      "ai": "Artificiële Intelligentie",
+      "dienstverlening": "Centrale dienstverlening",
+      "weerbaarheid": "Digitale weerbaarheid",
+      "vakmanschap": "Digitaal vakmanschap"
+    },
+    "vng2030": {
+      "bedrijfsvoering": "Bedrijfsvoering & gemeentediensten",
+      "wonen-ruimte": "Wonen en Ruimte",
+      "bestaanszekerheid": "Bestaanszekerheid",
+      "klimaat-energie": "Klimaat en energie",
+      "kansengelijkheid": "Kansengelijkheid/jeugd",
+      "vergrijzing": "Vergrijzing/gezond leven",
+      "een-sterke-bestuurslaag": "Eén sterke bestuurslaag",
+      "samenwerken-in-regios": "Samenwerken in regio's",
+      "knooppunt-van-netwerken": "Knooppunt van netwerken",
+      "bestuurskracht": "Bestuurskracht en kwaliteit van uitvoering",
+      "kwalitatieve-besluitvorming": "Kwalitatieve besluitvorming en mandaat"
+    }
+  },
+  "warning": {
+    "authTitle": "Let op",
+    "authBody": "U ziet alleen gegevens waartoe u geautoriseerd bent. Ziet u beperkte gegevens? Controleer dan uw autorisatie op de onderliggende ruimtes."
+  },
+  "provenance": {
+    "gd": "GemeenteDelers was een VNG-programma (2021–2025) met circa 305 initiatieven, oorspronkelijk gepubliceerd op vng.nl/praktijkvoorbeelden."
+  },
+  "language": {
+    "label": "Taal",
+    "nl": "Nederlands",
+    "en": "Engels"
+  },
+  "states": {
+    "loading": "Laden…",
+    "emptyGraph": "Geen ruimtes om te tonen",
+    "error": "Er is iets misgegaan"
+  }
+}

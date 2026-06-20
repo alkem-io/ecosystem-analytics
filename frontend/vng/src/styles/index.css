@@ -1,0 +1,3 @@
+/* VNG app styles — reuse the shared Alkemio design tokens (feature 016 C1 decision). */
+@import '@ea/shared/styles/globals.css';
+@import '@ea/shared/styles/tokens.css';

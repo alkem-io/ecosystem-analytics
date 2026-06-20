@@ -1,0 +1,462 @@
+[
+  {
+    "slug": "aanpak-basisvaardigheden",
+    "title": "Aanpak basisvaardigheden",
+    "priorLabels": []
+  },
+  {
+    "slug": "aanpak-dakloosheid",
+    "title": "Aanpak dakloosheid",
+    "priorLabels": []
+  },
+  {
+    "slug": "abonnementstarief-wmo",
+    "title": "Abonnementstarief Wmo",
+    "priorLabels": []
+  },
+  {
+    "slug": "afval-en-circulaire-economie",
+    "title": "Afval en circulaire economie",
+    "priorLabels": []
+  },
+  {
+    "slug": "arbeidsmarktbeleid",
+    "title": "Arbeidsmarktbeleid",
+    "priorLabels": []
+  },
+  {
+    "slug": "arbeidsmarktkrapte-aanpak-gemeenten",
+    "title": "Arbeidsmarktkrapte-aanpak gemeenten",
+    "priorLabels": []
+  },
+  {
+    "slug": "arbeidsmigranten",
+    "title": "Arbeidsmigranten",
+    "priorLabels": []
+  },
+  {
+    "slug": "arbeidszaken",
+    "title": "Arbeidszaken",
+    "priorLabels": []
+  },
+  {
+    "slug": "asiel-tot-integratie",
+    "title": "Asiel tot integratie",
+    "priorLabels": []
+  },
+  {
+    "slug": "asielopvang",
+    "title": "Asielopvang",
+    "priorLabels": []
+  },
+  {
+    "slug": "belastingen",
+    "title": "Belastingen",
+    "priorLabels": []
+  },
+  {
+    "slug": "bestuur",
+    "title": "Bestuur",
+    "priorLabels": []
+  },
+  {
+    "slug": "bibliotheekwerk",
+    "title": "Bibliotheekwerk",
+    "priorLabels": []
+  },
+  {
+    "slug": "bouwen-en-wonen",
+    "title": "Bouwen en wonen",
+    "priorLabels": []
+  },
+  {
+    "slug": "bouwregelgeving",
+    "title": "Bouwregelgeving",
+    "priorLabels": []
+  },
+  {
+    "slug": "breed-mkb-en-innovatie",
+    "title": "Breed mkb en innovatie",
+    "priorLabels": []
+  },
+  {
+    "slug": "clientondersteuning-wmo-en-jeugd",
+    "title": "Cliëntondersteuning Wmo en Jeugd",
+    "priorLabels": []
+  },
+  {
+    "slug": "cultuur-en-sport",
+    "title": "Cultuur en sport",
+    "priorLabels": []
+  },
+  {
+    "slug": "cultuureducatie-en-amateurkunst",
+    "title": "Cultuureducatie en amateurkunst",
+    "priorLabels": []
+  },
+  {
+    "slug": "data-en-samenleving",
+    "title": "Data en samenleving",
+    "priorLabels": []
+  },
+  {
+    "slug": "dienstverlening-aan-inwoners-en-ondernemers",
+    "title": "Dienstverlening aan inwoners en ondernemers",
+    "priorLabels": []
+  },
+  {
+    "slug": "dienstverlening-en-bedrijfsvoering-van-gemeenten",
+    "title": "Dienstverlening en bedrijfsvoering van gemeenten",
+    "priorLabels": []
+  },
+  {
+    "slug": "digitale-toegankelijkheid",
+    "title": "Digitale toegankelijkheid",
+    "priorLabels": []
+  },
+  {
+    "slug": "digitale-veiligheid-en-privacy",
+    "title": "Digitale veiligheid en privacy",
+    "priorLabels": []
+  },
+  {
+    "slug": "economie",
+    "title": "Economie",
+    "priorLabels": []
+  },
+  {
+    "slug": "elektronische-identificatie-en-authenticatie-eid",
+    "title": "Elektronische identificatie en authenticatie (eID)",
+    "priorLabels": []
+  },
+  {
+    "slug": "energiesystemen",
+    "title": "Energiesystemen",
+    "priorLabels": []
+  },
+  {
+    "slug": "energietransitie",
+    "title": "Energietransitie",
+    "priorLabels": []
+  },
+  {
+    "slug": "europa-en-internationaal",
+    "title": "Europa en internationaal",
+    "priorLabels": []
+  },
+  {
+    "slug": "gemeentelijke-samenwerking",
+    "title": "Gemeentelijke samenwerking",
+    "priorLabels": []
+  },
+  {
+    "slug": "gezond-en-actief-leven",
+    "title": "Gezond en actief leven",
+    "priorLabels": []
+  },
+  {
+    "slug": "gezondheidsbeleid",
+    "title": "Gezondheidsbeleid",
+    "priorLabels": []
+  },
+  {
+    "slug": "global-goals-voor-gemeenten",
+    "title": "Global Goals voor Gemeenten",
+    "priorLabels": []
+  },
+  {
+    "slug": "hersteloperatie-kinderopvangtoeslag",
+    "title": "Hersteloperatie kinderopvangtoeslag",
+    "priorLabels": []
+  },
+  {
+    "slug": "huisvesting-statushouders",
+    "title": "Huisvesting statushouders",
+    "priorLabels": []
+  },
+  {
+    "slug": "human-capitalarbeidsmarkt-van-de-toekomst",
+    "title": "Human capital/arbeidsmarkt van de toekomst",
+    "priorLabels": []
+  },
+  {
+    "slug": "iedereen-doet-mee",
+    "title": "Iedereen doet mee!",
+    "priorLabels": []
+  },
+  {
+    "slug": "inburgering",
+    "title": "Inburgering",
+    "priorLabels": []
+  },
+  {
+    "slug": "informatiesamenleving",
+    "title": "Informatiesamenleving",
+    "priorLabels": []
+  },
+  {
+    "slug": "inkoop-wmo-en-jeugdwet",
+    "title": "Inkoop Wmo en Jeugdwet",
+    "priorLabels": []
+  },
+  {
+    "slug": "innovatie-en-trends",
+    "title": "Innovatie en trends",
+    "priorLabels": []
+  },
+  {
+    "slug": "isd-informatievoorziening-sociaal-domein",
+    "title": "ISD Informatievoorziening Sociaal Domein",
+    "priorLabels": []
+  },
+  {
+    "slug": "jaarwisseling-en-vuurwerk",
+    "title": "Jaarwisseling en vuurwerk",
+    "priorLabels": []
+  },
+  {
+    "slug": "jeugd",
+    "title": "Jeugd",
+    "priorLabels": []
+  },
+  {
+    "slug": "jeugdhulp",
+    "title": "Jeugdhulp",
+    "priorLabels": []
+  },
+  {
+    "slug": "kindermishandeling-en-huiselijk-geweld",
+    "title": "Kindermishandeling en huiselijk geweld",
+    "priorLabels": []
+  },
+  {
+    "slug": "klimaatadaptatie-en-water",
+    "title": "Klimaatadaptatie en water",
+    "priorLabels": []
+  },
+  {
+    "slug": "landelijk-gebied",
+    "title": "Landelijk gebied",
+    "priorLabels": []
+  },
+  {
+    "slug": "lokale-omroepen",
+    "title": "Lokale omroepen",
+    "priorLabels": []
+  },
+  {
+    "slug": "maatschappelijke-ondersteuning-en-zorg",
+    "title": "Maatschappelijke ondersteuning en zorg",
+    "priorLabels": []
+  },
+  {
+    "slug": "maatschappelijke-onrust-en-desinformatie",
+    "title": "Maatschappelijke onrust en desinformatie",
+    "priorLabels": []
+  },
+  {
+    "slug": "maatwerkvoorzieningen-wmo",
+    "title": "Maatwerkvoorzieningen Wmo",
+    "priorLabels": []
+  },
+  {
+    "slug": "migratie-en-werk",
+    "title": "Migratie en werk",
+    "priorLabels": []
+  },
+  {
+    "slug": "milieu",
+    "title": "Milieu",
+    "priorLabels": []
+  },
+  {
+    "slug": "mobiliteit",
+    "title": "Mobiliteit",
+    "priorLabels": []
+  },
+  {
+    "slug": "multidisciplinair-handhaven",
+    "title": "Multidisciplinair handhaven",
+    "priorLabels": []
+  },
+  {
+    "slug": "natuur-en-groen",
+    "title": "Natuur en groen",
+    "priorLabels": []
+  },
+  {
+    "slug": "omgevingswet",
+    "title": "Omgevingswet",
+    "priorLabels": []
+  },
+  {
+    "slug": "ondermijning",
+    "title": "Ondermijning",
+    "priorLabels": []
+  },
+  {
+    "slug": "onderwijs",
+    "title": "Onderwijs",
+    "priorLabels": []
+  },
+  {
+    "slug": "online-dienstverlening",
+    "title": "Online dienstverlening",
+    "priorLabels": []
+  },
+  {
+    "slug": "openbare-gezondheid",
+    "title": "Openbare gezondheid",
+    "priorLabels": []
+  },
+  {
+    "slug": "openbare-orde-en-veiligheid",
+    "title": "Openbare orde en veiligheid",
+    "priorLabels": []
+  },
+  {
+    "slug": "opwekken-duurzame-energie",
+    "title": "Opwekken duurzame energie",
+    "priorLabels": []
+  },
+  {
+    "slug": "participatiewet-in-balans",
+    "title": "Participatiewet (in Balans)",
+    "priorLabels": []
+  },
+  {
+    "slug": "po-beleid",
+    "title": "P&O-beleid",
+    "priorLabels": []
+  },
+  {
+    "slug": "project-toegang",
+    "title": "Project Toegang",
+    "priorLabels": []
+  },
+  {
+    "slug": "recht",
+    "title": "Recht",
+    "priorLabels": []
+  },
+  {
+    "slug": "ruimte-wonen-en-mobiliteit",
+    "title": "Ruimte, wonen en mobiliteit",
+    "priorLabels": []
+  },
+  {
+    "slug": "ruimtelijke-ordening",
+    "title": "Ruimtelijke ordening",
+    "priorLabels": []
+  },
+  {
+    "slug": "schulden-en-armoede",
+    "title": "Schulden en armoede",
+    "priorLabels": []
+  },
+  {
+    "slug": "schuldendomein",
+    "title": "Schuldendomein",
+    "priorLabels": []
+  },
+  {
+    "slug": "sociaal-domein-breed",
+    "title": "Sociaal domein breed",
+    "priorLabels": []
+  },
+  {
+    "slug": "sport",
+    "title": "Sport",
+    "priorLabels": []
+  },
+  {
+    "slug": "standaarden",
+    "title": "Standaarden",
+    "priorLabels": []
+  },
+  {
+    "slug": "subsidierecht",
+    "title": "Subsidierecht",
+    "priorLabels": []
+  },
+  {
+    "slug": "toezicht-en-handhaving-in-het-sociaal-domein",
+    "title": "Toezicht en handhaving in het sociaal domein",
+    "priorLabels": []
+  },
+  {
+    "slug": "veranderopgave-omgevingswet",
+    "title": "Veranderopgave Omgevingswet",
+    "priorLabels": []
+  },
+  {
+    "slug": "verduurzaming-gebouwde-omgeving",
+    "title": "Verduurzaming gebouwde omgeving",
+    "priorLabels": []
+  },
+  {
+    "slug": "vergunningverlening-toezicht-en-handhaving-onder-de-omgevingswet",
+    "title": "Vergunningverlening, toezicht en handhaving onder de Omgevingswet",
+    "priorLabels": []
+  },
+  {
+    "slug": "verkiezingen-en-referenda",
+    "title": "Verkiezingen en referenda",
+    "priorLabels": []
+  },
+  {
+    "slug": "versterking-lokaal-bestuur-wereldwijd",
+    "title": "Versterking lokaal bestuur wereldwijd",
+    "priorLabels": []
+  },
+  {
+    "slug": "versterking-lokale-democratie",
+    "title": "Versterking lokale democratie",
+    "priorLabels": []
+  },
+  {
+    "slug": "vitale-binnensteden-dorpskernen-en-werklocaties",
+    "title": "Vitale binnensteden, dorpskernen en werklocaties",
+    "priorLabels": []
+  },
+  {
+    "slug": "werk-en-inkomen-toezicht-en-handhaving",
+    "title": "Werk en Inkomen: toezicht en handhaving",
+    "priorLabels": []
+  },
+  {
+    "slug": "werk-inkomen-en-sociale-zekerheid",
+    "title": "Werk, inkomen en sociale zekerheid",
+    "priorLabels": []
+  },
+  {
+    "slug": "werk-voor-arbeidsbeperkten",
+    "title": "Werk voor arbeidsbeperkten",
+    "priorLabels": []
+  },
+  {
+    "slug": "wet-open-overheid",
+    "title": "Wet open overheid",
+    "priorLabels": []
+  },
+  {
+    "slug": "wet-woz",
+    "title": "Wet WOZ",
+    "priorLabels": []
+  },
+  {
+    "slug": "wmo-2015-en-jeugdwet-toezicht-en-handhaving",
+    "title": "Wmo 2015 en Jeugdwet: toezicht en handhaving",
+    "priorLabels": []
+  },
+  {
+    "slug": "wonen-voor-aandachtsgroepen",
+    "title": "Wonen voor aandachtsgroepen",
+    "priorLabels": []
+  },
+  {
+    "slug": "zorg-veiligheid",
+    "title": "Zorg & veiligheid",
+    "priorLabels": []
+  }
+]
