@@ -1,6 +1,19 @@
+import { useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { login } from '../services/auth.js';
 import styles from './LoginPage.module.css';
+
+/** Public environment info shown before sign-in (which Alkemio env we connect to). */
+function useEnvironmentUrl(): string | null {
+  const [url, setUrl] = useState<string | null>(null);
+  useEffect(() => {
+    fetch('/api/features')
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => setUrl(data?.alkemioServerUrl ?? null))
+      .catch(() => setUrl(null));
+  }, []);
+  return url;
+}
 
 /**
  * Identity gate. There is no in-app credential form (FR-002) — signing in
@@ -12,6 +25,7 @@ import styles from './LoginPage.module.css';
 export default function LoginPage() {
   const [params] = useSearchParams();
   const error = params.get('error');
+  const environmentUrl = useEnvironmentUrl();
 
   return (
     <div className={styles.container}>
@@ -44,6 +58,12 @@ export default function LoginPage() {
           <button className={styles.cta} onClick={() => login('/spaces')}>
             Sign in with Alkemio
           </button>
+
+          {environmentUrl && (
+            <p className={styles.environment}>
+              Connecting to <strong>{environmentUrl}</strong>
+            </p>
+          )}
         </div>
 
         <div className={styles.footer}>
