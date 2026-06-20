@@ -69,21 +69,28 @@ vng:
   default_hub_nameid: "${VNG_DEFAULT_HUB_NAMEID}:" # innovation hub preselected on first load
   gemeentedelers_space_nameid: ${VNG_GD_SPACE_NAMEID}:gemeentedelers
   gd_cache_ttl_hours: ${VNG_GD_CACHE_TTL_HOURS}:168 # ~1 week (archival GD corpus)
-  # Raw space/callout tag (lower-case) -> dashboard category key, per dimension.
-  # Confirm the exact source tags against real data; this mapping is operator-editable.
+  # Space tag (lower-cased) -> dashboard category key, per dimension. Keys are the
+  # EXACT label strings the VNG Groei publisher emits as profile tags (see
+  # vng-gemeente-delers publisher/src/groei/vocab.ts), lower-cased. Operator-editable.
   tag_category_mapping:
     nds:
-      "1.cloud": cloud
-      "2.data": data
-      "3.ai": ai
-      "4.digitalisering": digitalisering
-      "5.digitale-overheid": digitale-overheid
-      "6.vakmanschap": vakmanschap
+      "cloud": cloud
+      "data": data
+      "artificiële intelligentie": ai
+      "centrale (digitale) dienstverlening": dienstverlening
+      "digitale weerbaarheid en autonomie": weerbaarheid
+      "digitaal vakmanschap en moderne werkomgeving": vakmanschap
     vng2030:
-      "bedrijfsvoering": bedrijfsvoering
+      # Omkeringsthema's (the 6 shown on the VNG-2030 chart)
+      "bedrijfsvoering & gemeentediensten": bedrijfsvoering
       "wonen en ruimte": wonen-ruimte
       "bestaanszekerheid": bestaanszekerheid
       "klimaat en energie": klimaat-energie
-      "kansengelijkheid": kansengelijkheid
-      "vergrijzing en gezondheid": vergrijzing-gezondheid
-      "overig": overig
+      "kansengelijkheid/jeugd": kansengelijkheid
+      "vergrijzing/gezond leven": vergrijzing
+      # Ontwikkelthema's (also valid VNG-2030 themes)
+      "een sterke bestuurslaag": een-sterke-bestuurslaag
+      "samenwerken in regio's": samenwerken-in-regios
+      "knooppunt van netwerken": knooppunt-van-netwerken
+      "bestuurskracht en kwaliteit van uitvoering": bestuurskracht
+      "kwalitatieve besluitvorming en mandaat": kwalitatieve-besluitvorming

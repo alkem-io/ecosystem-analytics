@@ -141,7 +141,7 @@ Web app, **pnpm workspace**: BFF in `server/`; all frontend packages under `fron
 **Independent Test**: Pick a space in the details tab (and click a graph node) → its details show; missing fields degrade gracefully.
 
 - [X] T041 [US4] `SpaceDetailsTab` with a dedicated space picker, reusing `@ea/shared` DetailsDrawer in `frontend/vng/src/pages/SpaceDetailsTab.tsx` (FR-018)
-- [ ] T042 [US4] Cross-tab navigation: clicking a space node in GraphTab opens SpaceDetailsTab for that space (FR-015) via shared selection/route state
+- [X] T042 [US4] Cross-tab navigation: clicking a space node in GraphTab opens SpaceDetailsTab for that space (FR-015) via shared selection/route state
 - [X] T043 [US4] Verify graceful degradation for missing optional fields (FR-019)
 
 **Checkpoint**: US1–US4 independently functional.
@@ -183,7 +183,7 @@ Web app, **pnpm workspace**: BFF in `server/`; all frontend packages under `fron
 
 - [X] T049 [US8] Server: set `GraphNode.isGemeente` by matching `ORGANIZATION.nameId` against the registry (assert **no false positives** — non-gemeente orgs stay `isGemeente:false`), in `server/src/transform/transformer.ts` / `server/src/services/graph-service.ts` (FR-032/035)
 - [X] T050 [P] [US8] `GemeenteToggle` component in `frontend/vng/src/components/GemeenteToggle.tsx`
-- [ ] T051 [US8] Apply the toggle: filter `isGemeente` nodes/edges in the graph and pass `includeGemeentes` to `/api/vng/dashboard`, consistently (FR-034) in GraphTab + DashboardTab
+- [X] T051 [US8] Apply the toggle: filter `isGemeente` nodes/edges in the graph and pass `includeGemeentes` to `/api/vng/dashboard`, consistently (FR-034) in GraphTab + DashboardTab
 
 **Checkpoint**: US8 functional.
 
@@ -220,7 +220,7 @@ Web app, **pnpm workspace**: BFF in `server/`; all frontend packages under `fron
 - [X] T058 [US10] Extend graph types in `server/src/types/graph.ts` (`NodeType.INITIATIVE`/`THEME`, `EdgeType.INITIATIVE_GEMEENTE`/`INITIATIVE_THEME`, new `GraphNode` fields) and `server/src/types/api.ts` (`GraphGenerationRequest.includeInitiatives`)
 - [X] T059 [US10] Implement `server/src/services/gd-initiatives-service.ts` (fetch callouts) + `server/src/transform/initiatives.ts` (resolve tags via registry → INITIATIVE/THEME nodes + edges)
 - [X] T060 [US10] Fold-in in `server/src/services/graph-service.ts` when `includeInitiatives`: dedupe `ORGANIZATION` by `nameId`, resolve missing gemeente orgs once via `organizationByNameId`, attach `gdLayer` metadata (per contracts/api-graph-generate.md) (FR-040/043)
-- [ ] T061 [US10] Per-user GD cache entry (`space_id="__gd_initiatives__"`, TTL `gdCacheTtlHours`) with READ check on the gemeentedelers space; non-fatal fallback when unreadable (FR-044/046) in `server/src/services/graph-service.ts` + `server/src/cache/`
+- [X] T061 [US10] Per-user GD cache entry (`space_id="__gd_initiatives__"`, TTL `gdCacheTtlHours`) with READ check on the gemeentedelers space; non-fatal fallback when unreadable (FR-044/046) in `server/src/services/graph-service.ts` + `server/src/cache/`
 - [X] T062 [P] [US10] `InitiativesToggle` + provenance note (from `gdLayer.source`, links `vng.nl/praktijkvoorbeelden`) in `frontend/vng/src/components/InitiativesToggle.tsx` (FR-039/047)
 - [X] T063 [US10] GraphTab: pass `includeInitiatives`, style/legend INITIATIVE + THEME nodes and their edges, remove cleanly on disable, handle hidden-gemeente edges + non-fatal errors (FR-042, edge cases)
 
@@ -230,12 +230,12 @@ Web app, **pnpm workspace**: BFF in `server/`; all frontend packages under `fron
 
 ## Phase 13: Polish & Cross-Cutting Concerns
 
-- [ ] T064 [P] Ensure `tsc --noEmit` passes on `server`, `frontend/ecosystem-analytics`, `frontend/vng`, `frontend/shared`
+- [X] T064 [P] Ensure `tsc --noEmit` passes on `server`, `frontend/ecosystem-analytics`, `frontend/vng`, `frontend/shared`
 - [ ] T065 [P] Add Playwright visual snapshots for the VNG app tabs (root `pnpm run test:visual:update`)
-- [ ] T066 [P] Update `CLAUDE.md` + README dev instructions for the VNG app, workspace, and snapshot regeneration
+- [X] T066 [P] Update `CLAUDE.md` + README dev instructions for the VNG app, workspace, and snapshot regeneration
 - [ ] T067 Run `quickstart.md` smoke validation across all 11 checks (maps to SC-001…SC-015), including a side-by-side **control-count review** vs the Explorer (SC-009) and confirming the large-hub cap message at `max_spaces_per_query`
 - [ ] T068 [P] Performance verification: first load ≤5s (SC-002), hub switch ≤5s (SC-003), selection change ≤3s (SC-004), org reveal <1s (SC-012)
-- [ ] T069 Security pass: no token logging, per-user cache scoping (incl. GD entry), parameterised SQL, gemeentedelers READ enforcement (Principle IV)
+- [X] T069 Security pass: no token logging, per-user cache scoping (incl. GD entry), parameterised SQL, gemeentedelers READ enforcement (Principle IV)
 
 ---
 

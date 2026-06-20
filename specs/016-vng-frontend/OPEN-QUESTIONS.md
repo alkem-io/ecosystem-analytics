@@ -2,15 +2,18 @@
 
 Collected during autonomous implementation. Answer these in one go; most are config values or confirmations, not code.
 
-## Blocking real data (dashboard / hub / GD)
+## ✅ RESOLVED via the VNG-Groei investigation (no action needed)
 
-1. **Default innovation hub nameID** — `VNG_DEFAULT_HUB_NAMEID` is currently empty (no hub preselected on load). What is the nameID of the default VNG innovation hub? (FR-010)
+- **NDS / VNG-2030 mapping (was the big blocker)** — RESOLVED. The dashboard's "spaces" source is correct: each **VNG Groei initiative** is published as its **own L0 Space**, with NDS/VNG-2030 classifications as **plain profile tags** using exact label strings (e.g. `"Artificiële Intelligentie"`, `"Wonen en Ruimte"`, `"Bedrijfsvoering & gemeentediensten"`). I updated `server/analytics.yml` `vng.tag_category_mapping` to those exact (lower-cased) labels and verified it counts correctly against real GDC tags. The `"VNG Groei"`/lifecycle/editorial tags are correctly ignored.
+- **GD initiatives vs Groei** — RESOLVED/clarified. Two distinct datasets: **GemeenteDelers** (305 callouts, 92 themes — the optional graph fold-in) and **VNG Groei** (23 initiative *spaces*, NDS/VNG-2030 — the dashboard). The dashboard counts the selected Groei spaces; the GD layer is a separate graph enrichment. ⚠️ **One thing to confirm**: should the dashboard ALWAYS count selected spaces (current behaviour), regardless of the "include GD initiatives" graph toggle? Right now toggling GD initiatives flips the dashboard source to GD callouts (which lack NDS/VNG-2030 tags → uncategorised). I recommend **decoupling**: dashboard always counts the selected Groei spaces. Confirm and I'll decouple.
 
-2. **gemeentedelers space nameID** — defaulted to `gemeentedelers` (`VNG_GD_SPACE_NAMEID`). Confirm the real nameID of the space whose Knowledge Base holds the ~305 GD initiative callouts. (FR-045)
+## Blocking real data (config values only)
 
-3. **NDS / VNG-2030 tag→category mapping (most important for real numbers)** — `server/analytics.yml` `vng.tag_category_mapping` uses *placeholder* tag keys (e.g. `"1.cloud"`, `"wonen en ruimte"`). What are the ACTUAL tag strings present on the spaces/callouts that should map to each NDS category (Cloud, Data, AI, Digitalisering, …, Vakmanschap) and each VNG-2030 theme (Bedrijfsvoering, Wonen en Ruimte, Bestaanszekerheid, Klimaat en energie, …)? Until this matches real tags, the dashboard counts everything as "Overig". (FR-022)
+1. **Default innovation hub nameID** — `VNG_DEFAULT_HUB_NAMEID` is empty. This should almost certainly be the **VNG Groei InnovationHub** (the one aggregating the 23 Groei initiative spaces — its nameID is `GROEI_INNOVATION_HUB_NAMEID` in the vng-gemeente-delers config). What is its nameID on prod/acc? (FR-010)
 
-4. **Do GD initiatives carry NDS / VNG-2030 tags?** — The dashboard is data-source aware: when the GD layer is ON it counts GD *initiatives* by category. But GD callouts (from the vault) carry the **92 GemeenteDelers themes**, gemeente names, `gd-YYYY`, `sdg-NN` — not obviously NDS/VNG-2030 categories. If GD initiatives don't carry NDS/VNG-2030 tags, the GD-source dashboard will be empty/uncategorised. Should the GD dashboard instead group by **GD theme**, or is there an NDS/VNG-2030 tag on the callouts? (FR-022 / analyze finding I1)
+2. **gemeentedelers space nameID** — defaulted to `gemeentedelers` (`VNG_GD_SPACE_NAMEID`). Confirm the real nameID of the space whose Knowledge Base holds the ~305 GD callouts. (FR-045)
+
+3. **Environment** — the Groei spaces currently exist on **acceptance** (`acc-alkem.io`), not production. Confirm which environment the VNG app should point at (`ALKEMIO_*`/`OIDC_ISSUER`).
 
 ## Deployment / hosting
 

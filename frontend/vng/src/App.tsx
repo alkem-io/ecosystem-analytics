@@ -1,5 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { cn, fetchMe, type MeResponse } from '@ea/shared';
+import { LoginScreen } from './components/LoginScreen.js';
 import { BrandingHeader } from './components/BrandingHeader.js';
 import { AuthorizationWarning } from './components/AuthorizationWarning.js';
 import { HubSelector } from './components/HubSelector.js';
@@ -83,24 +85,27 @@ function AppShell() {
       <AuthorizationWarning />
       <ControlsBar />
 
-      <nav className="flex gap-1 border-b border-border px-6" role="tablist">
-        {TABS.map((tab) => (
-          <button
-            key={tab}
-            type="button"
-            role="tab"
-            aria-selected={active === tab}
-            onClick={() => setActive(tab)}
-            className={
-              'border-b-2 px-4 py-2 text-sm font-medium transition-colors ' +
-              (active === tab
-                ? 'border-primary text-foreground'
-                : 'border-transparent text-muted-foreground hover:text-foreground')
-            }
-          >
-            {t(`tabs.${tab}`)}
-          </button>
-        ))}
+      <nav className="border-b border-border px-6 py-2.5" role="tablist" aria-label={t('tabs.label')}>
+        <div className="inline-flex items-center gap-1 rounded-lg border border-border bg-muted/50 p-1">
+          {TABS.map((tab) => (
+            <button
+              key={tab}
+              type="button"
+              role="tab"
+              aria-selected={active === tab}
+              onClick={() => setActive(tab)}
+              className={cn(
+                'rounded-md px-3.5 py-1.5 text-sm font-medium transition-all',
+                'focus:outline-none focus-visible:ring-2 focus-visible:ring-primary',
+                active === tab
+                  ? 'bg-card text-foreground shadow-sm'
+                  : 'text-muted-foreground hover:text-foreground',
+              )}
+            >
+              {t(`tabs.${tab}`)}
+            </button>
+          ))}
+        </div>
       </nav>
 
       <div className="flex min-h-0 flex-1">
@@ -123,7 +128,33 @@ function AppShell() {
   );
 }
 
+/**
+ * Auth gate (US5/FR-004): resolve the shared `ea_session` identity. While loading,
+ * render nothing; if unauthenticated, show the login screen (which displays the
+ * environment URL); otherwise render the app.
+ */
 export default function App() {
+  const [me, setMe] = useState<MeResponse | null>(null);
+  const [status, setStatus] = useState<'loading' | 'ready'>('loading');
+
+  useEffect(() => {
+    let active = true;
+    fetchMe()
+      .then((result) => {
+        if (active) {
+          setMe(result);
+          setStatus('ready');
+        }
+      })
+      .catch(() => active && setStatus('ready'));
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  if (status === 'loading') return null;
+  if (!me) return <LoginScreen />;
+
   return (
     <SelectionProvider>
       <AppShell />

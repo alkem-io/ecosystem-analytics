@@ -8,3 +8,19 @@ packages:
 # Build-script approvals (esbuild needs its install script to fetch its binary).
 onlyBuiltDependencies:
   - esbuild
+
+# Supply-chain age gate: disabled for build reproducibility.
+#
+# pnpm 11's `minimumReleaseAge` quarantines packages published within the last N
+# minutes/days and makes `--frozen-lockfile` FAIL when the committed lockfile
+# already pins such a package. Our CI runner (pnpm 11.7.0, corepack) inherits a
+# non-zero `minimumReleaseAge` from a global/org-level config, so the Docker
+# `pnpm install --frozen-lockfile` step rejected the freshly published
+# @rollup/rollup-* 4.62.2 binaries that the lockfile legitimately pins.
+#
+# Setting it to 0 here overrides any inherited policy and keeps the install
+# deterministic: a committed, validated lockfile must always install regardless
+# of how recently its transitive deps were published. (The age gate is a
+# resolution-time guard for *new* additions; it has no business blocking an
+# already-pinned, reviewed lockfile.)
+minimumReleaseAge: 0
