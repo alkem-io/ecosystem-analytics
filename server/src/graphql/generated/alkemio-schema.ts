@@ -2066,11 +2066,15 @@ export type CreateInnovationFlowStateInput = {
 export type CreateInnovationFlowStateSettingsData = {
   /** The flag to set. */
   allowNewCallouts: Scalars['Boolean']['output'];
+  /** Optional. Whether the phase is shown in member-facing navigation. Defaults to true when omitted. */
+  visible?: Maybe<Scalars['Boolean']['output']>;
 };
 
 export type CreateInnovationFlowStateSettingsInput = {
   /** The flag to set. */
   allowNewCallouts: Scalars['Boolean']['input'];
+  /** Optional. Whether the phase is shown in member-facing navigation. Defaults to true when omitted. */
+  visible?: InputMaybe<Scalars['Boolean']['input']>;
 };
 
 export type CreateInnovationHubOnAccountInput = {
@@ -3262,6 +3266,8 @@ export type InnovationFlowState = {
 export type InnovationFlowStateSettings = {
   /** Whether new callouts can be added to this State. */
   allowNewCallouts: Scalars['Boolean']['output'];
+  /** Whether this State/phase is shown in the member-facing navigation. Default true. UI-affordance only: it does NOT gate access to the phase content. */
+  visible: Scalars['Boolean']['output'];
 };
 
 export type InnovationHub = {
@@ -8950,8 +8956,10 @@ export type UpdateInnovationFlowStateInput = {
 };
 
 export type UpdateInnovationFlowStateSettingsInput = {
-  /** The flag to set. */
-  allowNewCallouts: Scalars['Boolean']['input'];
+  /** Optional. Sets whether new callouts can be added to this State; omission leaves the stored value unchanged. */
+  allowNewCallouts?: InputMaybe<Scalars['Boolean']['input']>;
+  /** Optional. Sets whether the phase is shown in member-facing navigation; omission leaves the stored value unchanged. */
+  visible?: InputMaybe<Scalars['Boolean']['input']>;
 };
 
 export type UpdateInnovationFlowStatesSortOrderInput = {
@@ -9326,7 +9334,7 @@ export type UpdateUserSettingsCommunicationInput = {
 export type UpdateUserSettingsEntityInput = {
   /** Settings related to this users Communication preferences. */
   communication?: InputMaybe<UpdateUserSettingsCommunicationInput>;
-  /** Update the user's design version. Any integer accepted (1 = legacy design generation; 2 = current default design generation; 3+ reserved for future generations). */
+  /** Update the user's design version. Any integer accepted (1 = legacy design generation, deprecated and scheduled for removal; 2 = current default design generation; 3+ reserved for future generations). */
   designVersion?: InputMaybe<Scalars['Int']['input']>;
   /** Settings related to Home Space. */
   homeSpace?: InputMaybe<UpdateUserSettingsHomeSpaceInput>;
@@ -9812,7 +9820,7 @@ export type UserSettings = {
   communication: UserSettingsCommunication;
   /** The date at which the entity was created. */
   createdDate: Scalars['DateTime']['output'];
-  /** The design version this User has selected (1 = legacy design generation; 2 = current default design generation; 3+ reserved for future generations). */
+  /** The design version this User has selected (1 = legacy design generation, deprecated and scheduled for removal; 2 = current default design generation; 3+ reserved for future generations). */
   designVersion: Scalars['Int']['output'];
   /** The home space settings for this User. */
   homeSpace: UserSettingsHomeSpace;
@@ -12534,6 +12542,7 @@ export type CreateInnovationFlowStateDataResolvers<ContextType = any, ParentType
 
 export type CreateInnovationFlowStateSettingsDataResolvers<ContextType = any, ParentType extends ResolversParentTypes['CreateInnovationFlowStateSettingsData'] = ResolversParentTypes['CreateInnovationFlowStateSettingsData']> = {
   allowNewCallouts?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
+  visible?: Resolver<Maybe<ResolversTypes['Boolean']>, ParentType, ContextType>;
 };
 
 export type CreateLinkDataResolvers<ContextType = any, ParentType extends ResolversParentTypes['CreateLinkData'] = ResolversParentTypes['CreateLinkData']> = {
@@ -12938,6 +12947,7 @@ export type InnovationFlowStateResolvers<ContextType = any, ParentType extends R
 
 export type InnovationFlowStateSettingsResolvers<ContextType = any, ParentType extends ResolversParentTypes['InnovationFlowStateSettings'] = ResolversParentTypes['InnovationFlowStateSettings']> = {
   allowNewCallouts?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
+  visible?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
 };
 
 export type InnovationHubResolvers<ContextType = any, ParentType extends ResolversParentTypes['InnovationHub'] = ResolversParentTypes['InnovationHub']> = {
@@ -15349,6 +15359,18 @@ export type ActivityFeedGroupedQuery = { activityFeedGrouped: Array<
     | { id: string, type: ActivityEventType, createdDate: Date, triggeredBy: { id: string }, space?: { id: string } | undefined }
   > };
 
+export type GemeentedelersCalloutsQueryVariables = Exact<{
+  nameId: Scalars['NameID']['input'];
+}>;
+
+
+export type GemeentedelersCalloutsQuery = { lookupByName: { space?: { id: string, nameID: string, collaboration: { calloutsSet: { callouts: Array<{ id: string, nameID: string, framing: { profile: { displayName: string, tagsets?: Array<{ name: string, tags: Array<string> }> | undefined } } }> } } } | undefined } };
+
+export type InnovationHubsQueryVariables = Exact<{ [key: string]: never; }>;
+
+
+export type InnovationHubsQuery = { platform: { library: { innovationHubs: Array<{ id: string, nameID: string, profile: { displayName: string }, spaceListFilter?: Array<{ id: string, nameID: string, visibility: SpaceVisibility, about: { profile: { displayName: string } } }> | undefined }> } } };
+
 export type MeQueryVariables = Exact<{ [key: string]: never; }>;
 
 
@@ -15368,12 +15390,26 @@ export type OrganizationByIdQueryVariables = Exact<{
 
 export type OrganizationByIdQuery = { lookup: { organization?: { id: string, nameID: string, website?: string | undefined, contactEmail?: string | undefined, profile?: { displayName: string, description?: any | undefined, tagline?: string | undefined, url: string, avatar?: { uri: string } | undefined, location?: { country?: string | undefined, city?: string | undefined, geoLocation: { latitude?: number | undefined, longitude?: number | undefined } } | undefined, references?: Array<{ name: string, uri: string, description?: string | undefined }> | undefined, tagsets?: Array<{ name: string, tags: Array<string>, type: TagsetType }> | undefined } | undefined, roleSet: { owners: Array<{ id: string, profile?: { displayName: string } | undefined }>, associates: Array<{ id: string }> } } | undefined } };
 
+export type OrganizationByNameIdQueryVariables = Exact<{
+  nameId: Scalars['NameID']['input'];
+}>;
+
+
+export type OrganizationByNameIdQuery = { lookupByName: { organization?: string | undefined } };
+
 export type SpaceByNameQueryVariables = Exact<{
   nameId: Scalars['NameID']['input'];
 }>;
 
 
 export type SpaceByNameQuery = { lookupByName: { space?: { id: string, nameID: string, createdDate: Date, visibility: SpaceVisibility, account: { host?: { id: string } | undefined }, about: { id: string, isContentPublic: boolean, membership: { myPrivileges?: Array<AuthorizationPrivilege> | undefined }, profile: { id: string, displayName: string, tagline?: string | undefined, url: string, location?: { country?: string | undefined, city?: string | undefined, geoLocation: { latitude?: number | undefined, longitude?: number | undefined } } | undefined, avatar?: { uri: string } | undefined, banner?: { uri: string } | undefined, bannerWide?: { uri: string } | undefined, tagsets?: Array<{ name: string, tags: Array<string>, type: TagsetType, allowedValues: Array<string> }> | undefined } }, community: { id: string, roleSet: { memberUsers: Array<{ id: string }>, memberOrganizations: Array<{ id: string }>, leadOrganizations: Array<{ id: string }>, leadUsers: Array<{ id: string }>, adminUsers: Array<{ id: string }> } }, subspaces: Array<{ id: string, nameID: string, createdDate: Date, visibility: SpaceVisibility, about: { id: string, isContentPublic: boolean, membership: { myPrivileges?: Array<AuthorizationPrivilege> | undefined }, profile: { id: string, displayName: string, tagline?: string | undefined, url: string, location?: { country?: string | undefined, city?: string | undefined, geoLocation: { latitude?: number | undefined, longitude?: number | undefined } } | undefined, avatar?: { uri: string } | undefined, banner?: { uri: string } | undefined, bannerWide?: { uri: string } | undefined, tagsets?: Array<{ name: string, tags: Array<string>, type: TagsetType, allowedValues: Array<string> }> | undefined } } }> } | undefined } };
+
+export type SpaceProfileTagsQueryVariables = Exact<{
+  nameId: Scalars['NameID']['input'];
+}>;
+
+
+export type SpaceProfileTagsQuery = { lookupByName: { space?: { id: string, nameID: string, about: { profile: { tagsets?: Array<{ name: string, tags: Array<string> }> | undefined } } } | undefined } };
 
 export type SubspaceDetailsQueryVariables = Exact<{
   spaceId: Scalars['UUID']['input'];

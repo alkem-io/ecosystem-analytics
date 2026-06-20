@@ -1,0 +1,10 @@
+# pnpm workspace — frontend packages share one deduped node_modules (single React/D3).
+# The server (server/) remains a standalone install and is intentionally NOT a member.
+packages:
+  - frontend/shared
+  - frontend/ecosystem-analytics
+  - frontend/vng
+
+# Build-script approvals (esbuild needs its install script to fetch its binary).
+onlyBuiltDependencies:
+  - esbuild

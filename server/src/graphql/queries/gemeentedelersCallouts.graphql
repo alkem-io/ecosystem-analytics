@@ -1,0 +1,25 @@
+query GemeentedelersCallouts($nameId: NameID!) {
+  lookupByName {
+    space(NAMEID: $nameId) {
+      id
+      nameID
+      collaboration {
+        calloutsSet {
+          callouts {
+            id
+            nameID
+            framing {
+              profile {
+                displayName
+                tagsets {
+                  name
+                  tags
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

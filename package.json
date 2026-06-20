@@ -4,12 +4,18 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
+    "dev": "concurrently -n server,explorer,vng -c blue,green,magenta \"pnpm -C server dev\" \"pnpm -C frontend/ecosystem-analytics dev\" \"pnpm -C frontend/vng dev\"",
+    "dev:server": "pnpm -C server dev",
+    "dev:explorer": "pnpm -C frontend/ecosystem-analytics dev",
+    "dev:vng": "pnpm -C frontend/vng dev",
+    "build:frontends": "pnpm -r --filter \"./frontend/**\" build",
     "test:visual": "playwright test",
     "test:visual:update": "playwright test --update-snapshots",
     "setup:prototype": "npm --prefix .prototype/alkemio-redesign install",
     "test:visual:prototype": "npm run setup:prototype && USE_PROTOTYPE=1 playwright test"
   },
   "devDependencies": {
-    "@playwright/test": "^1.55.0"
+    "@playwright/test": "^1.55.0",
+    "concurrently": "^9.1.2"
   }
 }
