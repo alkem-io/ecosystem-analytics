@@ -1067,6 +1067,32 @@ export default function ForceGraph({
             .attr('d', path as any);
           tileGroup.attr('clip-path', `url(#${clipId})`);
 
+          // HARD REQUIREMENT (constitution §VII / FR-048): for the Netherlands the map
+          // MUST show ONLY the Netherlands — nothing outside is rendered. The SVG
+          // clip-path lives in <defs> (outside the zoom group), so it does NOT follow
+          // the d3-zoom transform — tiles escape it as you zoom in. The robust fix is an
+          // INVERSE CUTOUT drawn INSIDE the zoom group (mapGroup ⊂ g): an opaque WHITE
+          // path covering a huge rectangle with the NL polygons punched out (even-odd,
+          // verified sea=filled / land=hole). Being inside `g`, it zooms/pans WITH the
+          // tiles and always hides everything beyond the Netherlands. Gated to NL so the
+          // Explorer world/europe views keep their original full-bleed tiles.
+          if (mapRegion === 'netherlands') {
+            const regionD = (features as unknown[])
+              .map((f) => path(f as any))
+              .filter(Boolean)
+              .join(' ');
+            const OUTER = 50000; // covers all realistic zoom/pan; avoids float-precision artifacts
+            mapGroup
+              .selectAll('path.nl-cutout')
+              .data([0])
+              .join('path')
+              .attr('class', 'nl-cutout')
+              .attr('d', `M${-OUTER},${-OUTER} H${OUTER} V${OUTER} H${-OUTER} Z ${regionD}`)
+              .attr('fill', '#ffffff')
+              .attr('fill-rule', 'evenodd')
+              .style('pointer-events', 'none');
+          }
+
           // Draw subtle country/region borders on top of tiles
           const isWorldMap = mapRegion === 'world';
           mapGroup
