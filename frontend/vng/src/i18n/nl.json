@@ -44,7 +44,12 @@
     "selectAllRows": "Alles selecteren",
     "removeSelected": "Geselecteerde verwijderen",
     "clearAll": "Alles wissen",
-    "selectRow": "Selecteer {{name}}"
+    "selectRow": "Selecteer {{name}}",
+    "includeGd": "GD-initiatieven meenemen",
+    "includeGdHint": "GemeenteDelers (2021–2025)",
+    "showAllGd": "Toon alle initiatieven",
+    "gemeentesCount": "Gemeenten ({{count}})",
+    "themesCount": "Thema's ({{count}})"
   },
   "picker": {
     "placeholder": "Initiatief toevoegen…",
@@ -87,7 +92,15 @@
     "noData": "Geen gegevens beschikbaar",
     "totalCounted": "{{count}} geteld",
     "uncategorisedCount": "{{count}} zonder categorie",
-    "count": "Aantal"
+    "count": "Aantal",
+    "gemeenteDistribution": "Initiatieven per aantal gemeenten",
+    "gemeenteDistGd": "Groei + GemeenteDelers initiatieven",
+    "gemeenteDistGroei": "Groei initiatieven",
+    "gemeenteAxis": "gemeenten",
+    "groei": "Groei",
+    "gemeenteDelers": "GemeenteDelers",
+    "total": "Totaal",
+    "gemeenteAxisFull": "Gegroepeerd op aantal gemeenten"
   },
   "categories": {
     "nds": {
@@ -127,10 +140,23 @@
   "states": {
     "loading": "Laden…",
     "emptyGraph": "Geen initiatieven om te tonen",
-    "error": "Er is iets misgegaan"
+    "error": "Er is iets misgegaan",
+    "authenticating": "Bezig met aanmelden…",
+    "connecting": "Verbinding maken met Alkemio…",
+    "redirecting": "Doorsturen naar Alkemio…",
+    "loadingHubSpaces": "Initiatieven uit hub laden…",
+    "loadingSpaces": "Initiatieven laden…",
+    "loadingGraph": "Initiatieven laden…",
+    "loadingGraphHint": "Dit kan even duren"
   },
   "graph": {
     "offMapTitle": "{{count}} knooppunten worden niet op de kaart weergegeven",
-    "offMapNode": "Knooppunt"
+    "offMapNode": "Knooppunt",
+    "offMapUsers": "Gebruikers zonder locatie ({{count}})",
+    "offMapOrganisations": "Organisaties zonder locatie ({{count}})",
+    "offMapOther": "Overig zonder locatie ({{count}})",
+    "offMapSpacesL0": "Ruimtes (L0) zonder locatie ({{count}})",
+    "offMapSpacesL1": "Subruimtes (L1) zonder locatie ({{count}})",
+    "offMapSpacesL2": "Subruimtes (L2) zonder locatie ({{count}})"
   }
 }

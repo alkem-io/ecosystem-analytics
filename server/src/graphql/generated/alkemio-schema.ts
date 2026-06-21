@@ -15364,7 +15364,7 @@ export type GemeentedelersCalloutsQueryVariables = Exact<{
 }>;
 
 
-export type GemeentedelersCalloutsQuery = { lookupByName: { space?: { id: string, nameID: string, collaboration: { calloutsSet: { callouts: Array<{ id: string, nameID: string, framing: { profile: { displayName: string, tagsets?: Array<{ name: string, tags: Array<string> }> | undefined } } }> } } } | undefined } };
+export type GemeentedelersCalloutsQuery = { lookupByName: { space?: { id: string, nameID: string, collaboration: { calloutsSet: { callouts: Array<{ id: string, nameID: string, framing: { profile: { displayName: string, description?: any | undefined, tagsets?: Array<{ name: string, tags: Array<string> }> | undefined } } }> } } } | undefined } };
 
 export type InnovationHubByIdQueryVariables = Exact<{
   id: Scalars['UUID']['input'];

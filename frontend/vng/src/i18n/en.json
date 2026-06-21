@@ -44,7 +44,12 @@
     "selectAllRows": "Select all",
     "removeSelected": "Remove selected",
     "clearAll": "Clear all",
-    "selectRow": "Select {{name}}"
+    "selectRow": "Select {{name}}",
+    "includeGd": "Include GD initiatives",
+    "includeGdHint": "GemeenteDelers (2021–2025)",
+    "showAllGd": "Show all initiatives",
+    "gemeentesCount": "Gemeentes ({{count}})",
+    "themesCount": "Themes ({{count}})"
   },
   "picker": {
     "placeholder": "Add an initiative…",
@@ -87,7 +92,15 @@
     "noData": "No data available",
     "totalCounted": "{{count}} counted",
     "uncategorisedCount": "{{count}} uncategorised",
-    "count": "Count"
+    "count": "Count",
+    "gemeenteDistribution": "Initiatives by number of gemeentes",
+    "gemeenteDistGd": "Groei + GemeenteDelers initiatives",
+    "gemeenteDistGroei": "Groei initiatives",
+    "gemeenteAxis": "gemeentes",
+    "groei": "Groei",
+    "gemeenteDelers": "GemeenteDelers",
+    "total": "Total",
+    "gemeenteAxisFull": "Grouped by number of gemeentes"
   },
   "categories": {
     "nds": {
@@ -127,10 +140,23 @@
   "states": {
     "loading": "Loading…",
     "emptyGraph": "No initiatives to display",
-    "error": "Something went wrong"
+    "error": "Something went wrong",
+    "authenticating": "Signing in…",
+    "connecting": "Connecting to Alkemio…",
+    "redirecting": "Redirecting to Alkemio…",
+    "loadingHubSpaces": "Loading initiatives from hub…",
+    "loadingSpaces": "Loading initiatives…",
+    "loadingGraph": "Loading initiatives…",
+    "loadingGraphHint": "This can take a moment"
   },
   "graph": {
     "offMapTitle": "{{count}} nodes not displaying on the map",
-    "offMapNode": "Node"
+    "offMapNode": "Node",
+    "offMapUsers": "Users with no location ({{count}})",
+    "offMapOrganisations": "Organisations with no location ({{count}})",
+    "offMapOther": "Other with no location ({{count}})",
+    "offMapSpacesL0": "Spaces (L0) with no location ({{count}})",
+    "offMapSpacesL1": "Subspaces (L1) with no location ({{count}})",
+    "offMapSpacesL2": "Subspaces (L2) with no location ({{count}})"
   }
 }

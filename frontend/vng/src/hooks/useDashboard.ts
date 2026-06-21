@@ -7,6 +7,8 @@ export interface DashboardRequest {
   spaceIds: string[];
   includeGemeentes: boolean;
   includeInitiatives: boolean;
+  /** GD checkbox — fold GD initiatives into the gemeente-distribution chart. */
+  includeGemeenteDelers: boolean;
 }
 
 /** Options for {@link useDashboard}; `refreshNonce` forces a re-fetch when bumped. */
