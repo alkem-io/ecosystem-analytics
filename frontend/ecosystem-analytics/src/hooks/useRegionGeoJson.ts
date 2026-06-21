@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import type { GeoPermissibleObjects } from 'd3-geo';
-import type { MapRegion } from '../components/map/MapOverlay.js';
+import type { MapRegion } from '@ea/shared';
 
 // GeoJSON basemaps are static public-domain files served from /maps (see MapOverlay).
 const MAP_URLS: Record<MapRegion, string> = {
