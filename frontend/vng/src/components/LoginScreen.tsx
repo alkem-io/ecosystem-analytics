@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { login } from '@ea/shared';
+import { LogIn } from 'lucide-react';
+import { cn, login } from '@ea/shared';
 import { AlkemioLogo } from './AlkemioLogo';
 
 interface EnvInfo {
@@ -45,11 +46,15 @@ export function LoginScreen() {
   const { url, loading } = useEnvironment();
   const name = useMemo(() => deriveEnvironmentName(url), [url]);
 
-  const envValue = url
-    ? `${name ? `${name} · ` : ''}${hostOf(url)}`
-    : loading
-      ? t('login.envDetecting', { defaultValue: 'detecting…' })
-      : t('login.envUnknown', { defaultValue: 'unknown' });
+  // When the environment is recognised (Acceptance/Production/Local) show just the
+  // friendly name; only fall back to the raw host when the name is unknown.
+  const envValue = name
+    ? name
+    : url
+      ? hostOf(url)
+      : loading
+        ? t('login.envDetecting', { defaultValue: 'detecting…' })
+        : t('login.envUnknown', { defaultValue: 'unknown' });
 
   return (
     <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-primary px-6 py-12">
@@ -63,7 +68,7 @@ export function LoginScreen() {
         className="pointer-events-none absolute -bottom-40 -left-24 h-[28rem] w-[28rem] rounded-full bg-[#09bcd4]/15 blur-3xl"
       />
 
-      <main className="relative w-full max-w-md rounded-2xl bg-card p-10 text-center shadow-2xl sm:p-12">
+      <main className="relative w-full max-w-lg rounded-2xl bg-card p-10 text-center shadow-2xl sm:p-12">
         {/* Alkemio identity */}
         <div className="flex items-center justify-center gap-2.5">
           <AlkemioLogo aria-hidden="true" className="h-8 w-8 shrink-0" />
@@ -73,10 +78,10 @@ export function LoginScreen() {
         </div>
 
         {/* Product title */}
-        <h1 className="mt-8 text-2xl font-semibold leading-snug tracking-tight text-foreground sm:text-3xl">
+        <h1 className="mt-8 text-2xl font-semibold leading-snug tracking-tight text-foreground sm:whitespace-nowrap sm:text-[1.75rem]">
           {t('app.title')}
         </h1>
-        <p className="mt-2 text-base text-muted-foreground">
+        <p className="mt-3 inline-block rounded-full bg-primary/10 px-3 py-1 text-sm font-bold uppercase tracking-[0.18em] text-primary">
           {t('login.dashboardLabel', { defaultValue: 'Analytics Dashboard' })}
         </p>
 
@@ -89,9 +94,16 @@ export function LoginScreen() {
         <button
           type="button"
           onClick={() => login(window.location.origin + '/')}
-          className="mt-6 inline-flex h-12 w-full items-center justify-center rounded-lg bg-primary px-4 text-base font-semibold text-primary-foreground transition-colors hover:bg-primary-hover focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+          className={cn(
+            'mt-6 inline-flex h-12 w-full items-center justify-center gap-2 rounded-lg px-4',
+            'bg-primary text-base font-semibold text-primary-foreground',
+            'shadow-md shadow-primary/25 ring-1 ring-inset ring-white/10',
+            'transition-all hover:bg-primary-hover hover:shadow-lg hover:shadow-primary/30 active:translate-y-px',
+            'focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2',
+          )}
         >
-          {t('login.cta', { defaultValue: 'Sign in with Alkemio' })}
+          <LogIn className="h-4 w-4" aria-hidden />
+          {t('login.cta', { defaultValue: 'Sign in' })}
         </button>
 
         {/* Environment */}

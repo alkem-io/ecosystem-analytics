@@ -15349,7 +15349,7 @@ export type SpaceProfileTagsQueryVariables = SchemaTypes.Exact<{
 }>;
 
 
-export type SpaceProfileTagsQuery = { lookupByName: { space?: { id: string, nameID: string, about: { profile: { tagsets?: Array<{ name: string, tags: Array<string> }> | undefined } } } | undefined } };
+export type SpaceProfileTagsQuery = { lookupByName: { space?: { id: string, nameID: string, about: { profile: { displayName: string, tagsets?: Array<{ name: string, tags: Array<string> }> | undefined } } } | undefined } };
 
 export type SubspaceDetailsQueryVariables = SchemaTypes.Exact<{
   spaceId: SchemaTypes.Scalars['UUID']['input'];
@@ -15694,6 +15694,7 @@ export const SpaceProfileTagsDocument = gql`
       nameID
       about {
         profile {
+          displayName
           tagsets {
             name
             tags

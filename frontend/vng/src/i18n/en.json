@@ -8,7 +8,7 @@
     "signInHeading": "Sign in",
     "prompt": "Sign in with your Alkemio account to continue.",
     "heroDescription": "Explore the innovation ecosystem of Dutch municipalities — the network of spaces, organisations and GemeenteDelers initiatives.",
-    "cta": "Sign in with Alkemio",
+    "cta": "Sign in",
     "environment": "Environment",
     "envDetecting": "detecting…",
     "envUnknown": "not reported by server",
@@ -68,7 +68,11 @@
     "connectedGemeentes": "Participating municipalities",
     "noGemeentes": "No municipalities linked to this initiative.",
     "loading": "Loading municipalities…",
-    "city": "City"
+    "city": "City",
+    "tagline": "About this initiative",
+    "mapTitle": "Participating municipalities on the map",
+    "gemeentesTitle": "Participating municipalities",
+    "count": "Count"
   },
   "toggles": {
     "showGemeentes": "Show gemeentes",
@@ -82,7 +86,8 @@
     "uncategorised": "Other",
     "noData": "No data available",
     "totalCounted": "{{count}} counted",
-    "uncategorisedCount": "{{count}} uncategorised"
+    "uncategorisedCount": "{{count}} uncategorised",
+    "count": "Count"
   },
   "categories": {
     "nds": {

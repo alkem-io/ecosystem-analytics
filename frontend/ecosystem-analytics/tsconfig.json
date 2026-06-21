@@ -13,10 +13,12 @@
     "resolveJsonModule": true,
     "paths": {
       "@/*": ["./src/*"],
+      "@ea/shared": ["../shared/src/index.ts"],
+      "@ea/shared/*": ["../shared/src/*"],
       "@server/types/*": ["../../server/src/types/*"]
     },
     "baseUrl": "."
   },
-  "include": ["src/**/*", "../../server/src/types/**/*"],
+  "include": ["src/**/*", "../shared/src/**/*", "../../server/src/types/**/*"],
   "exclude": ["node_modules", "dist", "tests"]
 }

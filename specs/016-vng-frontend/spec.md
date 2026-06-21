@@ -243,6 +243,7 @@ The user can turn on an **"include GemeenteDelers initiatives"** option on the g
 
 - **FR-015**: The Graph tab MUST render the selected spaces as a network graph equivalent in behaviour to the current frontend's main graph (nodes, relationships, interaction). Clicking a space node MUST open that space in the Space details tab.
 - **FR-016**: The Graph tab MUST display the network over a map of the Netherlands; no other map regions are required in this experience.
+- **FR-048** (HARD REQUIREMENT, see constitution §VII): Every map in the VNG dashboard (the Graph tab network map AND the initiative-details map) MUST show **ONLY the Netherlands**. Other countries and the open sea beyond the coastline MUST **NOT be rendered at all** (not greyed out, not faint) — everything outside the Netherlands is plain white/empty. Inside the Netherlands the map MUST show **real map-tile detail (roads/towns)** clipped exactly to the Netherlands boundary, with subtle province borders and avatars overlaid at their geo-locations (reference: Image #21). It is a regression if anything outside the Netherlands ever appears.
 - **FR-017**: When the selected-space set is empty or fails to produce a graph, the Graph tab MUST show a clear empty/error state rather than a blank or broken view.
 
 #### Space details tab

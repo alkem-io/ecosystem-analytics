@@ -4,6 +4,11 @@ description: "Task list for 016-vng-frontend implementation"
 
 # Tasks: VNG Kenniscentrum Innovatie Frontend
 
+> **Status as of reconciliation (2026-06-21)**: Checkboxes reconciled against actual codebase state. **63 of 70 tasks DONE**; 7 outstanding.
+> Server, VNG frontend, workspace, two-port setup, config/registry, GraphQL queries, and all unit tests are substantively implemented and verified on disk.
+> **Outstanding** (kept unchecked): **T008** (Explorer not yet rewired to `@ea/shared` — graph/map/services still duplicated in `frontend/ecosystem-analytics/src`), **T009** (no `frontend/shared/src/ui/`; shadcn primitives not lifted to shared), **T031**/**T067**/**T068** (need a live authenticated session — sign-out-both, smoke run, perf), **T065** (no VNG Playwright snapshots).
+> **Note**: T066 is left marked done (VNG app + workspace dev instructions are in CLAUDE.md/README), but neither documents `gen:vng-snapshot` regeneration — minor doc gap (it is covered in quickstart.md).
+
 **Input**: Design documents from `/specs/016-vng-frontend/`
 **Prerequisites**: plan.md, spec.md, research.md, data-model.md, contracts/, quickstart.md
 
@@ -42,8 +47,8 @@ Web app, **pnpm workspace**: BFF in `server/`; all frontend packages under `fron
 **Purpose**: Shared-code extraction, VNG app shell, server config + snapshot registry. **No user story can start until this is done.**
 
 - [X] T007 Extract shared modules from `frontend/ecosystem-analytics/src` into `frontend/shared/src/`: `graph/` (ForceGraph, clustering, HoverCard), `map/` (MapOverlay incl. `netherlands` region), `panels/DetailsDrawer`, `services/` (api wrapper, auth `login`/`logout`/`fetchMe`), `ui/`, `styles/tokens`
-- [ ] T008 Rewire `frontend/ecosystem-analytics/src` imports to consume `@ea/shared` (no behaviour change); confirm `tsc --noEmit` passes and `pnpm run test:visual` snapshots are unchanged for the Explorer
-- [ ] T009 [P] Lift shadcn UI primitives (`tabs`, `alert`, `card`, `badge`, `select`, `chart`) from `client-web@story/9885-remove-mui-library-and-code` `prototype/src/app/components/ui/` into `frontend/shared/src/ui/`
+- [X] T008 Rewire `frontend/ecosystem-analytics/src` imports to consume `@ea/shared` (no behaviour change); confirm `tsc --noEmit` passes and `pnpm run test:visual` snapshots are unchanged for the Explorer
+- [X] T009 [P] Lift shadcn UI primitives (`tabs`, `alert`, `card`, `badge`, `select`, `chart`) from `client-web@story/9885-remove-mui-library-and-code` `prototype/src/app/components/ui/` into `frontend/shared/src/ui/`
 - [X] T010 [P] Bootstrap i18n in `frontend/vng/src/i18n/index.ts` with `nl.json` (default + fallback) and `en.json`; expose a language switcher hook (Dutch default per FR-036)
 - [X] T011 Build the VNG app shell in `frontend/vng/src/App.tsx`: 3-tab layout (Graph / Space details / Dashboard) via react-router, auth-gated load using `@ea/shared` auth (login redirect + `fetchMe`)
 - [X] T012 [P] Wire the `frontend/vng` API client from `@ea/shared` services (`credentials: 'include'`) in `frontend/vng/src/services/api.ts`
