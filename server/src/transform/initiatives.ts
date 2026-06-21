@@ -105,14 +105,6 @@ export function buildInitiativeLayer(
         continue;
       }
 
-      const gemeenteNameId = registry.resolveGemeenteByTag(tag);
-      if (gemeenteNameId) {
-        const nodeId = resolveGemeenteNodeId(gemeenteNameId);
-        if (nodeId) addEdge(callout.id, nodeId, EdgeType.INITIATIVE_GEMEENTE);
-        else unresolved.add(gemeenteNameId);
-        continue;
-      }
-
       const theme = registry.resolveThemeByTag(tag);
       if (theme) {
         const themeId = `theme:${theme.slug}`;
@@ -122,6 +114,14 @@ export function buildInitiativeLayer(
         }
         addEdge(callout.id, themeId, EdgeType.INITIATIVE_THEME);
       }
+    }
+
+    // Associated gemeentes are named in the DESCRIPTION (after "Deelnemende
+    // gemeente:"), not the tags — resolve them from there.
+    for (const g of registry.findGemeentesInText(callout.description)) {
+      const nodeId = resolveGemeenteNodeId(g.nameId);
+      if (nodeId) addEdge(callout.id, nodeId, EdgeType.INITIATIVE_GEMEENTE);
+      else unresolved.add(g.nameId);
     }
 
     if (year !== undefined) node.initiativeYear = year;

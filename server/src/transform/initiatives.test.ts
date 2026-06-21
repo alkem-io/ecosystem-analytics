@@ -6,15 +6,24 @@ import type { GdCalloutInput } from '../types/api.js';
 
 const THEME: RegistryTheme = { slug: 'energietransitie', title: 'Energietransitie', priorLabels: [] };
 
+const GEMEENTE_NAMES: Record<string, string> = {
+  groningen: 'gemeente-groningen',
+  utrecht: 'gemeente-utrecht',
+};
+
 const registry: VngRegistry = {
   isGemeenteNameId: (id) => id === 'gemeente-groningen' || id === 'gemeente-utrecht',
-  resolveGemeenteByTag: (tag) => {
-    const t = tag.trim().toLowerCase();
-    if (t === 'groningen') return 'gemeente-groningen';
-    if (t === 'utrecht') return 'gemeente-utrecht';
-    return null;
-  },
+  resolveGemeenteByTag: (tag) => GEMEENTE_NAMES[tag.trim().toLowerCase()] ?? null,
   resolveThemeByTag: (tag) => (tag.trim().toLowerCase() === 'energietransitie' ? THEME : null),
+  // Gemeentes are named in the description (anchored on "Deelnemende gemeente:").
+  findGemeentesInText: (text) => {
+    if (!text) return [];
+    const anchor = text.match(/deelnemende\s+gemeente[n]?\s*:\s*([^\n\r]*)/i);
+    const hay = (anchor ? anchor[1] : text).toLowerCase();
+    return Object.entries(GEMEENTE_NAMES)
+      .filter(([name]) => new RegExp(`(^|[^a-z])${name}([^a-z]|$)`).test(hay))
+      .map(([name, nameId]) => ({ nameId, title: name[0].toUpperCase() + name.slice(1) }));
+  },
   gemeenteNameIds: () => ['gemeente-groningen', 'gemeente-utrecht'],
   meta: () => ({
     generatedFrom: 'test',
@@ -36,7 +45,8 @@ describe('buildInitiativeLayer', () => {
         id: 'cal-1',
         nameId: 'mooi-initiatief',
         displayName: 'Mooi initiatief',
-        tags: ['Groningen', 'Energietransitie', 'gd-2024', 'sdg-08', 'winner'],
+        description: 'Een mooi project. Deelnemende gemeente: Groningen',
+        tags: ['Energietransitie', 'gd-2024', 'sdg-08', 'winner'],
         sourceUrl: 'https://vng.nl/praktijkvoorbeelden/x',
       },
     ];
@@ -65,7 +75,7 @@ describe('buildInitiativeLayer', () => {
 
   it('records unresolvable gemeente references instead of creating duplicate nodes', () => {
     const callouts: GdCalloutInput[] = [
-      { id: 'cal-2', nameId: 'utrecht-case', displayName: 'Utrecht', tags: ['Utrecht'] },
+      { id: 'cal-2', nameId: 'utrecht-case', displayName: 'Utrecht', description: 'Deelnemende gemeente: Utrecht', tags: [] },
     ];
     const layer = buildInitiativeLayer(callouts, registry, resolveGemeenteNodeId);
     expect(layer.unresolvedGemeenteNameIds).toEqual(['gemeente-utrecht']);
@@ -74,8 +84,8 @@ describe('buildInitiativeLayer', () => {
 
   it('resolves the INITIATIVE_GEMEENTE edge on a second pass once the resolver gains the nameId (no duplicate edges)', () => {
     const callouts: GdCalloutInput[] = [
-      { id: 'cal-3', nameId: 'utrecht-case', displayName: 'Utrecht', tags: ['Utrecht'] },
-      { id: 'cal-4', nameId: 'utrecht-case-2', displayName: 'Utrecht 2', tags: ['Utrecht'] },
+      { id: 'cal-3', nameId: 'utrecht-case', displayName: 'Utrecht', description: 'Deelnemende gemeente: Utrecht', tags: [] },
+      { id: 'cal-4', nameId: 'utrecht-case-2', displayName: 'Utrecht 2', description: 'Deelnemende gemeente: Utrecht', tags: [] },
     ];
 
     // First pass: Utrecht is unresolvable → recorded once (dedup), no edges.
@@ -96,8 +106,8 @@ describe('buildInitiativeLayer', () => {
 
   it('canonicalises a shared theme to one node across initiatives (no duplicates)', () => {
     const callouts: GdCalloutInput[] = [
-      { id: 'a', nameId: 'a', displayName: 'A', tags: ['Energietransitie'] },
-      { id: 'b', nameId: 'b', displayName: 'B', tags: ['Energietransitie'] },
+      { id: 'a', nameId: 'a', displayName: 'A', description: '', tags: ['Energietransitie'] },
+      { id: 'b', nameId: 'b', displayName: 'B', description: '', tags: ['Energietransitie'] },
     ];
     const layer = buildInitiativeLayer(callouts, registry, resolveGemeenteNodeId);
     const themeNodes = layer.nodes.filter((n) => n.type === NodeType.THEME);

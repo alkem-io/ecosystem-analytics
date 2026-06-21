@@ -45,3 +45,62 @@ describe('countDashboard', () => {
     expect(ai.count).toBe(1);
   });
 });
+
+import { countSpaceGemeentes, bucketGemeenteDistribution } from './vng-dashboard-service.js';
+import { NodeType, EdgeType, type GraphDataset, type GraphNode, type GraphEdge } from '../types/graph.js';
+
+function ds(nodes: Partial<GraphNode>[], edges: { s: string; t: string }[]): GraphDataset {
+  return {
+    version: '1', generatedAt: '', spaces: [],
+    nodes: nodes.map((n) => ({ id: n.id!, type: n.type!, displayName: n.id!, nameId: n.id!, isGemeente: n.isGemeente } as GraphNode)),
+    edges: edges.map((e) => ({ sourceId: e.s, targetId: e.t, type: EdgeType.INITIATIVE_GEMEENTE } as GraphEdge)),
+    metrics: { totalNodes: nodes.length, totalEdges: edges.length, averageDegree: 0, density: 0 },
+    cacheInfo: [],
+  };
+}
+
+describe('countSpaceGemeentes', () => {
+  it('counts DISTINCT gemeente orgs per SPACE_L0 (ignoring non-gemeente orgs)', () => {
+    const nodes: Partial<GraphNode>[] = [
+      { id: 's1', type: NodeType.SPACE_L0 },
+      { id: 's2', type: NodeType.SPACE_L0 },
+      { id: 'g1', type: NodeType.ORGANIZATION, isGemeente: true },
+      { id: 'g2', type: NodeType.ORGANIZATION, isGemeente: true },
+      { id: 'o1', type: NodeType.ORGANIZATION, isGemeente: false },
+    ];
+    const edges = [
+      { s: 's1', t: 'g1' }, { s: 's1', t: 'g2' }, { s: 's1', t: 'o1' }, // s1 → 2 gemeentes
+      { s: 's2', t: 'g1' }, // s2 → 1 gemeente
+    ];
+    expect(countSpaceGemeentes(ds(nodes, edges)).map((c) => c.count).sort()).toEqual([1, 2]);
+  });
+});
+
+describe('bucketGemeenteDistribution', () => {
+  it('buckets Groei + GD counts (with names) and excludes zeros', () => {
+    const dist = bucketGemeenteDistribution(
+      [{ label: 'A', count: 2 }, { label: 'B', count: 4 }, { label: 'Z', count: 0 }],
+      [{ label: 'GD-big', count: 55 }, { label: 'GD-mid', count: 7 }],
+      true,
+    );
+    const byKey = Object.fromEntries(dist.buckets.map((b) => [b.key, b]));
+    expect(byKey['1-3'].groei).toBe(1);
+    expect(byKey['1-3'].groeiItems).toEqual(['A']);
+    expect(byKey['3-6'].groeiItems).toEqual(['B']);
+    expect(byKey['6-10'].gdItems).toEqual(['GD-mid']);
+    expect(byKey['50+'].gdItems).toEqual(['GD-big']);
+    expect(dist.buckets.reduce((a, b) => a + b.groei + b.gd, 0)).toBe(4); // the zero excluded
+  });
+
+  it('boundary values go to the lower bucket (3→1-3, 6→3-6)', () => {
+    const dist = bucketGemeenteDistribution(
+      [{ label: 'three', count: 3 }, { label: 'six', count: 6 }],
+      [],
+      false,
+    );
+    const byKey = Object.fromEntries(dist.buckets.map((b) => [b.key, b]));
+    expect(byKey['1-3'].groeiItems).toEqual(['three']);
+    expect(byKey['3-6'].groeiItems).toEqual(['six']);
+    expect(dist.gdIncluded).toBe(false);
+  });
+});

@@ -6,7 +6,6 @@ import type { ActivityPeriod } from '@server/types/graph.js';
 import { computeClusters } from './clustering.js';
 import { computeProximityGroups, type ProximityCluster } from './proximityClustering.js';
 import { computePinnedNodeIds, computeMapBounds, isWithinRegion } from './mapBoundary.js';
-import { buildRegionFillPath, type GeoFeatureLike, type Project } from './regionFill.js';
 import type { MapRegion } from '../map/MapOverlay.js';
 import { proxyImageUrl } from '../lib/imageProxy.js';
 import styles from './ForceGraph.module.css';
@@ -309,15 +308,17 @@ function effectiveRadius(
   zoomScale: number,
 ): number {
   if (!isGeoMode) return nodeRadius(node);
-  // In map mode: nodes get SMALLER as you zoom in, BIGGER as you zoom out.
+  // In map mode the node icons should scale SOMEWHAT with the map: bigger as you
+  // zoom in, smaller as you zoom out — but sub-linearly so they don't overwhelm the
+  // detail. On-screen size = effectiveRadius * k = base * k^(1-e). With e = 0.5 the
+  // on-screen size grows as √k (gentle growth on zoom-in).
   let base = BASE_RADIUS[node.data.type] ?? 8;
   if (node.data.type === 'USER' || node.data.type === 'ORGANIZATION') {
     base *= 1.2;
   } else {
     base *= 1.4;
   }
-  // Exponent 1.1 gives mild inverse zoom: screen = base * k^(-0.1)
-  const mapMultiplier = 1 / Math.pow(Math.max(zoomScale, 0.1), 1.1);
+  const mapMultiplier = 1 / Math.pow(Math.max(zoomScale, 0.1), 0.5);
   return base * mapMultiplier * _nodeSizeScale;
 }
 
@@ -1039,22 +1040,10 @@ export default function ForceGraph({
           });
       }
 
-      // HARD REQUIREMENT (constitution §VII / FR-048): the Netherlands map MUST show
-      // ONLY the Netherlands — nothing outside it may be rendered. Clipping live
-      // CARTO tiles to the NL boundary proved unreliable under d3-zoom (the SVG
-      // clip-path lives outside the zoom group and does not follow the transform, so
-      // tiles escape it on zoom). The reliable, regression-proof approach is to NOT
-      // render bleeding tiles for the Netherlands at all: draw the NL as a clean
-      // filled silhouette (province shapes) + borders. There is simply nothing
-      // outside the Netherlands to leak. Other regions (Explorer world/europe) keep
-      // their full-bleed CARTO tiles.
-      const showTiles = mapRegion !== 'netherlands';
-      if (showTiles) {
-        renderTiles(1);
-        (applyLOD as any)._renderTiles = renderTiles;
-      } else {
-        (applyLOD as any)._renderTiles = () => {};
-      }
+      // CARTO map tiles are rendered for every region (inc. the Netherlands, which
+      // MUST show real map-tile detail per constitution §VII / FR-048).
+      renderTiles(1);
+      (applyLOD as any)._renderTiles = renderTiles;
 
       fetch(MAP_URLS[mapRegion])
         .then((res) => {
@@ -1068,29 +1057,35 @@ export default function ForceGraph({
           const features = geojson.features || [geojson];
           const isWorldMap = mapRegion === 'world';
 
-          if (showTiles) {
-            // Clip tiles to the region (Explorer world/europe).
-            mapClipDef.selectAll('path').data(features).join('path').attr('d', path as any);
-            tileGroup.attr('clip-path', `url(#${clipId})`);
-          } else {
-            // Netherlands: filled silhouette (no tiles → nothing can bleed outside NL).
-            // The source geojson rings are wound backwards for d3-geo's spherical
-            // interpretation (so geoPath would fill the COMPLEMENT of the Netherlands).
-            // Netherlands-only silhouette: a reversed-ring fill (see buildRegionFillPath)
-            // that covers ONLY the Netherlands. Lives inside the zoom group, so it
-            // pans/zooms natively — no clip needed. Enforced by vng-map-nl-only.spec.
-            const reversedFillD = buildRegionFillPath(
-              features as GeoFeatureLike[],
-              projection! as Project,
-            );
+          if (mapRegion === 'netherlands') {
+            // HARD REQUIREMENT (constitution §VII / FR-048): show ONLY the Netherlands.
+            // The SVG clip-path lives outside the zoom group and does NOT track d3-zoom,
+            // so tiles escape it on zoom. Instead we overlay an opaque WHITE "complement"
+            // shape that hides everything OUTSIDE the Netherlands while leaving the NL
+            // tiles visible. Built from the raw region rings filled with the even-odd
+            // rule: the source geojson is wound backwards for d3-geo, so even-odd fills
+            // the COMPLEMENT of the Netherlands (verified pixel-by-pixel — see
+            // tests/vng-map-nl-only.spec.mjs). It lives INSIDE the zoom group, so it
+            // pans/zooms with the tiles and can never leak. Drawn over the tiles, under
+            // the borders and nodes.
+            const complementD = (features as Array<unknown>)
+              .map((f) => path(f as any))
+              .filter(Boolean)
+              .join(' ');
             mapGroup
-              .selectAll('path.region-fill')
+              .selectAll('path.nl-complement')
               .data([0])
               .join('path')
-              .attr('class', 'region-fill')
-              .attr('d', reversedFillD)
-              .attr('fill', '#dbe2e8')
+              .attr('class', 'nl-complement')
+              .attr('d', complementD)
+              .attr('fill', '#ffffff')
+              .attr('fill-rule', 'evenodd')
+              .style('fill-rule', 'evenodd')
               .style('pointer-events', 'none');
+          } else {
+            // Explorer world/europe: clip tiles to the region.
+            mapClipDef.selectAll('path').data(features).join('path').attr('d', path as any);
+            tileGroup.attr('clip-path', `url(#${clipId})`);
           }
 
           // Subtle province/region borders on top.

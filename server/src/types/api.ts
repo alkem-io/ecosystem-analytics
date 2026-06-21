@@ -25,6 +25,8 @@ export interface GdCalloutInput {
   /** Callout nameID (alkemio_nameid). */
   nameId: string;
   displayName: string;
+  /** Free-text description — the associated gemeentes are mentioned in here. */
+  description: string;
   /** Flat tag strings on the callout (themes, gemeente names, gd-YYYY, sdg-NN, classifications). */
   tags: string[];
   /** Original vng.nl source link, if present. */
@@ -38,6 +40,28 @@ export interface DashboardDimension {
   categories: { key: string; count: number; items: string[] }[];
 }
 
+/**
+ * Distribution of initiatives by the number of associated gemeentes, bucketed into
+ * fixed ranges. Each bucket is split into Groei (selected spaces) and GD
+ * (GemeenteDelers initiatives) so the frontend can render a stacked bar.
+ */
+export interface GemeenteDistribution {
+  /** True when GD initiatives were folded into the counts (the GD checkbox). */
+  gdIncluded: boolean;
+  buckets: {
+    /** Range label, e.g. "1-3", "50+". */
+    key: string;
+    /** Count of Groei initiatives (selected spaces) whose gemeente-count is in range. */
+    groei: number;
+    /** Count of GD initiatives whose gemeente-count is in range (0 unless gdIncluded). */
+    gd: number;
+    /** Names of the Groei initiatives in this bucket (for the hover tooltip). */
+    groeiItems: string[];
+    /** Names of the GD initiatives in this bucket (for the hover tooltip). */
+    gdItems: string[];
+  }[];
+}
+
 /** Response for POST /api/vng/dashboard (feature 016, US3). */
 export interface VngDashboardResponse {
   /** Active counting unit: selected spaces or GD initiatives (FR-022). */
@@ -45,6 +69,8 @@ export interface VngDashboardResponse {
   totalCounted: number;
   uncategorisedCount: number;
   dimensions: DashboardDimension[];
+  /** Initiatives-by-gemeente-count distribution for the stacked bar chart. */
+  gemeenteDistribution?: GemeenteDistribution;
 }
 
 /** An entity (space or GD initiative) counted by the dashboard, with its tags. */
