@@ -1,13 +1,13 @@
 import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { RefreshCw } from 'lucide-react';
+import { Loader2, RefreshCw } from 'lucide-react';
 import { cn, fetchMe, type MeResponse } from '@ea/shared';
 import { LoginScreen } from './components/LoginScreen.js';
+import { LoadingScreen } from './components/LoadingScreen.js';
 import { BrandingHeader } from './components/BrandingHeader.js';
 import { AuthorizationWarning } from './components/AuthorizationWarning.js';
 import { HubSelector } from './components/HubSelector.js';
 import { GemeenteToggle } from './components/GemeenteToggle.js';
-import { InitiativesToggle } from './components/InitiativesToggle.js';
 import { SelectedSpacesPanel } from './components/SelectedSpacesPanel.js';
 import { ErrorBoundary } from './components/ErrorBoundary.js';
 import { SelectionProvider, useSelectionContext } from './hooks/SelectionContext.js';
@@ -27,10 +27,11 @@ function ControlsBar() {
     state,
     setActiveHub,
     setShowGemeentes,
-    setIncludeInitiatives,
     selectAllHubSpaces,
     loadHubSpaces,
     refresh,
+    resolvingHub,
+    hubResolveError,
   } = useSelectionContext();
 
   // Brief spinner on the Refresh button while the cache-bypassing reload runs.
@@ -62,20 +63,30 @@ function ControlsBar() {
         <button
           type="button"
           onClick={loadHubSpaces}
+          disabled={resolvingHub}
           className={cn(
             'rounded-md border border-border bg-card px-3 py-1.5 text-sm font-medium text-foreground',
-            'transition-colors hover:bg-muted',
+            'transition-colors hover:bg-muted disabled:opacity-60',
             'focus:outline-none focus-visible:ring-2 focus-visible:ring-primary',
           )}
         >
           {t('controls.loadHubSpaces')}
         </button>
       )}
+      {/* Live status so a hub fetch never looks frozen. */}
+      {resolvingHub && (
+        <span className="inline-flex items-center gap-1.5 text-sm text-muted-foreground" role="status">
+          <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden />
+          {t('states.loadingHubSpaces')}
+        </span>
+      )}
+      {!resolvingHub && hubResolveError && (
+        <span className="text-sm text-destructive" role="alert">
+          {hubResolveError}
+        </span>
+      )}
       <GemeenteToggle checked={state.showGemeentes} onChange={setShowGemeentes} />
-      <InitiativesToggle
-        checked={state.includeInitiatives}
-        onChange={setIncludeInitiatives}
-      />
+      {/* "Include GD initiatives" now lives in the left selection panel below the spaces. */}
 
       <div className="ml-auto flex items-center gap-3">
         {state.activeHubNameId && (
@@ -201,10 +212,11 @@ function AppShell() {
 
 /**
  * Auth gate (US5/FR-004): resolve the shared `ea_session` identity. While loading,
- * render nothing; if unauthenticated, show the login screen (which displays the
- * environment URL); otherwise render the app.
+ * show a branded loading screen (so the app never looks frozen); if unauthenticated,
+ * show the login screen (which displays the environment); otherwise render the app.
  */
 export default function App() {
+  const { t } = useTranslation();
   const [me, setMe] = useState<MeResponse | null>(null);
   const [status, setStatus] = useState<'loading' | 'ready'>('loading');
 
@@ -223,7 +235,7 @@ export default function App() {
     };
   }, []);
 
-  if (status === 'loading') return null;
+  if (status === 'loading') return <LoadingScreen message={t('states.connecting')} />;
   if (!me) return <LoginScreen />;
 
   return (

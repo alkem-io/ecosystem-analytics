@@ -4,6 +4,7 @@ import { useSelectionContext } from '../hooks/SelectionContext.js';
 import { useDashboard } from '../hooks/useDashboard.js';
 import { NdsChart } from '../components/charts/NdsChart.js';
 import { Vng2030Chart } from '../components/charts/Vng2030Chart.js';
+import { GemeenteDistributionChart } from '../components/charts/GemeenteDistributionChart.js';
 import { GdProvenanceNote } from '../components/GdProvenanceNote.js';
 
 /**
@@ -23,9 +24,13 @@ export function DashboardTab() {
     () => ({
       spaceIds: effectiveSpaceIds,
       includeGemeentes: state.showGemeentes,
+      // NDS / VNG-2030 always count selected spaces (decoupled from the GD toggle)…
       includeInitiatives: false,
+      // …but the gemeente-distribution chart stacks GD initiatives when the GD
+      // ("include GemeenteDelers initiatives") checkbox is on.
+      includeGemeenteDelers: state.includeInitiatives,
     }),
-    [effectiveSpaceIds, state.showGemeentes],
+    [effectiveSpaceIds, state.showGemeentes, state.includeInitiatives],
   );
 
   const { data, loading, error } = useDashboard(request, { refreshNonce });
@@ -71,6 +76,12 @@ export function DashboardTab() {
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
         <NdsChart dimension={ndsDimension} source={source} />
         <Vng2030Chart dimension={vng2030Dimension} source={source} />
+        <div className="lg:col-span-2">
+          <GemeenteDistributionChart
+            distribution={data?.gemeenteDistribution}
+            emptyLabel={t('dashboard.noData')}
+          />
+        </div>
       </div>
     </div>
   );

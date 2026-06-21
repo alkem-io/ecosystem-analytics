@@ -31,6 +31,13 @@ export interface RegistryMeta {
   programme: { name: string; years: string; sourceUrl: string };
 }
 
+/** A gemeente found in free text. */
+export interface GemeenteMatch {
+  nameId: string;
+  /** Canonical gemeente name (the snapshot title, e.g. "Groningen"). */
+  title: string;
+}
+
 export interface VngRegistry {
   /** Is this organisation nameID a known gemeente? (FR-032/035) */
   isGemeenteNameId(nameId: string | null | undefined): boolean;
@@ -38,9 +45,18 @@ export interface VngRegistry {
   resolveGemeenteByTag(tag: string): string | null;
   /** Resolve a Callout tag (e.g. "Energietransitie") to a canonical theme. */
   resolveThemeByTag(tag: string): RegistryTheme | null;
+  /**
+   * Find every gemeente whose name appears in free text (e.g. a GD initiative's
+   * description) as a whole word, case-insensitively. Distinct, sorted by name.
+   */
+  findGemeentesInText(text: string | null | undefined): GemeenteMatch[];
   /** Every known gemeente org nameID. */
   gemeenteNameIds(): string[];
   meta(): RegistryMeta;
+}
+
+function escapeRegExp(s: string): string {
+  return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
 const DATA_DIRS = [
@@ -79,11 +95,21 @@ export function loadVngRegistry(): VngRegistry {
 
   const gemeenteNameIdSet = new Set<string>();
   const tagToGemeenteNameId = new Map<string, string>();
+  // Precompiled whole-word matchers for free-text gemeente detection (description).
+  // Longer names first so "Bergen op Zoom" wins over "Bergen" when both could match.
+  const textMatchers: { nameId: string; title: string; re: RegExp }[] = [];
   for (const m of municipalities) {
     if (!m.alkemioNameId) continue;
     gemeenteNameIdSet.add(m.alkemioNameId);
     tagToGemeenteNameId.set(norm(m.title), m.alkemioNameId);
+    textMatchers.push({
+      nameId: m.alkemioNameId,
+      title: m.title,
+      // Bounded by a non-letter/digit (or string edge) so "Best" doesn't match "Bestuur".
+      re: new RegExp(`(^|[^\\p{L}\\p{N}])${escapeRegExp(norm(m.title))}([^\\p{L}\\p{N}]|$)`, 'u'),
+    });
   }
+  textMatchers.sort((a, b) => b.title.length - a.title.length);
 
   const tagToTheme = new Map<string, RegistryTheme>();
   for (const t of themes) {
@@ -95,6 +121,25 @@ export function loadVngRegistry(): VngRegistry {
     isGemeenteNameId: (nameId) => !!nameId && gemeenteNameIdSet.has(nameId),
     resolveGemeenteByTag: (tag) => tagToGemeenteNameId.get(norm(tag)) ?? null,
     resolveThemeByTag: (tag) => tagToTheme.get(norm(tag)) ?? null,
+    findGemeentesInText: (text) => {
+      if (!text) return [];
+      // Strip HTML/markdown but keep line breaks so the anchor line can be isolated.
+      const clean = text
+        .replace(/<br\s*\/?>/gi, '\n')
+        .replace(/<\/(p|div|li|h[1-6])>/gi, '\n')
+        .replace(/<[^>]+>/g, ' ')
+        .replace(/[*_]{1,3}/g, '');
+      // GD descriptions name the municipality after "Deelnemende gemeente(n):"
+      // (see design). Anchor on that line for precision; if it's absent, fall back
+      // to scanning the whole description.
+      const anchor = clean.match(/deelnemende\s+gemeente[n]?\s*:\s*([^\n\r]*)/i);
+      const hay = norm(anchor ? anchor[1] : clean);
+      const seen = new Map<string, GemeenteMatch>();
+      for (const m of textMatchers) {
+        if (!seen.has(m.nameId) && m.re.test(hay)) seen.set(m.nameId, { nameId: m.nameId, title: m.title });
+      }
+      return [...seen.values()].sort((a, b) => a.title.localeCompare(b.title));
+    },
     gemeenteNameIds: () => [...gemeenteNameIdSet],
     meta: () => meta,
   };

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { ForceGraph, HoverCard, isWithinRegion } from '@ea/shared';
+import { Loader2 } from 'lucide-react';
+import { ForceGraph, HoverCard, isWithinRegion, proxyImageUrl } from '@ea/shared';
 import type { GeoPermissibleObjects } from 'd3-geo';
 import type { GraphDataset, GraphNode } from '@server/types/graph.js';
 import { useVngGraph } from '../hooks/useVngGraph.js';
@@ -186,15 +187,39 @@ export function GraphTab({
   }, []);
 
   // Nodes that can't be placed on the map: no valid lat/lng, or outside the NL
-  // region. Computed from the gemeente-filtered dataset.
-  const offMapNodes = useMemo<GraphNode[]>(() => {
-    if (!dataset) return [];
-    return dataset.nodes.filter((n) => {
-      const { latitude, longitude } = n.location ?? { latitude: null, longitude: null };
-      if (latitude == null || longitude == null) return true;
-      if (!regionGeo) return false; // can't determine region yet → assume placeable
-      return !isWithinRegion(regionGeo, longitude, latitude);
-    });
+  // region. Computed from the gemeente-filtered dataset and GROUPED by type so the
+  // box reads "Users …", then "Organisations …", then "Spaces …".
+  const offMapGroups = useMemo(() => {
+    // Order: Users, Organisations, then Spaces split by level (L0, L1, L2).
+    const byType: Record<string, { key: string; titleKey: string; nodes: GraphNode[] }> = {
+      USER: { key: 'users', titleKey: 'graph.offMapUsers', nodes: [] },
+      ORGANIZATION: { key: 'organisations', titleKey: 'graph.offMapOrganisations', nodes: [] },
+      SPACE_L0: { key: 'spacesL0', titleKey: 'graph.offMapSpacesL0', nodes: [] },
+      SPACE_L1: { key: 'spacesL1', titleKey: 'graph.offMapSpacesL1', nodes: [] },
+      SPACE_L2: { key: 'spacesL2', titleKey: 'graph.offMapSpacesL2', nodes: [] },
+      OTHER: { key: 'other', titleKey: 'graph.offMapOther', nodes: [] },
+    };
+    const order = ['USER', 'ORGANIZATION', 'SPACE_L0', 'SPACE_L1', 'SPACE_L2', 'OTHER'];
+    let total = 0;
+    if (dataset) {
+      for (const n of dataset.nodes) {
+        const { latitude, longitude } = n.location ?? { latitude: null, longitude: null };
+        const offMap =
+          latitude == null || longitude == null
+            ? true
+            : regionGeo
+              ? !isWithinRegion(regionGeo, longitude, latitude)
+              : false;
+        if (!offMap) continue;
+        total += 1;
+        (byType[n.type] ?? byType.OTHER).nodes.push(n);
+      }
+    }
+    const groups = order
+      .map((k) => byType[k])
+      .filter((g) => g.nodes.length > 0)
+      .map((g) => ({ ...g, nodes: [...g.nodes].sort((a, b) => a.displayName.localeCompare(b.displayName)) }));
+    return { groups, total };
   }, [dataset, regionGeo]);
 
   const selectedNode = useMemo(
@@ -300,13 +325,21 @@ export function GraphTab({
         {/* Loading / empty / error overlays */}
         {(loading || isEmpty || hasNoNodes || error) && (
           <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
-            <span className="rounded-md bg-background/80 px-4 py-2 text-sm text-muted-foreground shadow-sm">
-              {error
-                ? `${t('states.error')}: ${error}`
-                : loading
-                  ? t('states.loading')
-                  : t('states.emptyGraph')}
-            </span>
+            {loading ? (
+              <div className="flex flex-col items-center gap-3 rounded-xl border border-border bg-background/95 px-8 py-6 shadow-md">
+                <Loader2 className="h-7 w-7 animate-spin text-primary" aria-hidden />
+                <span className="text-sm font-medium text-foreground">
+                  {t('states.loadingGraph', { defaultValue: 'Initiatieven laden…' })}
+                </span>
+                <span className="text-xs text-muted-foreground">
+                  {t('states.loadingGraphHint', { defaultValue: 'Dit kan even duren' })}
+                </span>
+              </div>
+            ) : (
+              <span className="rounded-md bg-background/80 px-4 py-2 text-sm text-muted-foreground shadow-sm">
+                {error ? `${t('states.error')}: ${error}` : t('states.emptyGraph')}
+              </span>
+            )}
           </div>
         )}
 
@@ -371,22 +404,45 @@ export function GraphTab({
 
         {/* Off-map notice — only when the map is shown and some nodes can't be
             placed on it (no valid location or outside the Netherlands region). */}
-        {showMap && offMapNodes.length > 0 && (
+        {showMap && offMapGroups.total > 0 && (
           <div className="absolute inset-x-4 bottom-4 z-10 rounded-md border border-border bg-background/95 p-3 shadow-md">
             <p className="text-xs font-semibold text-foreground">
-              {t('graph.offMapTitle', { count: offMapNodes.length })}
+              {t('graph.offMapTitle', { count: offMapGroups.total })}
             </p>
-            <ul className="mt-1 max-h-32 space-y-0.5 overflow-auto">
-              {offMapNodes.map((node) => (
-                <li
-                  key={node.id}
-                  className="truncate text-xs text-muted-foreground"
-                  title={node.displayName}
-                >
-                  {node.displayName || t('graph.offMapNode')}
-                </li>
+            <div className="mt-1 max-h-40 space-y-2 overflow-auto">
+              {offMapGroups.groups.map((group) => (
+                <div key={group.key}>
+                  <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                    {t(group.titleKey, { count: group.nodes.length })}
+                  </p>
+                  <ul className="mt-0.5 space-y-0.5">
+                    {group.nodes.map((node) => {
+                      const avatar = node.avatarUrl ? proxyImageUrl(node.avatarUrl) : null;
+                      return (
+                        <li
+                          key={node.id}
+                          className="flex items-center gap-1.5 pl-2 text-xs text-muted-foreground"
+                          title={node.displayName}
+                        >
+                          {avatar ? (
+                            <img
+                              src={avatar}
+                              alt=""
+                              className="h-4 w-4 shrink-0 rounded-full border border-border object-cover"
+                            />
+                          ) : (
+                            <span className="flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-muted text-[8px] font-semibold text-muted-foreground">
+                              {(node.displayName || '?').charAt(0).toUpperCase()}
+                            </span>
+                          )}
+                          <span className="truncate">{node.displayName || t('graph.offMapNode')}</span>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                </div>
               ))}
-            </ul>
+            </div>
           </div>
         )}
       </div>

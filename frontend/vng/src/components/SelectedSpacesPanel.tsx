@@ -4,6 +4,7 @@ import { Trash2, X } from 'lucide-react';
 import { cn } from '@ea/shared';
 import { useSelectionContext } from '../hooks/SelectionContext.js';
 import { SpacePicker } from './SpacePicker.js';
+import { GdInitiativesSection } from './GdInitiativesSection.js';
 
 /**
  * Persistent selected-space list, visible regardless of the active tab (FR-008).
@@ -180,6 +181,9 @@ export function SelectedSpacesPanel() {
       <p className="text-xs text-muted-foreground">
         {t('selection.count', { count: selectedSpaces.length })}
       </p>
+
+      {/* GemeenteDelers: include the GD initiative layer + list them all. */}
+      <GdInitiativesSection />
     </aside>
   );
 }

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { LogIn } from 'lucide-react';
+import { Loader2, LogIn } from 'lucide-react';
 import { cn, login } from '@ea/shared';
 import { AlkemioLogo } from './AlkemioLogo';
 
@@ -45,6 +45,9 @@ export function LoginScreen() {
   const { t } = useTranslation();
   const { url, loading } = useEnvironment();
   const name = useMemo(() => deriveEnvironmentName(url), [url]);
+  // True from the moment Sign-in is clicked until the browser navigates away, so
+  // the button shows "Redirecting…" instead of looking unresponsive.
+  const [redirecting, setRedirecting] = useState(false);
 
   // When the environment is recognised (Acceptance/Production/Local) show just the
   // friendly name; only fall back to the raw host when the name is unknown.
@@ -93,17 +96,28 @@ export function LoginScreen() {
         </p>
         <button
           type="button"
-          onClick={() => login(window.location.origin + '/')}
+          disabled={redirecting}
+          onClick={() => {
+            setRedirecting(true);
+            login(window.location.origin + '/');
+          }}
           className={cn(
             'mt-6 inline-flex h-12 w-full items-center justify-center gap-2 rounded-lg px-4',
             'bg-primary text-base font-semibold text-primary-foreground',
             'shadow-md shadow-primary/25 ring-1 ring-inset ring-white/10',
             'transition-all hover:bg-primary-hover hover:shadow-lg hover:shadow-primary/30 active:translate-y-px',
             'focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2',
+            'disabled:cursor-wait disabled:opacity-80',
           )}
         >
-          <LogIn className="h-4 w-4" aria-hidden />
-          {t('login.cta', { defaultValue: 'Sign in' })}
+          {redirecting ? (
+            <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
+          ) : (
+            <LogIn className="h-4 w-4" aria-hidden />
+          )}
+          {redirecting
+            ? t('states.redirecting', { defaultValue: 'Redirecting to Alkemio…' })
+            : t('login.cta', { defaultValue: 'Sign in' })}
         </button>
 
         {/* Environment */}

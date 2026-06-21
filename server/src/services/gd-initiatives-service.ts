@@ -17,7 +17,16 @@ import { loadConfig } from '../config.js';
 
 const logger = getLogger();
 
-/** Fetch the gemeentedelers Knowledge-Base callouts as GD initiative inputs. */
+/**
+ * Fetch the gemeentedelers Knowledge-Base callouts as GD initiative inputs.
+ *
+ * The space's calloutsSet contains the GemeenteDelers initiatives PLUS a few
+ * non-initiative callouts (intro/home). We keep only the actual initiatives: those
+ * carrying at least one tag. Every GD initiative is tagged (gemeente, theme,
+ * gd-<year>, sdg-NN, classification…); the intro/home callouts carry no tags. This
+ * yields the intended ~305 set without depending on callout grouping metadata
+ * (which would require an SDK regen).
+ */
 export async function fetchGemeentedelersCallouts(
   auth: AuthContext,
   sdk?: Sdk,
@@ -33,14 +42,26 @@ export async function fetchGemeentedelersCallouts(
   if (!space) {
     throw new Error('GD_SPACE_UNREADABLE');
   }
-  const callouts = space.collaboration.calloutsSet.callouts ?? [];
-  return callouts.map((c) => ({
+  const rawCallouts = space.collaboration.calloutsSet.callouts ?? [];
+
+  const all = rawCallouts.map((c) => ({
     id: c.id,
     nameId: c.nameID,
     displayName: c.framing.profile.displayName,
-    tags: (c.framing.profile.tagsets ?? []).flatMap((ts) => ts.tags),
+    description: c.framing.profile.description ?? '',
+    tags: (c.framing.profile.tagsets ?? []).flatMap((ts) => ts.tags).filter((t) => t.trim()),
     sourceUrl: null,
   }));
+
+  const initiatives = all.filter((c) => c.tags.length > 0);
+
+  if (initiatives.length !== all.length) {
+    logger.info(
+      `GD callouts: ${all.length} in set → ${initiatives.length} initiatives (dropped ${all.length - initiatives.length} tag-less callouts)`,
+      { context: 'GD' },
+    );
+  }
+  return initiatives;
 }
 
 /**
