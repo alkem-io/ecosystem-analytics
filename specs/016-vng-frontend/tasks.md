@@ -47,8 +47,8 @@ Web app, **pnpm workspace**: BFF in `server/`; all frontend packages under `fron
 **Purpose**: Shared-code extraction, VNG app shell, server config + snapshot registry. **No user story can start until this is done.**
 
 - [X] T007 Extract shared modules from `frontend/ecosystem-analytics/src` into `frontend/shared/src/`: `graph/` (ForceGraph, clustering, HoverCard), `map/` (MapOverlay incl. `netherlands` region), `panels/DetailsDrawer`, `services/` (api wrapper, auth `login`/`logout`/`fetchMe`), `ui/`, `styles/tokens`
-- [ ] T008 Rewire `frontend/ecosystem-analytics/src` imports to consume `@ea/shared` (no behaviour change); confirm `tsc --noEmit` passes and `pnpm run test:visual` snapshots are unchanged for the Explorer
-- [ ] T009 [P] Lift shadcn UI primitives (`tabs`, `alert`, `card`, `badge`, `select`, `chart`) from `client-web@story/9885-remove-mui-library-and-code` `prototype/src/app/components/ui/` into `frontend/shared/src/ui/`
+- [X] T008 Rewire `frontend/ecosystem-analytics/src` imports to consume `@ea/shared` (no behaviour change); confirm `tsc --noEmit` passes and `pnpm run test:visual` snapshots are unchanged for the Explorer
+- [X] T009 [P] Lift shadcn UI primitives (`tabs`, `alert`, `card`, `badge`, `select`, `chart`) from `client-web@story/9885-remove-mui-library-and-code` `prototype/src/app/components/ui/` into `frontend/shared/src/ui/`
 - [X] T010 [P] Bootstrap i18n in `frontend/vng/src/i18n/index.ts` with `nl.json` (default + fallback) and `en.json`; expose a language switcher hook (Dutch default per FR-036)
 - [X] T011 Build the VNG app shell in `frontend/vng/src/App.tsx`: 3-tab layout (Graph / Space details / Dashboard) via react-router, auth-gated load using `@ea/shared` auth (login redirect + `fetchMe`)
 - [X] T012 [P] Wire the `frontend/vng` API client from `@ea/shared` services (`credentials: 'include'`) in `frontend/vng/src/services/api.ts`

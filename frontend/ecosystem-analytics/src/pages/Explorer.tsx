@@ -18,7 +18,7 @@ import TopBar from '../components/panels/TopBar.js';
 import ControlPanel from '../components/panels/ControlPanel.js';
 import DetailsDrawer from '../components/panels/DetailsDrawer.js';
 import MetricsBar from '../components/panels/MetricsBar.js';
-import type { MapRegion } from '../components/map/MapOverlay.js';
+import type { MapRegion } from '@ea/shared';
 import HoverCard from '../components/graph/HoverCard.js';
 import QueryOverlay from '../components/query/QueryOverlay.js';
 import { Button } from '../components/ui/button.js';

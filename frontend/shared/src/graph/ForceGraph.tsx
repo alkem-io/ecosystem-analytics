@@ -6,6 +6,7 @@ import type { ActivityPeriod } from '@server/types/graph.js';
 import { computeClusters } from './clustering.js';
 import { computeProximityGroups, type ProximityCluster } from './proximityClustering.js';
 import { computePinnedNodeIds, computeMapBounds, isWithinRegion } from './mapBoundary.js';
+import { buildRegionFillPath, type GeoFeatureLike, type Project } from './regionFill.js';
 import type { MapRegion } from '../map/MapOverlay.js';
 import { proxyImageUrl } from '../lib/imageProxy.js';
 import styles from './ForceGraph.module.css';
@@ -1075,29 +1076,13 @@ export default function ForceGraph({
             // Netherlands: filled silhouette (no tiles → nothing can bleed outside NL).
             // The source geojson rings are wound backwards for d3-geo's spherical
             // interpretation (so geoPath would fill the COMPLEMENT of the Netherlands).
-            // Build the fill path from REVERSED, projected rings so a plain nonzero fill
-            // covers ONLY the Netherlands. (geoContains-based boundary checks elsewhere
-            // keep using the original winding, so they are unaffected.) The fill lives
-            // inside the zoom group, so it pans/zooms natively — no clip needed.
-            const reversedFillD = (features as Array<{ geometry: { type: string; coordinates: unknown } }>)
-              .flatMap((f) => {
-                const geom = f.geometry;
-                const polys =
-                  geom.type === 'Polygon'
-                    ? [geom.coordinates as number[][][]]
-                    : (geom.coordinates as number[][][][]);
-                return polys.map((poly) => {
-                  const pts = (poly[0] as [number, number][])
-                    .map((c) => projection!(c))
-                    .filter((p): p is [number, number] => !!p);
-                  pts.reverse();
-                  return pts.length > 2
-                    ? 'M' + pts.map((p) => `${p[0].toFixed(1)},${p[1].toFixed(1)}`).join('L') + 'Z'
-                    : '';
-                });
-              })
-              .filter(Boolean)
-              .join(' ');
+            // Netherlands-only silhouette: a reversed-ring fill (see buildRegionFillPath)
+            // that covers ONLY the Netherlands. Lives inside the zoom group, so it
+            // pans/zooms natively — no clip needed. Enforced by vng-map-nl-only.spec.
+            const reversedFillD = buildRegionFillPath(
+              features as GeoFeatureLike[],
+              projection! as Project,
+            );
             mapGroup
               .selectAll('path.region-fill')
               .data([0])

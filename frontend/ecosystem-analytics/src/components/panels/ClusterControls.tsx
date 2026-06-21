@@ -1,4 +1,4 @@
-import type { ClusterMode } from '../graph/clustering.js';
+import type { ClusterMode } from '@ea/shared';
 import styles from './ClusterControls.module.css';
 
 interface Props {

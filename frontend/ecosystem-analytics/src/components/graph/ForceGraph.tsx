@@ -3,10 +3,15 @@ import * as d3 from 'd3';
 import { geoMercator, geoPath, type GeoPermissibleObjects } from 'd3-geo';
 import type { GraphDataset, GraphNode, GraphEdge } from '@server/types/graph.js';
 import type { ActivityPeriod } from '@server/types/graph.js';
-import { computeClusters } from './clustering.js';
-import { computeProximityGroups, type ProximityCluster } from './proximityClustering.js';
-import { computePinnedNodeIds, computeMapBounds, isWithinRegion } from './mapBoundary.js';
-import type { MapRegion } from '../map/MapOverlay.js';
+import {
+  computeClusters,
+  computeProximityGroups,
+  type ProximityCluster,
+  computePinnedNodeIds,
+  computeMapBounds,
+  isWithinRegion,
+  type MapRegion,
+} from '@ea/shared';
 import { getToken } from '../../services/auth.js';
 import styles from './ForceGraph.module.css';
 import './pulse.css';

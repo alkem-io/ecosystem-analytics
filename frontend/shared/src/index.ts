@@ -26,3 +26,25 @@ export {
   computePinnedNodeIds,
   computeMapBounds,
 } from './graph/mapBoundary.js';
+
+// UI primitives (shadcn-style: Radix + Tailwind + CVA). Shared copies of the
+// reusable shadcn primitives so every SPA consumes one source of truth. These
+// rely on the consuming app's Tailwind theme tokens (see @ea/shared/styles).
+export { Avatar, AvatarImage, AvatarFallback } from './ui/avatar.js';
+export { Badge, badgeVariants, type BadgeProps } from './ui/badge.js';
+export { Button, buttonVariants, type ButtonProps } from './ui/button.js';
+export {
+  Card,
+  CardHeader,
+  CardFooter,
+  CardTitle,
+  CardDescription,
+  CardContent,
+} from './ui/card.js';
+export { Checkbox } from './ui/checkbox.js';
+export { Input } from './ui/input.js';
+export { Label } from './ui/label.js';
+export { ScrollArea, ScrollBar } from './ui/scroll-area.js';
+export { Separator } from './ui/separator.js';
+export { Textarea, type TextareaProps } from './ui/textarea.js';
+export { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from './ui/tooltip.js';

@@ -2,7 +2,7 @@ import { useMemo } from 'react';
 import { geoContains } from 'd3-geo';
 import type { GraphDataset } from '@server/types/graph.js';
 import type { ActivityPeriod } from '@server/types/graph.js';
-import type { MapRegion } from '../map/MapOverlay.js';
+import type { MapRegion } from '@ea/shared';
 import type { ViewMode, HierarchySizeMetric, ChordMode } from '../../types/views.js';
 import { useRegionGeoJson } from '../../hooks/useRegionGeoJson.js';
 import FilterControls from './FilterControls.js';
