@@ -147,7 +147,10 @@
     "loadingHubSpaces": "Initiatieven uit hub laden…",
     "loadingSpaces": "Initiatieven laden…",
     "loadingGraph": "Initiatieven laden…",
-    "loadingGraphHint": "Dit kan even duren"
+    "loadingGraphHint": "Dit kan even duren",
+    "graphTransforming": "Netwerk opbouwen…",
+    "graphAcquiring": "Initiatieven ophalen",
+    "graphBuilding": "Netwerk"
   },
   "graph": {
     "offMapTitle": "{{count}} knooppunten worden niet op de kaart weergegeven",

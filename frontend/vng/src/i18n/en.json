@@ -147,7 +147,10 @@
     "loadingHubSpaces": "Loading initiatives from hub…",
     "loadingSpaces": "Loading initiatives…",
     "loadingGraph": "Loading initiatives…",
-    "loadingGraphHint": "This can take a moment"
+    "loadingGraphHint": "This can take a moment",
+    "graphTransforming": "Building network…",
+    "graphAcquiring": "Fetching initiatives",
+    "graphBuilding": "Network"
   },
   "graph": {
     "offMapTitle": "{{count}} nodes not displaying on the map",

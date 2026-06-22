@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import * as Select from '@radix-ui/react-select';
-import { Check, ChevronDown } from 'lucide-react';
+import { Check, ChevronDown, ChevronRight } from 'lucide-react';
 import { cn, proxyImageUrl } from '@ea/shared';
 import type { GraphNode } from '@server/types/graph.js';
 import { useSelectionContext } from '../hooks/SelectionContext.js';
@@ -72,6 +72,32 @@ export function SpaceDetailsTab({ openSpaceId, openSpaceSeq }: SpaceDetailsTabPr
       .sort((a, b) => a.displayName.localeCompare(b.displayName));
   }, [dataset, initiativeNode]);
 
+  // Per-initiative count of connected gemeentes (for the "(N)" in the picker).
+  const gemeenteCountByNameId = useMemo<Map<string, number>>(() => {
+    const m = new Map<string, number>();
+    if (!dataset) return m;
+    const gemeenteIds = new Set(
+      dataset.nodes.filter((n) => n.type === 'ORGANIZATION' && n.isGemeente === true).map((n) => n.id),
+    );
+    const bySpaceNode = new Map<string, Set<string>>();
+    const add = (k: string, v: string) => {
+      let s = bySpaceNode.get(k);
+      if (!s) bySpaceNode.set(k, (s = new Set()));
+      s.add(v);
+    };
+    for (const e of dataset.edges) {
+      if (gemeenteIds.has(e.sourceId)) add(e.targetId, e.sourceId);
+      if (gemeenteIds.has(e.targetId)) add(e.sourceId, e.targetId);
+    }
+    for (const n of dataset.nodes) {
+      if (SPACE_TYPES.has(n.type) && n.nameId) m.set(n.nameId, bySpaceNode.get(n.id)?.size ?? 0);
+    }
+    return m;
+  }, [dataset]);
+
+  // Collapsible "participating gemeentes" section.
+  const [gemeentesCollapsed, setGemeentesCollapsed] = useState(false);
+
   if (selectedSpaces.length === 0) {
     return (
       <div className="flex h-full items-center justify-center text-muted-foreground">
@@ -121,7 +147,9 @@ export function SpaceDetailsTab({ openSpaceId, openSpaceSeq }: SpaceDetailsTabPr
                       <Select.ItemIndicator className="absolute left-2 inline-flex items-center">
                         <Check className="h-4 w-4" aria-hidden />
                       </Select.ItemIndicator>
-                      <Select.ItemText>{space.displayName}</Select.ItemText>
+                      <Select.ItemText>
+                        {space.displayName} ({gemeenteCountByNameId.get(space.nameId) ?? 0})
+                      </Select.ItemText>
                     </Select.Item>
                   ))}
                 </Select.Viewport>
@@ -154,12 +182,22 @@ export function SpaceDetailsTab({ openSpaceId, openSpaceSeq }: SpaceDetailsTabPr
               </div>
             </section>
 
-            {/* Avatar-card grid of gemeentes (~10 per row) */}
+            {/* Avatar-card grid of gemeentes (~10 per row) — collapsible */}
             <section className="space-y-3">
-              <h3 className="text-sm font-semibold text-foreground">
+              <button
+                type="button"
+                onClick={() => setGemeentesCollapsed((v) => !v)}
+                className="flex items-center gap-1.5 text-sm font-semibold text-foreground"
+                aria-expanded={!gemeentesCollapsed}
+              >
+                {gemeentesCollapsed ? (
+                  <ChevronRight className="h-4 w-4" aria-hidden />
+                ) : (
+                  <ChevronDown className="h-4 w-4" aria-hidden />
+                )}
                 {t('details.gemeentesTitle')} ({gemeentes.length})
-              </h3>
-              {gemeentes.length === 0 ? (
+              </button>
+              {gemeentesCollapsed ? null : gemeentes.length === 0 ? (
                 <p className="text-sm text-muted-foreground">{t('details.noGemeentes')}</p>
               ) : (
                 <div className="grid grid-cols-3 gap-3 sm:grid-cols-5 lg:grid-cols-[repeat(10,minmax(0,1fr))]">
