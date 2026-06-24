@@ -16,6 +16,9 @@ export default defineConfig(({ mode }) => {
     plugins: [tailwindcss(), react()],
     define: {
       __APP_VERSION__: JSON.stringify(pkg.version),
+      // SPA build timestamp — surfaced in the About dialog so operators can
+      // confirm which frontend build is actually served.
+      __BUILD_TIME__: JSON.stringify(new Date().toISOString()),
     },
     resolve: {
       alias: {

@@ -170,5 +170,28 @@
     "count": "Aantal",
     "initiatives": "Initiatieven",
     "bucket": "Aantal gemeenten"
+  },
+  "about": {
+    "title": "Over",
+    "close": "Sluiten",
+    "loading": "Laden…",
+    "build": "Build",
+    "appVersion": "App-versie",
+    "spaBuildTime": "Frontend-build",
+    "serverBuildTime": "Server-build",
+    "commit": "Commit",
+    "settingsTitle": "Instellingen",
+    "on": "Aan",
+    "off": "Uit",
+    "settings": {
+      "maxSpacesPerQuery": "Max. ruimtes per query",
+      "activitySpacesPerQuery": "Activiteitsruimtes per query",
+      "cacheTtlHours": "Cache-TTL (uren)",
+      "gdCacheTtlHours": "GD-cache-TTL (uren)",
+      "aiQueryEnabled": "AI-query ingeschakeld",
+      "querySessionTtlMinutes": "Query-sessie-TTL (min)",
+      "maxQueryLength": "Max. querylengte",
+      "maxFeedbackLength": "Max. feedbacklengte"
+    }
   }
 }
