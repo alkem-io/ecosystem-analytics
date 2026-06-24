@@ -17,18 +17,29 @@ hubsRouter.get('/', async (req: Request, res: Response) => {
   try {
     const config = loadConfig();
     const hubs = await fetchInnovationHubs(req.auth!);
-    const defaultNameId = config.vng.defaultHubNameId || null;
+    const configuredDefault = config.vng.defaultHubNameId || null;
 
     // The configured default hub may NOT be store-listed (so absent from the list
     // above). Resolve it directly by nameID and prepend it so it is always
-    // selectable + preselectable on first load.
-    if (defaultNameId && !hubs.some((h) => h.nameId === defaultNameId)) {
-      const def = await resolveHubByNameId(req.auth!, defaultNameId).catch(() => null);
-      if (def) hubs.unshift(def);
+    // selectable + preselectable on first load. If it can't be resolved (bad/absent
+    // nameID), DON'T preselect anything — the user still gets the full hub list.
+    let defaultHubNameId = configuredDefault;
+    if (configuredDefault && !hubs.some((h) => h.nameId === configuredDefault)) {
+      const def = await resolveHubByNameId(req.auth!, configuredDefault).catch(() => null);
+      if (def) {
+        hubs.unshift(def);
+      } else {
+        logger.warn(
+          `Configured default innovation hub '${configuredDefault}' is not loadable — ` +
+            `offering the full hub list with no preselection`,
+          { context: 'Hubs' },
+        );
+        defaultHubNameId = null;
+      }
     }
 
     res.json({
-      defaultHubNameId: defaultNameId,
+      defaultHubNameId,
       hubs: hubs.map((h) => ({
         nameId: h.nameId,
         displayName: h.displayName,
@@ -45,12 +56,25 @@ hubsRouter.get('/', async (req: Request, res: Response) => {
 // GET /api/hubs/:nameId/spaces — resolve a hub's listed spaces (FR-009).
 hubsRouter.get('/:nameId/spaces', async (req: Request, res: Response) => {
   try {
-    // Resolve directly by nameID so non-store-listed hubs (e.g. the VNG hubs) work.
-    const hub = await resolveHubByNameId(req.auth!, String(req.params.nameId));
+    const nameId = String(req.params.nameId);
+    // Prefer the store-listed hubs query — it reliably returns each hub's
+    // `spaceListFilter` (the dropdown's spaceCount comes from it). Only fall back to
+    // by-nameID lookup for hubs that aren't store-listed (e.g. some VNG hubs), where
+    // the lookup path is the only way to reach them.
+    const listed = await fetchInnovationHubs(req.auth!);
+    const hub = listed.find((h) => h.nameId === nameId) ?? (await resolveHubByNameId(req.auth!, nameId));
     if (!hub) {
+      logger.warn(`Hub '${req.params.nameId}' not found (nameID unresolvable)`, { context: 'Hubs' });
       res.status(404).json({ error: 'HUB_NOT_FOUND', message: 'Innovation hub not found' });
       return;
     }
+    logger.info(
+      `Hub '${hub.nameId}' resolved → ${hub.spaces.length} space(s) in spaceListFilter` +
+        (hub.spaces.length === 0
+          ? ' (empty — the hub may be a VISIBILITY-type hub, whose spaces come from spaceVisibilityFilter, not an explicit list)'
+          : ''),
+      { context: 'Hubs' },
+    );
     res.json({ nameId: hub.nameId, spaces: hub.spaces });
   } catch (err) {
     if (isAlkemioAuthError(err)) return invalidateAndReject(req, res);

@@ -26,6 +26,7 @@ export function SelectedSpacesPanel() {
     clearSelection,
     addSpace,
     resolvingHub,
+    refreshNonce,
   } = useSelectionContext();
 
   // Local checkbox selection-for-deletion (NOT the graph selection).
@@ -95,7 +96,7 @@ export function SelectedSpacesPanel() {
     <aside className="flex h-full w-72 shrink-0 flex-col gap-4 border-r border-border bg-card p-4">
       <h2 className="text-sm font-semibold text-foreground">{t('selection.title')}</h2>
 
-      <SpacePicker excludeNameIds={effectiveSpaceIds} onAdd={addSpace} />
+      <SpacePicker excludeNameIds={effectiveSpaceIds} onAdd={addSpace} refreshNonce={refreshNonce} />
 
       {selectedSpaces.length > 0 && (
         <div className="flex items-center justify-between gap-2">

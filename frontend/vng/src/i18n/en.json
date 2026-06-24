@@ -161,5 +161,14 @@
     "offMapSpacesL0": "Spaces (L0) with no location ({{count}})",
     "offMapSpacesL1": "Subspaces (L1) with no location ({{count}})",
     "offMapSpacesL2": "Subspaces (L2) with no location ({{count}})"
+  },
+  "export": {
+    "downloadXlsx": "Download XLSX",
+    "sheetData": "Data",
+    "sheetCharts": "Charts",
+    "category": "Category",
+    "count": "Count",
+    "initiatives": "Initiatives",
+    "bucket": "Number of gemeentes"
   }
 }

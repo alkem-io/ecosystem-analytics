@@ -8,13 +8,17 @@ interface SpacePickerProps {
   /** nameIds already in the effective set, hidden from the add list. */
   excludeNameIds: string[];
   onAdd: (space: { nameId: string; displayName: string }) => void;
+  /** Bumped by the global Refresh — re-fetches the list bypassing the server cache. */
+  refreshNonce?: number;
 }
 
 /**
  * Searchable picker to add individual spaces on top of the hub set (US2, FR-011).
- * Sourced from the existing GET /api/spaces (authorised L0 spaces only).
+ * Sourced from the existing GET /api/spaces (authorised L0 spaces only). The list is
+ * server-cached per user, so a Refresh re-fetches it with `?refresh=true` to pick up
+ * newly-joined spaces.
  */
-export function SpacePicker({ excludeNameIds, onAdd }: SpacePickerProps) {
+export function SpacePicker({ excludeNameIds, onAdd, refreshNonce = 0 }: SpacePickerProps) {
   const { t } = useTranslation();
   const [spaces, setSpaces] = useState<SpaceSelectionItem[]>([]);
   const [loading, setLoading] = useState(false);
@@ -22,13 +26,17 @@ export function SpacePicker({ excludeNameIds, onAdd }: SpacePickerProps) {
   const [query, setQuery] = useState('');
   const [open, setOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
+  // Track which refresh tokens have forced a cache bypass.
+  const forcedRef = useRef(0);
 
   useEffect(() => {
     let cancelled = false;
+    const bypass = refreshNonce > forcedRef.current;
+    if (bypass) forcedRef.current = refreshNonce;
     setLoading(true);
     setError(null);
     api
-      .get<SpaceSelectionItem[]>('/api/spaces')
+      .get<SpaceSelectionItem[]>(`/api/spaces${bypass ? '?refresh=true' : ''}`)
       .then((res) => {
         if (!cancelled) setSpaces(res ?? []);
       })
@@ -41,7 +49,7 @@ export function SpacePicker({ excludeNameIds, onAdd }: SpacePickerProps) {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [refreshNonce]);
 
   // Close the result list on outside click.
   useEffect(() => {
