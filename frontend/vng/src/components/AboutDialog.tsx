@@ -48,7 +48,10 @@ export function AboutDialog({ onClose }: { onClose: () => void }) {
 
   const settingsRows: { label: string; value: string | number }[] = meta
     ? [
-        { label: t('about.settings.maxSpacesPerQuery'), value: meta.settings.maxSpacesPerQuery },
+        {
+          label: t('about.settings.maxSpacesPerRequest'),
+          value: meta.settings.maxSpacesPerRequest,
+        },
         {
           label: t('about.settings.activitySpacesPerQuery'),
           value: meta.settings.activitySpacesPerQuery,

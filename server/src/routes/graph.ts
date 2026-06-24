@@ -25,10 +25,10 @@ graphRouter.post('/generate', async (req: Request, res: Response) => {
       return;
     }
 
-    if (body.spaceIds.length > config.maxSpacesPerQuery) {
+    if (body.spaceIds.length > config.maxSpacesPerRequest) {
       res.status(400).json({
         error: 'TOO_MANY_SPACES',
-        message: `Maximum ${config.maxSpacesPerQuery} spaces per query`,
+        message: `Maximum ${config.maxSpacesPerRequest} spaces per request`,
       });
       return;
     }
@@ -57,10 +57,10 @@ graphRouter.post('/expand', async (req: Request, res: Response) => {
     }
 
     const allSpaceIds = [...(currentSpaceIds || []), spaceId];
-    if (allSpaceIds.length > config.maxSpacesPerQuery) {
+    if (allSpaceIds.length > config.maxSpacesPerRequest) {
       res.status(400).json({
         error: 'TOO_MANY_SPACES',
-        message: `Maximum ${config.maxSpacesPerQuery} spaces per query`,
+        message: `Maximum ${config.maxSpacesPerRequest} spaces per request`,
       });
       return;
     }

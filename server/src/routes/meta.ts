@@ -13,7 +13,7 @@ metaRouter.get('/', (_req: Request, res: Response) => {
   const body: MetaResponse = {
     build: getBuildInfo(),
     settings: {
-      maxSpacesPerQuery: config.maxSpacesPerQuery,
+      maxSpacesPerRequest: config.maxSpacesPerRequest,
       activitySpacesPerQuery: config.activitySpacesPerQuery,
       cacheTtlHours: config.cacheTtlHours,
       gdCacheTtlHours: config.vng.gdCacheTtlHours,

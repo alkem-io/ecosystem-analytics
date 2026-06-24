@@ -32,10 +32,10 @@ vngRouter.post('/dashboard', async (req: Request, res: Response) => {
       res.status(400).json({ error: 'INVALID_REQUEST', message: 'spaceIds is required' });
       return;
     }
-    if (body.spaceIds.length > config.maxSpacesPerQuery) {
+    if (body.spaceIds.length > config.maxSpacesPerRequest) {
       res.status(400).json({
         error: 'TOO_MANY_SPACES',
-        message: `Maximum ${config.maxSpacesPerQuery} spaces per query`,
+        message: `Maximum ${config.maxSpacesPerRequest} spaces per request`,
       });
       return;
     }

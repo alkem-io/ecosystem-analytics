@@ -50,7 +50,11 @@ cache:
   ttl_hours: ${CACHE_TTL_HOURS}:24
 
 limits:
-  max_spaces_per_query: ${MAX_SPACES_PER_QUERY}:100
+  # Generous safety cap on how many spaces one request may select. Large sets are
+  # loaded by chunking (not rejected), so this only guards against runaway requests.
+  # NOTE: intentionally a NEW env var (not MAX_SPACES_PER_QUERY) so stale deployment
+  # overrides of the old name no longer constrain selection.
+  max_spaces_per_request: ${MAX_SPACES_PER_REQUEST}:100
   # Alkemio caps activityFeedGrouped at 10 spaces per query; the activity feed is
   # fetched in chunks of this size so more than 10 spaces can be loaded at once.
   activity_spaces_per_query: ${ACTIVITY_SPACES_PER_QUERY}:10

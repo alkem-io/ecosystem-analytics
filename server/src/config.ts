@@ -82,7 +82,8 @@ export interface ServerConfig {
   /** Second port serving the VNG SPA + the same /api (shared session). Defaults to port+1. */
   vngPort: number;
   logging: LoggingConfig;
-  maxSpacesPerQuery: number;
+  /** Generous safety cap on spaces a single request may select; large sets are loaded by chunking, not rejected. */
+  maxSpacesPerRequest: number;
   /** Max spaces Alkemio's activityFeedGrouped accepts per query; activity is fetched in chunks of this size. */
   activitySpacesPerQuery: number;
   cacheTtlHours: number;
@@ -157,7 +158,7 @@ export function loadConfig(): ServerConfig {
     server: { port: number };
     logging: { level: string; console_enabled: boolean; json: boolean };
     cache: { ttl_hours: number };
-    limits: { max_spaces_per_query: number; activity_spaces_per_query: number };
+    limits: { max_spaces_per_request: number; activity_spaces_per_query: number };
     openai: { api_key: string; base_url: string; model: string; max_tokens: number; temperature: number };
     query: { session_ttl_minutes: number; max_query_length: number; max_feedback_length: number };
     features: { ai_query_enabled: boolean };
@@ -203,7 +204,7 @@ export function loadConfig(): ServerConfig {
       consoleEnabled: yml.logging.console_enabled,
       json: yml.logging.json,
     },
-    maxSpacesPerQuery: yml.limits.max_spaces_per_query,
+    maxSpacesPerRequest: yml.limits.max_spaces_per_request,
     activitySpacesPerQuery: yml.limits.activity_spaces_per_query,
     cacheTtlHours: yml.cache.ttl_hours,
     openai: {

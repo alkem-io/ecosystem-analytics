@@ -122,7 +122,7 @@ export interface MetaResponse {
   };
   /** Behaviour-tuning config values (the knobs, not connection details). */
   settings: {
-    maxSpacesPerQuery: number;
+    maxSpacesPerRequest: number;
     activitySpacesPerQuery: number;
     cacheTtlHours: number;
     gdCacheTtlHours: number;

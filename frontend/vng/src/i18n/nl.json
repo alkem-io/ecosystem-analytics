@@ -184,7 +184,7 @@
     "on": "Aan",
     "off": "Uit",
     "settings": {
-      "maxSpacesPerQuery": "Max. ruimtes per query",
+      "maxSpacesPerRequest": "Max. ruimtes per verzoek",
       "activitySpacesPerQuery": "Activiteitsruimtes per query",
       "cacheTtlHours": "Cache-TTL (uren)",
       "gdCacheTtlHours": "GD-cache-TTL (uren)",
