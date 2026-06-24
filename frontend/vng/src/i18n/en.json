@@ -170,5 +170,28 @@
     "count": "Count",
     "initiatives": "Initiatives",
     "bucket": "Number of gemeentes"
+  },
+  "about": {
+    "title": "About",
+    "close": "Close",
+    "loading": "Loading…",
+    "build": "Build",
+    "appVersion": "App version",
+    "spaBuildTime": "Frontend build",
+    "serverBuildTime": "Server build",
+    "commit": "Commit",
+    "settingsTitle": "Settings",
+    "on": "On",
+    "off": "Off",
+    "settings": {
+      "maxSpacesPerQuery": "Max spaces per query",
+      "activitySpacesPerQuery": "Activity spaces per query",
+      "cacheTtlHours": "Cache TTL (hours)",
+      "gdCacheTtlHours": "GD cache TTL (hours)",
+      "aiQueryEnabled": "AI query enabled",
+      "querySessionTtlMinutes": "Query session TTL (min)",
+      "maxQueryLength": "Max query length",
+      "maxFeedbackLength": "Max feedback length"
+    }
   }
 }

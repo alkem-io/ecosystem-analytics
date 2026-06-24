@@ -9,6 +9,7 @@ import { imageProxyRouter } from './routes/image-proxy.js';
 import { queryRouter } from './routes/query.js';
 import { hubsRouter } from './routes/hubs.js';
 import { vngRouter } from './routes/vng.js';
+import { metaRouter } from './routes/meta.js';
 import { loadConfig } from './config.js';
 import { getLogger } from './logging/logger.js';
 import type { ApiError } from './types/api.js';
@@ -56,6 +57,7 @@ export function createApp(staticDirRelative = '../frontend/dist') {
   app.use('/api/query', queryRouter);
   app.use('/api/hubs', hubsRouter);
   app.use('/api/vng', vngRouter);
+  app.use('/api/meta', metaRouter);
 
   // Feature flags + environment info (public, no auth required).
   // `alkemioServerUrl` lets the login screens display which environment they
