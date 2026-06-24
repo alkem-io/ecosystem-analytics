@@ -184,7 +184,7 @@
     "on": "On",
     "off": "Off",
     "settings": {
-      "maxSpacesPerQuery": "Max spaces per query",
+      "maxSpacesPerRequest": "Max spaces per request",
       "activitySpacesPerQuery": "Activity spaces per query",
       "cacheTtlHours": "Cache TTL (hours)",
       "gdCacheTtlHours": "GD cache TTL (hours)",
