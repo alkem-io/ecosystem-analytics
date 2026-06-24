@@ -1,4 +1,5 @@
 import { getLogger } from '../logging/logger.js';
+import { loadConfig } from '../config.js';
 import { createAlkemioSdk } from '../graphql/client.js';
 import type { AuthContext } from '../auth/middleware.js';
 import { fetchSpaceByName, fetchSubspaceDetails, type RawSpace } from './space-service.js';
@@ -127,31 +128,17 @@ export async function acquireSpaces(
       return organizations;
     })(),
 
-    // Fetch contribution activity data
+    // Fetch contribution activity data (chunked — Alkemio caps this query at 10 spaces)
     (async () => {
       if (allSpaceIds.length === 0) return undefined;
-      const { data } = await sdk.ActivityFeedGrouped({
-        args: {
-          spaceIds: allSpaceIds,
-          limit: 5000,
-          types: CONTRIBUTION_EVENT_TYPES as any,
-        },
-      });
-      return data.activityFeedGrouped as RawActivityEntry[];
+      return fetchActivityFeedChunked(sdk, allSpaceIds, CONTRIBUTION_EVENT_TYPES);
     })(),
 
     // Fetch MEMBER_JOINED events separately with its own limit
     // so join events aren't crowded out by contribution events
     (async () => {
       if (allSpaceIds.length === 0) return undefined;
-      const { data } = await sdk.ActivityFeedGrouped({
-        args: {
-          spaceIds: allSpaceIds,
-          limit: 5000,
-          types: ['MEMBER_JOINED'] as any,
-        },
-      });
-      return data.activityFeedGrouped as RawActivityEntry[];
+      return fetchActivityFeedChunked(sdk, allSpaceIds, ['MEMBER_JOINED']);
     })(),
   ]);
 
@@ -193,6 +180,32 @@ export async function acquireSpaces(
   }
 
   return { spacesL0, users, organizations, activityEntries, errors };
+}
+
+/**
+ * Alkemio caps `activityFeedGrouped` at `limits.activity_spaces_per_query` spaces
+ * per query. Split the space IDs into chunks of that size, fetch each chunk in
+ * parallel, and merge — so the activity feed works for arbitrarily many spaces.
+ */
+async function fetchActivityFeedChunked(
+  sdk: Sdk,
+  spaceIds: string[],
+  types: string[],
+): Promise<RawActivityEntry[]> {
+  const chunkSize = Math.max(1, loadConfig().activitySpacesPerQuery);
+  const chunks: string[][] = [];
+  for (let i = 0; i < spaceIds.length; i += chunkSize) {
+    chunks.push(spaceIds.slice(i, i + chunkSize));
+  }
+  const results = await Promise.all(
+    chunks.map(async (chunk) => {
+      const { data } = await sdk.ActivityFeedGrouped({
+        args: { spaceIds: chunk, limit: 5000, types: types as any },
+      });
+      return data.activityFeedGrouped as RawActivityEntry[];
+    }),
+  );
+  return results.flat();
 }
 
 /**
