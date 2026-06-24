@@ -161,5 +161,14 @@
     "offMapSpacesL0": "Ruimtes (L0) zonder locatie ({{count}})",
     "offMapSpacesL1": "Subruimtes (L1) zonder locatie ({{count}})",
     "offMapSpacesL2": "Subruimtes (L2) zonder locatie ({{count}})"
+  },
+  "export": {
+    "downloadXlsx": "Download XLSX",
+    "sheetData": "Gegevens",
+    "sheetCharts": "Grafieken",
+    "category": "Categorie",
+    "count": "Aantal",
+    "initiatives": "Initiatieven",
+    "bucket": "Aantal gemeenten"
   }
 }
