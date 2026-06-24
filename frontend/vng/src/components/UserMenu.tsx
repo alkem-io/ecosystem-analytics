@@ -1,9 +1,10 @@
 import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import * as Avatar from '@radix-ui/react-avatar';
-import { LogOut } from 'lucide-react';
+import { Info, LogOut } from 'lucide-react';
 import { cn, fetchMe, logout, proxyImageUrl, type MeResponse } from '@ea/shared';
 import { LanguageSwitcher } from './LanguageSwitcher.js';
+import { AboutDialog } from './AboutDialog.js';
 
 /** Derive up-to-two-letter initials from a display name (avatar fallback). */
 function initials(name: string): string {
@@ -26,6 +27,7 @@ export function UserMenu() {
   const { t } = useTranslation();
   const [me, setMe] = useState<MeResponse | null>(null);
   const [open, setOpen] = useState(false);
+  const [aboutOpen, setAboutOpen] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -131,6 +133,24 @@ export function UserMenu() {
             role="menuitem"
             onClick={() => {
               setOpen(false);
+              setAboutOpen(true);
+            }}
+            className={cn(
+              'flex w-full items-center gap-2 px-4 py-2.5 text-left text-sm font-medium text-foreground transition-colors',
+              'hover:bg-muted focus:bg-muted focus:outline-none',
+            )}
+          >
+            <Info className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
+            {t('about.title')}
+          </button>
+
+          <div className="h-px bg-border" role="separator" />
+
+          <button
+            type="button"
+            role="menuitem"
+            onClick={() => {
+              setOpen(false);
               void logout();
             }}
             className={cn(
@@ -143,6 +163,8 @@ export function UserMenu() {
           </button>
         </div>
       )}
+
+      {aboutOpen && <AboutDialog onClose={() => setAboutOpen(false)} />}
     </div>
   );
 }

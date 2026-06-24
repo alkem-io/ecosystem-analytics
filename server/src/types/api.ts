@@ -108,3 +108,27 @@ export interface ApiError {
   error: string;
   message: string;
 }
+
+/**
+ * Build provenance + behaviour-tuning settings for the About dialog.
+ * Public (no auth); contains no connection/OIDC/secret values.
+ */
+export interface MetaResponse {
+  build: {
+    /** ISO-8601 image build timestamp, or null if unknown (local dev). */
+    time: string | null;
+    /** Short git commit the image was built from, or null if unknown. */
+    commit: string | null;
+  };
+  /** Behaviour-tuning config values (the knobs, not connection details). */
+  settings: {
+    maxSpacesPerQuery: number;
+    activitySpacesPerQuery: number;
+    cacheTtlHours: number;
+    gdCacheTtlHours: number;
+    aiQueryEnabled: boolean;
+    querySessionTtlMinutes: number;
+    maxQueryLength: number;
+    maxFeedbackLength: number;
+  };
+}

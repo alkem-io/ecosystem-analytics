@@ -76,6 +76,14 @@ COPY --from=build-frontend /app/frontend/vng/dist ./frontend-vng/dist
 RUN pnpm install --frozen-lockfile --prod
 
 ENV NODE_ENV=production
+
+# Build provenance shown in the in-app About dialog (deployment verification).
+# BUILD_TIME is captured automatically at image build; BUILD_COMMIT is passed by
+# CI (`--build-arg BUILD_COMMIT=<sha>`), defaulting to "unknown" for local builds.
+ARG BUILD_COMMIT=unknown
+ENV BUILD_COMMIT=${BUILD_COMMIT}
+RUN date -u +"%Y-%m-%dT%H:%M:%SZ" > /app/build-time.txt
+
 # Explorer + /api on 4000; the VNG SPA + the same /api on 4001 (vngPort = port+1).
 # A single container backs both subdomains (e.g. analytics.* and vih-analytics.*),
 # sharing the `ea_session` cookie. Override VNG_FRONTEND_PORT to change the second port.
