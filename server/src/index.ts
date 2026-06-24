@@ -9,6 +9,11 @@ const logger = createLogger(config.logging);
 
 logger.info('Starting Ecosystem Analytics server', { context: 'Bootstrap' });
 logger.info(`Alkemio endpoint: ${config.alkemioGraphqlEndpoint}`, { context: 'Bootstrap' });
+logger.info(
+  `VNG default innovation hub nameID: "${config.vng.defaultHubNameId || '(none)'}"` +
+    ` · GemeenteDelers space nameID: "${config.vng.gemeentedelersSpaceNameId}"`,
+  { context: 'Bootstrap' },
+);
 
 // Two apps sharing the same /api routes + SQLite session/cache store:
 //  - the Explorer SPA on `config.port`

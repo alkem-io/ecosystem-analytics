@@ -1,10 +1,11 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Loader2 } from 'lucide-react';
+import { ChevronDown, ChevronRight, Loader2 } from 'lucide-react';
 import { ForceGraph, HoverCard, isWithinRegion, proxyImageUrl } from '@ea/shared';
 import type { GeoPermissibleObjects } from 'd3-geo';
 import type { GraphDataset, GraphNode } from '@server/types/graph.js';
 import { useVngGraph } from '../hooks/useVngGraph.js';
+import { useGraphProgress } from '../hooks/useGraphProgress.js';
 import { MapToggle } from '../components/MapToggle.js';
 import { GraphMetricsBar } from '../components/GraphMetricsBar.js';
 import { InitiativeGemeentesPanel } from '../components/InitiativeGemeentesPanel.js';
@@ -139,6 +140,8 @@ export function GraphTab({
     includeInitiatives,
     refreshNonce,
   });
+  const progress = useGraphProgress(loading);
+  const [offMapMinimized, setOffMapMinimized] = useState(false);
 
   // ── T051 — hide gemeente organisation nodes (and any edges touching them) ──
   // when the "show gemeentes" toggle is off. Filtering client-side keeps the
@@ -326,14 +329,39 @@ export function GraphTab({
         {(loading || isEmpty || hasNoNodes || error) && (
           <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
             {loading ? (
-              <div className="flex flex-col items-center gap-3 rounded-xl border border-border bg-background/95 px-8 py-6 shadow-md">
+              <div className="flex w-72 flex-col items-center gap-3 rounded-xl border border-border bg-background/95 px-8 py-6 shadow-md">
                 <Loader2 className="h-7 w-7 animate-spin text-primary" aria-hidden />
                 <span className="text-sm font-medium text-foreground">
-                  {t('states.loadingGraph', { defaultValue: 'Initiatieven laden…' })}
+                  {progress?.step === 'transforming'
+                    ? t('states.graphTransforming', { defaultValue: 'Netwerk opbouwen…' })
+                    : t('states.loadingGraph', { defaultValue: 'Initiatieven laden…' })}
                 </span>
-                <span className="text-xs text-muted-foreground">
-                  {t('states.loadingGraphHint', { defaultValue: 'Dit kan even duren' })}
-                </span>
+                {progress && progress.spacesTotal > 0 ? (
+                  <div className="w-full">
+                    <div className="mb-1 flex justify-between text-xs text-muted-foreground">
+                      <span>
+                        {progress.step === 'transforming'
+                          ? t('states.graphBuilding', { defaultValue: 'Netwerk' })
+                          : t('states.graphAcquiring', { defaultValue: 'Initiatieven ophalen' })}
+                      </span>
+                      <span>
+                        {progress.spacesCompleted}/{progress.spacesTotal}
+                      </span>
+                    </div>
+                    <div className="h-1.5 w-full overflow-hidden rounded-full bg-muted">
+                      <div
+                        className="h-full rounded-full bg-primary transition-all duration-300"
+                        style={{
+                          width: `${Math.round((progress.spacesCompleted / Math.max(progress.spacesTotal, 1)) * 100)}%`,
+                        }}
+                      />
+                    </div>
+                  </div>
+                ) : (
+                  <span className="text-xs text-muted-foreground">
+                    {t('states.loadingGraphHint', { defaultValue: 'Dit kan even duren' })}
+                  </span>
+                )}
               </div>
             ) : (
               <span className="rounded-md bg-background/80 px-4 py-2 text-sm text-muted-foreground shadow-sm">
@@ -406,9 +434,20 @@ export function GraphTab({
             placed on it (no valid location or outside the Netherlands region). */}
         {showMap && offMapGroups.total > 0 && (
           <div className="absolute inset-x-4 bottom-4 z-10 rounded-md border border-border bg-background/95 p-3 shadow-md">
-            <p className="text-xs font-semibold text-foreground">
+            <button
+              type="button"
+              onClick={() => setOffMapMinimized((v) => !v)}
+              className="flex w-full items-center gap-1 text-xs font-semibold text-foreground"
+              aria-expanded={!offMapMinimized}
+            >
+              {offMapMinimized ? (
+                <ChevronRight className="h-3.5 w-3.5 shrink-0" aria-hidden />
+              ) : (
+                <ChevronDown className="h-3.5 w-3.5 shrink-0" aria-hidden />
+              )}
               {t('graph.offMapTitle', { count: offMapGroups.total })}
-            </p>
+            </button>
+            {!offMapMinimized && (
             <div className="mt-1 max-h-40 space-y-2 overflow-auto">
               {offMapGroups.groups.map((group) => (
                 <div key={group.key}>
@@ -443,6 +482,7 @@ export function GraphTab({
                 </div>
               ))}
             </div>
+            )}
           </div>
         )}
       </div>

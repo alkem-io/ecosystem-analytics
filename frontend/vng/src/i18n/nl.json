@@ -147,7 +147,10 @@
     "loadingHubSpaces": "Initiatieven uit hub laden…",
     "loadingSpaces": "Initiatieven laden…",
     "loadingGraph": "Initiatieven laden…",
-    "loadingGraphHint": "Dit kan even duren"
+    "loadingGraphHint": "Dit kan even duren",
+    "graphTransforming": "Netwerk opbouwen…",
+    "graphAcquiring": "Initiatieven ophalen",
+    "graphBuilding": "Netwerk"
   },
   "graph": {
     "offMapTitle": "{{count}} knooppunten worden niet op de kaart weergegeven",
@@ -158,5 +161,14 @@
     "offMapSpacesL0": "Ruimtes (L0) zonder locatie ({{count}})",
     "offMapSpacesL1": "Subruimtes (L1) zonder locatie ({{count}})",
     "offMapSpacesL2": "Subruimtes (L2) zonder locatie ({{count}})"
+  },
+  "export": {
+    "downloadXlsx": "Download XLSX",
+    "sheetData": "Gegevens",
+    "sheetCharts": "Grafieken",
+    "category": "Categorie",
+    "count": "Aantal",
+    "initiatives": "Initiatieven",
+    "bucket": "Aantal gemeenten"
   }
 }

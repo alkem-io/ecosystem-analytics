@@ -147,7 +147,10 @@
     "loadingHubSpaces": "Loading initiatives from hub…",
     "loadingSpaces": "Loading initiatives…",
     "loadingGraph": "Loading initiatives…",
-    "loadingGraphHint": "This can take a moment"
+    "loadingGraphHint": "This can take a moment",
+    "graphTransforming": "Building network…",
+    "graphAcquiring": "Fetching initiatives",
+    "graphBuilding": "Network"
   },
   "graph": {
     "offMapTitle": "{{count}} nodes not displaying on the map",
@@ -158,5 +161,14 @@
     "offMapSpacesL0": "Spaces (L0) with no location ({{count}})",
     "offMapSpacesL1": "Subspaces (L1) with no location ({{count}})",
     "offMapSpacesL2": "Subspaces (L2) with no location ({{count}})"
+  },
+  "export": {
+    "downloadXlsx": "Download XLSX",
+    "sheetData": "Data",
+    "sheetCharts": "Charts",
+    "category": "Category",
+    "count": "Count",
+    "initiatives": "Initiatives",
+    "bucket": "Number of gemeentes"
   }
 }

@@ -237,9 +237,11 @@ function parseVngConfig(raw?: {
     Object.fromEntries(Object.entries(m ?? {}).map(([k, v]) => [k.toLowerCase(), String(v)]));
 
   return {
-    defaultHubNameId: raw?.default_hub_nameid ? String(raw.default_hub_nameid) : '',
+    // Trim so stray whitespace in the env value (e.g. "vih-test  ") can't break the
+    // Alkemio nameID lookup.
+    defaultHubNameId: raw?.default_hub_nameid ? String(raw.default_hub_nameid).trim() : '',
     gemeentedelersSpaceNameId: raw?.gemeentedelers_space_nameid
-      ? String(raw.gemeentedelers_space_nameid)
+      ? String(raw.gemeentedelers_space_nameid).trim()
       : 'gemeentedelers',
     gdCacheTtlHours: Number(raw?.gd_cache_ttl_hours) || 168,
     tagCategoryMapping: {
