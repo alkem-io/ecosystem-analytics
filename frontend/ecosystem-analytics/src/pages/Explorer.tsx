@@ -18,7 +18,7 @@ import TopBar from '../components/panels/TopBar.js';
 import ControlPanel from '../components/panels/ControlPanel.js';
 import DetailsDrawer from '../components/panels/DetailsDrawer.js';
 import MetricsBar from '../components/panels/MetricsBar.js';
-import type { MapRegion } from '@ea/shared';
+import { type MapRegion, clearBrokenVisuals } from '@ea/shared';
 import HoverCard from '../components/graph/HoverCard.js';
 import QueryOverlay from '../components/query/QueryOverlay.js';
 import { Button } from '../components/ui/button.js';
@@ -146,6 +146,8 @@ export default function Explorer({ onLogout }: ExplorerProps) {
     // Re-fetch the space membership list (clears localStorage + bypasses the
     // server `__spaces__` cache via ?refresh=true) alongside the graph, so newly
     // joined spaces appear in the "Add Space" list.
+    // A fresh load should re-attempt images that previously failed.
+    clearBrokenVisuals();
     reloadSpaces();
     if (activeSpaceIds.length > 0) generate(activeSpaceIds, true);
   }, [activeSpaceIds, generate, reloadSpaces]);
@@ -154,6 +156,9 @@ export default function Explorer({ onLogout }: ExplorerProps) {
   const handleClearCache = useCallback(async () => {
     try {
       await api.delete('/api/graph/cache');
+      // The server cache is gone; forget client-side broken-image failures too so
+      // the re-fetched data gets a fresh chance to load its visuals.
+      clearBrokenVisuals();
       setCacheCleared(true);
       setTimeout(() => setCacheCleared(false), 2000);
       // Also refresh the space membership list — clearUserCache wipes the server

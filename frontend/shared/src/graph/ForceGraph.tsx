@@ -8,6 +8,7 @@ import { computeProximityGroups, type ProximityCluster } from './proximityCluste
 import { computePinnedNodeIds, computeMapBounds, isWithinRegion } from './mapBoundary.js';
 import type { MapRegion } from '../map/MapOverlay.js';
 import { proxyImageUrl } from '../lib/imageProxy.js';
+import { isImageFailed, markImageFailed } from '../lib/badImageCache.js';
 import styles from './ForceGraph.module.css';
 import './pulse.css';
 
@@ -1446,9 +1447,12 @@ export default function ForceGraph({
     // placeholder images (small files like the padlock icon) and skip them.
     const imgNodes = nodeSelection.filter((d) => !!nodeImageUrl(d.data));
 
-    // Non-banner images: render immediately
+    // Non-banner images: render immediately. Skip URLs already known to be dead this
+    // session (so the coloured circle shows instead of re-requesting them on every
+    // zoom/pan), and remember new failures.
     imgNodes
       .filter((d) => !(d.data.type.startsWith('SPACE_') && d.data.bannerUrl))
+      .filter((d) => !isImageFailed(proxyImageUrl(nodeImageUrl(d.data)) ?? nodeImageUrl(d.data)!))
       .append('image')
       .attr('href', (d) => proxyImageUrl(nodeImageUrl(d.data)) ?? nodeImageUrl(d.data)!)
       .attr('x', (d) => -effectiveRadius(d, isGeoMode, currentZoomScale))
@@ -1458,7 +1462,21 @@ export default function ForceGraph({
       .attr('clip-path', (d) => `url(#clip-avatar-${d.data.id})`)
       .attr('preserveAspectRatio', 'xMidYMid slice')
       .on('error', function () {
-        d3.select(this).remove();
+        const el = d3.select(this);
+        const node = el.datum() as
+          | { data?: { url?: string | null; displayName?: string | null; type?: string } }
+          | undefined;
+        markImageFailed(
+          el.attr('href'),
+          node?.data
+            ? {
+                entityUrl: node.data.url ?? null,
+                displayName: node.data.displayName ?? null,
+                entityType: node.data.type ?? null,
+              }
+            : undefined,
+        );
+        el.remove();
       });
 
     // Space banner images: pre-check to filter out Alkemio default placeholders.
@@ -1471,6 +1489,11 @@ export default function ForceGraph({
         const avatarFallback = d.data.avatarUrl ? (proxyImageUrl(d.data.avatarUrl) ?? d.data.avatarUrl) : null;
 
         const appendImage = (href: string) => {
+          // Known-dead this session → don't request it; fall through to the avatar.
+          if (isImageFailed(href)) {
+            if (avatarFallback && href !== avatarFallback) appendImage(avatarFallback);
+            return;
+          }
           const r = effectiveRadius(d, isGeoMode, currentZoomScale);
           const firstBadge = group.select('.visibility-badge-bg').node() as Node | null;
           const imgEl = document.createElementNS('http://www.w3.org/2000/svg', 'image');
@@ -1490,14 +1513,30 @@ export default function ForceGraph({
             .attr('preserveAspectRatio', 'xMidYMid slice')
             .on('error', function () {
               d3.select(this).remove();
-              // Try avatar as fallback on image load error
-              if (avatarFallback) appendImage(avatarFallback);
+              markImageFailed(href, {
+                entityUrl: d.data.url ?? null,
+                displayName: d.data.displayName ?? null,
+                entityType: d.data.type ?? null,
+              });
+              // Try avatar as fallback on image load error (unless it's the same dead URL)
+              if (avatarFallback && href !== avatarFallback) appendImage(avatarFallback);
             });
         };
+
+        // Skip the size-probe fetch for banners already known to be dead.
+        if (isImageFailed(bannerUrl)) {
+          if (avatarFallback) appendImage(avatarFallback);
+          return;
+        }
 
         fetch(bannerUrl)
           .then((res) => {
             if (!res.ok) {
+              markImageFailed(bannerUrl, {
+                entityUrl: d.data.url ?? null,
+                displayName: d.data.displayName ?? null,
+                entityType: d.data.type ?? null,
+              });
               if (avatarFallback) appendImage(avatarFallback);
               return;
             }
@@ -1511,6 +1550,11 @@ export default function ForceGraph({
             appendImage(bannerUrl);
           })
           .catch(() => {
+            markImageFailed(bannerUrl, {
+              entityUrl: d.data.url ?? null,
+              displayName: d.data.displayName ?? null,
+              entityType: d.data.type ?? null,
+            });
             if (avatarFallback) appendImage(avatarFallback);
           });
       });
