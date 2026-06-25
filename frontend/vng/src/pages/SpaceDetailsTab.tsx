@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import * as Select from '@radix-ui/react-select';
 import { Check, ChevronDown, ChevronRight } from 'lucide-react';
-import { cn, proxyImageUrl } from '@ea/shared';
+import { cn, proxyImageUrl, SafeImage } from '@ea/shared';
 import type { GraphNode } from '@server/types/graph.js';
 import { useSelectionContext } from '../hooks/SelectionContext.js';
 import { useVngGraph } from '../hooks/useVngGraph.js';
@@ -209,17 +209,16 @@ export function SpaceDetailsTab({ openSpaceId, openSpaceSeq }: SpaceDetailsTabPr
                         className="flex flex-col items-center gap-1.5 rounded-lg border border-border bg-card p-2 text-center"
                         title={g.displayName}
                       >
-                        {avatar ? (
-                          <img
-                            src={avatar}
-                            alt=""
-                            className="h-12 w-12 rounded-full border border-border object-cover"
-                          />
-                        ) : (
-                          <div className="flex h-12 w-12 items-center justify-center rounded-full bg-muted text-xs font-semibold text-muted-foreground">
-                            {initials(g.displayName)}
-                          </div>
-                        )}
+                        <SafeImage
+                          src={avatar}
+                          alt=""
+                          className="h-12 w-12 rounded-full border border-border object-cover"
+                          fallback={
+                            <div className="flex h-12 w-12 items-center justify-center rounded-full bg-muted text-xs font-semibold text-muted-foreground">
+                              {initials(g.displayName)}
+                            </div>
+                          }
+                        />
                         <span className="line-clamp-2 text-[11px] font-medium leading-tight text-foreground">
                           {g.displayName.replace(/^gemeente\s+/i, '')}
                         </span>

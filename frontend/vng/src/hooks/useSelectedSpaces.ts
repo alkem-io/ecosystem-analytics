@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { clearBrokenVisuals } from '@ea/shared';
 import { useHubs, type HubSummary, type HubSpace } from './useHubs.js';
 
 /** A space in the effective selected set, carrying its provenance (FR-013). */
@@ -261,7 +262,11 @@ export function useSelectedSpaces(): UseSelectedSpacesResult {
     }));
   }, []);
 
-  const refresh = useCallback(() => setRefreshNonce((n) => n + 1), []);
+  const refresh = useCallback(() => {
+    // The cache-bypassing reload should also re-attempt previously-failed visuals.
+    clearBrokenVisuals();
+    setRefreshNonce((n) => n + 1);
+  }, []);
 
   const setShowGemeentes = useCallback((value: boolean) => {
     setState((s) => ({ ...s, showGemeentes: value }));

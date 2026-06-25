@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ChevronDown, ChevronRight, Loader2 } from 'lucide-react';
-import { ForceGraph, HoverCard, isWithinRegion, proxyImageUrl } from '@ea/shared';
+import { ForceGraph, HoverCard, isWithinRegion, proxyImageUrl, SafeImage } from '@ea/shared';
 import type { GeoPermissibleObjects } from 'd3-geo';
 import type { GraphDataset, GraphNode } from '@server/types/graph.js';
 import { useVngGraph } from '../hooks/useVngGraph.js';
@@ -463,17 +463,16 @@ export function GraphTab({
                           className="flex items-center gap-1.5 pl-2 text-xs text-muted-foreground"
                           title={node.displayName}
                         >
-                          {avatar ? (
-                            <img
-                              src={avatar}
-                              alt=""
-                              className="h-4 w-4 shrink-0 rounded-full border border-border object-cover"
-                            />
-                          ) : (
-                            <span className="flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-muted text-[8px] font-semibold text-muted-foreground">
-                              {(node.displayName || '?').charAt(0).toUpperCase()}
-                            </span>
-                          )}
+                          <SafeImage
+                            src={avatar}
+                            alt=""
+                            className="h-4 w-4 shrink-0 rounded-full border border-border object-cover"
+                            fallback={
+                              <span className="flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-muted text-[8px] font-semibold text-muted-foreground">
+                                {(node.displayName || '?').charAt(0).toUpperCase()}
+                              </span>
+                            }
+                          />
                           <span className="truncate">{node.displayName || t('graph.offMapNode')}</span>
                         </li>
                       );
