@@ -1,4 +1,5 @@
 import { useState, type CSSProperties } from 'react';
+import { SafeImage } from '@ea/shared';
 import type { MatchedEntity } from '../../types/query.js';
 import { User, Home, Building2, MapPin, ExternalLink } from 'lucide-react';
 
@@ -59,15 +60,15 @@ export default function EntityResult({ entity }: Props) {
     >
       <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12 }}>
         <div style={iconBox}>
-          {entity.avatarUrl ? (
-            <img
-              src={entity.avatarUrl}
-              alt=""
-              style={{ width: 36, height: 36, objectFit: 'cover', display: 'block' }}
-            />
-          ) : (
-            <Icon style={{ width: 16, height: 16 }} />
-          )}
+          <SafeImage
+            src={entity.avatarUrl}
+            alt=""
+            style={{ width: 36, height: 36, objectFit: 'cover', display: 'block' }}
+            entityUrl={entity.url}
+            entityName={entity.displayName}
+            entityType={entity.entityType}
+            fallback={<Icon style={{ width: 16, height: 16 }} />}
+          />
         </div>
         <div style={{ minWidth: 0, flex: 1 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>

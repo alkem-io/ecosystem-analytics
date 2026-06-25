@@ -466,6 +466,9 @@ export function GraphTab({
                           <SafeImage
                             src={avatar}
                             alt=""
+                            entityUrl={node.url}
+                            entityName={node.displayName}
+                            entityType={node.type}
                             className="h-4 w-4 shrink-0 rounded-full border border-border object-cover"
                             fallback={
                               <span className="flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-muted text-[8px] font-semibold text-muted-foreground">
