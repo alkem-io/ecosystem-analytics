@@ -42,6 +42,9 @@ export default function HoverCard({ node, dataset, x, y }: Props) {
       <SafeImage
         src={avatarSrc}
         alt=""
+        entityUrl={node.url}
+        entityName={node.displayName}
+        entityType={node.type}
         className={styles.avatar}
         fallback={<div className={styles.avatarPlaceholder}>{initial}</div>}
       />

@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo } from 'react';
 import ReactMarkdown from 'react-markdown';
 import type { GraphNode, GraphDataset, ActivityPeriod } from '@server/types/graph.js';
 import type { SpaceSelectionItem } from '@server/types/api.js';
+import { SafeImage } from '@ea/shared';
 import { api } from '../../services/api.js';
 import { getToken } from '../../services/auth.js';
 import styles from './DetailsDrawer.module.css';
@@ -125,14 +126,28 @@ export default function DetailsDrawer({ node, dataset, onClose, onExpandSpace, o
       {/* Banner image — always shows L0 parent banner, full width */}
       {isSpace && proxiedBanner && (
         <div className={styles.bannerWrap}>
-          <img src={proxiedBanner} alt="" className={styles.banner} />
+          <SafeImage
+            src={proxiedBanner}
+            alt=""
+            className={styles.banner}
+            entityUrl={(l0Space ?? node).url}
+            entityName={(l0Space ?? node).displayName}
+            entityType={(l0Space ?? node).type}
+          />
         </div>
       )}
 
       <div className={styles.header}>
         <div className={styles.headerLeft}>
           {node.avatarUrl && (
-            <img src={proxyImageUrl(node.avatarUrl) ?? undefined} alt="" className={styles.avatar} />
+            <SafeImage
+              src={proxyImageUrl(node.avatarUrl)}
+              alt=""
+              className={styles.avatar}
+              entityUrl={node.url}
+              entityName={node.displayName}
+              entityType={node.type}
+            />
           )}
           <div>
             <h2 className={styles.name}>{node.displayName || 'Unknown'}</h2>
@@ -288,17 +303,19 @@ export default function DetailsDrawer({ node, dataset, onClose, onExpandSpace, o
             {sortedConnections.map((c) => (
               <div key={c.node.id} className={styles.connectionItem} onClick={() => onNodeSelect?.(c.node)} role="button" tabIndex={0} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') onNodeSelect?.(c.node); }}>
                 <div className={styles.connectionLeft}>
-                  {c.node.avatarUrl ? (
-                    <img
-                      src={proxyImageUrl(c.node.avatarUrl) ?? undefined}
-                      alt=""
-                      className={styles.connectionAvatar}
-                    />
-                  ) : (
-                    <div className={`${styles.connectionAvatar} ${styles.connectionAvatarPlaceholder}`}>
-                      {c.node.displayName?.charAt(0)?.toUpperCase() || '?'}
-                    </div>
-                  )}
+                  <SafeImage
+                    src={proxyImageUrl(c.node.avatarUrl)}
+                    alt=""
+                    className={styles.connectionAvatar}
+                    entityUrl={c.node.url}
+                    entityName={c.node.displayName}
+                    entityType={c.node.type}
+                    fallback={
+                      <div className={`${styles.connectionAvatar} ${styles.connectionAvatarPlaceholder}`}>
+                        {c.node.displayName?.charAt(0)?.toUpperCase() || '?'}
+                      </div>
+                    }
+                  />
                   <span className={styles.connectionName}>{c.node.displayName || 'Unknown'}</span>
                 </div>
                 <span className={`${styles.edgeBadge} ${styles[`edgeBadge_${c.edgeType.toLowerCase()}`] || ''}`}>

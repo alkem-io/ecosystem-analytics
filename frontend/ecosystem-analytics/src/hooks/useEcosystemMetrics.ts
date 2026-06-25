@@ -42,6 +42,8 @@ export interface TopConnector {
   type: 'USER' | 'ORGANIZATION';
   spaceCount: number;
   avatarUrl: string | null;
+  /** Alkemio entity URL, for broken-visual reporting. */
+  url: string | null;
 }
 
 export interface OrgDistribution {
@@ -348,6 +350,7 @@ function computeMetrics(dataset: GraphDataset, filters: EcosystemMetricsFilters)
       type: node.type as 'USER' | 'ORGANIZATION',
       spaceCount: spaces.size,
       avatarUrl: node.avatarUrl,
+      url: node.url,
     });
   }
   topConnectors.sort((a, b) => {

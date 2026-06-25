@@ -339,6 +339,7 @@ The user can turn on an **"include GemeenteDelers initiatives"** option on the g
 - **SC-014**: The experience loads in Dutch by default; switching to English (and back) updates all visible interface labels, including chart titles and category names, with no untranslated strings remaining in either language.
 - **SC-015**: Enabling "include GemeenteDelers initiatives" adds the GD initiative nodes and connects each to the gemeente and theme nodes it references, with zero duplicate gemeente identities created; disabling it restores the exact base graph.
 - **SC-016**: Introducing the GovTech frontend causes zero observable change to the Explorer and VNG frontends' addresses, default behaviour, or appearance (verified by regression check before/after).
+- **SC-017**: The GovTech experience exposes a deliberately reduced control surface — fewer top-level controls/options than the Explorer frontend (qualitative comparison; verified by a side-by-side control-count review) — while still completing the hub→graph→dashboard workflow (satisfies FR-009).
 
 ## Assumptions
 

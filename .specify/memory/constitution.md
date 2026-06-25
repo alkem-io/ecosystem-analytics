@@ -1,5 +1,13 @@
 <!--
 Sync Impact Report
+- Version change: 4.2.0 → 4.3.0
+- MINOR (4.3.0): Generalised Principle VII from "VNG Map Scope" to "Dutch-Dashboard Map Scope
+  (Netherlands-only)" so the HARD Netherlands-only map requirement formally binds EVERY Dutch
+  dashboard — VNG AND the new GovTech Netherlands dashboard (feature 017-govtech-frontend) — and
+  any future Dutch dashboard. No requirement weakened; scope widened to match the multi-dashboard
+  reality. Implementation note now references both apps' initiative maps (frontend/vng and
+  frontend/govtech) plus the shared ForceGraph. Mirrored as spec 017 FR-019. No other principle changed.
+- Earlier history:
 - Version change: 4.1.0 → 4.2.0
 - MINOR (4.2.0): Added Principle VII — VNG Map Scope (Netherlands-only) as a HARD REQUIREMENT:
   every VNG dashboard map (GraphTab + initiative-details) MUST show ONLY the Netherlands, tiles
@@ -105,21 +113,25 @@ Sync Impact Report
 - Theme tokens, typography (Inter), fixed layout constants (panel widths, drawer sizes, top bar height), and progressive loading copy are defined in the design brief.
 - **Conflict rule**: discrepancies in visual design, spacing, typography, or tokens defer to the design brief; discrepancies in feature behaviour, access control, caching, or data schema defer to the spec.
 
-### VII. VNG Map Scope (Netherlands-only) — HARD REQUIREMENT
+### VII. Dutch-Dashboard Map Scope (Netherlands-only) — HARD REQUIREMENT
 
-- The **VNG dashboard** map (the GraphTab network map AND the initiative-details map) MUST display
-  **ONLY the Netherlands**. The other countries (England, Germany, Belgium) and the open sea beyond
-  the coastline MUST **NOT be rendered at all** — not greyed out, not faint, not a silhouette.
-  Everything outside the Netherlands boundary is **plain white / empty (the page/card background)**.
+- Every **Dutch dashboard** map — currently the **VNG** and **GovTech Netherlands** dashboards
+  (and any future Dutch dashboard), each one's GraphTab network map AND its initiative-details map —
+  MUST display **ONLY the Netherlands**. The other countries (England, Germany, Belgium) and the
+  open sea beyond the coastline MUST **NOT be rendered at all** — not greyed out, not faint, not a
+  silhouette. Everything outside the Netherlands boundary is **plain white / empty (the page/card
+  background)**.
 - The intended look (reference: feature 016 design images, Image #21): the Netherlands shown with
   **real map-tile detail (roads/towns)** clipped exactly to the Netherlands boundary, subtle province
   borders, and node/gemeente avatars overlaid at their geo-locations — surrounded by plain white.
   Map tiles inside the Netherlands are **essential** (not optional).
 - Implementation: clip the tile layer to the Netherlands boundary via an SVG `clipPath`
-  (`frontend/shared/src/graph/ForceGraph.tsx` for the GraphTab; a static `clipPath` in
-  `frontend/vng/src/components/InitiativeMap.tsx` for the details tab). **Any change to either map
-  MUST preserve this Netherlands-only behaviour** — it is a regression if anything outside the
-  Netherlands ever appears. The Explorer's multi-region map (world/europe) is out of scope.
+  (`frontend/shared/src/graph/ForceGraph.tsx` for the GraphTab, gated to `mapRegion==='netherlands'`,
+  shared by every Dutch dashboard; a static `clipPath` in each Dutch app's initiative-details map —
+  `frontend/vng/.../InitiativeMap.tsx` and `frontend/govtech/.../InitiativeMap.tsx`, or the shared
+  `InitiativeMap` they both consume). **Any change to any of these maps MUST preserve this
+  Netherlands-only behaviour** — it is a regression if anything outside the Netherlands ever appears.
+  The Explorer's multi-region map (world/europe) is out of scope.
 
 ## Security Requirements
 
@@ -165,4 +177,4 @@ Sync Impact Report
   3. An updated Sync Impact Report (HTML comment at top of this file).
 - The feature spec (`specs/001-ecosystem-analytics/spec.md`) contains the detailed functional, non-functional, and technical requirements. This constitution captures the overarching principles that govern how those requirements are implemented.
 
-**Version**: 4.2.0 | **Ratified**: 2026-02-21 | **Last Amended**: 2026-06-20
+**Version**: 4.3.0 | **Ratified**: 2026-02-21 | **Last Amended**: 2026-06-25

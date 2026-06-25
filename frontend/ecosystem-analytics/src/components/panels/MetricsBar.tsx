@@ -2,6 +2,7 @@ import { useState, useCallback } from 'react';
 import type { GraphMetrics } from '@server/types/graph.js';
 import type { EcosystemMetrics } from '../../hooks/useEcosystemMetrics.js';
 import { ChevronUp, ChevronDown, Users, Building2, Network, ArrowRightLeft, Trophy, BarChart3 } from 'lucide-react';
+import { SafeImage } from '@ea/shared';
 import { Badge } from '../ui/badge.js';
 import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from '../ui/tooltip.js';
 import styles from './MetricsBar.module.css';
@@ -172,18 +173,19 @@ export default function MetricsBar({
                         onClick={() => onSelectNode(connector.nodeId)}
                       >
                         <span className={styles.rank}>{i + 1}</span>
-                        {connector.avatarUrl ? (
-                          <img
-                            src={connector.avatarUrl}
-                            alt=""
-                            className={styles.avatar}
-                            onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
-                          />
-                        ) : (
-                          <span className={styles.avatarFallback}>
-                            {connector.displayName.charAt(0).toUpperCase()}
-                          </span>
-                        )}
+                        <SafeImage
+                          src={connector.avatarUrl}
+                          alt=""
+                          className={styles.avatar}
+                          entityUrl={connector.url}
+                          entityName={connector.displayName}
+                          entityType={connector.type}
+                          fallback={
+                            <span className={styles.avatarFallback}>
+                              {connector.displayName.charAt(0).toUpperCase()}
+                            </span>
+                          }
+                        />
                         <span className={styles.rowName}>{connector.displayName}</span>
                         <Badge variant="secondary" className="text-[10px] h-4 ml-auto shrink-0">
                           {connector.spaceCount} spaces
