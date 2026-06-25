@@ -1,5 +1,6 @@
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { useState, useEffect, useCallback } from 'react';
+import { BrokenVisualsPanel } from '@ea/shared';
 import LoginPage from './pages/LoginPage.js';
 import NotAuthorizedPage from './pages/NotAuthorizedPage.js';
 import SpaceSelector from './pages/SpaceSelector.js';
@@ -34,7 +35,8 @@ export default function App() {
   const authed = auth === 'authed';
 
   return (
-    <Routes>
+    <>
+      <Routes>
       <Route
         path="/"
         element={<Navigate to={authed ? '/spaces' : '/login'} replace />}
@@ -68,6 +70,8 @@ export default function App() {
           )
         }
       />
-    </Routes>
+      </Routes>
+      <BrokenVisualsPanel />
+    </>
   );
 }

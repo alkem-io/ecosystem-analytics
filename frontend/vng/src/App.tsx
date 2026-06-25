@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Loader2, RefreshCw } from 'lucide-react';
-import { cn, fetchMe, type MeResponse } from '@ea/shared';
+import { cn, fetchMe, type MeResponse, BrokenVisualsPanel } from '@ea/shared';
 import { LoginScreen } from './components/LoginScreen.js';
 import { LoadingScreen } from './components/LoadingScreen.js';
 import { BrandingHeader } from './components/BrandingHeader.js';
@@ -241,6 +241,7 @@ export default function App() {
   return (
     <SelectionProvider>
       <AppShell />
+      <BrokenVisualsPanel />
     </SelectionProvider>
   );
 }

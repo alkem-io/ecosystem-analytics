@@ -1,5 +1,6 @@
 import type { GraphNode, GraphDataset } from '@server/types/graph.js';
 import { proxyImageUrl } from '../lib/imageProxy.js';
+import { SafeImage } from '../ui/SafeImage.js';
 import styles from './HoverCard.module.css';
 
 const TYPE_LABELS: Record<string, string> = {
@@ -38,11 +39,12 @@ export default function HoverCard({ node, dataset, x, y }: Props) {
 
   return (
     <div className={styles.hoverCard} style={style}>
-      {avatarSrc ? (
-        <img src={avatarSrc} alt="" className={styles.avatar} />
-      ) : (
-        <div className={styles.avatarPlaceholder}>{initial}</div>
-      )}
+      <SafeImage
+        src={avatarSrc}
+        alt=""
+        className={styles.avatar}
+        fallback={<div className={styles.avatarPlaceholder}>{initial}</div>}
+      />
       <div className={styles.info}>
         <span className={styles.name}>{node.displayName || 'Unknown'}</span>
         <div className={styles.meta}>

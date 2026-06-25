@@ -8,6 +8,17 @@
  */
 export { cn } from './lib/cn.js';
 export { proxyImageUrl } from './lib/imageProxy.js';
+export {
+  isImageFailed,
+  markImageFailed,
+  clearBrokenVisuals,
+  getBrokenVisuals,
+  subscribeBrokenVisuals,
+  type BrokenVisual,
+  type FailureContext,
+} from './lib/badImageCache.js';
+export { SafeImage } from './ui/SafeImage.js';
+export { BrokenVisualsPanel, useBrokenVisuals } from './ui/BrokenVisualsPanel.js';
 export { api } from './services/api.js';
 export { login, logout, fetchMe, type MeResponse } from './services/auth.js';
 
