@@ -212,6 +212,9 @@ export function SpaceDetailsTab({ openSpaceId, openSpaceSeq }: SpaceDetailsTabPr
                         <SafeImage
                           src={avatar}
                           alt=""
+                          entityUrl={g.url}
+                          entityName={g.displayName}
+                          entityType={g.type}
                           className="h-12 w-12 rounded-full border border-border object-cover"
                           fallback={
                             <div className="flex h-12 w-12 items-center justify-center rounded-full bg-muted text-xs font-semibold text-muted-foreground">
