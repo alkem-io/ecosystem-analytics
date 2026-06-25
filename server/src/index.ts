@@ -22,7 +22,9 @@ logger.info(
 // (parent-domain scoped) means signing in on either subdomain works on both.
 const app = createApp('../frontend/dist');
 const vngApp = createApp('../frontend-vng/dist');
-initDatabase();
+// Namespace the default DB file per environment (issuer) so switching between
+// e.g. production and acceptance can't reuse another env's cache/session rows.
+initDatabase(config.oidc.issuer);
 
 // Housekeeping: sweep expired cache entries, spent pre-auth records, and
 // dead/idle sessions so the shared SQLite store does not accumulate stale rows.
