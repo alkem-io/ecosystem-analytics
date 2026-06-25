@@ -88,7 +88,8 @@
     "vng2030": "Number of initiatives by VNG-2030",
     "sourceSpaces": "Based on selected spaces",
     "sourceInitiatives": "Based on GemeenteDelers initiatives",
-    "uncategorised": "Other",
+    "sourceSpacesGd": "Based on selected spaces + GemeenteDelers initiatives",
+    "uncategorised": "No classification",
     "noData": "No data available",
     "totalCounted": "{{count}} counted",
     "uncategorisedCount": "{{count}} uncategorised",
@@ -109,7 +110,8 @@
       "ai": "Artificial Intelligence",
       "dienstverlening": "Central services",
       "weerbaarheid": "Digital resilience",
-      "vakmanschap": "Digital craftsmanship"
+      "vakmanschap": "Digital craftsmanship",
+      "uncategorised": "No classification"
     },
     "vng2030": {
       "bedrijfsvoering": "Operations & municipal services",
@@ -122,7 +124,8 @@
       "samenwerken-in-regios": "Collaborating in regions",
       "knooppunt-van-netwerken": "Hub of networks",
       "bestuurskracht": "Administrative capacity & quality of execution",
-      "kwalitatieve-besluitvorming": "Quality decision-making & mandate"
+      "kwalitatieve-besluitvorming": "Quality decision-making & mandate",
+      "uncategorised": "No classification"
     }
   },
   "warning": {

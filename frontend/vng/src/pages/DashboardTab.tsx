@@ -19,18 +19,18 @@ export function DashboardTab() {
   const { t } = useTranslation();
   const { effectiveSpaceIds, state, refreshNonce } = useSelectionContext();
 
-  // The dashboard ALWAYS counts the selected spaces (VNG Groei initiatives) by
-  // their NDS / VNG-2030 profile tags — it is decoupled from the graph's
-  // "include GD initiatives" toggle (GD callouts use the 92 GemeenteDelers themes,
-  // not NDS/VNG-2030, so counting them here would be all-uncategorised).
+  // The dashboard always counts the selected spaces (VNG Groei initiatives) by their
+  // NDS / VNG-2030 profile tags. When the GD ("include GemeenteDelers initiatives")
+  // checkbox is on, GD initiatives are additionally stacked into every chart — they
+  // carry GemeenteDelers themes rather than NDS/VNG-2030 tags, so most land in the
+  // "Overig" (no classification) bar.
   const request = useMemo(
     () => ({
       spaceIds: effectiveSpaceIds,
       includeGemeentes: state.showGemeentes,
-      // NDS / VNG-2030 always count selected spaces (decoupled from the GD toggle)…
-      includeInitiatives: false,
-      // …but the gemeente-distribution chart stacks GD initiatives when the GD
-      // ("include GemeenteDelers initiatives") checkbox is on.
+      // Stack GD initiatives into the NDS / VNG-2030 category charts…
+      includeInitiatives: state.includeInitiatives,
+      // …and into the gemeente-distribution chart.
       includeGemeenteDelers: state.includeInitiatives,
     }),
     [effectiveSpaceIds, state.showGemeentes, state.includeInitiatives],
@@ -40,7 +40,7 @@ export function DashboardTab() {
 
   const ndsDimension = data?.dimensions.find((d) => d.key === 'nds');
   const vng2030Dimension = data?.dimensions.find((d) => d.key === 'vng2030');
-  const source = data?.source ?? 'spaces';
+  const gdIncluded = data?.gdIncluded ?? false;
 
   const ndsRef = useRef<HTMLDivElement>(null);
   const vngRef = useRef<HTMLDivElement>(null);
@@ -142,10 +142,10 @@ export function DashboardTab() {
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
         <div ref={ndsRef}>
-          <NdsChart dimension={ndsDimension} source={source} />
+          <NdsChart dimension={ndsDimension} gdIncluded={gdIncluded} />
         </div>
         <div ref={vngRef}>
-          <Vng2030Chart dimension={vng2030Dimension} source={source} />
+          <Vng2030Chart dimension={vng2030Dimension} gdIncluded={gdIncluded} />
         </div>
         <div className="lg:col-span-2" ref={distRef}>
           <GemeenteDistributionChart

@@ -16,6 +16,10 @@ interface Datum {
   label: string;
   count: number;
   items: string[];
+  spacesCount: number;
+  gdCount: number;
+  spacesItems: string[];
+  gdItems: string[];
 }
 
 interface CategoryBarChartProps {
@@ -25,34 +29,60 @@ interface CategoryBarChartProps {
   /** i18n namespace for category labels, e.g. "categories.nds". */
   labelNamespace: string;
   emptyLabel: string;
+  /** Render the GD-initiatives segment as a second stacked bar + legend. */
+  gdIncluded: boolean;
 }
 
-/** Tooltip listing the category count plus the names of the initiatives in it. */
+const SPACES_COLOR = 'var(--primary)';
+const GD_COLOR = '#16a34a'; // GemeenteDelers green (matches the gemeente-distribution chart)
+
+/** Tooltip listing the category total plus the names of the initiatives, split by source. */
 function NamesTooltip({ active, payload }: TooltipProps<number, string>) {
   const { t } = useTranslation();
   if (!active || !payload?.length) return null;
   const d = payload[0].payload as Datum;
+
+  const NameList = ({ names, color, title }: { names: string[]; color: string; title: string }) =>
+    names.length === 0 ? null : (
+      <div className="mt-1.5">
+        <div className="flex items-center gap-1.5 font-medium text-foreground">
+          <span className="inline-block h-2 w-2 rounded-sm" style={{ background: color }} />
+          {title} ({names.length})
+        </div>
+        <ul className="mt-0.5 max-h-40 list-disc space-y-0.5 overflow-auto pl-4 text-foreground">
+          {names.map((n) => (
+            <li key={n}>{n}</li>
+          ))}
+        </ul>
+      </div>
+    );
+
   return (
     <div className="max-w-xs rounded-lg border border-border bg-card p-3 text-xs shadow-md">
       <div className="font-semibold text-foreground">{d.label}</div>
       <div className="mt-0.5 text-muted-foreground">
         {t('dashboard.count', { defaultValue: 'Count' })}: {d.count}
       </div>
-      {d.items.length > 0 && (
-        <ul className="mt-2 max-h-48 list-disc space-y-0.5 overflow-auto pl-4 text-foreground">
-          {d.items.map((name) => (
-            <li key={name}>{name}</li>
-          ))}
-        </ul>
-      )}
+      <NameList
+        names={d.spacesItems}
+        color={SPACES_COLOR}
+        title={t('dashboard.groei', { defaultValue: 'Groei' })}
+      />
+      <NameList
+        names={d.gdItems}
+        color={GD_COLOR}
+        title={t('dashboard.gemeenteDelers', { defaultValue: 'GemeenteDelers' })}
+      />
     </div>
   );
 }
 
 /**
  * Shared category bar chart (NDS / VNG-2030). Long category labels are wrapped to
- * two lines and given generous bottom room so they never clip; hovering a bar
- * shows the names of the initiatives in that category (US3 tooltip feedback).
+ * two lines and given generous bottom room so they never clip; hovering a bar shows
+ * the names of the initiatives in that category (US3 tooltip feedback). When GD
+ * initiatives are included they stack on top of the selected-spaces segment; the
+ * trailing "Overig" (no classification) bar appears whenever it is non-empty.
  */
 export function CategoryBarChart({
   title,
@@ -60,19 +90,39 @@ export function CategoryBarChart({
   dimension,
   labelNamespace,
   emptyLabel,
+  gdIncluded,
 }: CategoryBarChartProps) {
   const { t } = useTranslation();
   const data: Datum[] = (dimension?.categories ?? []).map((c) => ({
     key: c.key,
-    label: t(`${labelNamespace}.${c.key}`, { defaultValue: c.key }),
+    label:
+      c.key === 'uncategorised'
+        ? t('dashboard.uncategorised', { defaultValue: 'No classification' })
+        : t(`${labelNamespace}.${c.key}`, { defaultValue: c.key }),
     count: c.count,
     items: c.items ?? [],
+    spacesCount: c.spacesCount,
+    gdCount: c.gdCount,
+    spacesItems: c.spacesItems ?? [],
+    gdItems: c.gdItems ?? [],
   }));
 
   return (
     <section className="flex flex-col gap-1 rounded-lg border border-border bg-card p-4">
       <h3 className="text-sm font-semibold text-foreground">{title}</h3>
       <p className="text-xs text-muted-foreground">{sourceLabel}</p>
+      {gdIncluded && (
+        <div className="mt-1 flex items-center gap-4 text-xs text-muted-foreground">
+          <span className="flex items-center gap-1.5">
+            <span className="inline-block h-2.5 w-2.5 rounded-sm" style={{ background: SPACES_COLOR }} />
+            {t('dashboard.groei', { defaultValue: 'Groei' })}
+          </span>
+          <span className="flex items-center gap-1.5">
+            <span className="inline-block h-2.5 w-2.5 rounded-sm" style={{ background: GD_COLOR }} />
+            {t('dashboard.gemeenteDelers', { defaultValue: 'GemeenteDelers' })}
+          </span>
+        </div>
+      )}
       {data.length === 0 ? (
         <div className="flex h-56 items-center justify-center text-sm text-muted-foreground">
           {emptyLabel}
@@ -93,7 +143,15 @@ export function CategoryBarChart({
               />
               <YAxis allowDecimals={false} tick={{ fontSize: 11, fill: 'var(--text-secondary)' }} />
               <Tooltip cursor={{ fill: 'var(--surface)' }} content={<NamesTooltip />} />
-              <Bar dataKey="count" fill="var(--primary)" radius={[4, 4, 0, 0]} />
+              <Bar
+                dataKey="spacesCount"
+                stackId="a"
+                fill={SPACES_COLOR}
+                radius={gdIncluded ? undefined : [4, 4, 0, 0]}
+              />
+              {gdIncluded && (
+                <Bar dataKey="gdCount" stackId="a" fill={GD_COLOR} radius={[4, 4, 0, 0]} />
+              )}
             </BarChart>
           </ResponsiveContainer>
         </div>

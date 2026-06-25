@@ -22,9 +22,15 @@ import type {
 } from '../types/api.js';
 
 /**
+ * Bucket key for initiatives associated with NO gemeente (count 0). Rendered as the
+ * leading "No classification" bar, mirroring the NDS / VNG-2030 charts' leading bucket.
+ */
+const NO_GEMEENTE_KEY = 'none';
+
+/**
  * Fixed gemeente-count buckets for the distribution chart. A value falls in the
  * first bucket whose `max` it does not exceed (boundaries go to the lower bucket,
- * e.g. 3 → "1-3", 6 → "3-6"). Counts of 0 are excluded.
+ * e.g. 3 → "1-3", 6 → "3-6"). Count 0 falls into the leading `none` bucket.
  */
 const GEMEENTE_BUCKETS: { key: string; max: number }[] = [
   { key: '1-3', max: 3 },
@@ -35,9 +41,10 @@ const GEMEENTE_BUCKETS: { key: string; max: number }[] = [
   { key: '50+', max: Infinity },
 ];
 
+/** Index into the `[none, ...GEMEENTE_BUCKETS]` bucket list (none = 0 gemeentes). */
 function bucketIndex(count: number): number {
-  if (count <= 0) return -1;
-  return GEMEENTE_BUCKETS.findIndex((b) => count <= b.max);
+  if (count <= 0) return 0;
+  return 1 + GEMEENTE_BUCKETS.findIndex((b) => count <= b.max);
 }
 
 /** A counted initiative: its display name + how many gemeentes it is associated with. */
@@ -52,21 +59,17 @@ export function bucketGemeenteDistribution(
   gd: InitiativeGemeenteCount[],
   gdIncluded: boolean,
 ): GemeenteDistribution {
-  const groeiItems: string[][] = GEMEENTE_BUCKETS.map(() => []);
-  const gdItems: string[][] = GEMEENTE_BUCKETS.map(() => []);
-  for (const it of groei) {
-    const i = bucketIndex(it.count);
-    if (i >= 0) groeiItems[i].push(it.label);
-  }
-  for (const it of gd) {
-    const i = bucketIndex(it.count);
-    if (i >= 0) gdItems[i].push(it.label);
-  }
+  // Bucket list is [none, ...GEMEENTE_BUCKETS] so 0-gemeente initiatives lead.
+  const keys = [NO_GEMEENTE_KEY, ...GEMEENTE_BUCKETS.map((b) => b.key)];
+  const groeiItems: string[][] = keys.map(() => []);
+  const gdItems: string[][] = keys.map(() => []);
+  for (const it of groei) groeiItems[bucketIndex(it.count)].push(it.label);
+  for (const it of gd) gdItems[bucketIndex(it.count)].push(it.label);
   const sortNames = (a: string[]) => a.sort((x, y) => x.localeCompare(y));
   return {
     gdIncluded,
-    buckets: GEMEENTE_BUCKETS.map((b, i) => ({
-      key: b.key,
+    buckets: keys.map((key, i) => ({
+      key,
       groei: groeiItems[i].length,
       gd: gdItems[i].length,
       groeiItems: sortNames(groeiItems[i]),
@@ -134,27 +137,49 @@ export async function assembleGemeenteDistribution(
   return bucketGemeenteDistribution(groeiCounts, gdCounts, includeGd);
 }
 
-/** Count entities into the configured NDS and VNG-2030 category dimensions. */
+/**
+ * Synthetic category for entities that match no configured category in a dimension.
+ * Rendered as a trailing "no classification" bar (only when non-empty). Most GD
+ * initiatives land here because they carry GemeenteDelers themes, not NDS/VNG-2030 tags.
+ */
+const UNCATEGORISED_KEY = 'uncategorised';
+
+/**
+ * Count entities into the configured NDS and VNG-2030 category dimensions, keeping the
+ * selected-spaces and GD-initiative contributions separate so each category bar can be
+ * stacked. Entities matching no category in a dimension are collected into that
+ * dimension's `uncategorised` bucket (per dimension); `uncategorisedCount` on the
+ * response is the stricter global count (matched nothing in ANY dimension).
+ */
 export function countDashboard(
   entities: DashboardCountable[],
   mapping: VngConfig['tagCategoryMapping'],
-  source: VngDashboardResponse['source'],
 ): VngDashboardResponse {
   const dimensionDefs: { key: string; map: Record<string, string> }[] = [
     { key: 'nds', map: mapping.nds },
     { key: 'vng2030', map: mapping.vng2030 },
   ];
 
-  // Pre-seed every category key (so zero-count bars still render — US3 scenario 3).
-  // Each category accumulates the entity LABELS that fall into it (for tooltips).
-  const items: Record<string, Map<string, string[]>> = {};
+  // Per dimension: category key → { spaces names, gd names }. The uncategorised bucket
+  // is seeded FIRST so it always renders as the leftmost bar in the same position across
+  // both charts; every configured category is then pre-seeded so zero-count bars still
+  // render (US3 scenario 3). Each segment accumulates the entity LABELS (for tooltips).
+  type Segments = { spaces: string[]; gd: string[] };
+  const segs = (): Segments => ({ spaces: [], gd: [] });
+  const items: Record<string, Map<string, Segments>> = {};
   for (const dim of dimensionDefs) {
-    items[dim.key] = new Map(Object.values(dim.map).map((cat) => [cat, []]));
+    const m = new Map<string, Segments>();
+    m.set(UNCATEGORISED_KEY, segs());
+    for (const cat of Object.values(dim.map)) if (!m.has(cat)) m.set(cat, segs());
+    items[dim.key] = m;
   }
 
+  let gdIncluded = false;
   let uncategorisedCount = 0;
 
   for (const entity of entities) {
+    const src = entity.source ?? 'spaces';
+    if (src === 'gd') gdIncluded = true;
     const normTags = entity.tags.map((t) => t.trim().toLowerCase()).filter(Boolean);
     let categorisedAnywhere = false;
 
@@ -164,62 +189,83 @@ export function countDashboard(
         const category = dim.map[tag];
         if (category) hit.add(category);
       }
-      for (const category of hit) {
-        items[dim.key].get(category)?.push(entity.label);
-        categorisedAnywhere = true;
+      if (hit.size === 0) {
+        items[dim.key].get(UNCATEGORISED_KEY)![src].push(entity.label);
+      } else {
+        for (const category of hit) {
+          items[dim.key].get(category)![src].push(entity.label);
+          categorisedAnywhere = true;
+        }
       }
     }
 
     if (!categorisedAnywhere) uncategorisedCount += 1;
   }
 
+  const sortNames = (a: string[]) => a.sort((x, y) => x.localeCompare(y));
   const dimensions: DashboardDimension[] = dimensionDefs.map((dim) => ({
     key: dim.key,
-    categories: [...items[dim.key].entries()].map(([key, labels]) => ({
-      key,
-      count: labels.length,
-      items: labels.sort((a, b) => a.localeCompare(b)),
-    })),
+    // All categories render (even zero), including the leading uncategorised bucket so
+    // its position is identical across both charts.
+    categories: [...items[dim.key].entries()].map(([key, s]) => {
+        const spacesItems = sortNames(s.spaces);
+        const gdItems = sortNames(s.gd);
+        return {
+          key,
+          count: spacesItems.length + gdItems.length,
+          items: sortNames([...spacesItems, ...gdItems]),
+          spacesItems,
+          gdItems,
+          spacesCount: spacesItems.length,
+          gdCount: gdItems.length,
+        };
+      }),
   }));
 
-  return { source, totalCounted: entities.length, uncategorisedCount, dimensions };
+  return { gdIncluded, totalCounted: entities.length, uncategorisedCount, dimensions };
 }
 
 /**
- * Assemble the dashboard for the selected spaces (data-source aware, FR-022):
- * when `includeInitiatives`, count GD initiatives; otherwise count selected spaces.
+ * Assemble the dashboard for the selected spaces (US3). Always counts the selected
+ * spaces by their NDS / VNG-2030 profile tags; when `includeGd` is set, additionally
+ * counts GD initiatives as a separate stacked segment (FR-022). GD callouts mostly
+ * carry GemeenteDelers themes rather than NDS/VNG-2030 tags, so they land largely in
+ * the per-dimension `uncategorised` bucket.
  */
 export async function assembleDashboard(
   auth: AuthContext,
   spaceIds: string[],
-  includeInitiatives: boolean,
+  includeGd: boolean,
 ): Promise<VngDashboardResponse> {
   const config = loadConfig();
   const sdk = await createAlkemioSdk(auth);
 
-  let entities: DashboardCountable[];
-  let source: VngDashboardResponse['source'];
+  const tagsPerSpace = await Promise.all(
+    spaceIds.map(async (nameId) => {
+      const res = await sdk.SpaceProfileTags({ nameId });
+      const space = res.data.lookupByName.space;
+      const tagsets = space?.about.profile.tagsets ?? [];
+      return {
+        id: nameId,
+        label: space?.about.profile.displayName ?? nameId,
+        tags: tagsets.flatMap((ts) => ts.tags),
+        source: 'spaces' as const,
+      };
+    }),
+  );
+  const entities: DashboardCountable[] = [...tagsPerSpace];
 
-  if (includeInitiatives) {
-    source = 'gd-initiatives';
+  if (includeGd) {
     const callouts = await fetchGemeentedelersCallouts(auth, sdk);
-    entities = callouts.map((c) => ({ id: c.id, label: c.displayName, tags: c.tags }));
-  } else {
-    source = 'spaces';
-    const tagsPerSpace = await Promise.all(
-      spaceIds.map(async (nameId) => {
-        const res = await sdk.SpaceProfileTags({ nameId });
-        const space = res.data.lookupByName.space;
-        const tagsets = space?.about.profile.tagsets ?? [];
-        return {
-          id: nameId,
-          label: space?.about.profile.displayName ?? nameId,
-          tags: tagsets.flatMap((ts) => ts.tags),
-        };
-      }),
+    entities.push(
+      ...callouts.map((c) => ({
+        id: c.id,
+        label: c.displayName,
+        tags: c.tags,
+        source: 'gd' as const,
+      })),
     );
-    entities = tagsPerSpace;
   }
 
-  return countDashboard(entities, config.vng.tagCategoryMapping, source);
+  return countDashboard(entities, config.vng.tagCategoryMapping);
 }

@@ -88,7 +88,8 @@
     "vng2030": "Aantal initiatieven volgens VNG-2030",
     "sourceSpaces": "Op basis van geselecteerde ruimtes",
     "sourceInitiatives": "Op basis van GemeenteDelers-initiatieven",
-    "uncategorised": "Overig",
+    "sourceSpacesGd": "Op basis van geselecteerde ruimtes + GemeenteDelers-initiatieven",
+    "uncategorised": "Geen classificatie",
     "noData": "Geen gegevens beschikbaar",
     "totalCounted": "{{count}} geteld",
     "uncategorisedCount": "{{count}} zonder categorie",
@@ -109,7 +110,8 @@
       "ai": "Artificiële Intelligentie",
       "dienstverlening": "Centrale dienstverlening",
       "weerbaarheid": "Digitale weerbaarheid",
-      "vakmanschap": "Digitaal vakmanschap"
+      "vakmanschap": "Digitaal vakmanschap",
+      "uncategorised": "Geen classificatie"
     },
     "vng2030": {
       "bedrijfsvoering": "Bedrijfsvoering & gemeentediensten",
@@ -122,7 +124,8 @@
       "samenwerken-in-regios": "Samenwerken in regio's",
       "knooppunt-van-netwerken": "Knooppunt van netwerken",
       "bestuurskracht": "Bestuurskracht en kwaliteit van uitvoering",
-      "kwalitatieve-besluitvorming": "Kwalitatieve besluitvorming en mandaat"
+      "kwalitatieve-besluitvorming": "Kwalitatieve besluitvorming en mandaat",
+      "uncategorised": "Geen classificatie"
     }
   },
   "warning": {

@@ -16,10 +16,9 @@ describe('countDashboard', () => {
         { id: '3', label: 'C', tags: ['6.vakmanschap'] },
       ],
       mapping,
-      'spaces',
     );
 
-    expect(result.source).toBe('spaces');
+    expect(result.gdIncluded).toBe(false);
     expect(result.totalCounted).toBe(3);
 
     const nds = result.dimensions.find((d) => d.key === 'nds')!;
@@ -34,13 +33,57 @@ describe('countDashboard', () => {
   });
 
   it('counts entities with no mapped tag as uncategorised (FR-024)', () => {
-    const result = countDashboard([{ id: 'x', label: 'X', tags: ['something-unmapped'] }], mapping, 'gd-initiatives');
+    const result = countDashboard([{ id: 'x', label: 'X', tags: ['something-unmapped'] }], mapping);
     expect(result.uncategorisedCount).toBe(1);
-    expect(result.source).toBe('gd-initiatives');
+    expect(result.gdIncluded).toBe(false);
+  });
+
+  it('exposes a non-empty uncategorised bucket per dimension', () => {
+    const result = countDashboard(
+      [
+        { id: '1', label: 'A', tags: ['3.ai'] }, // NDS only — uncategorised for VNG-2030
+        { id: '2', label: 'B', tags: ['no-match'] }, // uncategorised in both
+      ],
+      mapping,
+    );
+    const nds = result.dimensions.find((d) => d.key === 'nds')!;
+    const vng = result.dimensions.find((d) => d.key === 'vng2030')!;
+    // 'A' is classified in NDS, so only 'B' is uncategorised there.
+    expect(nds.categories.find((c) => c.key === 'uncategorised')).toMatchObject({ count: 1 });
+    // Neither 'A' nor 'B' map to a VNG-2030 category.
+    expect(vng.categories.find((c) => c.key === 'uncategorised')).toMatchObject({ count: 2 });
+  });
+
+  it('always exposes the uncategorised bucket first, even when empty', () => {
+    const result = countDashboard(
+      [{ id: '1', label: 'A', tags: ['3.ai', 'wonen en ruimte'] }],
+      mapping,
+    );
+    for (const dim of result.dimensions) {
+      expect(dim.categories[0].key).toBe('uncategorised');
+      expect(dim.categories[0].count).toBe(0);
+    }
+  });
+
+  it('splits category counts into stacked spaces / gd segments', () => {
+    const result = countDashboard(
+      [
+        { id: 's', label: 'Space', tags: ['3.ai'], source: 'spaces' },
+        { id: 'g', label: 'GD', tags: ['3.ai'], source: 'gd' },
+      ],
+      mapping,
+    );
+    expect(result.gdIncluded).toBe(true);
+    const ai = result.dimensions
+      .find((d) => d.key === 'nds')!
+      .categories.find((c) => c.key === 'ai')!;
+    expect(ai).toMatchObject({ count: 2, spacesCount: 1, gdCount: 1 });
+    expect(ai.spacesItems).toEqual(['Space']);
+    expect(ai.gdItems).toEqual(['GD']);
   });
 
   it('counts an entity at most once per category', () => {
-    const result = countDashboard([{ id: 'dup', label: 'D', tags: ['3.ai', '3.AI'] }], mapping, 'spaces');
+    const result = countDashboard([{ id: 'dup', label: 'D', tags: ['3.ai', '3.AI'] }], mapping);
     const ai = result.dimensions.find((d) => d.key === 'nds')!.categories.find((c) => c.key === 'ai')!;
     expect(ai.count).toBe(1);
   });
@@ -77,19 +120,22 @@ describe('countSpaceGemeentes', () => {
 });
 
 describe('bucketGemeenteDistribution', () => {
-  it('buckets Groei + GD counts (with names) and excludes zeros', () => {
+  it('buckets Groei + GD counts (with names); 0-gemeente initiatives lead in "none"', () => {
     const dist = bucketGemeenteDistribution(
       [{ label: 'A', count: 2 }, { label: 'B', count: 4 }, { label: 'Z', count: 0 }],
       [{ label: 'GD-big', count: 55 }, { label: 'GD-mid', count: 7 }],
       true,
     );
+    expect(dist.buckets[0].key).toBe('none'); // leading "No classification" bar
     const byKey = Object.fromEntries(dist.buckets.map((b) => [b.key, b]));
+    expect(byKey['none'].groeiItems).toEqual(['Z']);
     expect(byKey['1-3'].groei).toBe(1);
     expect(byKey['1-3'].groeiItems).toEqual(['A']);
     expect(byKey['3-6'].groeiItems).toEqual(['B']);
     expect(byKey['6-10'].gdItems).toEqual(['GD-mid']);
     expect(byKey['50+'].gdItems).toEqual(['GD-big']);
-    expect(dist.buckets.reduce((a, b) => a + b.groei + b.gd, 0)).toBe(4); // the zero excluded
+    // The 0-count Z now lands in "none" instead of being dropped: 5 placed in total.
+    expect(dist.buckets.reduce((a, b) => a + b.groei + b.gd, 0)).toBe(5);
   });
 
   it('boundary values go to the lower bucket (3→1-3, 6→3-6)', () => {
