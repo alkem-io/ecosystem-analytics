@@ -30,6 +30,8 @@ interface ExportArgs {
     groei: string;
     gd: string;
     total: string;
+    /** Label for the leading 0-gemeente bucket. */
+    noClassification: string;
   };
 }
 
@@ -87,7 +89,7 @@ export async function exportDashboardXlsx({ data, charts, labelOf, filename, tex
     headerRow([text.bucket, text.groei, text.gd, text.total, text.initiatives]);
     for (const b of data.gemeenteDistribution.buckets) {
       ds.addRow([
-        b.key,
+        b.key === 'none' ? text.noClassification : b.key,
         b.groei,
         b.gd,
         b.groei + b.gd,
