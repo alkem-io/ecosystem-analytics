@@ -36,8 +36,26 @@ export interface GdCalloutInput {
 /** Dimension key → category counts for the VNG dashboard. */
 export interface DashboardDimension {
   key: string;
-  /** Each category carries its count plus the names of the entities in it (for tooltips). */
-  categories: { key: string; count: number; items: string[] }[];
+  /**
+   * Each category carries its total count plus the names of the entities in it (for
+   * tooltips), split into the selected-spaces and GD-initiative sources so the chart
+   * can render them as stacked segments. The synthetic `uncategorised` category
+   * (entities matching no category in THIS dimension) is always present and is the
+   * FIRST entry, so its bar sits in the same leading position across both charts.
+   */
+  categories: {
+    key: string;
+    count: number;
+    items: string[];
+    /** Names contributed by selected spaces (the base stack segment). */
+    spacesItems: string[];
+    /** Names contributed by GD initiatives (the GD segment; empty unless gdIncluded). */
+    gdItems: string[];
+    /** Count of the selected-spaces segment (= spacesItems.length). */
+    spacesCount: number;
+    /** Count of the GD-initiatives segment (= gdItems.length). */
+    gdCount: number;
+  }[];
 }
 
 /**
@@ -64,9 +82,11 @@ export interface GemeenteDistribution {
 
 /** Response for POST /api/vng/dashboard (feature 016, US3). */
 export interface VngDashboardResponse {
-  /** Active counting unit: selected spaces or GD initiatives (FR-022). */
-  source: 'spaces' | 'gd-initiatives';
+  /** True when GD initiatives were folded into the category counts (stacked segment). */
+  gdIncluded: boolean;
+  /** Total entities counted (selected spaces, plus GD initiatives when included). */
   totalCounted: number;
+  /** Entities matching no category in ANY dimension (shown as a summary line). */
   uncategorisedCount: number;
   dimensions: DashboardDimension[];
   /** Initiatives-by-gemeente-count distribution for the stacked bar chart. */
@@ -79,6 +99,8 @@ export interface DashboardCountable {
   /** Display name (for the per-category tooltip list). */
   label: string;
   tags: string[];
+  /** Which stacked segment this entity belongs to; defaults to 'spaces'. */
+  source?: 'spaces' | 'gd';
 }
 
 /** Progressive loading status */

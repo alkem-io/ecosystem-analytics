@@ -17,8 +17,9 @@ vngRouter.use(resolveUser);
 interface DashboardRequest {
   spaceIds: string[];
   includeGemeentes?: boolean;
+  /** GD checkbox — stack GD initiatives into the NDS / VNG-2030 category charts. */
   includeInitiatives?: boolean;
-  /** GD ("gemeente delers") checkbox — fold GD initiatives into the gemeente-distribution chart. */
+  /** GD checkbox — fold GD initiatives into the gemeente-distribution chart. */
   includeGemeenteDelers?: boolean;
 }
 

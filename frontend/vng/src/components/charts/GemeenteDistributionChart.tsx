@@ -30,6 +30,11 @@ function StackTooltip({ active, payload, label }: TooltipProps<number, string>) 
   const gd = Number(datum.gd ?? 0);
   const groeiItems: string[] = datum.groeiItems ?? [];
   const gdItems: string[] = datum.gdItems ?? [];
+  // The leading "none" bucket holds initiatives with no associated gemeente.
+  const header =
+    label === 'none'
+      ? `${t('dashboard.uncategorised', { defaultValue: 'No classification' })} · ${groei + gd}`
+      : `${label} ${t('dashboard.gemeenteAxis', { defaultValue: 'gemeenten' })} · ${groei + gd}`;
 
   const NameList = ({ names, color, title }: { names: string[]; color: string; title: string }) =>
     names.length === 0 ? null : (
@@ -48,9 +53,7 @@ function StackTooltip({ active, payload, label }: TooltipProps<number, string>) 
 
   return (
     <div className="max-w-xs rounded-lg border border-border bg-card p-3 text-xs shadow-md">
-      <div className="font-semibold text-foreground">
-        {label} {t('dashboard.gemeenteAxis', { defaultValue: 'gemeenten' })} · {groei + gd}
-      </div>
+      <div className="font-semibold text-foreground">{header}</div>
       <NameList names={groeiItems} color={GROEI_COLOR} title={t('dashboard.groei', { defaultValue: 'Groei' })} />
       <NameList
         names={gdItems}
@@ -105,7 +108,13 @@ export function GemeenteDistributionChart({ distribution, emptyLabel }: Props) {
           <ResponsiveContainer width="100%" height="100%">
             <BarChart data={data} margin={{ top: 8, right: 16, bottom: 8, left: 0 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
-              <XAxis dataKey="key" tick={{ fontSize: 11, fill: 'var(--text-secondary)' }} />
+              <XAxis
+                dataKey="key"
+                tick={{ fontSize: 11, fill: 'var(--text-secondary)' }}
+                tickFormatter={(k: string) =>
+                  k === 'none' ? t('dashboard.uncategorised', { defaultValue: 'No classification' }) : k
+                }
+              />
               <YAxis allowDecimals={false} tick={{ fontSize: 11, fill: 'var(--text-secondary)' }} />
               <Tooltip cursor={{ fill: 'var(--surface)' }} content={<StackTooltip />} />
               <Bar
