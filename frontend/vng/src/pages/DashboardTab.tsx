@@ -78,6 +78,7 @@ export function DashboardTab() {
           groei: t('dashboard.groei', { defaultValue: 'Groei' }),
           gd: t('dashboard.gemeenteDelers', { defaultValue: 'GemeenteDelers' }),
           total: t('dashboard.total', { defaultValue: 'Totaal' }),
+          noClassification: t('dashboard.uncategorised', { defaultValue: 'No classification' }),
         },
       });
     } finally {
