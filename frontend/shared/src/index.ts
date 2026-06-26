@@ -22,6 +22,11 @@ export { BrokenVisualsPanel, useBrokenVisuals } from './ui/BrokenVisualsPanel.js
 export { api } from './services/api.js';
 export { login, logout, fetchMe, type MeResponse } from './services/auth.js';
 
+// Per-app configuration primitive + the shared dashboard application shell.
+// Each wrapper app (VNG, GovTech) supplies an AppConfig and renders DashboardApp.
+export { AppConfigProvider, useAppConfig, type AppConfig } from './app/AppConfig.js';
+export { default as DashboardApp } from './dashboard/App.js';
+
 // Graph + map visualization (force-directed network over a static basemap).
 export { default as ForceGraph } from './graph/ForceGraph.js';
 export { default as HoverCard } from './graph/HoverCard.js';

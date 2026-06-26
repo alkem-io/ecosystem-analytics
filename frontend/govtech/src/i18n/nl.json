@@ -1,0 +1,200 @@
+{
+  "app": {
+    "title": "GovTech Nederland",
+    "subtitle": "Innovatie-ecosysteem dashboard"
+  },
+  "login": {
+    "dashboardLabel": "Analytics-dashboard",
+    "signInHeading": "Aanmelden",
+    "prompt": "Meld u aan met uw Alkemio-account om door te gaan.",
+    "heroDescription": "Verken het innovatie-ecosysteem van Nederlandse gemeenten — het netwerk van ruimtes, organisaties en GemeenteDelers-initiatieven.",
+    "cta": "Aanmelden",
+    "environment": "Omgeving",
+    "envDetecting": "detecteren…",
+    "envUnknown": "niet gemeld door server",
+    "disclaimer": "Prototype ter verkenning"
+  },
+  "tabs": {
+    "label": "Weergaven",
+    "graph": "Graph",
+    "details": "Initiatief informatie",
+    "dashboard": "Dashboard"
+  },
+  "user": {
+    "menu": "Gebruikersmenu",
+    "signedIn": "Aangemeld",
+    "logout": "Afmelden"
+  },
+  "hub": {
+    "label": "Innovation hub",
+    "placeholder": "Kies een innovation hub",
+    "spacesFromHub": "Initiatieven uit hub"
+  },
+  "selection": {
+    "title": "Geselecteerde initiatieven",
+    "fromHub": "uit hub",
+    "added": "toegevoegd",
+    "empty": "Nog geen initiatieven geselecteerd",
+    "remove": "Verwijderen",
+    "count": "{{count}} initiatieven"
+  },
+  "panel": {
+    "refresh": "Gegevens vernieuwen",
+    "selectAllHub": "Alle hub-initiatieven selecteren",
+    "selectAllRows": "Alles selecteren",
+    "removeSelected": "Geselecteerde verwijderen",
+    "clearAll": "Alles wissen",
+    "selectRow": "Selecteer {{name}}",
+    "includeGd": "GD-initiatieven meenemen",
+    "includeGdHint": "GemeenteDelers (2021–2025)",
+    "showAllGd": "Toon alle initiatieven",
+    "gemeentesCount": "Gemeenten ({{count}})",
+    "themesCount": "Thema's ({{count}})"
+  },
+  "picker": {
+    "placeholder": "Initiatief toevoegen…",
+    "noResults": "Geen initiatieven gevonden"
+  },
+  "controls": {
+    "loadHubSpaces": "Hub-initiatieven laden"
+  },
+  "space": {
+    "status": {
+      "demo": "Demo",
+      "archived": "Gearchiveerd",
+      "inactive": "Inactief"
+    }
+  },
+  "details": {
+    "pickSpace": "Kies een initiatief",
+    "nameId": "NameID",
+    "origin": "Herkomst",
+    "placeholderNote": "Uitgebreide ruimtedetails volgen zodra het gedeelde detailpaneel beschikbaar is.",
+    "connectedGemeentes": "Deelnemende gemeenten",
+    "noGemeentes": "Geen gemeenten gekoppeld aan dit initiatief.",
+    "loading": "Gemeenten laden…",
+    "city": "Plaats",
+    "tagline": "Over dit initiatief",
+    "mapTitle": "Deelnemende gemeenten op de kaart",
+    "gemeentesTitle": "Deelnemende gemeenten",
+    "count": "Aantal"
+  },
+  "toggles": {
+    "showGemeentes": "Gemeentes tonen",
+    "includeInitiatives": "GemeenteDelers-initiatieven tonen"
+  },
+  "dashboard": {
+    "nds": "Initiatieven volgens NDS",
+    "vng2030": "Aantal initiatieven volgens VNG-2030",
+    "sourceSpaces": "Op basis van geselecteerde ruimtes",
+    "sourceInitiatives": "Op basis van GemeenteDelers-initiatieven",
+    "sourceSpacesGd": "Op basis van geselecteerde ruimtes + GemeenteDelers-initiatieven",
+    "uncategorised": "Geen classificatie",
+    "noData": "Geen gegevens beschikbaar",
+    "totalCounted": "{{count}} geteld",
+    "uncategorisedCount": "{{count}} zonder categorie",
+    "count": "Aantal",
+    "gemeenteDistribution": "Initiatieven per aantal gemeenten",
+    "gemeenteDistGd": "Groei + GemeenteDelers initiatieven",
+    "gemeenteDistGroei": "Groei initiatieven",
+    "gemeenteAxis": "gemeenten",
+    "groei": "Groei",
+    "gemeenteDelers": "GemeenteDelers",
+    "total": "Totaal",
+    "gemeenteAxisFull": "Gegroepeerd op aantal gemeenten"
+  },
+  "categories": {
+    "nds": {
+      "cloud": "Cloud",
+      "data": "Data",
+      "ai": "Artificiële Intelligentie",
+      "dienstverlening": "Centrale dienstverlening",
+      "weerbaarheid": "Digitale weerbaarheid",
+      "vakmanschap": "Digitaal vakmanschap",
+      "uncategorised": "Geen classificatie"
+    },
+    "vng2030": {
+      "bedrijfsvoering": "Bedrijfsvoering & gemeentediensten",
+      "wonen-ruimte": "Wonen en Ruimte",
+      "bestaanszekerheid": "Bestaanszekerheid",
+      "klimaat-energie": "Klimaat en energie",
+      "kansengelijkheid": "Kansengelijkheid/jeugd",
+      "vergrijzing": "Vergrijzing/gezond leven",
+      "een-sterke-bestuurslaag": "Eén sterke bestuurslaag",
+      "samenwerken-in-regios": "Samenwerken in regio's",
+      "knooppunt-van-netwerken": "Knooppunt van netwerken",
+      "bestuurskracht": "Bestuurskracht en kwaliteit van uitvoering",
+      "kwalitatieve-besluitvorming": "Kwalitatieve besluitvorming en mandaat",
+      "uncategorised": "Geen classificatie"
+    }
+  },
+  "warning": {
+    "authTitle": "Let op",
+    "authBody": "U ziet alleen gegevens waartoe u geautoriseerd bent. Ziet u beperkte gegevens? Controleer dan uw autorisatie op de onderliggende ruimtes."
+  },
+  "provenance": {
+    "gd": "GemeenteDelers was een VNG-programma (2021–2025) met circa 305 initiatieven, oorspronkelijk gepubliceerd op vng.nl/praktijkvoorbeelden."
+  },
+  "language": {
+    "label": "Taal",
+    "nl": "Nederlands",
+    "en": "Engels"
+  },
+  "states": {
+    "loading": "Laden…",
+    "emptyGraph": "Geen initiatieven om te tonen",
+    "error": "Er is iets misgegaan",
+    "authenticating": "Bezig met aanmelden…",
+    "connecting": "Verbinding maken met Alkemio…",
+    "redirecting": "Doorsturen naar Alkemio…",
+    "loadingHubSpaces": "Initiatieven uit hub laden…",
+    "loadingSpaces": "Initiatieven laden…",
+    "loadingGraph": "Initiatieven laden…",
+    "loadingGraphHint": "Dit kan even duren",
+    "graphTransforming": "Netwerk opbouwen…",
+    "graphAcquiring": "Initiatieven ophalen",
+    "graphBuilding": "Netwerk"
+  },
+  "graph": {
+    "offMapTitle": "{{count}} knooppunten worden niet op de kaart weergegeven",
+    "offMapNode": "Knooppunt",
+    "offMapUsers": "Gebruikers zonder locatie ({{count}})",
+    "offMapOrganisations": "Organisaties zonder locatie ({{count}})",
+    "offMapOther": "Overig zonder locatie ({{count}})",
+    "offMapSpacesL0": "Ruimtes (L0) zonder locatie ({{count}})",
+    "offMapSpacesL1": "Subruimtes (L1) zonder locatie ({{count}})",
+    "offMapSpacesL2": "Subruimtes (L2) zonder locatie ({{count}})"
+  },
+  "export": {
+    "downloadXlsx": "Download XLSX",
+    "sheetData": "Gegevens",
+    "sheetCharts": "Grafieken",
+    "category": "Categorie",
+    "count": "Aantal",
+    "initiatives": "Initiatieven",
+    "bucket": "Aantal gemeenten"
+  },
+  "about": {
+    "title": "Over",
+    "close": "Sluiten",
+    "loading": "Laden…",
+    "build": "Build",
+    "appVersion": "App-versie",
+    "spaBuildTime": "Frontend-build",
+    "serverBuildTime": "Server-build",
+    "commit": "Commit",
+    "settingsTitle": "Instellingen",
+    "on": "Aan",
+    "off": "Uit",
+    "settings": {
+      "maxSpacesPerRequest": "Max. ruimtes per verzoek",
+      "activitySpacesPerQuery": "Activiteitsruimtes per query",
+      "cacheTtlHours": "Cache-TTL (uren)",
+      "gdCacheTtlHours": "GD-cache-TTL (uren)",
+      "aiQueryEnabled": "AI-query ingeschakeld",
+      "querySessionTtlMinutes": "Query-sessie-TTL (min)",
+      "maxQueryLength": "Max. querylengte",
+      "maxFeedbackLength": "Max. feedbacklengte"
+    }
+  }
+}

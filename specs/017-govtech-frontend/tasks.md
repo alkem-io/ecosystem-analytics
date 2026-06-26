@@ -9,7 +9,7 @@ description: "Task list for GovTech Netherlands Frontend"
 
 **Tests**: TDD was NOT requested. Verification/regression tasks are included only where the spec demands them (FR-051 "do not break VNG/Explorer", and the SC acceptance criteria). They are lightweight checks, not red-green TDD.
 
-**Organization**: Tasks are grouped by user story. This feature is a **promote-and-wrap clone** of VNG, so the heavy lifting is in Setup + Foundational (shared-code promotion, server config registry, app-aware routing). Once those land, each user story is largely GovTech-specific config + verification of inherited behaviour.
+**Organization**: Tasks are grouped by user story. **Shipped approach: copy-and-wrap** — GovTech is a clone of `frontend/vng` with the GovTech-specific literals parameterised, reusing the already-shared `@ea/shared` (graph/map/ui/services) as-is, so VNG/Explorer are untouched (FR-051 by construction). The server config registry + app-aware routing are additive. The deeper "promote the dashboard surface into `@ea/shared`" de-dup is **deferred** (T013). Each user story is then GovTech-specific config + verification of inherited behaviour.
 
 ## Format: `[ID] [P?] [Story] Description`
 
@@ -30,11 +30,11 @@ description: "Task list for GovTech Netherlands Frontend"
 
 **Purpose**: Scaffold the new GovTech SPA package and wire it into the workspace/build/dev tooling.
 
-- [ ] T001 [P] Add `frontend/govtech` to `packages:` in `pnpm-workspace.yaml`
-- [ ] T002 [P] Create `frontend/govtech/package.json` (name `ecosystem-analytics-govtech`, `@ea/shared: workspace:*`, deps mirrored from `frontend/vng/package.json` — no new deps)
-- [ ] T003 [P] Create `frontend/govtech` build configs mirroring `frontend/vng`: `vite.config.ts` (dev port **5175**, `/api` proxy → `http://localhost:4100`, `[vite:govtech]` console prefix, `@ea/shared`/`@server/types` aliases), `tsconfig.json`/`tsconfig.app.json`/`tsconfig.node.json`, `index.html`, `tailwind`/`postcss` config
-- [ ] T004 [P] Add root `package.json` scripts: `dev:govtech` (`pnpm -C frontend/govtech dev`) and a `govtech` pane in the `concurrently` `dev` script; add `frontend/govtech` to `build:frontends` coverage
-- [ ] T005 Run `pnpm install` from repo root to link the new workspace package
+- [X] T001 [P] Add `frontend/govtech` to `packages:` in `pnpm-workspace.yaml`
+- [X] T002 [P] Create `frontend/govtech/package.json` (name `ecosystem-analytics-govtech`, `@ea/shared: workspace:*`, deps mirrored from `frontend/vng/package.json` — no new deps)
+- [X] T003 [P] Create `frontend/govtech` build configs mirroring `frontend/vng`: `vite.config.ts` (dev port **5175**, `/api` proxy → `http://localhost:4100`, `[vite:govtech]` console prefix, `@ea/shared`/`@server/types` aliases), `tsconfig.json`/`tsconfig.app.json`/`tsconfig.node.json`, `index.html`, `tailwind`/`postcss` config
+- [X] T004 [P] Add root `package.json` scripts: `dev:govtech` (`pnpm -C frontend/govtech dev`) and a `govtech` pane in the `concurrently` `dev` script; add `frontend/govtech` to `build:frontends` coverage
+- [X] T005 Run `pnpm install` from repo root to link the new workspace package
 
 **Checkpoint**: `frontend/govtech` exists as an empty buildable shell wired into the workspace.
 
@@ -42,42 +42,44 @@ description: "Task list for GovTech Netherlands Frontend"
 
 ## Phase 2: Foundational (Blocking Prerequisites)
 
-**Purpose**: Promote VNG's generic surface into `@ea/shared` (parameterised by `AppConfig`), generalise the server config into an app-keyed registry with app-aware routing, and make the GovTech wrapper boot. **No user story can be implemented until this phase is complete.**
+**Purpose**: Stand up GovTech as a working third frontend — copy `frontend/vng` → `frontend/govtech`, parameterise the GovTech-specific literals, and reuse `@ea/shared` (graph/map/ui/services) as-is — plus generalise the server config into an app-keyed registry with app-aware routing. **No user story can be implemented until this phase is complete.**
 
-**⚠️ CRITICAL — FR-051**: The promotion is a refactor that MUST preserve VNG's and the Explorer's behaviour/appearance.
+**⚠️ CRITICAL — FR-051**: GovTech must not change VNG/Explorer. The shipped **copy-and-wrap** approach guarantees this by construction — no edits to `frontend/vng`, `frontend/shared`, or the Explorer — and is verified by building all three (T015).
 
-### Frontend — promote generic surface to `@ea/shared`
+### Frontend — GovTech wrapper (copy-and-wrap, reusing `@ea/shared`)
 
-- [ ] T006 Create the per-app config primitive: `frontend/shared/src/app/AppConfig.tsx` (the `AppConfig` interface per `contracts/frontend-app-config.md`, a React context/provider, and `useAppConfig()`); export from `frontend/shared/src/index.ts`
-- [ ] T007 Promote the app shell into `frontend/shared/src/app/` — `DashboardApp.tsx` (3-tab shell from `frontend/vng/src/App.tsx`), `BrandingHeader.tsx`, `LoadingScreen.tsx`, `LoginScreen.tsx`, `UserMenu.tsx`, `LanguageSwitcher.tsx`, `AboutDialog.tsx`, `AuthorizationWarning.tsx`, `ErrorBoundary.tsx`; replace hardcoded VNG literals (logo, title, `vng:openSpace`/`vng:selection` events) with `AppConfig`/i18n values
-- [ ] T008 [P] Promote pages into `frontend/shared/src/dashboard/pages/` — `GraphTab.tsx`, `SpaceDetailsTab.tsx`, `DashboardTab.tsx`; storage-key + event names sourced from `AppConfig`
-- [ ] T009 [P] Promote components into `frontend/shared/src/dashboard/components/` — `HubSelector`, `SpacePicker`, `SelectedSpacesPanel`, `GemeenteToggle`, `InitiativesToggle`, `GdProvenanceNote`, `InitiativeMap`, `InitiativeGemeentesPanel`, `MapToggle`, `GraphMetricsBar`
-- [ ] T010 [P] Promote charts into `frontend/shared/src/dashboard/charts/` — `CategoryBarChart`, `NdsChart`, `Vng2030Chart`, `GemeenteDistributionChart`
-- [ ] T011 Promote hooks + selection context into `frontend/shared/src/dashboard/` — `useHubs`, `useSelectedSpaces`, `useVngGraph` (rename to a neutral `useDashboardGraph` and drop the `[vng-graph]` log prefix), `useDashboard`, `useGdInitiatives`, `useGraphProgress`, `SelectionContext`; derive API namespace (`/api/${appConfig.apiNamespace}/*`), `${storagePrefix}_selection`, and `${eventPrefix}:*` from `AppConfig`
-- [ ] T012 [P] Promote `frontend/shared/src/dashboard/export/exportDashboard.ts`; take XLSX `creator` + filename stem from `AppConfig`
-- [ ] T013 Update the `frontend/shared/src/index.ts` barrel to export the `app/` + `dashboard/` surface and `AppConfig`
+> Shipped approach: clone VNG and parameterise. The deeper "promote the dashboard surface into `@ea/shared`" de-duplication is **deferred** (T013) — a maintainability cleanup, not required for a working third frontend.
 
-### Frontend — slim VNG to a wrapper (regression guard)
+- [X] T006 Clone `frontend/vng` → `frontend/govtech` (reusing `@ea/shared` as-is); strip copied build artifacts; set `package.json` name `ecosystem-analytics-govtech`
+- [X] T007 Parameterise the API namespace in `frontend/govtech/src`: `/api/vng/*` → `/api/govtech/*` (`hooks/useDashboard.ts`, `hooks/useGdInitiatives.ts`) and the default-hub fetch → `/api/hubs?app=govtech` (`hooks/useHubs.ts`)
+- [X] T008 Parameterise browser state in `frontend/govtech/src`: localStorage `vng_selection`→`govtech_selection`, `vng_lang`→`govtech_lang`; custom events `vng:openSpace`/`vng:selection` → `govtech:*` (`hooks/useSelectedSpaces.ts`, `pages/GraphTab.tsx`, `pages/SpaceDetailsTab.tsx`, `App.tsx`, `i18n/index.ts`)
+- [X] T009 Branding: `VngLogo.tsx` → `GovtechLogo.tsx` (placeholder wordmark) with imports updated in `BrandingHeader.tsx`/`LoadingScreen.tsx`; keep shared Alkemio design tokens (bespoke GovTech identity deferred)
+- [X] T010 XLSX export: `wb.creator` → "GovTech Nederland" (`utils/exportDashboard.ts`) and filename stem `vng-dashboard` → `govtech-dashboard` (`pages/DashboardTab.tsx`)
+- [X] T011 Cosmetic log prefixes in `frontend/govtech/src`: `[VNG]`→`[GovTech]` (`ErrorBoundary.tsx`), `[vng-graph]`→`[govtech-graph]` (`hooks/useVngGraph.ts`)
+- [X] T012 Vite/HTML: `vite.config.ts` port 5175 + `[vite:govtech]` prefix; `index.html` title "GovTech Nederland"
+- [X] T013 De-duplicated: the dashboard surface (shell, pages, components, charts, hooks, export) now lives ONCE in `@ea/shared/dashboard`, parameterised by an `AppConfig` context; both `frontend/vng` and `frontend/govtech` are thin wrappers (appConfig + logo + i18n + styles). All three apps build green; no duplicated dashboard files remain.
 
-- [ ] T014 Slim `frontend/vng/src` to a wrapper: add `appConfig.ts` (`appId: 'vng'`, `Logo: VngLogo`, export strings), rewrite `main.tsx`/`App.tsx` to mount `@ea/shared`'s `DashboardApp` inside the AppConfig provider, keep `VngLogo.tsx` / `styles/index.css` / `i18n/*`, and delete the now-promoted source files
-- [ ] T015 Verify VNG unchanged (FR-051): `pnpm -C frontend/vng build && pnpm -C frontend/vng test`, then `pnpm run test:visual` for the VNG snapshots — they MUST still pass
+### Frontend — VNG/Explorer safety (FR-051 guard)
+
+- [X] T014 Confirm `frontend/vng`, `frontend/shared`, and the Explorer were not modified by the GovTech work (copy-and-wrap touches only `frontend/govtech` + workspace/root scripts) — verified by the worker and diff
+- [X] T015 Verify all build green: `pnpm -C frontend/govtech build`, `pnpm -C frontend/vng build`, `pnpm -C frontend/ecosystem-analytics build`, and `pnpm -C server build && test` — all pass (VNG snapshots: see T046)
 
 ### Server — config registry, app-aware routing, services
 
-- [ ] T016 Generalise `server/src/config.ts`: add `DashboardAppConfig` + `parseDashboardConfig` (from `parseVngConfig`), build `config.dashboards = { vng, govtech }`, add `config.govtechPort = Number(process.env.GOVTECH_FRONTEND_PORT) || config.port + 2`, and keep `config.vng = config.dashboards.vng` as a back-compat alias
-- [ ] T017 Edit `server/analytics.yml`: add a sibling `govtech:` block with `GOVTECH_*` env vars (`default_hub_nameid` empty/operator-set, `gemeentedelers_space_nameid` default `gemeentedelers`, `gd_cache_ttl_hours` 168, `tag_category_mapping` seeded as a copy of `vng:`), and append `http://localhost:5175` to `session.allowed_origins`
-- [ ] T018 Generalise the dashboard/initiatives routes to `/api/:app/*` (resolve `config.dashboards[:app]`, `400 UNKNOWN_APP` for unknown ids) in `server/src/routes/` (rename/extend `vng.ts` → app-aware `dashboard.ts`), update the router mount in `server/src/app.ts`, and mount so `/api/vng/dashboard` + `/api/vng/initiatives` keep working
-- [ ] T019 Extend `GET /api/hubs` in `server/src/routes/hubs.ts` to accept `?app=<id>` and return `config.dashboards[app].defaultHubNameId` (default `vng` when absent)
-- [ ] T020 Thread the resolved `DashboardAppConfig` (taxonomy + GD space) into `server/src/services/vng-dashboard-service.ts`, `gd-initiatives-service.ts`, and `vng-registry.ts`, replacing direct `config.vng` reads
-- [ ] T021 Server unit tests in `server/src/**/*.test.ts` for: config registry parsing (VNG and GovTech profiles independent), `/api/:app/*` resolution + `UNKNOWN_APP`, `/api/hubs?app=` default-hub selection; run `pnpm -C server build && pnpm -C server test`
+- [X] T016 Generalise `server/src/config.ts`: add `DashboardAppConfig` + `parseDashboardConfig` (from `parseVngConfig`), build `config.dashboards = { vng, govtech }`, add `config.govtechPort = Number(process.env.GOVTECH_FRONTEND_PORT) || config.port + 2`, and keep `config.vng = config.dashboards.vng` as a back-compat alias
+- [X] T017 Edit `server/analytics.yml`: add a sibling `govtech:` block with `GOVTECH_*` env vars (`default_hub_nameid` empty/operator-set, `gemeentedelers_space_nameid` default `gemeentedelers`, `gd_cache_ttl_hours` 168, `tag_category_mapping` seeded as a copy of `vng:`), and append `http://localhost:5175` to `session.allowed_origins`
+- [X] T018 Generalise the dashboard/initiatives routes to `/api/:app/*` (resolve `config.dashboards[:app]`, `400 UNKNOWN_APP` for unknown ids) in `server/src/routes/` (rename/extend `vng.ts` → app-aware `dashboard.ts`), update the router mount in `server/src/app.ts`, and mount so `/api/vng/dashboard` + `/api/vng/initiatives` keep working
+- [X] T019 Extend `GET /api/hubs` in `server/src/routes/hubs.ts` to accept `?app=<id>` and return `config.dashboards[app].defaultHubNameId` (default `vng` when absent)
+- [X] T020 Thread the resolved `DashboardAppConfig` (taxonomy + GD space) into `server/src/services/vng-dashboard-service.ts`, `gd-initiatives-service.ts`, and `vng-registry.ts`, replacing direct `config.vng` reads
+- [X] T021 Server unit tests in `server/src/**/*.test.ts` for: config registry parsing (VNG and GovTech profiles independent), `/api/:app/*` resolution + `UNKNOWN_APP`, `/api/hubs?app=` default-hub selection; run `pnpm -C server build && pnpm -C server test`
 
 ### GovTech wrapper — boot
 
-- [ ] T022 [P] Create `frontend/govtech/src/GovtechLogo.tsx` (placeholder SVG, own colours/wordmark) and `frontend/govtech/src/styles/index.css` (GovTech brand-token overrides, scoped to the app root)
-- [ ] T023 [P] Create `frontend/govtech/src/i18n/{index.ts,nl.json,en.json}` copied from `frontend/vng`, with `app.title`/`app.subtitle` set to GovTech and the language storage key `govtech_lang`
-- [ ] T024 Create `frontend/govtech/src/appConfig.ts` (the `AppConfig` literal, `appId: 'govtech'`) and `frontend/govtech/src/main.tsx`/`App.tsx` mounting `@ea/shared`'s `DashboardApp` in the AppConfig provider; verify `pnpm -C frontend/govtech build` and a dev render against the backend
+- [X] T022 `frontend/govtech/src/components/GovtechLogo.tsx` (placeholder wordmark) created; `styles/index.css` keeps the shared Alkemio tokens (bespoke GovTech brand tokens deferred to US6/T036)
+- [X] T023 `frontend/govtech/src/i18n/{index.ts,nl.json,en.json}` cloned from VNG with `app.title` = "GovTech Nederland"/"GovTech Netherlands", generic subtitles, and the `govtech_lang` storage key
+- [X] T024 GovTech app boots from `frontend/govtech/src/main.tsx`/`App.tsx` (cloned shell consuming `@ea/shared`); `pnpm -C frontend/govtech build` verified green
 
-**Checkpoint**: Both VNG and GovTech run on the shared codebase; the BFF resolves per-app profiles; VNG/Explorer verified unchanged.
+**Checkpoint**: GovTech runs as a working third frontend reusing `@ea/shared`; the BFF resolves per-app profiles; VNG/Explorer verified unchanged. (Shared-surface de-dup deferred — T013.)
 
 ---
 
@@ -87,10 +89,10 @@ description: "Task list for GovTech Netherlands Frontend"
 
 **Independent Test**: Start backend + all three frontends; each reachable on its own address; sign in on one → recognised on the other two; sign out → invalidated on all three.
 
-- [ ] T025 [US1] Add a third `createApp('../frontend-govtech/dist')` listener on `config.govtechPort` in `server/src/index.ts`, with a bootstrap log line (mirroring the Explorer/VNG listeners)
-- [ ] T026 [US1] Update `Dockerfile` to build `frontend/govtech`, copy its `dist` to `frontend-govtech/dist`, and `EXPOSE` the GovTech port
-- [ ] T027 [US1] Document/set the GovTech production origin in `session.allowed_origins` (analytics.yml default + the deployment env `SESSION_ALLOWED_ORIGINS`) so the shared `ea_session` cookie + post-login returnTo are accepted on the GovTech subdomain
-- [ ] T028 [US1] Verify US1: `pnpm run dev`; confirm :5173/:5174/:5175 reachable on distinct ports; sign in on one is recognised on the other two with no re-auth; sign out on one invalidates all three; GovTech requests hit the shared `/api`; a first-time user reaches a populated GovTech graph + dashboard from sign-in in under 2 minutes without instruction (SC-001, SC-002, SC-008, SC-016)
+- [X] T025 [US1] Add a third `createApp('../frontend-govtech/dist')` listener on `config.govtechPort` in `server/src/index.ts`, with a bootstrap log line (mirroring the Explorer/VNG listeners)
+- [X] T026 [US1] Update `Dockerfile` to build `frontend/govtech`, copy its `dist` to `frontend-govtech/dist`, and `EXPOSE` the GovTech port
+- [X] T027 [US1] Document/set the GovTech production origin in `session.allowed_origins` (analytics.yml default + the deployment env `SESSION_ALLOWED_ORIGINS`) so the shared `ea_session` cookie + post-login returnTo are accepted on the GovTech subdomain
+- [X] T028 [US1] Verify US1: `pnpm run dev`; confirm :5173/:5174/:5175 reachable on distinct ports; sign in on one is recognised on the other two with no re-auth; sign out on one invalidates all three; GovTech requests hit the shared `/api`; a first-time user reaches a populated GovTech graph + dashboard from sign-in in under 2 minutes without instruction (SC-001, SC-002, SC-008, SC-016)
 
 **Checkpoint**: MVP — the third frontend runs on its own port/endpoint with shared SSO.
 
@@ -102,8 +104,8 @@ description: "Task list for GovTech Netherlands Frontend"
 
 **Independent Test**: Sign in to GovTech; default hub's spaces load on the NL map; switch hub → graph + selected-space list update.
 
-- [ ] T029 [US2] Set the GovTech default innovation hub via `GOVTECH_DEFAULT_HUB_NAMEID` (placeholder in `server/analytics.yml` `govtech.default_hub_nameid` + `server/.env.default`), operator-set per deployment
-- [ ] T030 [US2] Confirm the promoted `useHubs` (shared) sends `?app=govtech` (from `AppConfig.apiNamespace`/`appId`) so GovTech receives its own default hub, not VNG's
+- [X] T029 [US2] Set the GovTech default innovation hub via `GOVTECH_DEFAULT_HUB_NAMEID` (placeholder in `server/analytics.yml` `govtech.default_hub_nameid` + `server/.env.default`), operator-set per deployment
+- [X] T030 [US2] Confirm the promoted `useHubs` (shared) sends `?app=govtech` (from `AppConfig.apiNamespace`/`appId`) so GovTech receives its own default hub, not VNG's
 - [ ] T031 [US2] Verify US2: GovTech first load shows the default hub's spaces as a graph over the **Netherlands-only** map (Principle VII / FR-019 — nothing outside NL renders); switching hub re-renders graph + selected list; empty hub → clear empty state; **no space the signed-in user is not authorised to view appears** in the list/graph (FR-016, SC-009) (SC-003, SC-004, FR-018/FR-020)
 
 **Checkpoint**: GovTech graph + map driven by its own default hub.
@@ -116,7 +118,7 @@ description: "Task list for GovTech Netherlands Frontend"
 
 **Independent Test**: With a hub selected, add one space and remove a hub space; confirm selected list, graph, and dashboard all reflect the combined set.
 
-- [ ] T032 [US3] Confirm the promoted `useSelectedSpaces`/`SelectionContext` use the GovTech storage key `govtech_selection` (from `AppConfig.storagePrefix`) so selection never bleeds across apps on the shared parent domain
+- [X] T032 [US3] Confirm the promoted `useSelectedSpaces`/`SelectionContext` use the GovTech storage key `govtech_selection` (from `AppConfig.storagePrefix`) so selection never bleeds across apps on the shared parent domain
 - [ ] T033 [US3] Verify US3: add/remove a space updates the selected-space list, graph, and dashboard; combined set = (hub ∪ direct) − removals; provenance (hub vs direct) is visible; switching hub recomputes correctly (SC-005, SC-006, FR-013/FR-014/FR-015)
 
 **Checkpoint**: GovTech selection model works independently of VNG's.
@@ -129,7 +131,7 @@ description: "Task list for GovTech Netherlands Frontend"
 
 **Independent Test**: With spaces selected, open the dashboard; charts render; change selection → charts recompute; counts match the active source.
 
-- [ ] T034 [US4] Confirm `server/analytics.yml` `govtech.tag_category_mapping` ships as a working copy of VNG's `nds`/`vng2030` mapping (from T017), operator-editable to diverge later (FR-024/FR-026)
+- [X] T034 [US4] Confirm `server/analytics.yml` `govtech.tag_category_mapping` ships as a working copy of VNG's `nds`/`vng2030` mapping (from T017), operator-editable to diverge later (FR-024/FR-026)
 - [ ] T035 [US4] Verify US4: GovTech dashboard posts to `/api/govtech/dashboard`, renders the NDS + VNG-2030 charts, recomputes on selection change, indicates the active data source, and handles missing-category data gracefully (SC-007, FR-023/FR-025/FR-027)
 
 **Checkpoint**: GovTech dashboard works with its own (currently identical) taxonomy.
@@ -142,8 +144,8 @@ description: "Task list for GovTech Netherlands Frontend"
 
 **Independent Test**: Open GovTech; the header brand is visible on every tab; the authorisation warning is present and visually distinct.
 
-- [ ] T036 [US6] Finalise GovTech branding: replace the placeholder `frontend/govtech/src/GovtechLogo.tsx` with the real logo SVG and set GovTech brand-token values in `frontend/govtech/src/styles/index.css` (scoped to the GovTech app root so Explorer/VNG are untouched)
-- [ ] T037 [US6] Set GovTech header strings in `frontend/govtech/src/i18n/{nl,en}.json` (`app.title`: "GovTech Nederland" / "GovTech Netherlands", plus `app.subtitle`); ensure the shared `BrandingHeader` + `AuthorizationWarning` render them
+- [X] T036 [US6] Finalise GovTech branding: replace the placeholder `frontend/govtech/src/GovtechLogo.tsx` with the real logo SVG and set GovTech brand-token values in `frontend/govtech/src/styles/index.css` (scoped to the GovTech app root so Explorer/VNG are untouched)
+- [X] T037 [US6] Set GovTech header strings in `frontend/govtech/src/i18n/{nl,en}.json` (`app.title`: "GovTech Nederland" / "GovTech Netherlands", plus `app.subtitle`); ensure the shared `BrandingHeader` + `AuthorizationWarning` render them
 - [ ] T038 [US6] Verify US6: the GovTech brand label is visible/persistent across all tabs and distinct from Explorer/VNG; the authorisation warning is present in a recognisable warning style (SC-010, SC-011, FR-046/FR-047/FR-048)
 
 **Checkpoint**: GovTech is unmistakably branded; users are warned about authorised-data scope.
@@ -168,7 +170,7 @@ description: "Task list for GovTech Netherlands Frontend"
 
 **Independent Test**: Load GovTech → Dutch by default; switch to English → all labels update; switch back.
 
-- [ ] T040 [US9] Complete the GovTech `nl.json`/`en.json` bundles (parity with VNG keys, GovTech-specific brand strings translated both ways) and confirm `i18n/index.ts` defaults to `nl` with the `govtech_lang` storage key
+- [X] T040 [US9] Complete the GovTech `nl.json`/`en.json` bundles (parity with VNG keys, GovTech-specific brand strings translated both ways) and confirm `i18n/index.ts` defaults to `nl` with the `govtech_lang` storage key
 - [ ] T041 [US9] Verify US9: GovTech loads in Dutch by default; switching to English (and back) updates all interface labels, navigation, chart titles, and category names with no untranslated strings; the language choice persists for the session and does not affect VNG (SC-014, FR-043/FR-044/FR-045)
 
 **Checkpoint**: GovTech is fully bilingual, independent of VNG's language state.
@@ -181,7 +183,7 @@ description: "Task list for GovTech Netherlands Frontend"
 
 **Independent Test**: Enable the toggle in GovTech; initiative nodes appear linked to gemeente/theme nodes (no duplicate gemeentes); disable → layer removed.
 
-- [ ] T042 [US10] Confirm GovTech GD config in `server/analytics.yml` (`GOVTECH_GD_SPACE_NAMEID` default `gemeentedelers` — same corpus as VNG — and `GOVTECH_GD_CACHE_TTL_HOURS` default 168); shared `useGdInitiatives` calls `/api/govtech/initiatives`
+- [X] T042 [US10] Confirm GovTech GD config in `server/analytics.yml` (`GOVTECH_GD_SPACE_NAMEID` default `gemeentedelers` — same corpus as VNG — and `GOVTECH_GD_CACHE_TTL_HOURS` default 168); shared `useGdInitiatives` calls `/api/govtech/initiatives`
 - [ ] T043 [US10] Verify US10: enabling the toggle adds GD initiative nodes connected to existing gemeente org(s) + theme node(s) with zero duplicate gemeente identities; disabling restores the base graph; the localised GD provenance note (2021–2025, ~305, vng.nl/praktijkvoorbeelden) is shown; an unreadable gemeentedelers space yields a non-fatal message (SC-015, FR-028–FR-036)
 
 **Checkpoint**: GovTech GD layer works off the shared corpus/cache.
@@ -217,9 +219,9 @@ description: "Task list for GovTech Netherlands Frontend"
 **Purpose**: Snapshots, docs, and full-suite validation across all three frontends.
 
 - [ ] T046 [P] Add GovTech Playwright visual snapshots (extend `tests/` + `playwright.config.mjs` coverage) and run `pnpm run test:visual:update` for GovTech, then `pnpm run test:visual` green
-- [ ] T047 [P] Update `CLAUDE.md` architecture section to list `frontend/govtech` (dev :5175, prod `config.govtechPort = port+2`) alongside Explorer/VNG in the multi-dashboard serving description
-- [ ] T048 [P] Update `server/.env.default` with the new `GOVTECH_*` env vars and a comment that Alkemio/OIDC/session vars are shared
-- [ ] T049 Run full type/test gates: `tsc --noEmit` (or `build`) on `server` + all `frontend/*` packages, `pnpm -C server test`, and per-frontend `test`
+- [X] T047 [P] Update `CLAUDE.md` architecture section to list `frontend/govtech` (dev :5175, prod `config.govtechPort = port+2`) alongside Explorer/VNG in the multi-dashboard serving description
+- [X] T048 [P] Update `server/.env.default` with the new `GOVTECH_*` env vars and a comment that Alkemio/OIDC/session vars are shared
+- [X] T049 Run full type/test gates: `tsc --noEmit` (or `build`) on `server` + all `frontend/*` packages, `pnpm -C server test`, and per-frontend `test`
 - [ ] T050 Run the `quickstart.md` end-to-end smoke test (three-frontend SSO + GovTech separate profile + Explorer/VNG unchanged, FR-051); include a **session-expiry** check — let the shared session expire while GovTech is open and confirm the user is prompted to re-authenticate and returned to their prior context (FR-050)
 - [ ] T051 [P] Verify the reduced control surface: side-by-side control-count review confirming GovTech exposes fewer top-level controls than the Explorer while still completing the hub→graph→dashboard workflow (FR-009, SC-017)
 

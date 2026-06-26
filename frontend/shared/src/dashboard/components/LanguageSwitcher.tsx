@@ -1,6 +1,9 @@
 import { useTranslation } from 'react-i18next';
-import { cn } from '@ea/shared';
-import { setLanguage, SUPPORTED_LANGUAGES, type Language } from '../i18n/index.js';
+import { cn, useAppConfig } from '@ea/shared';
+
+/** Languages offered by every dashboard frontend (Dutch default, FR-036/037). */
+export const SUPPORTED_LANGUAGES = ['nl', 'en'] as const;
+export type Language = (typeof SUPPORTED_LANGUAGES)[number];
 
 interface LanguageSwitcherProps {
   /** Renders the switcher to fill its container (used inside the user dropdown). */
@@ -10,11 +13,20 @@ interface LanguageSwitcherProps {
 
 /**
  * Dutch/English language switcher (FR-037), styled as a compact segmented
- * control. Persists the choice for the session. Used inside the user menu.
+ * control. Persists the choice under `<storagePrefix>_lang` for the session.
+ * Used inside the user menu.
  */
 export function LanguageSwitcher({ block = false, className }: LanguageSwitcherProps) {
   const { t, i18n } = useTranslation();
+  const { storagePrefix } = useAppConfig();
   const active = i18n.language as Language;
+
+  const setLanguage = (lang: Language) => {
+    void i18n.changeLanguage(lang);
+    if (typeof localStorage !== 'undefined') {
+      localStorage.setItem(`${storagePrefix}_lang`, lang);
+    }
+  };
 
   return (
     <div

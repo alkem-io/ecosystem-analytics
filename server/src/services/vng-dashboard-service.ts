@@ -236,8 +236,10 @@ export async function assembleDashboard(
   auth: AuthContext,
   spaceIds: string[],
   includeGd: boolean,
+  /** Per-app dashboard profile (feature 017) — its `tagCategoryMapping` drives the counts.
+   *  Defaults to the VNG profile for back-compat with existing callers/tests. */
+  profile: VngConfig = loadConfig().vng,
 ): Promise<VngDashboardResponse> {
-  const config = loadConfig();
   const sdk = await createAlkemioSdk(auth);
 
   const tagsPerSpace = await Promise.all(
@@ -267,5 +269,5 @@ export async function assembleDashboard(
     );
   }
 
-  return countDashboard(entities, config.vng.tagCategoryMapping);
+  return countDashboard(entities, profile.tagCategoryMapping);
 }

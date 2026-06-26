@@ -1,7 +1,38 @@
 import { describe, it, expect } from 'vitest';
 import * as oidc from 'openid-client';
-import { validateReturnTo, DEFAULT_RETURN_TO } from './login.js';
+import { validateReturnTo, resolveReturnToOrigin, DEFAULT_RETURN_TO } from './login.js';
 import { timingSafeEqualStr } from './crypto.js';
+
+describe('resolveReturnToOrigin (cross-frontend return, feature 017)', () => {
+  const origins = ['http://localhost:5173', 'http://localhost:5174', 'http://localhost:5175'];
+
+  it('upgrades a relative returnTo to the originating allow-listed Referer origin', () => {
+    // Sign-in started on GovTech (:5175) must come back to :5175, not the Explorer.
+    expect(resolveReturnToOrigin('/', 'http://localhost:5175/graph', origins)).toBe(
+      'http://localhost:5175/',
+    );
+    expect(resolveReturnToOrigin('/details', 'http://localhost:5174/', origins)).toBe(
+      'http://localhost:5174/details',
+    );
+  });
+
+  it('leaves the path relative when the Referer origin is not allow-listed', () => {
+    expect(resolveReturnToOrigin('/', 'http://evil.example/', origins)).toBe('/');
+  });
+
+  it('leaves absolute / protocol-relative / missing-Referer inputs untouched', () => {
+    expect(resolveReturnToOrigin('http://localhost:5175/', 'http://localhost:5175/', origins)).toBe(
+      'http://localhost:5175/',
+    );
+    expect(resolveReturnToOrigin('//evil', 'http://localhost:5175/', origins)).toBe('//evil');
+    expect(resolveReturnToOrigin('/', undefined, origins)).toBe('/');
+  });
+
+  it('combined with validateReturnTo, returns an allow-listed absolute URL', () => {
+    const upgraded = resolveReturnToOrigin('/', 'http://localhost:5175/', origins);
+    expect(validateReturnTo(upgraded, origins)).toBe('http://localhost:5175/');
+  });
+});
 
 describe('validateReturnTo (open-redirect allow-list, FR-013)', () => {
   it('accepts clean EA-internal paths', () => {

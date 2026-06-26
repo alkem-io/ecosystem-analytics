@@ -25,7 +25,7 @@ export class ErrorBoundary extends Component<Props, State> {
 
   componentDidCatch(error: Error, info: ErrorInfo): void {
     // eslint-disable-next-line no-console
-    console.error('[VNG] component error', this.props.label ?? '', error, info.componentStack);
+    console.error('[dashboard] component error', this.props.label ?? '', error, info.componentStack);
   }
 
   private reset = () => this.setState({ error: null });

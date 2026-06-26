@@ -8,7 +8,7 @@ import { graphRouter } from './routes/graph.js';
 import { imageProxyRouter } from './routes/image-proxy.js';
 import { queryRouter } from './routes/query.js';
 import { hubsRouter } from './routes/hubs.js';
-import { vngRouter } from './routes/vng.js';
+import { dashboardRouter } from './routes/dashboard.js';
 import { metaRouter } from './routes/meta.js';
 import { loadConfig } from './config.js';
 import { getLogger } from './logging/logger.js';
@@ -56,7 +56,10 @@ export function createApp(staticDirRelative = '../frontend/dist') {
   app.use('/api/image-proxy', imageProxyRouter);
   app.use('/api/query', queryRouter);
   app.use('/api/hubs', hubsRouter);
-  app.use('/api/vng', vngRouter);
+  // App-aware dashboard routes — same router mounted per dashboard app so the app
+  // id is derived from the path. `/api/vng/*` preserved; `/api/govtech/*` added (feature 017).
+  app.use('/api/vng', dashboardRouter);
+  app.use('/api/govtech', dashboardRouter);
   app.use('/api/meta', metaRouter);
 
   // Feature flags + environment info (public, no auth required).
