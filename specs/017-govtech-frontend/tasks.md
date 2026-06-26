@@ -146,7 +146,7 @@ description: "Task list for GovTech Netherlands Frontend"
 
 - [X] T036 [US6] Finalise GovTech branding: replace the placeholder `frontend/govtech/src/GovtechLogo.tsx` with the real logo SVG and set GovTech brand-token values in `frontend/govtech/src/styles/index.css` (scoped to the GovTech app root so Explorer/VNG are untouched)
 - [X] T037 [US6] Set GovTech header strings in `frontend/govtech/src/i18n/{nl,en}.json` (`app.title`: "GovTech Nederland" / "GovTech Netherlands", plus `app.subtitle`); ensure the shared `BrandingHeader` + `AuthorizationWarning` render them
-- [ ] T038 [US6] Verify US6: the GovTech brand label is visible/persistent across all tabs and distinct from Explorer/VNG; the authorisation warning is present in a recognisable warning style (SC-010, SC-011, FR-046/FR-047/FR-048)
+- [X] T038 [US6] Verify US6: the GovTech brand label is visible/persistent across all tabs and distinct from Explorer/VNG; the authorisation warning is present in a recognisable warning style (SC-010, SC-011, FR-046/FR-047/FR-048) — confirmed in live testing
 
 **Checkpoint**: GovTech is unmistakably branded; users are warned about authorised-data scope.
 
@@ -158,7 +158,7 @@ description: "Task list for GovTech Netherlands Frontend"
 
 **Independent Test**: Click an organisation node in GovTech; its connected spaces are listed/highlighted and openable.
 
-- [ ] T039 [US7] Verify US7: clicking an organisation node in GovTech reveals its connected spaces (<1s) and lets the user open those spaces' details; an org with no in-graph connections shows a clear message, not a broken view (SC-012, FR-037/FR-038)
+- [X] T039 [US7] Verify US7: clicking an organisation node in GovTech reveals its connected spaces (<1s) and lets the user open those spaces' details; an org with no in-graph connections shows a clear message, not a broken view (SC-012, FR-037/FR-038) — confirmed in live testing
 
 **Checkpoint**: Organisation→spaces reveal works in GovTech.
 
@@ -171,7 +171,7 @@ description: "Task list for GovTech Netherlands Frontend"
 **Independent Test**: Load GovTech → Dutch by default; switch to English → all labels update; switch back.
 
 - [X] T040 [US9] Complete the GovTech `nl.json`/`en.json` bundles (parity with VNG keys, GovTech-specific brand strings translated both ways) and confirm `i18n/index.ts` defaults to `nl` with the `govtech_lang` storage key
-- [ ] T041 [US9] Verify US9: GovTech loads in Dutch by default; switching to English (and back) updates all interface labels, navigation, chart titles, and category names with no untranslated strings; the language choice persists for the session and does not affect VNG (SC-014, FR-043/FR-044/FR-045)
+- [X] T041 [US9] Verify US9: GovTech loads in Dutch by default; switching to English (and back) updates all interface labels, navigation, chart titles, and category names with no untranslated strings; the language choice persists for the session and does not affect VNG (SC-014, FR-043/FR-044/FR-045) — confirmed in live testing
 
 **Checkpoint**: GovTech is fully bilingual, independent of VNG's language state.
 
@@ -208,7 +208,7 @@ description: "Task list for GovTech Netherlands Frontend"
 
 **Independent Test**: Toggle "hide gemeentes" in GovTech; gemeente nodes leave the graph and dashboard; toggle back restores them.
 
-- [ ] T045 [US8] Verify US8: hiding gemeentes removes 100% of known gemeente organisations from both the GovTech graph and dashboard (and restores them on toggle-back), with zero non-gemeente organisations affected, using the same `vng-gemeente-delers` snapshot as VNG (SC-013, FR-039–FR-042)
+- [X] T045 [US8] Verify US8: hiding gemeentes removes 100% of known gemeente organisations from both the GovTech graph and dashboard (and restores them on toggle-back), with zero non-gemeente organisations affected, using the same `vng-gemeente-delers` snapshot as VNG (SC-013, FR-039–FR-042) — confirmed in live testing
 
 **Checkpoint**: GovTech gemeente toggle works off the shared snapshot.
 
@@ -222,7 +222,7 @@ description: "Task list for GovTech Netherlands Frontend"
 - [X] T047 [P] Update `CLAUDE.md` architecture section to list `frontend/govtech` (dev :5175, prod `config.govtechPort = port+2`) alongside Explorer/VNG in the multi-dashboard serving description
 - [X] T048 [P] Update `server/.env.default` with the new `GOVTECH_*` env vars and a comment that Alkemio/OIDC/session vars are shared
 - [X] T049 Run full type/test gates: `tsc --noEmit` (or `build`) on `server` + all `frontend/*` packages, `pnpm -C server test`, and per-frontend `test`
-- [ ] T050 Run the `quickstart.md` end-to-end smoke test (three-frontend SSO + GovTech separate profile + Explorer/VNG unchanged, FR-051); include a **session-expiry** check — let the shared session expire while GovTech is open and confirm the user is prompted to re-authenticate and returned to their prior context (FR-050)
+- [X] T050 Run the `quickstart.md` end-to-end smoke test (three-frontend SSO + GovTech separate profile + Explorer/VNG unchanged, FR-051); include a **session-expiry** check — let the shared session expire while GovTech is open and confirm the user is prompted to re-authenticate and returned to their prior context (FR-050) — confirmed in live testing
 - [~] T051 [P] ~~Verify the reduced control surface~~ — **descoped by product owner** (2026-06-26): GovTech ships as a full VNG-equivalent control surface and "will evolve from here"; a reduced-control review is not required for this delivery (FR-009/SC-017 deferred to future iteration)
 
 ---
