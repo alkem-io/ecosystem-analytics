@@ -75,7 +75,10 @@ export function LoginScreen() {
         className="pointer-events-none absolute -bottom-40 -left-24 h-[28rem] w-[28rem] rounded-full bg-[#09bcd4]/15 blur-3xl"
       />
 
-      <main className="relative w-full max-w-lg rounded-2xl bg-card p-10 text-center shadow-2xl sm:p-12">
+      {/* Per-side padding (NOT the p-10/sm:p-12 shorthand): a small bottom padding (pb-3 = 12px)
+          can't be silently reset by a shorthand at the sm breakpoint, so the "Powered by Alkemio"
+          footer sits a small, even gap above the card edge — matching the gap above its divider. */}
+      <main className="relative w-full max-w-lg rounded-2xl bg-card px-10 pt-10 pb-3 text-center shadow-2xl sm:px-12 sm:pt-12">
         {/* App brand logo (Digicampus for GovTech, VNG mark for VNG) */}
         <div className="flex items-center justify-center">
           <Logo className="h-10 w-auto max-w-full" title={t('app.title')} />
@@ -130,15 +133,14 @@ export function LoginScreen() {
         </div>
 
         {/* Prototype disclaimer */}
-        <p className="mt-6 text-xs font-semibold uppercase tracking-wide text-amber-600">
+        <p className="mt-6 text-sm font-semibold uppercase tracking-wide text-amber-600">
           {t('login.disclaimer', { defaultValue: 'Prototype for exploration' })}
         </p>
 
         {/* Identity-provider footer — reads "Powered by [Alkemio logo]" on a single line.
-            Full-bleed (negative margins cancel the card padding) so the divider spans the
-            card and the spacing above/below the row is small + equal (py-2 = 8px ≈ half the
-            16px logo). Inline logo height (not a Tailwind class) keeps the wide wordmark small. */}
-        <div className="mt-8 -mx-10 -mb-10 flex items-center justify-center gap-2 border-t border-border px-10 py-2 sm:-mx-12 sm:-mb-12 sm:px-12">
+            pt-2 (8px) above the row pairs with the card's pb-3 below it for a small, even gap
+            around the row. Inline logo height (not a Tailwind class) keeps the wordmark small. */}
+        <div className="mt-8 flex items-center justify-center gap-2 border-t border-border pt-2">
           <span className="text-xs uppercase tracking-wide text-muted-foreground">
             {t('login.poweredBy', { defaultValue: 'Powered by' })}
           </span>
