@@ -1,5 +1,12 @@
 @import "tailwindcss";
 
+/* Tailwind v4 auto-detects sources from each APP's own root (e.g. frontend/govtech/src) and
+   excludes node_modules — but @ea/shared is reached through a node_modules symlink, so classes
+   used ONLY in shared components (e.g. the login card's px-10/pt-10/pb-3) would never be
+   generated. Explicitly register the shared source tree so its utility classes are always
+   emitted, for every app that imports this stylesheet. Relative to this file (src/styles/). */
+@source "../**/*.{ts,tsx}";
+
 @custom-variant dark (:root[data-theme="dark"] &);
 
 @theme {
