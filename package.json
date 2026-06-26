@@ -4,10 +4,11 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "dev": "concurrently -n server,explorer,vng -c blue,green,magenta \"pnpm -C server dev\" \"pnpm -C frontend/ecosystem-analytics dev\" \"pnpm -C frontend/vng dev\"",
+    "dev": "concurrently -n server,explorer,vng,govtech -c blue,green,magenta,cyan \"pnpm -C server dev\" \"pnpm -C frontend/ecosystem-analytics dev\" \"pnpm -C frontend/vng dev\" \"pnpm -C frontend/govtech dev\"",
     "dev:server": "pnpm -C server dev",
     "dev:explorer": "pnpm -C frontend/ecosystem-analytics dev",
     "dev:vng": "pnpm -C frontend/vng dev",
+    "dev:govtech": "pnpm -C frontend/govtech dev",
     "build:frontends": "pnpm -r --filter \"./frontend/**\" build",
     "test:visual": "playwright test",
     "test:visual:update": "playwright test --update-snapshots",

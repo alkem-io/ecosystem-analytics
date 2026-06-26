@@ -4,6 +4,7 @@ packages:
   - frontend/shared
   - frontend/ecosystem-analytics
   - frontend/vng
+  - frontend/govtech
 
 # Build-script handling. pnpm 11 makes ignored build scripts a FATAL error under
 # `--frozen-lockfile` (ERR_PNPM_IGNORED_BUILDS). On pnpm 11.7.0 neither `allowBuilds`,

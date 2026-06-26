@@ -15,6 +15,8 @@ interface ExportArgs {
   charts: ChartCapture[];
   /** i18n category-label resolver, e.g. (ns, key) => localized label. */
   labelOf: (namespace: string, key: string) => string;
+  /** XLSX workbook creator/author (per-app, from AppConfig). */
+  creator: string;
   filename: string;
   /** Localised column/section headings. */
   text: {
@@ -48,9 +50,16 @@ async function capture(node: HTMLElement): Promise<string | null> {
  * Build and download an .xlsx of the dashboard: the displayed data as tables plus
  * the rendered charts as images. Runs entirely client-side.
  */
-export async function exportDashboardXlsx({ data, charts, labelOf, filename, text }: ExportArgs): Promise<void> {
+export async function exportDashboardXlsx({
+  data,
+  charts,
+  labelOf,
+  creator,
+  filename,
+  text,
+}: ExportArgs): Promise<void> {
   const wb = new ExcelJS.Workbook();
-  wb.creator = 'VNG Kenniscentrum Innovatie';
+  wb.creator = creator;
   wb.created = new Date();
 
   // ---- Data sheet -------------------------------------------------------
@@ -89,7 +98,8 @@ export async function exportDashboardXlsx({ data, charts, labelOf, filename, tex
     headerRow([text.bucket, text.groei, text.gd, text.total, text.initiatives]);
     for (const b of data.gemeenteDistribution.buckets) {
       ds.addRow([
-        b.key === 'none' ? text.noClassification : b.key,
+        // The "none" bucket = 0 associated gemeentes → label it "0", not "no classification".
+        b.key === 'none' ? '0' : b.key,
         b.groei,
         b.gd,
         b.groei + b.gd,

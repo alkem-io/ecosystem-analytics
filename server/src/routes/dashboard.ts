@@ -5,14 +5,34 @@ import { assembleDashboard, assembleGemeenteDistribution } from '../services/vng
 import { fetchGemeentedelersCallouts } from '../services/gd-initiatives-service.js';
 import { loadVngRegistry } from '../services/vng-registry.js';
 import { createAlkemioSdk, isAlkemioAuthError } from '../graphql/client.js';
-import { loadConfig } from '../config.js';
+import { loadConfig, type DashboardAppConfig, type DashboardAppId } from '../config.js';
 import { getLogger } from '../logging/logger.js';
 
 const logger = getLogger();
 
-export const vngRouter = Router();
-vngRouter.use(authMiddleware);
-vngRouter.use(resolveUser);
+/**
+ * App-aware dashboard router (feature 017). Mounted at BOTH `/api/vng` and
+ * `/api/govtech`; the app id is derived from the mount path (`req.baseUrl`) and
+ * used to resolve that app's dashboard profile (taxonomy etc.). `/api/vng/*` is
+ * preserved verbatim for the existing VNG frontend (FR-051). GD data/cache are a
+ * SHARED corpus, so the GemeenteDelers fetch is identical across apps.
+ */
+export const dashboardRouter = Router();
+dashboardRouter.use(authMiddleware);
+dashboardRouter.use(resolveUser);
+
+/** Resolve the dashboard profile for the request from its mount path; 400 on unknown app. */
+function resolveProfile(req: Request, res: Response): DashboardAppConfig | null {
+  const config = loadConfig();
+  // baseUrl is the mount path, e.g. "/api/vng" or "/api/govtech".
+  const appId = req.baseUrl.split('/').filter(Boolean).pop() as DashboardAppId;
+  const profile = config.dashboards[appId];
+  if (!profile) {
+    res.status(400).json({ error: 'UNKNOWN_APP', message: `Unknown dashboard app '${appId}'` });
+    return null;
+  }
+  return profile;
+}
 
 interface DashboardRequest {
   spaceIds: string[];
@@ -23,10 +43,12 @@ interface DashboardRequest {
   includeGemeenteDelers?: boolean;
 }
 
-// POST /api/vng/dashboard — category counts for the dashboard charts (FR-020/022).
-vngRouter.post('/dashboard', async (req: Request, res: Response) => {
+// POST /api/:app/dashboard — category counts for the dashboard charts (FR-023/025).
+dashboardRouter.post('/dashboard', async (req: Request, res: Response) => {
   try {
     const config = loadConfig();
+    const profile = resolveProfile(req, res);
+    if (!profile) return;
     const body = req.body as DashboardRequest;
 
     if (!body.spaceIds || body.spaceIds.length === 0) {
@@ -45,6 +67,7 @@ vngRouter.post('/dashboard', async (req: Request, res: Response) => {
       req.auth!,
       body.spaceIds,
       body.includeInitiatives ?? false,
+      profile,
     );
     // Initiatives-by-gemeente-count distribution (stacked Groei + GD). Always
     // includes Groei (selected spaces); folds in GD when the GD checkbox is on.
@@ -57,16 +80,18 @@ vngRouter.post('/dashboard', async (req: Request, res: Response) => {
     res.json(result);
   } catch (err) {
     if (isAlkemioAuthError(err)) return invalidateAndReject(req, res);
-    logger.error(`Dashboard failed: ${(err as Error).message}`, { context: 'VNG' });
+    logger.error(`Dashboard failed: ${(err as Error).message}`, { context: 'Dashboard' });
     res.status(502).json({ error: 'DASHBOARD_FAILED', message: 'Failed to compute dashboard' });
   }
 });
 
-// GET /api/vng/initiatives — the GemeenteDelers initiatives (id + name + the
+// GET /api/:app/initiatives — the GemeenteDelers initiatives (id + name + the
 // gemeentes each is associated with), so the selection panel can list them all
-// under "Include GD initiatives" and show gemeente info on hover (US10).
-vngRouter.get('/initiatives', async (req: Request, res: Response) => {
+// under "Include GD initiatives" and show gemeente info on hover (US10). GD is a
+// SHARED corpus across apps, so this is app-independent.
+dashboardRouter.get('/initiatives', async (req: Request, res: Response) => {
   try {
+    if (!resolveProfile(req, res)) return;
     const sdk = await createAlkemioSdk(req.auth!);
     const callouts = await fetchGemeentedelersCallouts(req.auth!, sdk);
     const registry = loadVngRegistry();
@@ -86,7 +111,7 @@ vngRouter.get('/initiatives', async (req: Request, res: Response) => {
     );
   } catch (err) {
     if (isAlkemioAuthError(err)) return invalidateAndReject(req, res);
-    logger.error(`GD initiatives list failed: ${(err as Error).message}`, { context: 'VNG' });
+    logger.error(`GD initiatives list failed: ${(err as Error).message}`, { context: 'Dashboard' });
     res.status(502).json({ error: 'GD_LIST_FAILED', message: 'Failed to list GD initiatives' });
   }
 });

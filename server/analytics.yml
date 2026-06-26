@@ -33,10 +33,10 @@ session:
   # Dev-only AES-256 key so local boots out of the box. Hosted MUST override with a
   # fresh key from the k8s secret — NEVER reuse this value in any shared/hosted env.
   enc_key: "${OIDC_SESSION_ENC_KEY}:GGvIJ/WJIRBGWoNO0thfWCd2XbEXqdhlokW+qVO484I="
-  # CSV; CORS allow-list AND post-login returnTo allow-list. Includes BOTH dev
-  # frontends (Explorer :5173, VNG :5174) so sign-in started on either lands back
-  # on the right app. Hosted sets both subdomains.
-  allowed_origins: "${SESSION_ALLOWED_ORIGINS}:http://localhost:5173,http://localhost:5174"
+  # CSV; CORS allow-list AND post-login returnTo allow-list. Includes ALL three dev
+  # frontends (Explorer :5173, VNG :5174, GovTech :5175) so sign-in started on any
+  # of them lands back on the right app. Hosted sets every subdomain.
+  allowed_origins: "${SESSION_ALLOWED_ORIGINS}:http://localhost:5173,http://localhost:5174,http://localhost:5175"
 
 server:
   port: ${ECOSYSTEM_ANALYTICS_BACKEND_PORT}:4100
@@ -95,6 +95,34 @@ vng:
       "digitaal vakmanschap en moderne werkomgeving": vakmanschap
     vng2030:
       # Omkeringsthema's (the 6 shown on the VNG-2030 chart)
+      "bedrijfsvoering & gemeentediensten": bedrijfsvoering
+      "wonen en ruimte": wonen-ruimte
+      "bestaanszekerheid": bestaanszekerheid
+      "klimaat en energie": klimaat-energie
+      "kansengelijkheid/jeugd": kansengelijkheid
+      "vergrijzing/gezond leven": vergrijzing
+
+# GovTech Netherlands frontend (feature 017-govtech-frontend). A separate dashboard
+# profile with its OWN GOVTECH_* env vars (independent of VNG). The Alkemio/OIDC/
+# session config above is SHARED (one BFF). GovTech reads the SAME gemeentedelers
+# corpus as VNG (default below) and ships VNG's taxonomy as its starting point,
+# operator-editable to diverge later without code changes.
+govtech:
+  # Operator-set per deployment (no baked default); empty => no preselection, the
+  # user still gets the full hub list. Production sets GOVTECH_DEFAULT_HUB_NAMEID.
+  default_hub_nameid: "${GOVTECH_DEFAULT_HUB_NAMEID}:"
+  gemeentedelers_space_nameid: ${GOVTECH_GD_SPACE_NAMEID}:gemeentedelers # same corpus as VNG
+  gd_cache_ttl_hours: ${GOVTECH_GD_CACHE_TTL_HOURS}:168 # ~1 week (shared archival GD corpus)
+  # Seeded as a copy of VNG's mapping; operator-editable to diverge from VNG (FR-026).
+  tag_category_mapping:
+    nds:
+      "cloud": cloud
+      "data": data
+      "artificiële intelligentie": ai
+      "centrale (digitale) dienstverlening": dienstverlening
+      "digitale weerbaarheid en autonomie": weerbaarheid
+      "digitaal vakmanschap en moderne werkomgeving": vakmanschap
+    vng2030:
       "bedrijfsvoering & gemeentediensten": bedrijfsvoering
       "wonen en ruimte": wonen-ruimte
       "bestaanszekerheid": bestaanszekerheid

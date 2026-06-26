@@ -1,8 +1,11 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Loader2, LogIn } from 'lucide-react';
-import { cn, login } from '@ea/shared';
-import { AlkemioLogo } from './AlkemioLogo';
+import { cn, login, useAppConfig } from '@ea/shared';
+
+// Full Alkemio logo (symbol + wordmark), bundled as an asset and shown small in the
+// login footer to indicate the sign-in identity provider.
+const alkemioLogoUrl = new URL('../assets/alkemio-logo.svg', import.meta.url).href;
 
 interface EnvInfo {
   url: string | null;
@@ -43,6 +46,7 @@ const hostOf = (url: string) => url.replace(/^https?:\/\//, '').replace(/\/$/, '
  */
 export function LoginScreen() {
   const { t } = useTranslation();
+  const { Logo } = useAppConfig();
   const { url, loading } = useEnvironment();
   const name = useMemo(() => deriveEnvironmentName(url), [url]);
   // True from the moment Sign-in is clicked until the browser navigates away, so
@@ -72,12 +76,9 @@ export function LoginScreen() {
       />
 
       <main className="relative w-full max-w-lg rounded-2xl bg-card p-10 text-center shadow-2xl sm:p-12">
-        {/* Alkemio identity */}
-        <div className="flex items-center justify-center gap-2.5">
-          <AlkemioLogo aria-hidden="true" className="h-8 w-8 shrink-0" />
-          <span className="text-base font-bold uppercase tracking-[0.22em] text-foreground">
-            Alkemio
-          </span>
+        {/* App brand logo (Digicampus for GovTech, VNG mark for VNG) */}
+        <div className="flex items-center justify-center">
+          <Logo className="h-10 w-auto max-w-full" title={t('app.title')} />
         </div>
 
         {/* Product title */}
@@ -132,6 +133,22 @@ export function LoginScreen() {
         <p className="mt-6 text-xs font-semibold uppercase tracking-wide text-amber-600">
           {t('login.disclaimer', { defaultValue: 'Prototype for exploration' })}
         </p>
+
+        {/* Identity-provider footer — reads "Powered by [Alkemio logo]" on a single line.
+            Full-bleed (negative margins cancel the card padding) so the divider spans the
+            card and the spacing above/below the row is small + equal (py-2 = 8px ≈ half the
+            16px logo). Inline logo height (not a Tailwind class) keeps the wide wordmark small. */}
+        <div className="mt-8 -mx-10 -mb-10 flex items-center justify-center gap-2 border-t border-border px-10 py-2 sm:-mx-12 sm:-mb-12 sm:px-12">
+          <span className="text-xs uppercase tracking-wide text-muted-foreground">
+            {t('login.poweredBy', { defaultValue: 'Powered by' })}
+          </span>
+          <img
+            src={alkemioLogoUrl}
+            alt="Alkemio"
+            style={{ height: 16, width: 'auto' }}
+            className="shrink-0"
+          />
+        </div>
       </main>
     </div>
   );

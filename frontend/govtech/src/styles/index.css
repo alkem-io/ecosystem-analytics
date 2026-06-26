@@ -1,0 +1,34 @@
+/* VNG app styles — reuse the shared Alkemio design tokens (feature 016 C1 decision). */
+@import '@ea/shared/styles/globals.css';
+@import '@ea/shared/styles/tokens.css';
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   VNG-only token overrides — align with the Alkemio product "CRD" design system
+   (client-web develop src/crd/styles/theme.css).
+   Scoped to the VNG app via this entry stylesheet; the shared tokens.css /
+   globals.css are NOT modified, so the Explorer keeps the generic-blue branding.
+   ───────────────────────────────────────────────────────────────────────────── */
+:root {
+  /* Primary — Alkemio dark slate-navy (was #2563eb / #1d4ed8) */
+  --primary: #1d384a;
+  --primary-hover: #16293a;
+  --primary-foreground: #ffffff;
+
+  /* Brand accent cyan (highlights/accents) */
+  --accent-cyan: #09bcd4;
+
+  /* Foreground / text — slate-navy (was #0a0a0a) */
+  --foreground: #1d384a;
+  --text-primary: #1d384a;
+  --text-secondary: #64748b; /* slate-500 (was #6b7280) */
+
+  /* Neutrals → slate ramp */
+  --border: #e2e8f0; /* was #cbd5e1 */
+  --border-focus: #1d384a; /* was #2563eb */
+  --surface: #f1f5f9; /* was #f9fafb */
+
+  /* Radius — CRD uses 6px (was 8px) */
+  --radius: 6px;
+  --radius-sm: 2px; /* was 4px (CRD sm) */
+  --radius-lg: 6px; /* was 12px (CRD lg) */
+}

@@ -13,10 +13,11 @@ frontend/                       pnpm-workspace parent for all SPA packages
   shared/                       @ea/shared — graph/map/details/services/ui/tokens shared by every SPA
   ecosystem-analytics/          the Explorer SPA (React 19 + Vite 7 + D3 v7), dev :5173
   vng/                          VNG Kenniscentrum Innovatie dashboard SPA, dev :5174
+  govtech/                      GovTech Netherlands dashboard SPA, dev :5175 (feature 017)
 server/                         Express 5 BFF — OIDC auth, GraphQL relay, SQLite cache
 ```
 
-- **Multi-dashboard serving**: ONE BFF container serves every SPA, each on its own port sharing the same `/api` + session store — Explorer on `config.port` (`../frontend/dist`, prod :4000) and VNG on `config.vngPort = port+1` (`../frontend-vng/dist`, prod :4001), via `createApp(staticDir)` called once per SPA in `server/src/index.ts`. Each SPA is fronted by its own subdomain (e.g. `analytics.*` / `vih-analytics.*`) with shared parent-domain `ea_session` sign-in. New dashboards follow this exact pattern — see the constitution's Development Workflow for the "add a dashboard" steps.
+- **Multi-dashboard serving**: ONE BFF container serves every SPA, each on its own port sharing the same `/api` + session store — Explorer on `config.port` (`../frontend/dist`, prod :4000), VNG on `config.vngPort = port+1` (`../frontend-vng/dist`, prod :4001), and GovTech on `config.govtechPort = port+2` (`../frontend-govtech/dist`, prod :4002), via `createApp(staticDir)` called once per SPA in `server/src/index.ts`. Per-dashboard config lives in an app-keyed `config.dashboards` registry (`vng`, `govtech`) with independent env vars (`VNG_*` / `GOVTECH_*`); the app-aware routes `/api/<app>/dashboard` + `/api/<app>/initiatives` (and `/api/hubs?app=<app>`) resolve the matching profile. Each SPA is fronted by its own subdomain (e.g. `analytics.*` / `vih-analytics.*` / `govtech.*`) with shared parent-domain `ea_session` sign-in. New dashboards follow this exact pattern — see the constitution's Development Workflow for the "add a dashboard" steps.
 - Frontend communicates **exclusively** with the BFF (never directly with Alkemio)
 - BFF is EA's own Alkemio OIDC client (Ory Hydra): it runs the redirect-based Authorization Code + PKCE flow, holds the access/refresh tokens server-side (encrypted), and authorizes Alkemio GraphQL calls with the access token. The browser holds only an opaque `ea_session` cookie.
 - Cache is SQLite, scoped per-user per-Space with configurable TTL

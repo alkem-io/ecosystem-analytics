@@ -58,20 +58,30 @@ export interface SessionConfig {
   allowedOrigins: string[];
 }
 
-/** VNG Kenniscentrum Innovatie frontend configuration (feature 016-vng-frontend). */
-export interface VngConfig {
-  /** Default innovation hub nameID applied on first load (empty => none). FR-010. */
+/**
+ * Per-dashboard frontend configuration (feature 016 VNG, feature 017 GovTech).
+ * Each Dutch dashboard (VNG, GovTech, …) has its own independent profile; the
+ * shared Alkemio/OIDC/session config is single-valued (one BFF).
+ */
+export interface DashboardAppConfig {
+  /** Default innovation hub nameID applied on first load (empty => none). FR-012. */
   defaultHubNameId: string;
-  /** nameID of the GemeenteDelers space whose Knowledge Base holds the GD initiatives. FR-045. */
+  /** nameID of the GemeenteDelers space whose Knowledge Base holds the GD initiatives. FR-034. */
   gemeentedelersSpaceNameId: string;
-  /** Long cache TTL for the archival GD initiative layer. FR-046. */
+  /** Long cache TTL for the archival GD initiative layer. FR-035. */
   gdCacheTtlHours: number;
-  /** Raw space/callout tag (lower-cased) → dashboard category key, per dimension. FR-022. */
+  /** Raw space/callout tag (lower-cased) → dashboard category key, per dimension. FR-025. */
   tagCategoryMapping: {
     nds: Record<string, string>;
     vng2030: Record<string, string>;
   };
 }
+
+/** Back-compat alias — `VngConfig` was the original (016) name for a dashboard profile. */
+export type VngConfig = DashboardAppConfig;
+
+/** Known dashboard app ids (each maps to a `dashboards` registry profile + a served port). */
+export type DashboardAppId = 'vng' | 'govtech';
 
 export interface ServerConfig {
   alkemioServerUrl: string;
@@ -81,6 +91,8 @@ export interface ServerConfig {
   port: number;
   /** Second port serving the VNG SPA + the same /api (shared session). Defaults to port+1. */
   vngPort: number;
+  /** Third port serving the GovTech SPA + the same /api (shared session). Defaults to port+2 (feature 017). */
+  govtechPort: number;
   logging: LoggingConfig;
   /** Generous safety cap on spaces a single request may select; large sets are loaded by chunking, not rejected. */
   maxSpacesPerRequest: number;
@@ -92,6 +104,9 @@ export interface ServerConfig {
   features: FeaturesConfig;
   oidc: OidcConfig;
   session: SessionConfig;
+  /** Per-app dashboard profiles, keyed by app id (feature 017). `vng` preserved; `govtech` added. */
+  dashboards: Record<DashboardAppId, DashboardAppConfig>;
+  /** Back-compat alias of `dashboards.vng` (existing readers/services depend on it). */
   vng: VngConfig;
 }
 
@@ -178,20 +193,14 @@ export function loadConfig(): ServerConfig {
       enc_key: string;
       allowed_origins: string;
     };
-    vng?: {
-      default_hub_nameid?: string;
-      gemeentedelers_space_nameid?: string;
-      gd_cache_ttl_hours?: number;
-      tag_category_mapping?: {
-        nds?: Record<string, unknown>;
-        vng2030?: Record<string, unknown>;
-      };
-    };
+    vng?: DashboardYamlBlock;
+    govtech?: DashboardYamlBlock;
   };
 
   const oidc = parseOidcConfig(yml.oidc);
   const session = parseSessionConfig(yml.session);
-  const vng = parseVngConfig(yml.vng);
+  const vng = parseDashboardConfig(yml.vng);
+  const govtech = parseDashboardConfig(yml.govtech);
 
   cachedConfig = {
     alkemioServerUrl: String(yml.alkemio.server_url),
@@ -199,6 +208,7 @@ export function loadConfig(): ServerConfig {
     alkemioKratosPublicUrl: String(yml.alkemio.kratos_public_url),
     port: yml.server.port,
     vngPort: Number(process.env.VNG_FRONTEND_PORT) || yml.server.port + 1,
+    govtechPort: Number(process.env.GOVTECH_FRONTEND_PORT) || yml.server.port + 2,
     logging: {
       level: yml.logging.level,
       consoleEnabled: yml.logging.console_enabled,
@@ -224,19 +234,27 @@ export function loadConfig(): ServerConfig {
     },
     oidc,
     session,
+    dashboards: { vng, govtech },
     vng,
   };
 
   return cachedConfig;
 }
 
-/** Parse the optional `vng:` block, applying defaults so a fresh checkout boots. */
-function parseVngConfig(raw?: {
+/** Shape of a per-dashboard YAML block (`vng:` / `govtech:`). All keys optional (defaults applied). */
+interface DashboardYamlBlock {
   default_hub_nameid?: string;
   gemeentedelers_space_nameid?: string;
   gd_cache_ttl_hours?: number;
   tag_category_mapping?: { nds?: Record<string, unknown>; vng2030?: Record<string, unknown> };
-}): VngConfig {
+}
+
+/**
+ * Parse an optional dashboard block (`vng:` / `govtech:`), applying defaults so a
+ * fresh checkout boots even when the block is absent. Each app's profile is
+ * independent (feature 017: separate env vars, not shared).
+ */
+function parseDashboardConfig(raw?: DashboardYamlBlock): DashboardAppConfig {
   const stringMap = (m?: Record<string, unknown>): Record<string, string> =>
     Object.fromEntries(Object.entries(m ?? {}).map(([k, v]) => [k.toLowerCase(), String(v)]));
 

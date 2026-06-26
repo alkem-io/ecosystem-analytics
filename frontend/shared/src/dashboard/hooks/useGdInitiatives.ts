@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { api } from '@ea/shared';
+import { api, useAppConfig } from '@ea/shared';
 
 export interface GdInitiative {
   id: string;
@@ -23,6 +23,7 @@ interface Result {
  * when `enabled` (i.e. the section is expanded), so it costs nothing otherwise.
  */
 export function useGdInitiatives(enabled: boolean): Result {
+  const { apiNamespace } = useAppConfig();
   const [initiatives, setInitiatives] = useState<GdInitiative[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -33,7 +34,7 @@ export function useGdInitiatives(enabled: boolean): Result {
     setLoading(true);
     setError(null);
     api
-      .get<GdInitiative[]>('/api/vng/initiatives')
+      .get<GdInitiative[]>(`/api/${apiNamespace}/initiatives`)
       .then((res) => !cancelled && setInitiatives(res ?? []))
       .catch((err: unknown) => !cancelled && setError(err instanceof Error ? err.message : String(err)))
       .finally(() => !cancelled && setLoading(false));

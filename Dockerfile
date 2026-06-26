@@ -6,6 +6,7 @@
 #   frontend/shared/               @ea/shared workspace lib
 #   frontend/ecosystem-analytics/  the Explorer SPA (was top-level frontend/)
 #   frontend/vng/                  the VNG Kenniscentrum Innovatie SPA
+#   frontend/govtech/              the GovTech Netherlands SPA (feature 017)
 #
 # The Express BFF serves the Explorer's static build from `../frontend/dist`
 # (see server/src/app.ts ~line 67 → resolves to /app/frontend/dist at runtime).
@@ -33,6 +34,7 @@ COPY pnpm-workspace.yaml pnpm-lock.yaml package.json ./
 COPY frontend/shared/package.json frontend/shared/package.json
 COPY frontend/ecosystem-analytics/package.json frontend/ecosystem-analytics/package.json
 COPY frontend/vng/package.json frontend/vng/package.json
+COPY frontend/govtech/package.json frontend/govtech/package.json
 RUN pnpm install --frozen-lockfile
 
 # Frontend sources + the server types they import via the `@server/types` alias
@@ -40,9 +42,11 @@ RUN pnpm install --frozen-lockfile
 COPY frontend/ ./frontend/
 COPY server/src/types/ ./server/src/types/
 
-# Build the Explorer and the VNG app (each emits dist/ next to its package.json).
+# Build the Explorer, the VNG app, and the GovTech app (each emits dist/ next to
+# its package.json).
 RUN pnpm -C frontend/ecosystem-analytics run build \
-  && pnpm -C frontend/vng run build
+  && pnpm -C frontend/vng run build \
+  && pnpm -C frontend/govtech run build
 
 # ---------------------------------------------------------------------
 # Stage 2: Build the standalone server
@@ -72,6 +76,8 @@ COPY server/analytics.yml ./
 COPY --from=build-frontend /app/frontend/ecosystem-analytics/dist ./frontend/dist
 # VNG static build → sibling location for separate (subdomain) serving.
 COPY --from=build-frontend /app/frontend/vng/dist ./frontend-vng/dist
+# GovTech static build → sibling location for separate (subdomain) serving.
+COPY --from=build-frontend /app/frontend/govtech/dist ./frontend-govtech/dist
 
 RUN pnpm install --frozen-lockfile --prod
 
@@ -84,10 +90,12 @@ ARG BUILD_COMMIT=unknown
 ENV BUILD_COMMIT=${BUILD_COMMIT}
 RUN date -u +"%Y-%m-%dT%H:%M:%SZ" > /app/build-time.txt
 
-# Explorer + /api on 4000; the VNG SPA + the same /api on 4001 (vngPort = port+1).
-# A single container backs both subdomains (e.g. analytics.* and vih-analytics.*),
-# sharing the `ea_session` cookie. Override VNG_FRONTEND_PORT to change the second port.
+# Explorer + /api on 4000; the VNG SPA + the same /api on 4001 (vngPort = port+1);
+# the GovTech SPA + the same /api on 4002 (govtechPort = port+2). A single container
+# backs all three subdomains (e.g. analytics.*, vih-analytics.*, govtech.*), sharing
+# the `ea_session` cookie. Override VNG_FRONTEND_PORT / GOVTECH_FRONTEND_PORT to change
+# the second/third ports.
 ENV ECOSYSTEM_ANALYTICS_BACKEND_PORT=4000
-EXPOSE 4000 4001
+EXPOSE 4000 4001 4002
 
 CMD ["node", "dist/index.js"]

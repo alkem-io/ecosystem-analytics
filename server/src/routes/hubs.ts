@@ -3,7 +3,7 @@ import { authMiddleware, invalidateAndReject } from '../auth/middleware.js';
 import { resolveUser } from '../auth/resolve-user.js';
 import { fetchInnovationHubs, resolveHubByNameId } from '../services/hub-service.js';
 import { isAlkemioAuthError } from '../graphql/client.js';
-import { loadConfig } from '../config.js';
+import { loadConfig, type DashboardAppId } from '../config.js';
 import { getLogger } from '../logging/logger.js';
 
 const logger = getLogger();
@@ -12,12 +12,16 @@ export const hubsRouter = Router();
 hubsRouter.use(authMiddleware);
 hubsRouter.use(resolveUser);
 
-// GET /api/hubs — list innovation hubs available to the user + the default (FR-009/010).
+// GET /api/hubs?app=<id> — list innovation hubs available to the user + the
+// requesting app's configured default hub (FR-011/012). The hub LIST is
+// app-independent; only the default differs per app. `app` defaults to `vng`.
 hubsRouter.get('/', async (req: Request, res: Response) => {
   try {
     const config = loadConfig();
+    const appId = (typeof req.query.app === 'string' ? req.query.app : 'vng') as DashboardAppId;
+    const profile = config.dashboards[appId] ?? config.dashboards.vng;
     const hubs = await fetchInnovationHubs(req.auth!);
-    const configuredDefault = config.vng.defaultHubNameId || null;
+    const configuredDefault = profile.defaultHubNameId || null;
 
     // The configured default hub may NOT be store-listed (so absent from the list
     // above). Resolve it directly by nameID and prepend it so it is always
