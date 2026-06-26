@@ -1,7 +1,7 @@
 import { useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Download, Loader2 } from 'lucide-react';
-import { cn } from '@ea/shared';
+import { cn, useAppConfig } from '@ea/shared';
 import { useSelectionContext } from '../hooks/SelectionContext.js';
 import { useDashboard } from '../hooks/useDashboard.js';
 import { NdsChart } from '../components/charts/NdsChart.js';
@@ -17,6 +17,7 @@ import { exportDashboardXlsx } from '../utils/exportDashboard.js';
  */
 export function DashboardTab() {
   const { t } = useTranslation();
+  const { exportCreator, exportFilenameStem } = useAppConfig();
   const { effectiveSpaceIds, state, refreshNonce } = useSelectionContext();
 
   // The dashboard always counts the selected spaces (VNG Groei initiatives) by their
@@ -62,7 +63,8 @@ export function DashboardTab() {
           },
         ],
         labelOf: (ns, key) => t(`${ns}.${key}`, { defaultValue: key }),
-        filename: `vng-dashboard-${new Date().toISOString().slice(0, 10)}.xlsx`,
+        creator: exportCreator,
+        filename: `${exportFilenameStem}-${new Date().toISOString().slice(0, 10)}.xlsx`,
         text: {
           sheetData: t('export.sheetData', { defaultValue: 'Gegevens' }),
           sheetCharts: t('export.sheetCharts', { defaultValue: 'Grafieken' }),

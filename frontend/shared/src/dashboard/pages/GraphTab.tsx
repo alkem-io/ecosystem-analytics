@@ -1,7 +1,14 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ChevronDown, ChevronRight, Loader2 } from 'lucide-react';
-import { ForceGraph, HoverCard, isWithinRegion, proxyImageUrl, SafeImage } from '@ea/shared';
+import {
+  ForceGraph,
+  HoverCard,
+  isWithinRegion,
+  proxyImageUrl,
+  SafeImage,
+  useAppConfig,
+} from '@ea/shared';
 import type { GeoPermissibleObjects } from 'd3-geo';
 import type { GraphDataset, GraphNode } from '@server/types/graph.js';
 import { useVngGraph } from '../hooks/useVngGraph.js';
@@ -25,8 +32,6 @@ import { InitiativeGemeentesPanel } from '../components/InitiativeGemeentesPanel
  * `(hubSpaceIds ∪ directAdded) − directRemoved`.
  */
 
-const SELECTION_STORAGE_KEY = 'vng_selection';
-
 interface PersistedSelection {
   activeHubNameId?: string | null;
   hubSpaceIds?: string[];
@@ -42,7 +47,7 @@ interface EffectiveSelection {
   showGemeentes: boolean;
 }
 
-function readSelection(): EffectiveSelection {
+function readSelection(storageKey: string): EffectiveSelection {
   const empty: EffectiveSelection = {
     spaceIds: [],
     includeInitiatives: false,
@@ -50,7 +55,7 @@ function readSelection(): EffectiveSelection {
   };
   if (typeof localStorage === 'undefined') return empty;
   try {
-    const raw = localStorage.getItem(SELECTION_STORAGE_KEY);
+    const raw = localStorage.getItem(storageKey);
     if (!raw) return empty;
     const parsed = JSON.parse(raw) as PersistedSelection;
     const removed = new Set(parsed.directRemoved ?? []);
@@ -89,11 +94,15 @@ export function GraphTab({
   refreshNonce,
 }: GraphTabProps = {}) {
   const { t } = useTranslation();
+  const { storagePrefix, eventPrefix } = useAppConfig();
+  const storageKey = `${storagePrefix}_selection`;
+  const selectionEvent = `${eventPrefix}:selection`;
+  const openSpaceEvent = `${eventPrefix}:openSpace`;
 
   // GraphTab is "controlled" when App passes the shared selection via props.
   const controlled = spaceIdsProp != null;
 
-  // ── Selection (prop override, else persisted `vng_selection`) ──────────────
+  // ── Selection (prop override, else persisted `<app>_selection`) ────────────
   const [selection, setSelection] = useState<EffectiveSelection>(() =>
     controlled
       ? {
@@ -101,7 +110,7 @@ export function GraphTab({
           includeInitiatives: initProp ?? false,
           showGemeentes: showGemeentesProp ?? true,
         }
-      : readSelection(),
+      : readSelection(storageKey),
   );
 
   useEffect(() => {
@@ -118,19 +127,19 @@ export function GraphTab({
   // that other selection controls may dispatch.
   useEffect(() => {
     if (controlled) return; // controlled by props
-    const refresh = () => setSelection(readSelection());
+    const refresh = () => setSelection(readSelection(storageKey));
     const onStorage = (e: StorageEvent) => {
-      if (e.key === SELECTION_STORAGE_KEY) refresh();
+      if (e.key === storageKey) refresh();
     };
     window.addEventListener('storage', onStorage);
     window.addEventListener('focus', refresh);
-    window.addEventListener('vng:selection', refresh as EventListener);
+    window.addEventListener(selectionEvent, refresh as EventListener);
     return () => {
       window.removeEventListener('storage', onStorage);
       window.removeEventListener('focus', refresh);
-      window.removeEventListener('vng:selection', refresh as EventListener);
+      window.removeEventListener(selectionEvent, refresh as EventListener);
     };
-  }, [controlled]);
+  }, [controlled, storageKey, selectionEvent]);
 
   const spaceIds = selection.spaceIds;
   const includeInitiatives = selection.includeInitiatives;
@@ -269,10 +278,10 @@ export function GraphTab({
     // non-fatal if nobody listens.
     if (node.type === 'SPACE_L0' || node.type === 'SPACE_L1' || node.type === 'SPACE_L2') {
       window.dispatchEvent(
-        new CustomEvent('vng:openSpace', { detail: { spaceId: node.nameId ?? node.id } }),
+        new CustomEvent(openSpaceEvent, { detail: { spaceId: node.nameId ?? node.id } }),
       );
     }
-  }, []);
+  }, [openSpaceEvent]);
 
   const handleNodeHover = useCallback(
     (node: GraphNode | null, position?: { x: number; y: number }) => {
@@ -405,7 +414,7 @@ export function GraphTab({
                       onClick={() => {
                         setSelectedNodeId(space.id);
                         window.dispatchEvent(
-                          new CustomEvent('vng:openSpace', {
+                          new CustomEvent(openSpaceEvent, {
                             detail: { spaceId: space.nameId ?? space.id },
                           }),
                         );

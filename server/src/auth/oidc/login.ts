@@ -64,6 +64,45 @@ export function validateReturnTo(raw: unknown, allowedOrigins: string[] = []): s
 }
 
 /**
+ * Upgrade a RELATIVE returnTo (e.g. "/") to an ABSOLUTE URL on the originating
+ * frontend's origin, taken from the request `Referer` and accepted only if that
+ * origin is allow-listed.
+ *
+ * Why this is needed: the OIDC `redirect_uri` is a single fixed origin (the
+ * Explorer), so Hydra always returns to that origin's callback. A relative
+ * returnTo therefore resolves to the Explorer — meaning sign-in started on VNG
+ * (:5174) or GovTech (:5175) would wrongly land on the Explorer (:5173). Making
+ * the returnTo absolute (on the originating, allow-listed origin) lets the final
+ * post-callback redirect cross back to the app the user actually started from.
+ *
+ * Absolute, missing, or non-relative returnTo is passed through unchanged; a
+ * blank or non-allow-listed Referer leaves it relative (→ default landing).
+ */
+export function resolveReturnToOrigin(
+  rawReturnTo: unknown,
+  referer: string | string[] | undefined,
+  allowedOrigins: string[] = [],
+): unknown {
+  // Only upgrade a clean relative path; leave absolute/protocol-relative/non-string alone.
+  if (
+    typeof rawReturnTo !== 'string' ||
+    !rawReturnTo.startsWith('/') ||
+    rawReturnTo.startsWith('//')
+  ) {
+    return rawReturnTo;
+  }
+  const refererStr = Array.isArray(referer) ? referer[0] : referer;
+  if (!refererStr) return rawReturnTo;
+  try {
+    const origin = new URL(refererStr).origin;
+    if (allowedOrigins.includes(origin)) return origin + rawReturnTo;
+  } catch {
+    /* malformed Referer → leave relative */
+  }
+  return rawReturnTo;
+}
+
+/**
  * GET /api/auth/login — begin the Authorization Code + PKCE flow.
  * Generates anti-forgery material, stashes it in a one-time pre-auth record,
  * sets the `ea_preauth` cookie, and 302-redirects to Hydra's authorization
@@ -74,7 +113,15 @@ export async function loginHandler(req: Request, res: Response): Promise<void> {
     const config = loadConfig();
     const oidcConfig = await getOidcConfiguration();
 
-    const returnTo = validateReturnTo(req.query.returnTo, config.session.allowedOrigins);
+    // Return the user to the frontend they STARTED from (VNG/GovTech/Explorer),
+    // not the fixed redirect_uri origin: upgrade a relative returnTo to the
+    // originating allow-listed origin (from Referer) before validation.
+    const requestedReturnTo = resolveReturnToOrigin(
+      req.query.returnTo,
+      req.headers?.referer,
+      config.session.allowedOrigins,
+    );
+    const returnTo = validateReturnTo(requestedReturnTo, config.session.allowedOrigins);
     const state = oidc.randomState();
     const nonce = oidc.randomNonce();
     const codeVerifier = oidc.randomPKCECodeVerifier();

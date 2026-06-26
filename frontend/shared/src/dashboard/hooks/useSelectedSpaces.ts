@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { clearBrokenVisuals } from '@ea/shared';
+import { clearBrokenVisuals, useAppConfig } from '@ea/shared';
 import { useHubs, type HubSummary, type HubSpace } from './useHubs.js';
 
 /** A space in the effective selected set, carrying its provenance (FR-013). */
@@ -20,8 +20,6 @@ export interface SelectionState {
   includeInitiatives: boolean;
 }
 
-const STORAGE_KEY = 'vng_selection';
-
 const DEFAULT_STATE: SelectionState = {
   activeHubNameId: null,
   hubSpaceIds: [],
@@ -31,10 +29,10 @@ const DEFAULT_STATE: SelectionState = {
   includeInitiatives: false,
 };
 
-function loadState(): SelectionState {
+function loadState(storageKey: string): SelectionState {
   if (typeof localStorage === 'undefined') return { ...DEFAULT_STATE };
   try {
-    const raw = localStorage.getItem(STORAGE_KEY);
+    const raw = localStorage.getItem(storageKey);
     if (!raw) return { ...DEFAULT_STATE };
     const parsed = JSON.parse(raw) as Partial<SelectionState>;
     return {
@@ -88,10 +86,14 @@ export interface UseSelectedSpacesResult {
  * (FR-012, US2 scenario 3). State persists to localStorage.
  */
 export function useSelectedSpaces(): UseSelectedSpacesResult {
+  const { storagePrefix, eventPrefix } = useAppConfig();
+  const storageKey = `${storagePrefix}_selection`;
+  const selectionEvent = `${eventPrefix}:selection`;
+
   const { hubs, defaultHubNameId, loading: hubsLoading, error: hubsError, fetchHubSpaces } =
     useHubs();
 
-  const [state, setState] = useState<SelectionState>(loadState);
+  const [state, setState] = useState<SelectionState>(() => loadState(storageKey));
   const [resolvingHub, setResolvingHub] = useState(false);
   const [hubResolveError, setHubResolveError] = useState<string | null>(null);
 
@@ -103,19 +105,19 @@ export function useSelectedSpaces(): UseSelectedSpacesResult {
 
   // Persist on every change, then notify same-tab listeners. The browser's
   // 'storage' event does NOT fire in the tab that performed the write, so we
-  // dispatch a custom 'vng:selection' event for in-tab consumers (e.g. GraphTab
+  // dispatch a custom `<app>:selection` event for in-tab consumers (e.g. GraphTab
   // when it is reading from localStorage rather than props).
   useEffect(() => {
     if (typeof localStorage === 'undefined') return;
     try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+      localStorage.setItem(storageKey, JSON.stringify(state));
     } catch {
       /* ignore quota / serialization errors */
     }
     if (typeof window !== 'undefined') {
-      window.dispatchEvent(new Event('vng:selection'));
+      window.dispatchEvent(new Event(selectionEvent));
     }
-  }, [state]);
+  }, [state, storageKey, selectionEvent]);
 
   // Preselect the configured default hub on first load (only if none chosen yet).
   const appliedDefault = useRef(false);

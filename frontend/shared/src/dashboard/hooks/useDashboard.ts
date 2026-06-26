@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react';
-import { api } from '@ea/shared';
+import { api, useAppConfig } from '@ea/shared';
 import type { VngDashboardResponse } from '@server/types/api.js';
 
-/** Request body for POST /api/vng/dashboard (contracts/api-vng-dashboard.md). */
+/** Request body for POST /api/<app>/dashboard (contracts/api-vng-dashboard.md). */
 export interface DashboardRequest {
   spaceIds: string[];
   includeGemeentes: boolean;
@@ -31,13 +31,14 @@ export function useDashboard(
   options: UseDashboardOptions = {},
 ): UseDashboardResult {
   const { refreshNonce = 0 } = options;
+  const { apiNamespace } = useAppConfig();
   const [data, setData] = useState<VngDashboardResponse | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   // Serialize the request so the effect re-runs on any meaningful change. The
   // refreshNonce is folded in so an explicit refresh re-fetches the counts too.
-  const key = `${JSON.stringify(req)}|${refreshNonce}`;
+  const key = `${apiNamespace}|${JSON.stringify(req)}|${refreshNonce}`;
 
   useEffect(() => {
     if (req.spaceIds.length === 0) {
@@ -50,7 +51,7 @@ export function useDashboard(
     setLoading(true);
     setError(null);
     api
-      .post<VngDashboardResponse>('/api/vng/dashboard', req)
+      .post<VngDashboardResponse>(`/api/${apiNamespace}/dashboard`, req)
       .then((res) => {
         if (!cancelled) setData(res);
       })

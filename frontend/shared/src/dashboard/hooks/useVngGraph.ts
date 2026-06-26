@@ -75,13 +75,13 @@ export function useVngGraph(
         if (result.errors && result.errors.length > 0) {
           setWarnings(result.errors);
           for (const message of result.errors) {
-            console.warn(`[vng-graph] ${message}`);
+            console.warn(`[dashboard-graph] ${message}`);
           }
         }
       })
       .catch((err: unknown) => {
         if (cancelled || requestId !== requestRef.current) return;
-        console.error('[vng-graph] Failed to generate graph:', err);
+        console.error('[dashboard-graph] Failed to generate graph:', err);
         setError(err instanceof Error ? err.message : String(err));
       })
       .finally(() => {

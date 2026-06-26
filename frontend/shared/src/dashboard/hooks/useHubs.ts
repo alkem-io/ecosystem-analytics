@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { api } from '@ea/shared';
+import { api, useAppConfig } from '@ea/shared';
 
 /** An innovation hub the platform exposes to the signed-in user. */
 export interface HubSummary {
@@ -43,6 +43,7 @@ interface UseHubsResult {
  * Exposes the configured default so the selection state can preselect it.
  */
 export function useHubs(): UseHubsResult {
+  const { appId } = useAppConfig();
   const [hubs, setHubs] = useState<HubSummary[]>([]);
   const [defaultHubNameId, setDefaultHubNameId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -54,7 +55,7 @@ export function useHubs(): UseHubsResult {
     setLoading(true);
     setError(null);
     api
-      .get<HubsResponse>('/api/hubs')
+      .get<HubsResponse>(`/api/hubs?app=${encodeURIComponent(appId)}`)
       .then((res) => {
         if (cancelled) return;
         setHubs(res.hubs ?? []);
@@ -70,7 +71,7 @@ export function useHubs(): UseHubsResult {
     return () => {
       cancelled = true;
     };
-  }, [reloadKey]);
+  }, [reloadKey, appId]);
 
   const fetchHubSpaces = useCallback(async (nameId: string): Promise<HubSpace[]> => {
     const res = await api.get<HubSpacesResponse>(`/api/hubs/${encodeURIComponent(nameId)}/spaces`);

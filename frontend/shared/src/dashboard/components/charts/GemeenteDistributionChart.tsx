@@ -30,11 +30,10 @@ function StackTooltip({ active, payload, label }: TooltipProps<number, string>) 
   const gd = Number(datum.gd ?? 0);
   const groeiItems: string[] = datum.groeiItems ?? [];
   const gdItems: string[] = datum.gdItems ?? [];
-  // The leading "none" bucket holds initiatives with no associated gemeente.
-  const header =
-    label === 'none'
-      ? `${t('dashboard.uncategorised', { defaultValue: 'No classification' })} · ${groei + gd}`
-      : `${label} ${t('dashboard.gemeenteAxis', { defaultValue: 'gemeenten' })} · ${groei + gd}`;
+  // The leading "none" bucket holds initiatives with no associated gemeente — i.e.
+  // 0 gemeentes — so it is labelled "0" (not "no classification") on this count chart.
+  const gemeenteCount = label === 'none' ? '0' : label;
+  const header = `${gemeenteCount} ${t('dashboard.gemeenteAxis', { defaultValue: 'gemeenten' })} · ${groei + gd}`;
 
   const NameList = ({ names, color, title }: { names: string[]; color: string; title: string }) =>
     names.length === 0 ? null : (
@@ -111,9 +110,7 @@ export function GemeenteDistributionChart({ distribution, emptyLabel }: Props) {
               <XAxis
                 dataKey="key"
                 tick={{ fontSize: 11, fill: 'var(--text-secondary)' }}
-                tickFormatter={(k: string) =>
-                  k === 'none' ? t('dashboard.uncategorised', { defaultValue: 'No classification' }) : k
-                }
+                tickFormatter={(k: string) => (k === 'none' ? '0' : k)}
               />
               <YAxis allowDecimals={false} tick={{ fontSize: 11, fill: 'var(--text-secondary)' }} />
               <Tooltip cursor={{ fill: 'var(--surface)' }} content={<StackTooltip />} />

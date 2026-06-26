@@ -15,13 +15,15 @@ logger.info(
   { context: 'Bootstrap' },
 );
 
-// Two apps sharing the same /api routes + SQLite session/cache store:
+// Three apps sharing the same /api routes + SQLite session/cache store:
 //  - the Explorer SPA on `config.port`
 //  - the VNG Kenniscentrum Innovatie SPA on `config.vngPort` (feature 016)
+//  - the GovTech Netherlands SPA on `config.govtechPort` (feature 017)
 // In production each serves its own static build; the shared `ea_session` cookie
-// (parent-domain scoped) means signing in on either subdomain works on both.
+// (parent-domain scoped) means signing in on any subdomain works on all of them.
 const app = createApp('../frontend/dist');
 const vngApp = createApp('../frontend-vng/dist');
+const govtechApp = createApp('../frontend-govtech/dist');
 // Namespace the default DB file per environment (issuer) so switching between
 // e.g. production and acceptance can't reuse another env's cache/session rows.
 initDatabase(config.oidc.issuer);
@@ -45,4 +47,10 @@ app.listen(config.port, () => {
 
 vngApp.listen(config.vngPort, () => {
   logger.info(`VNG dashboard + API listening on port ${config.vngPort}`, { context: 'Bootstrap' });
+});
+
+govtechApp.listen(config.govtechPort, () => {
+  logger.info(`GovTech dashboard + API listening on port ${config.govtechPort}`, {
+    context: 'Bootstrap',
+  });
 });
