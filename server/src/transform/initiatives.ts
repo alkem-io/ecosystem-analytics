@@ -33,13 +33,52 @@ export interface InitiativeLayer {
 
 const YEAR_RE = /^gd-(\d{4})$/i;
 const SDG_RE = /^sdg-\d{1,}$/i;
-const CLASSIFICATIONS = new Set([
+/** GemeenteDelers award/classification tags (winner/finalist/…). Exported for the
+ *  initiatives table, which surfaces them as a column. */
+export const CLASSIFICATIONS = new Set([
   'winner',
   'finalist',
   'kanshebber',
   'publieksprijs',
   'global-goals-prijs',
 ]);
+
+/** Tag spellings that flag an entity as Common Ground (classification column). */
+const COMMON_GROUND_TAGS = new Set(['common ground', 'commonground', 'common-ground']);
+
+/** True when any tag marks the entity as Common Ground (case/space-insensitive). */
+export function hasCommonGroundTag(tags: readonly string[]): boolean {
+  return tags.some((t) => COMMON_GROUND_TAGS.has(t.trim().toLowerCase().replace(/\s+/g, ' ')));
+}
+
+/** A tag→category map for one dashboard dimension (lower-cased tag keys). */
+export type DimensionMap = Record<string, string>;
+
+/** The NDS + VNG-2030 tag→category mappings used to classify entities. */
+export interface TagCategoryMapping {
+  nds: DimensionMap;
+  vng2030: DimensionMap;
+}
+
+/** Distinct category keys an entity's tags map into for one dimension (sorted). */
+export function resolveCategories(tags: readonly string[], map: DimensionMap): string[] {
+  const hit = new Set<string>();
+  for (const t of tags) {
+    const cat = map[t.trim().toLowerCase()];
+    if (cat) hit.add(cat);
+  }
+  return [...hit].sort();
+}
+
+/** Distinct GemeenteDelers theme titles an entity's tags resolve to (sorted). */
+export function resolveThemeTitles(tags: readonly string[], registry: VngRegistry): string[] {
+  const hit = new Set<string>();
+  for (const t of tags) {
+    const theme = registry.resolveThemeByTag(t);
+    if (theme) hit.add(theme.title);
+  }
+  return [...hit].sort((a, b) => a.localeCompare(b));
+}
 
 function baseNode(id: string, type: NodeType, displayName: string, nameId: string | null): GraphNode {
   return {
@@ -64,6 +103,8 @@ export function buildInitiativeLayer(
   registry: VngRegistry,
   /** Resolve a gemeente org nameID to an existing/added node id (null if unresolvable). */
   resolveGemeenteNodeId: (gemeenteNameId: string) => string | null,
+  /** NDS / VNG-2030 tag→category mappings, used to classify each initiative. */
+  mapping?: TagCategoryMapping,
 ): InitiativeLayer {
   const nodes: GraphNode[] = [];
   const edges: GraphEdge[] = [];
@@ -127,6 +168,18 @@ export function buildInitiativeLayer(
     if (year !== undefined) node.initiativeYear = year;
     if (classifications.length) node.initiativeClassifications = classifications;
     if (globalGoals.length) node.globalGoals = globalGoals;
+    if (hasCommonGroundTag(callout.tags)) node.commonGround = true;
+
+    // Resolved classification dimensions (stored on the node for the table + graph
+    // filtering). All computed in-memory from the callout tags — no extra fetch.
+    const themeTitles = resolveThemeTitles(callout.tags, registry);
+    if (themeTitles.length) node.vngThemes = themeTitles;
+    if (mapping) {
+      const nds = resolveCategories(callout.tags, mapping.nds);
+      const vng2030 = resolveCategories(callout.tags, mapping.vng2030);
+      if (nds.length) node.ndsCategories = nds;
+      if (vng2030.length) node.vng2030Categories = vng2030;
+    }
   }
 
   return { nodes, edges, unresolvedGemeenteNameIds: [...unresolved] };

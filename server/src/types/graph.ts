@@ -147,6 +147,23 @@ export interface GraphNode {
   // ── Feature 016 (VNG) additions ──
   /** true when an ORGANIZATION node matches the gemeente registry (FR-032). */
   isGemeente?: boolean;
+  /**
+   * Classification flag — true when the entity carries a "Common Ground" tag.
+   * Set for both selected (Groei) space nodes and GemeenteDelers INITIATIVE nodes.
+   */
+  commonGround?: boolean;
+  /**
+   * Resolved classification dimensions (feature: initiatives table + graph
+   * filtering). Computed in-memory from the entity's tags during graph generation
+   * (no extra Alkemio fetch) and stored on the node so both the graph filters and
+   * the Initiatives table can read them directly.
+   */
+  /** NDS dimension category keys (e.g. `cloud`, `ai`) the entity maps into. */
+  ndsCategories?: string[];
+  /** VNG-2030 dimension category keys the entity maps into. */
+  vng2030Categories?: string[];
+  /** Resolved GemeenteDelers theme titles (also exposed as THEME nodes/edges). */
+  vngThemes?: string[];
   /** INITIATIVE: year from a `gd-<jaartal>` tag, if present. */
   initiativeYear?: number;
   /** INITIATIVE: GemeenteDelers classifications (winner/finalist/…). */

@@ -18,7 +18,51 @@
     "label": "Views",
     "graph": "Graph",
     "details": "Initiative information",
-    "dashboard": "Dashboard"
+    "dashboard": "Dashboard",
+    "initiatives": "Initiatives"
+  },
+  "initiativesTab": {
+    "search": "Search initiatives…",
+    "filterAll": "All",
+    "filterType": "Type",
+    "filterGemeente": "Gemeente",
+    "filterTheme": "Theme",
+    "filterNds": "NDS",
+    "filterVng2030": "VNG 2030",
+    "filterSdg": "SDG",
+    "filterAward": "Award",
+    "filterCommonGround": "Common Ground",
+    "filterTier": "Activity",
+    "typeGroei": "Groei",
+    "typeGd": "GemeenteDelers",
+    "cgYes": "Yes",
+    "cgNo": "No",
+    "groupCommunity": "Community",
+    "groupClassification": "Classification",
+    "groupActivity": "Activity",
+    "colName": "Initiative",
+    "colType": "Type",
+    "colGemeenteCount": "Gemeente count",
+    "colGemeentes": "Gemeentes",
+    "colMembers": "Members",
+    "colLeads": "Leads",
+    "colThemes": "Themes",
+    "colNds": "NDS",
+    "colVng2030": "VNG 2030",
+    "colSdg": "SDG",
+    "colCommonGround": "Common Ground",
+    "colActivityWeek": "Last week",
+    "colActivityMonth": "Last month",
+    "colActivityTotal": "All time",
+    "colContributions": "Contributions",
+    "colActivityTier": "Activity level",
+    "tierInactive": "Inactive",
+    "tierLow": "Low",
+    "tierMedium": "Medium",
+    "tierHigh": "High",
+    "count": "{{count}} initiative(s)",
+    "loading": "Loading initiatives…",
+    "noResults": "No initiatives found"
   },
   "user": {
     "menu": "User menu",
@@ -56,7 +100,7 @@
     "noResults": "No initiatives found"
   },
   "controls": {
-    "loadHubSpaces": "Load hub initiatives"
+    "loadHubSpaces": "Load all hub initiatives"
   },
   "space": {
     "status": {
