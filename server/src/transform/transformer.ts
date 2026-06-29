@@ -1,4 +1,5 @@
 import type { AcquiredData, RawUser, RawOrganization, RawActivityEntry } from '../services/acquire-service.js';
+import { hasCommonGroundTag } from './initiatives.js';
 import {
   type GraphNode,
   type GraphEdge,
@@ -187,6 +188,7 @@ function addSpaceNode(
   nodeIds.add(space.id);
   const profile = space.about.profile;
   const location = profile.location;
+  const commonGround = hasCommonGroundTag((profile.tagsets ?? []).flatMap((ts) => ts.tags));
 
   nodes.push({
     id: space.id,
@@ -213,6 +215,7 @@ function addSpaceNode(
     createdDate: toISOString(space.createdDate),
     visibility: parseVisibility(space.visibility),
     tags: extractTags(profile.tagsets),
+    commonGround: commonGround || undefined,
   });
 }
 

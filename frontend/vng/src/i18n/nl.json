@@ -18,7 +18,51 @@
     "label": "Weergaven",
     "graph": "Graph",
     "details": "Initiatief informatie",
-    "dashboard": "Dashboard"
+    "dashboard": "Dashboard",
+    "initiatives": "Initiatieven"
+  },
+  "initiativesTab": {
+    "search": "Zoek initiatieven…",
+    "filterAll": "Alle",
+    "filterType": "Type",
+    "filterGemeente": "Gemeente",
+    "filterTheme": "Thema",
+    "filterNds": "NDS",
+    "filterVng2030": "VNG 2030",
+    "filterSdg": "SDG",
+    "filterAward": "Prijs",
+    "filterCommonGround": "Common Ground",
+    "filterTier": "Activiteit",
+    "typeGroei": "Groei",
+    "typeGd": "GemeenteDelers",
+    "cgYes": "Ja",
+    "cgNo": "Nee",
+    "groupCommunity": "Community",
+    "groupClassification": "Classificatie",
+    "groupActivity": "Activiteit",
+    "colName": "Initiatief",
+    "colType": "Type",
+    "colGemeenteCount": "Aantal gemeenten",
+    "colGemeentes": "Gemeenten",
+    "colMembers": "Leden",
+    "colLeads": "Leads",
+    "colThemes": "Thema's",
+    "colNds": "NDS",
+    "colVng2030": "VNG 2030",
+    "colSdg": "SDG",
+    "colCommonGround": "Common Ground",
+    "colActivityWeek": "Afgelopen week",
+    "colActivityMonth": "Afgelopen maand",
+    "colActivityTotal": "Alle tijd",
+    "colContributions": "Bijdragen",
+    "colActivityTier": "Activiteitsniveau",
+    "tierInactive": "Inactief",
+    "tierLow": "Laag",
+    "tierMedium": "Gemiddeld",
+    "tierHigh": "Hoog",
+    "count": "{{count}} initiatieven",
+    "loading": "Initiatieven laden…",
+    "noResults": "Geen initiatieven gevonden"
   },
   "user": {
     "menu": "Gebruikersmenu",
@@ -56,7 +100,7 @@
     "noResults": "Geen initiatieven gevonden"
   },
   "controls": {
-    "loadHubSpaces": "Hub-initiatieven laden"
+    "loadHubSpaces": "Alle hub-initiatieven laden"
   },
   "space": {
     "status": {
