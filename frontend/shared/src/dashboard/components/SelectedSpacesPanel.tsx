@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Trash2, X } from 'lucide-react';
+import { Loader2, RefreshCw, Trash2, X } from 'lucide-react';
 import { cn } from '@ea/shared';
 import { useSelectionContext } from '../hooks/SelectionContext.js';
+import { HubSelector } from './HubSelector.js';
 import { SpacePicker } from './SpacePicker.js';
 import { GdInitiativesSection } from './GdInitiativesSection.js';
 
@@ -27,7 +28,31 @@ export function SelectedSpacesPanel() {
     addSpace,
     resolvingHub,
     refreshNonce,
+    hubs,
+    hubsLoading,
+    state,
+    setActiveHub,
+    loadHubSpaces,
+    refresh,
+    hubResolveError,
   } = useSelectionContext();
+
+  // Brief spinner on the Refresh button while the cache-bypassing reload runs.
+  const [refreshing, setRefreshing] = useState(false);
+  const refreshTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(
+    () => () => {
+      if (refreshTimer.current) clearTimeout(refreshTimer.current);
+    },
+    [],
+  );
+
+  const onRefresh = () => {
+    refresh();
+    setRefreshing(true);
+    if (refreshTimer.current) clearTimeout(refreshTimer.current);
+    refreshTimer.current = setTimeout(() => setRefreshing(false), 1200);
+  };
 
   // Local checkbox selection-for-deletion (NOT the graph selection).
   const [checked, setChecked] = useState<Set<string>>(new Set());
@@ -94,7 +119,58 @@ export function SelectedSpacesPanel() {
 
   return (
     <aside className="flex h-full w-72 shrink-0 flex-col gap-4 border-r border-border bg-card p-4">
-      <h2 className="text-sm font-semibold text-foreground">{t('selection.title')}</h2>
+      <div className="flex items-center justify-between gap-2">
+        <h2 className="text-sm font-semibold text-foreground">{t('selection.title')}</h2>
+        <button
+          type="button"
+          onClick={onRefresh}
+          disabled={refreshing}
+          aria-label={t('panel.refresh')}
+          title={t('panel.refresh')}
+          className={cn(
+            'inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-md border border-border bg-card text-foreground',
+            'transition-colors hover:bg-muted disabled:opacity-60',
+            'focus:outline-none focus-visible:ring-2 focus-visible:ring-primary',
+          )}
+        >
+          <RefreshCw className={cn('h-4 w-4', refreshing && 'animate-spin')} aria-hidden />
+        </button>
+      </div>
+
+      {/* Data-selection controls: hub picker + hub actions + gemeente toggle. */}
+      <div className="flex flex-col gap-3 border-b border-border pb-4">
+        <HubSelector
+          hubs={hubs}
+          activeHubNameId={state.activeHubNameId}
+          onChange={setActiveHub}
+          loading={hubsLoading}
+        />
+        {state.activeHubNameId && (
+          <button
+            type="button"
+            onClick={loadHubSpaces}
+            disabled={resolvingHub}
+            className={cn(
+              'self-start rounded-md border border-border bg-card px-2.5 py-1.5 text-xs font-medium text-foreground',
+              'transition-colors hover:bg-muted disabled:opacity-60',
+              'focus:outline-none focus-visible:ring-2 focus-visible:ring-primary',
+            )}
+          >
+            {t('controls.loadHubSpaces')}
+          </button>
+        )}
+        {resolvingHub && (
+          <span className="inline-flex items-center gap-1.5 text-xs text-muted-foreground" role="status">
+            <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden />
+            {t('states.loadingHubSpaces')}
+          </span>
+        )}
+        {!resolvingHub && hubResolveError && (
+          <span className="text-xs text-destructive" role="alert">
+            {hubResolveError}
+          </span>
+        )}
+      </div>
 
       <SpacePicker excludeNameIds={effectiveSpaceIds} onAdd={addSpace} refreshNonce={refreshNonce} />
 

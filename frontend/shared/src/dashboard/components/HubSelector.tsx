@@ -26,7 +26,7 @@ export function HubSelector({
   const { t } = useTranslation();
 
   return (
-    <div className="flex items-center gap-2">
+    <div className="flex flex-col gap-1.5">
       <span className="text-sm font-medium text-muted-foreground">{t('hub.label')}</span>
       <Select.Root
         value={activeHubNameId ?? undefined}
@@ -35,21 +35,21 @@ export function HubSelector({
       >
         <Select.Trigger
           className={cn(
-            'inline-flex min-w-56 items-center justify-between gap-2 rounded-md border border-border bg-card px-3 py-1.5 text-sm text-foreground',
+            'inline-flex w-full items-center justify-between gap-2 rounded-md border border-border bg-card px-3 py-1.5 text-sm text-foreground',
             'focus:outline-none focus:ring-2 focus:ring-ring disabled:cursor-not-allowed disabled:opacity-60',
           )}
           aria-label={t('hub.label')}
         >
           <Select.Value placeholder={t('hub.placeholder')} />
           <Select.Icon>
-            <ChevronDown className="h-4 w-4 text-muted-foreground" aria-hidden />
+            <ChevronDown className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden />
           </Select.Icon>
         </Select.Trigger>
         <Select.Portal>
           <Select.Content
             position="popper"
             sideOffset={4}
-            className="z-50 max-h-72 overflow-hidden rounded-md border border-border bg-card text-foreground shadow-md"
+            className="z-50 max-h-72 w-[var(--radix-select-trigger-width)] overflow-hidden rounded-md border border-border bg-card text-foreground shadow-md"
           >
             <Select.Viewport className="p-1">
               {hubs.map((hub) => (

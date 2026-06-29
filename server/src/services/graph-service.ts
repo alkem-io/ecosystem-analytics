@@ -8,7 +8,7 @@ import { loadConfig } from '../config.js';
 import { createAlkemioSdk } from '../graphql/client.js';
 import { loadVngRegistry } from './vng-registry.js';
 import { fetchGemeentedelersCallouts, resolveGemeenteOrgNode } from './gd-initiatives-service.js';
-import { buildInitiativeLayer } from '../transform/initiatives.js';
+import { buildInitiativeLayer, resolveCategories, resolveThemeTitles } from '../transform/initiatives.js';
 import { getLogger } from '../logging/logger.js';
 import { type GraphDataset, type GraphNode, type GraphEdge, type SpaceCacheInfo, type SpaceTimeSeries, type ActivityPeriodCounts, NodeType, EdgeType, ActivityTier } from '../types/graph.js';
 import type { GraphGenerationRequest, GraphProgress } from '../types/api.js';
@@ -133,11 +133,33 @@ export async function generateGraph(
   // without requiring a force-refresh.
   recomputeSpaceActivity(allNodes, allEdges);
 
-  // Tag gemeente organisations from the snapshot registry (FR-032/035).
+  // Tag gemeente organisations from the snapshot registry (FR-032/035) and resolve
+  // the classification dimensions (NDS / VNG-2030 / themes) onto SPACE nodes from
+  // their already-fetched profile tags. Done here (post-cache) so cached spaces are
+  // enriched too, with NO extra Alkemio fetch — the table + graph filters read these
+  // fields straight off the node. Uses the VNG taxonomy (currently shared with
+  // GovTech); revisit if per-app mappings diverge.
   const registry = loadVngRegistry();
+  const mapping = loadConfig().vng.tagCategoryMapping;
   for (const node of allNodes) {
     if (node.type === NodeType.ORGANIZATION) {
       node.isGemeente = registry.isGemeenteNameId(node.nameId);
+    } else if (
+      node.type === NodeType.SPACE_L0 ||
+      node.type === NodeType.SPACE_L1 ||
+      node.type === NodeType.SPACE_L2
+    ) {
+      const tags = [
+        ...(node.tags?.keywords ?? []),
+        ...(node.tags?.skills ?? []),
+        ...(node.tags?.default ?? []),
+      ];
+      const nds = resolveCategories(tags, mapping.nds);
+      const vng2030 = resolveCategories(tags, mapping.vng2030);
+      const themes = resolveThemeTitles(tags, registry);
+      node.ndsCategories = nds.length ? nds : undefined;
+      node.vng2030Categories = vng2030.length ? vng2030 : undefined;
+      node.vngThemes = themes.length ? themes : undefined;
     }
   }
 
@@ -241,10 +263,12 @@ async function loadGdSubgraph(
   // First pass: build the layer, collecting gemeente nameIds we couldn't resolve
   // to a node (the GD subgraph starts with no org nodes of its own).
   const resolvedOrgNodeIdByNameId = new Map<string, string>();
+  const mapping = loadConfig().vng.tagCategoryMapping;
   const firstPass = buildInitiativeLayer(
     callouts,
     registry,
     (nameId) => resolvedOrgNodeIdByNameId.get(nameId) ?? null,
+    mapping,
   );
 
   // Resolve each missing gemeente org exactly once (dedup via the map), creating
@@ -265,6 +289,7 @@ async function loadGdSubgraph(
     callouts,
     registry,
     (nameId) => resolvedOrgNodeIdByNameId.get(nameId) ?? null,
+    mapping,
   );
 
   const subgraph: GdSubgraph = {

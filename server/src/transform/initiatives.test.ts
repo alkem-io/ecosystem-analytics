@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { buildInitiativeLayer } from './initiatives.js';
+import { buildInitiativeLayer, hasCommonGroundTag } from './initiatives.js';
 import { NodeType, EdgeType } from '../types/graph.js';
 import type { VngRegistry, RegistryTheme } from '../services/vng-registry.js';
 import type { GdCalloutInput } from '../types/api.js';
@@ -102,6 +102,26 @@ describe('buildInitiativeLayer', () => {
     expect(second.unresolvedGemeenteNameIds).toEqual([]);
     expect(gemeenteEdges).toHaveLength(2); // one per initiative, both to the single org node
     expect(gemeenteEdges.every((e) => e.targetId === 'org-utrecht')).toBe(true);
+  });
+
+  it('flags Common Ground initiatives from a tag (any spelling) and leaves others unset', () => {
+    const callouts: GdCalloutInput[] = [
+      { id: 'cg-1', nameId: 'cg-1', displayName: 'CG one', description: '', tags: ['Common Ground'] },
+      { id: 'cg-2', nameId: 'cg-2', displayName: 'CG two', description: '', tags: ['commonground'] },
+      { id: 'plain', nameId: 'plain', displayName: 'Plain', description: '', tags: ['Energietransitie'] },
+    ];
+    const layer = buildInitiativeLayer(callouts, registry, resolveGemeenteNodeId);
+    const byId = new Map(layer.nodes.map((n) => [n.id, n]));
+    expect(byId.get('cg-1')?.commonGround).toBe(true);
+    expect(byId.get('cg-2')?.commonGround).toBe(true);
+    expect(byId.get('plain')?.commonGround).toBeUndefined();
+  });
+
+  it('hasCommonGroundTag is case/space-insensitive and ignores unrelated tags', () => {
+    expect(hasCommonGroundTag(['Common  Ground'])).toBe(true);
+    expect(hasCommonGroundTag(['common-ground'])).toBe(true);
+    expect(hasCommonGroundTag(['winner', 'gd-2024'])).toBe(false);
+    expect(hasCommonGroundTag([])).toBe(false);
   });
 
   it('canonicalises a shared theme to one node across initiatives (no duplicates)', () => {

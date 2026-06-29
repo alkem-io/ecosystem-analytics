@@ -14,6 +14,7 @@ import type { GraphDataset, GraphNode } from '@server/types/graph.js';
 import { useVngGraph } from '../hooks/useVngGraph.js';
 import { useGraphProgress } from '../hooks/useGraphProgress.js';
 import { MapToggle } from '../components/MapToggle.js';
+import { GemeenteToggle } from '../components/GemeenteToggle.js';
 import { GraphMetricsBar } from '../components/GraphMetricsBar.js';
 import { InitiativeGemeentesPanel } from '../components/InitiativeGemeentesPanel.js';
 
@@ -83,6 +84,11 @@ interface GraphTabProps {
   includeInitiatives?: boolean;
   /** When false, gemeente organisation nodes (and their edges) are hidden (T051). */
   showGemeentes?: boolean;
+  /**
+   * When provided, the graph renders its own "show gemeentes" toggle (this control
+   * is graph-only) and calls back to update the shared selection.
+   */
+  onShowGemeentesChange?: (value: boolean) => void;
   /** Bumped to force a cache-bypassing reload of the graph (Refresh control). */
   refreshNonce?: number;
 }
@@ -91,6 +97,7 @@ export function GraphTab({
   spaceIds: spaceIdsProp,
   includeInitiatives: initProp,
   showGemeentes: showGemeentesProp,
+  onShowGemeentesChange,
   refreshNonce,
 }: GraphTabProps = {}) {
   const { t } = useTranslation();
@@ -311,9 +318,14 @@ export function GraphTab({
       )}
 
       <div className="relative min-h-0 flex-1 overflow-hidden">
-        {/* Floating map toggle (top-left), overlaid on the canvas */}
-        <div className="absolute left-4 top-4 z-10 rounded-md border border-border bg-background/95 px-3 py-1.5 shadow-sm">
+        {/* Floating graph controls (top-left), overlaid on the canvas. The
+            "show gemeentes" toggle is graph-only, so it lives here rather than in
+            the shared selection panel. */}
+        <div className="absolute left-4 top-4 z-10 flex flex-col gap-2 rounded-md border border-border bg-background/95 px-3 py-1.5 shadow-sm">
           <MapToggle checked={showMap} onChange={setShowMap} />
+          {onShowGemeentesChange && (
+            <GemeenteToggle checked={showGemeentes} onChange={onShowGemeentesChange} />
+          )}
         </div>
 
         {/* Force-directed graph — ForceGraph draws its own projected NL basemap when
