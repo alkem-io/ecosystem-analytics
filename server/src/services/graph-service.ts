@@ -3,7 +3,7 @@ import type { AuthContext } from '../auth/middleware.js';
 import { transformToGraph, computeActivityTiers } from '../transform/transformer.js';
 import { computeMetrics } from '../transform/metrics.js';
 import { computeInsights } from '../transform/insights.js';
-import { getCacheEntry, setCacheEntry, invalidateCache } from '../cache/cache-service.js';
+import { getCacheEntry, setCacheEntry, invalidateCache, GD_CACHE_SPACE_ID } from '../cache/cache-service.js';
 import { loadConfig } from '../config.js';
 import { createAlkemioSdk } from '../graphql/client.js';
 import { loadVngRegistry } from './vng-registry.js';
@@ -31,10 +31,17 @@ export async function generateGraph(
 
   logger.info(`Graph generation requested for spaces [${spaceIds.join(', ')}] by user ${userId}`, { context: 'Graph' });
 
-  // If force refresh, invalidate all cache entries for these spaces
+  // If force refresh, invalidate the listed space rows AND the long-TTL GD
+  // initiative subgraph. Gemeente ORGANIZATION nodes (and their avatar URLs)
+  // resolved only via the GemeenteDelers layer live in the __gd_initiatives__
+  // row, which invalidateCache(spaceIds) does NOT cover — so without this a
+  // Refresh leaves stale/missing gemeente images untouched for the full
+  // gdCacheTtlHours window. Deleting the row also forces a rebuild even when the
+  // includeInitiatives checkbox is off at refresh time (loadGdSubgraph isn't
+  // called in that case, so the bypass there is not enough on its own).
   if (forceRefresh) {
-    logger.info(`Force refresh: invalidating cache for spaces [${spaceIds.join(', ')}]`, { context: 'Graph' });
-    invalidateCache(userId, spaceIds);
+    logger.info(`Force refresh: invalidating cache for spaces [${spaceIds.join(', ')}] + GD layer`, { context: 'Graph' });
+    invalidateCache(userId, [...spaceIds, GD_CACHE_SPACE_ID]);
   }
 
   // Check cache for each space
@@ -222,12 +229,6 @@ export async function generateGraph(
     gdLayer,
   };
 }
-
-/**
- * Reserved cache space_id for the per-user, long-TTL GemeenteDelers initiative
- * subgraph (FR-046). Not a real space nameID, so it never collides with one.
- */
-const GD_CACHE_SPACE_ID = '__gd_initiatives__';
 
 interface GdSubgraph {
   nodes: GraphNode[];
