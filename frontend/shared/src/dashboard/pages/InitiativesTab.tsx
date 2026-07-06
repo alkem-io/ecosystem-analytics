@@ -5,6 +5,7 @@ import { cn, Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@e
 import { ActivityTier } from '@server/types/graph.js';
 import { useSelectionContext } from '../hooks/SelectionContext.js';
 import { useVngGraph } from '../hooks/useVngGraph.js';
+import { useGraphProgress } from '../hooks/useGraphProgress.js';
 
 // Groei initiatives are top-level spaces only — subspaces (L1/L2) are not listed.
 const GROEI_TYPE = 'SPACE_L0';
@@ -99,11 +100,19 @@ const TIER_CELL_BG: Record<ActivityTier, string> = {
  */
 export function InitiativesTab() {
   const { t } = useTranslation();
-  const { effectiveSpaceIds, state, refreshNonce } = useSelectionContext();
+  const { effectiveSpaceIds, selectedSpaces, state, refreshNonce } = useSelectionContext();
   const { dataset, loading, error } = useVngGraph(effectiveSpaceIds, {
     includeInitiatives: state.includeInitiatives,
     refreshNonce,
   });
+
+  // Name the space currently being fetched (mirrors the dashboard/graph loading feedback).
+  const progress = useGraphProgress(loading && !dataset);
+  const currentSpaceLabel = (() => {
+    const nameId = progress?.currentSpace;
+    if (!nameId) return null;
+    return selectedSpaces.find((s) => s.nameId === nameId)?.displayName ?? nameId;
+  })();
 
   const [query, setQuery] = useState('');
   const [filters, setFilters] = useState<Record<string, string>>({});
@@ -445,9 +454,16 @@ export function InitiativesTab() {
       {/* Table */}
       <div className="min-h-0 flex-1 overflow-auto">
         {loading && !dataset ? (
-          <div className="flex h-full items-center justify-center gap-2 text-sm text-muted-foreground">
-            <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
-            {t('initiativesTab.loading')}
+          <div className="flex h-full flex-col items-center justify-center gap-2 text-sm text-muted-foreground">
+            <div className="flex items-center gap-2">
+              <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
+              {t('initiativesTab.loading')}
+            </div>
+            {currentSpaceLabel && (
+              <span className="text-sm font-semibold text-primary" title={currentSpaceLabel}>
+                {currentSpaceLabel}
+              </span>
+            )}
           </div>
         ) : error ? (
           <div className="flex h-full items-center justify-center text-sm text-destructive">

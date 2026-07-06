@@ -80,6 +80,44 @@ export interface GemeenteDistribution {
   }[];
 }
 
+/**
+ * NDS × VNG-2030 cross-tab for the bubble-matrix chart (the 4th dashboard chart).
+ *
+ * Each initiative is placed at a single (nds, vng2030) intersection using its PRIMARY
+ * category on each axis — the first category it maps into (in tag order), or the
+ * synthetic `uncategorised` slot when it maps into none. Initiatives carrying more than
+ * one category on either axis are additionally listed in `multiCategoryItems` so the
+ * detail below the chart can surface everything the primary-only placement omits.
+ */
+export interface CategoryMatrix {
+  /** Ordered NDS axis keys (Y axis) — `uncategorised` leads, mirroring the bar charts. */
+  ndsCategories: string[];
+  /** Ordered VNG-2030 axis keys (X axis) — `uncategorised` leads. */
+  vng2030Categories: string[];
+  /** One entry per occupied intersection (count > 0). */
+  cells: {
+    /** Primary NDS category key (row). */
+    nds: string;
+    /** Primary VNG-2030 category key (column). */
+    vng2030: string;
+    /** Number of initiatives at this intersection (= spacesItems + gdItems lengths). */
+    count: number;
+    /** Names contributed by selected spaces (Groei). */
+    spacesItems: string[];
+    /** Names contributed by GD initiatives (empty unless gdIncluded). */
+    gdItems: string[];
+  }[];
+  /** Initiatives with more than one category on either axis (for the detail list). */
+  multiCategoryItems: {
+    label: string;
+    source: 'spaces' | 'gd';
+    /** All NDS category keys this initiative maps into (never `uncategorised`). */
+    nds: string[];
+    /** All VNG-2030 category keys this initiative maps into (never `uncategorised`). */
+    vng2030: string[];
+  }[];
+}
+
 /** Response for POST /api/vng/dashboard (feature 016, US3). */
 export interface VngDashboardResponse {
   /** True when GD initiatives were folded into the category counts (stacked segment). */
@@ -91,6 +129,8 @@ export interface VngDashboardResponse {
   dimensions: DashboardDimension[];
   /** Initiatives-by-gemeente-count distribution for the stacked bar chart. */
   gemeenteDistribution?: GemeenteDistribution;
+  /** NDS × VNG-2030 bubble-matrix cross-tab (the 4th chart). */
+  categoryMatrix?: CategoryMatrix;
 }
 
 /** An entity (space or GD initiative) counted by the dashboard, with its tags. */
@@ -108,6 +148,13 @@ export interface GraphProgress {
   step: 'acquiring' | 'transforming' | 'ready';
   spacesTotal: number;
   spacesCompleted: number;
+  /**
+   * nameId of the space currently being fetched from Alkemio (only set during the
+   * 'acquiring' step, and only for spaces that miss the cache). Lets the loading UI
+   * name what it is waiting on (e.g. "Loading data… Signalen"). Undefined when the
+   * data is served from cache or once acquisition finishes.
+   */
+  currentSpace?: string;
 }
 
 /** Authenticated user profile */

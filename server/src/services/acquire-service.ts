@@ -45,6 +45,9 @@ export async function acquireSpaces(
   auth: AuthContext,
   spaceNameIds: string[],
   onSpaceAcquired?: (nameId: string) => void,
+  /** Fired just before a space is fetched (before the slow network call), so the
+   *  loading UI can name the space it is currently waiting on. */
+  onSpaceStart?: (nameId: string) => void,
 ): Promise<AcquiredData> {
   const logger = getLogger();
   const sdk = await createAlkemioSdk(auth);
@@ -56,6 +59,7 @@ export async function acquireSpaces(
 
   for (const nameId of spaceNameIds) {
     logger.info(`Acquiring space data: ${nameId}`, { context: 'Acquire' });
+    onSpaceStart?.(nameId);
     let result;
     try {
       result = await fetchSpaceByName(sdk, nameId);
