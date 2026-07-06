@@ -91,14 +91,28 @@ export async function generateGraph(
     logger.info(`Fetching ${spacesToFetch.length} space(s) from Alkemio: [${spacesToFetch.join(', ')}]`, { context: 'Graph' });
     const cachedCount = spaceIds.length - spacesToFetch.length;
     let acquiredCount = 0;
-    const acquired = await acquireSpaces(auth, spacesToFetch, () => {
-      acquiredCount++;
-      setProgress(userId, {
-        step: 'acquiring',
-        spacesTotal: spaceIds.length,
-        spacesCompleted: cachedCount + acquiredCount,
-      });
-    });
+    const acquired = await acquireSpaces(
+      auth,
+      spacesToFetch,
+      () => {
+        acquiredCount++;
+        setProgress(userId, {
+          step: 'acquiring',
+          spacesTotal: spaceIds.length,
+          spacesCompleted: cachedCount + acquiredCount,
+        });
+      },
+      // Name the space we're about to fetch so the loading UI can say
+      // "Loading data… <space>" instead of a bare spinner.
+      (nameId) => {
+        setProgress(userId, {
+          step: 'acquiring',
+          spacesTotal: spaceIds.length,
+          spacesCompleted: cachedCount + acquiredCount,
+          currentSpace: nameId,
+        });
+      },
+    );
 
     setProgress(userId, {
       step: 'transforming',

@@ -4,10 +4,13 @@ import { Download, Loader2 } from 'lucide-react';
 import { cn, useAppConfig } from '@ea/shared';
 import { useSelectionContext } from '../hooks/SelectionContext.js';
 import { useDashboard } from '../hooks/useDashboard.js';
+import { useGraphProgress } from '../hooks/useGraphProgress.js';
 import { NdsChart } from '../components/charts/NdsChart.js';
 import { Vng2030Chart } from '../components/charts/Vng2030Chart.js';
 import { GemeenteDistributionChart } from '../components/charts/GemeenteDistributionChart.js';
+import { CategoryMatrixChart } from '../components/charts/CategoryMatrixChart.js';
 import { GdProvenanceNote } from '../components/GdProvenanceNote.js';
+import { LoadingOverlay } from '../components/LoadingOverlay.js';
 import { exportDashboardXlsx } from '../utils/exportDashboard.js';
 
 /**
@@ -18,7 +21,7 @@ import { exportDashboardXlsx } from '../utils/exportDashboard.js';
 export function DashboardTab() {
   const { t } = useTranslation();
   const { exportCreator, exportFilenameStem } = useAppConfig();
-  const { effectiveSpaceIds, state, refreshNonce } = useSelectionContext();
+  const { effectiveSpaceIds, selectedSpaces, state, refreshNonce } = useSelectionContext();
 
   // The dashboard always counts the selected spaces (VNG Groei initiatives) by their
   // NDS / VNG-2030 profile tags. When the GD ("include GemeenteDelers initiatives")
@@ -39,6 +42,17 @@ export function DashboardTab() {
 
   const { data, loading, error } = useDashboard(request, { refreshNonce });
 
+  // Live server-side generation progress (the dashboard fetch runs the same graph
+  // acquisition under the hood), so the loading card can show which space is being
+  // fetched and a real progress bar instead of empty charts.
+  const progress = useGraphProgress(loading);
+  const currentSpaceLabel = useMemo(() => {
+    const nameId = progress?.currentSpace;
+    if (!nameId) return null;
+    const match = selectedSpaces.find((s) => s.nameId === nameId);
+    return match?.displayName ?? nameId;
+  }, [progress?.currentSpace, selectedSpaces]);
+
   const ndsDimension = data?.dimensions.find((d) => d.key === 'nds');
   const vng2030Dimension = data?.dimensions.find((d) => d.key === 'vng2030');
   const gdIncluded = data?.gdIncluded ?? false;
@@ -46,6 +60,7 @@ export function DashboardTab() {
   const ndsRef = useRef<HTMLDivElement>(null);
   const vngRef = useRef<HTMLDivElement>(null);
   const distRef = useRef<HTMLDivElement>(null);
+  const matrixRef = useRef<HTMLDivElement>(null);
   const [exporting, setExporting] = useState(false);
 
   const onExport = async () => {
@@ -60,6 +75,10 @@ export function DashboardTab() {
           {
             title: t('dashboard.gemeenteDistribution', { defaultValue: 'Initiatives by gemeentes' }),
             node: distRef.current,
+          },
+          {
+            title: t('dashboard.categoryMatrix', { defaultValue: 'NDS × VNG-2030' }),
+            node: matrixRef.current,
           },
         ],
         labelOf: (ns, key) => t(`${ns}.${key}`, { defaultValue: key }),
@@ -97,7 +116,8 @@ export function DashboardTab() {
   }
 
   return (
-    <div className="h-full overflow-auto p-6">
+    <div className="relative h-full">
+      <div className="h-full overflow-auto p-6">
       {state.includeInitiatives && (
         <div className="mb-4">
           <GdProvenanceNote />
@@ -108,10 +128,6 @@ export function DashboardTab() {
         <div className="mb-4 rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm text-destructive">
           {t('states.error')}: {error}
         </div>
-      )}
-
-      {loading && !data && (
-        <div className="mb-4 text-sm text-muted-foreground">{t('states.loading')}</div>
       )}
 
       <div className="mb-4 flex items-center justify-between gap-3">
@@ -156,7 +172,30 @@ export function DashboardTab() {
             emptyLabel={t('dashboard.noData')}
           />
         </div>
+        <div className="lg:col-span-2" ref={matrixRef}>
+          <CategoryMatrixChart
+            matrix={data?.categoryMatrix}
+            gdIncluded={gdIncluded}
+            emptyLabel={t('dashboard.noData')}
+          />
+        </div>
       </div>
+      </div>
+
+      {loading && (
+        <LoadingOverlay
+          progress={progress}
+          currentSpace={currentSpaceLabel}
+          dim
+          labels={{
+            loading: t('states.loadingData', { defaultValue: t('states.loading') }),
+            transforming: t('states.graphTransforming', { defaultValue: 'Netwerk opbouwen…' }),
+            acquiring: t('states.graphAcquiring', { defaultValue: 'Initiatieven ophalen' }),
+            building: t('states.graphBuilding', { defaultValue: 'Netwerk' }),
+            hint: t('states.loadingGraphHint', { defaultValue: 'Dit kan even duren' }),
+          }}
+        />
+      )}
     </div>
   );
 }

@@ -145,7 +145,11 @@
     "groei": "Groei",
     "gemeenteDelers": "GemeenteDelers",
     "total": "Totaal",
-    "gemeenteAxisFull": "Gegroepeerd op aantal gemeenten"
+    "gemeenteAxisFull": "Gegroepeerd op aantal gemeenten",
+    "categoryMatrix": "NDS × VNG-2030",
+    "categoryMatrixSub": "Initiatieven volgens primaire NDS- en VNG-2030-categorie",
+    "multiCategoryTitle": "Initiatieven met meerdere categorieën",
+    "multiCategoryNote": "Deze staan hierboven onder hun eerste categorie per as; hun volledige categorieën staan hier."
   },
   "categories": {
     "nds": {
@@ -186,6 +190,7 @@
   },
   "states": {
     "loading": "Laden…",
+    "loadingData": "Gegevens laden…",
     "emptyGraph": "Geen initiatieven om te tonen",
     "error": "Er is iets misgegaan",
     "authenticating": "Bezig met aanmelden…",

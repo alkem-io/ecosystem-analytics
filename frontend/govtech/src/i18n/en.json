@@ -145,7 +145,11 @@
     "groei": "Groei",
     "gemeenteDelers": "GemeenteDelers",
     "total": "Total",
-    "gemeenteAxisFull": "Grouped by number of gemeentes"
+    "gemeenteAxisFull": "Grouped by number of gemeentes",
+    "categoryMatrix": "NDS × VNG-2030",
+    "categoryMatrixSub": "Initiatives by primary NDS and VNG-2030 category",
+    "multiCategoryTitle": "Initiatives with multiple categories",
+    "multiCategoryNote": "These are plotted above under their first category on each axis; their full categories are listed here."
   },
   "categories": {
     "nds": {
@@ -186,6 +190,7 @@
   },
   "states": {
     "loading": "Loading…",
+    "loadingData": "Loading data…",
     "emptyGraph": "No initiatives to display",
     "error": "Something went wrong",
     "authenticating": "Signing in…",
