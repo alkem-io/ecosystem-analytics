@@ -89,6 +89,66 @@ describe('countDashboard', () => {
   });
 });
 
+describe('countDashboard categoryMatrix', () => {
+  it('places each initiative at its PRIMARY (first) category per axis', () => {
+    const result = countDashboard(
+      [{ id: '1', label: 'A', tags: ['2.data', 'wonen en ruimte'], source: 'spaces' }],
+      mapping,
+    );
+    const m = result.categoryMatrix!;
+    expect(m.cells).toContainEqual(
+      expect.objectContaining({ nds: 'data', vng2030: 'wonen-ruimte', count: 1, spacesItems: ['A'] }),
+    );
+  });
+
+  it('routes initiatives uncategorised on one axis to that axis uncategorised slot', () => {
+    // 'ai' NDS but no VNG-2030 tag → column = uncategorised.
+    const result = countDashboard([{ id: '1', label: 'A', tags: ['3.ai'] }], mapping);
+    const m = result.categoryMatrix!;
+    expect(m.cells).toContainEqual(
+      expect.objectContaining({ nds: 'ai', vng2030: 'uncategorised', count: 1 }),
+    );
+    // Axes lead with the uncategorised slot (mirrors the bar charts).
+    expect(m.ndsCategories[0]).toBe('uncategorised');
+    expect(m.vng2030Categories[0]).toBe('uncategorised');
+  });
+
+  it('aggregates initiatives sharing a cell and splits spaces / gd', () => {
+    const result = countDashboard(
+      [
+        { id: 's', label: 'Space', tags: ['3.ai'], source: 'spaces' },
+        { id: 'g', label: 'GD', tags: ['3.ai'], source: 'gd' },
+      ],
+      mapping,
+    );
+    const cell = result.categoryMatrix!.cells.find(
+      (c) => c.nds === 'ai' && c.vng2030 === 'uncategorised',
+    )!;
+    expect(cell).toMatchObject({ count: 2 });
+    expect(cell.spacesItems).toEqual(['Space']);
+    expect(cell.gdItems).toEqual(['GD']);
+  });
+
+  it('records multi-category initiatives with their full category sets', () => {
+    const result = countDashboard(
+      // Two NDS tags → primary is the first ('data'); the initiative is flagged as multi.
+      [{ id: '1', label: 'Multi', tags: ['2.data', '3.ai', 'wonen en ruimte'] }],
+      mapping,
+    );
+    const m = result.categoryMatrix!;
+    expect(m.multiCategoryItems).toContainEqual(
+      expect.objectContaining({ label: 'Multi', nds: ['data', 'ai'], vng2030: ['wonen-ruimte'] }),
+    );
+    // Plotted under its primary NDS ('data'), not 'ai'.
+    expect(m.cells).toContainEqual(expect.objectContaining({ nds: 'data', vng2030: 'wonen-ruimte' }));
+  });
+
+  it('omits single-category initiatives from multiCategoryItems', () => {
+    const result = countDashboard([{ id: '1', label: 'A', tags: ['3.ai'] }], mapping);
+    expect(result.categoryMatrix!.multiCategoryItems).toEqual([]);
+  });
+});
+
 import { countSpaceGemeentes, bucketGemeenteDistribution } from './vng-dashboard-service.js';
 import { NodeType, EdgeType, type GraphDataset, type GraphNode, type GraphEdge } from '../types/graph.js';
 

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { ChevronDown, ChevronRight, Loader2 } from 'lucide-react';
+import { ChevronDown, ChevronRight } from 'lucide-react';
 import {
   ForceGraph,
   HoverCard,
@@ -17,6 +17,7 @@ import { MapToggle } from '../components/MapToggle.js';
 import { GemeenteToggle } from '../components/GemeenteToggle.js';
 import { GraphMetricsBar } from '../components/GraphMetricsBar.js';
 import { InitiativeGemeentesPanel } from '../components/InitiativeGemeentesPanel.js';
+import { LoadingOverlay } from '../components/LoadingOverlay.js';
 
 /**
  * Graph tab (US1/US7/US10) — the force-directed graph of the selected spaces.
@@ -346,49 +347,27 @@ export function GraphTab({
           />
         )}
 
-        {/* Loading / empty / error overlays */}
-        {(loading || isEmpty || hasNoNodes || error) && (
+        {/* Loading overlay — spinner, current-space name, and a live progress bar. */}
+        {loading && (
+          <LoadingOverlay
+            progress={progress}
+            currentSpace={progress?.currentSpace ?? null}
+            labels={{
+              loading: t('states.loadingGraph', { defaultValue: 'Initiatieven laden…' }),
+              transforming: t('states.graphTransforming', { defaultValue: 'Netwerk opbouwen…' }),
+              acquiring: t('states.graphAcquiring', { defaultValue: 'Initiatieven ophalen' }),
+              building: t('states.graphBuilding', { defaultValue: 'Netwerk' }),
+              hint: t('states.loadingGraphHint', { defaultValue: 'Dit kan even duren' }),
+            }}
+          />
+        )}
+
+        {/* Empty / error overlay */}
+        {!loading && (isEmpty || hasNoNodes || error) && (
           <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
-            {loading ? (
-              <div className="flex w-72 flex-col items-center gap-3 rounded-xl border border-border bg-background/95 px-8 py-6 shadow-md">
-                <Loader2 className="h-7 w-7 animate-spin text-primary" aria-hidden />
-                <span className="text-sm font-medium text-foreground">
-                  {progress?.step === 'transforming'
-                    ? t('states.graphTransforming', { defaultValue: 'Netwerk opbouwen…' })
-                    : t('states.loadingGraph', { defaultValue: 'Initiatieven laden…' })}
-                </span>
-                {progress && progress.spacesTotal > 0 ? (
-                  <div className="w-full">
-                    <div className="mb-1 flex justify-between text-xs text-muted-foreground">
-                      <span>
-                        {progress.step === 'transforming'
-                          ? t('states.graphBuilding', { defaultValue: 'Netwerk' })
-                          : t('states.graphAcquiring', { defaultValue: 'Initiatieven ophalen' })}
-                      </span>
-                      <span>
-                        {progress.spacesCompleted}/{progress.spacesTotal}
-                      </span>
-                    </div>
-                    <div className="h-1.5 w-full overflow-hidden rounded-full bg-muted">
-                      <div
-                        className="h-full rounded-full bg-primary transition-all duration-300"
-                        style={{
-                          width: `${Math.round((progress.spacesCompleted / Math.max(progress.spacesTotal, 1)) * 100)}%`,
-                        }}
-                      />
-                    </div>
-                  </div>
-                ) : (
-                  <span className="text-xs text-muted-foreground">
-                    {t('states.loadingGraphHint', { defaultValue: 'Dit kan even duren' })}
-                  </span>
-                )}
-              </div>
-            ) : (
-              <span className="rounded-md bg-background/80 px-4 py-2 text-sm text-muted-foreground shadow-sm">
-                {error ? `${t('states.error')}: ${error}` : t('states.emptyGraph')}
-              </span>
-            )}
+            <span className="rounded-md bg-background/80 px-4 py-2 text-sm text-muted-foreground shadow-sm">
+              {error ? `${t('states.error')}: ${error}` : t('states.emptyGraph')}
+            </span>
           </div>
         )}
 
