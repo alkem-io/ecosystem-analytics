@@ -115,7 +115,7 @@ export function SpaceDetailsTab({ openSpaceId, openSpaceSeq }: SpaceDetailsTabPr
         {/* Picker */}
         <div className="flex flex-wrap items-center gap-3">
           <span className="text-sm font-medium text-muted-foreground">{t('details.pickSpace')}</span>
-          <Select.Root value={selected ?? undefined} onValueChange={setSelected}>
+          <Select.Root value={selected ?? ''} onValueChange={setSelected}>
             <Select.Trigger
               className={cn(
                 'inline-flex min-w-72 items-center justify-between gap-2 rounded-md border border-border bg-card px-3 py-2 text-sm text-foreground',
