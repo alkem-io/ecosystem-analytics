@@ -39,6 +39,11 @@ function deriveEnvironmentName(url: string | null): string | null {
 
 const hostOf = (url: string) => url.replace(/^https?:\/\//, '').replace(/\/$/, '');
 
+/** Read the `?error=` code the BFF sets on a cancelled/failed OIDC sign-in. */
+function useAuthError(): string | null {
+  return useMemo(() => new URLSearchParams(window.location.search).get('error'), []);
+}
+
 /**
  * VNG identity gate — one centered card on the Alkemio-navy brand background.
  * No in-app credential form; sign-in redirects to Alkemio's hosted login. Always
@@ -49,6 +54,19 @@ export function LoginScreen() {
   const { Logo } = useAppConfig();
   const { url, loading } = useEnvironment();
   const name = useMemo(() => deriveEnvironmentName(url), [url]);
+  const authError = useAuthError();
+  const authErrorMessage = authError
+    ? authError === 'cancelled'
+      ? t('login.errorCancelled', {
+          defaultValue: 'Your sign-in was cancelled before it completed. You can try again below.',
+        })
+      : t('login.errorFailed', {
+          defaultValue:
+            "We couldn't complete sign-in with Alkemio. This is usually a temporary problem " +
+            'with the sign-in service rather than your account. Please try again — if it keeps ' +
+            'happening, contact your Alkemio administrator.',
+        })
+    : null;
   // True from the moment Sign-in is clicked until the browser navigates away, so
   // the button shows "Redirecting…" instead of looking unresponsive.
   const [redirecting, setRedirecting] = useState(false);
@@ -93,6 +111,16 @@ export function LoginScreen() {
         </p>
 
         <div className="my-8 h-px w-full bg-border" />
+
+        {/* OIDC error — surfaced instead of a credential re-prompt when sign-in fails/cancels */}
+        {authErrorMessage && (
+          <div
+            role="alert"
+            className="mb-6 rounded-lg border border-destructive/40 bg-destructive/10 px-4 py-3 text-left text-sm leading-relaxed text-destructive"
+          >
+            {authErrorMessage}
+          </div>
+        )}
 
         {/* Prompt + CTA */}
         <p className="text-sm leading-relaxed text-muted-foreground">

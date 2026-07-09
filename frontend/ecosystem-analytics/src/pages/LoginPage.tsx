@@ -26,16 +26,42 @@ function deriveEnvironmentName(url: string | null): string | null {
   return null;
 }
 
+/** Human-readable explanation of a `?error=` code set by the BFF on a failed sign-in. */
+function describeAuthError(error: string | null): { heading: string; message: string } | null {
+  if (!error) return null;
+  switch (error) {
+    case 'cancelled':
+      return {
+        heading: 'Sign-in cancelled',
+        message: 'Your sign-in was cancelled before it completed. You can try again below.',
+      };
+    case 'failed':
+      return {
+        heading: 'Sign-in could not be completed',
+        message:
+          "We couldn't complete sign-in with Alkemio. This is usually a temporary problem with the " +
+          'sign-in service rather than your account. Please try again — if it keeps happening, ' +
+          'contact your Alkemio administrator.',
+      };
+    default:
+      return {
+        heading: 'Sign-in could not be completed',
+        message: 'Something went wrong while signing you in. Please try again.',
+      };
+  }
+}
+
 /**
  * Identity gate. There is no in-app credential form (FR-002) — signing in
  * redirects to Alkemio's hosted login, where the user picks any method
- * (password, Microsoft, LinkedIn, …). A `?error=cancelled` query (set by the
- * BFF when a sign-in is abandoned) renders a clean "sign in to continue" state
- * with no redirect loop (FR-009 edge case).
+ * (password, Microsoft, LinkedIn, …). A `?error=` query (set by the BFF when a
+ * sign-in is cancelled or fails) renders a clean, informative state explaining
+ * why OIDC failed, with no redirect loop and no credential re-prompt (FR-009).
  */
 export default function LoginPage() {
   const [params] = useSearchParams();
   const error = params.get('error');
+  const authError = useMemo(() => describeAuthError(error), [error]);
   const environmentUrl = useEnvironmentUrl();
   const environmentName = useMemo(() => deriveEnvironmentName(environmentUrl), [environmentUrl]);
 
@@ -52,13 +78,11 @@ export default function LoginPage() {
         </div>
 
         <div className={styles.body}>
-          {error ? (
+          {authError ? (
             <>
-              <h2 className={styles.welcome}>Sign in to continue</h2>
-              <p className={styles.description}>
-                {error === 'cancelled'
-                  ? 'Your sign-in was cancelled. You can try again below.'
-                  : 'We could not complete sign-in. Please try again.'}
+              <h2 className={styles.welcome}>{authError.heading}</h2>
+              <p className={styles.error} role="alert">
+                {authError.message}
               </p>
             </>
           ) : (
