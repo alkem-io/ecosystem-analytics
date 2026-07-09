@@ -5,3 +5,13 @@
 # reliably allows these build scripts to run (verified). The lockfile is
 # committed/reviewed, so allowing build scripts during the image build is acceptable.
 dangerouslyAllowAllBuilds: true
+
+# Supply-chain age gate: disabled for build reproducibility (mirrors the
+# rationale already recorded in the root pnpm-workspace.yaml for the
+# frontend workspace). pnpm 11's `minimumReleaseAge` quarantines packages
+# published within the last N minutes/days; typescript@7.0.2 and its 19
+# platform-specific optionalDependencies (workspace#019-typescript-7-upgrade,
+# R-10) are freshly published GA artifacts and got auto-excluded one entry at
+# a time by pnpm on first install. Setting the gate to 0 here is equivalent
+# and needs no maintenance on future version bumps.
+minimumReleaseAge: 0

@@ -36,5 +36,11 @@ export default defineConfig(({ mode }) => {
         },
       },
     },
+    // No tests exist yet for this app (pre-existing gap, unrelated to TS7) — vitest
+    // exits 1 on zero test files by default, which would otherwise fail the
+    // workspace-wide `pnpm test` gate.
+    test: {
+      passWithNoTests: true,
+    },
   };
 });

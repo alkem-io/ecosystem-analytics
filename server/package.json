@@ -15,7 +15,8 @@
     "codegen": "graphql-codegen --config codegen.ts",
     "gen:vng-snapshot": "tsx scripts/generate-vng-snapshot.mts",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "typecheck:native": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
     "@alkemio/client-lib": "^0.36.0",
@@ -47,7 +48,7 @@
     "@types/express-serve-static-core": "^5.1.1",
     "@types/node": "^25.3.0",
     "tsx": "^4.21.0",
-    "typescript": "^5.9.3",
+    "typescript": "7.0.2",
     "vitest": "^4.0.18"
   },
   "packageManager": "pnpm@11.7.0"

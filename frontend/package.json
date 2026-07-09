@@ -1,0 +1,11 @@
+{
+  "name": "@ea/frontend-workspace",
+  "private": true,
+  "version": "0.0.0",
+  "description": "Thin orchestration manifest for the frontend/ pnpm-workspace directory (shared + the three SPA packages). Not itself a pnpm-workspace member — see ../pnpm-workspace.yaml. Exists so repo-level tooling (CI, forge gates) can run `cd frontend && pnpm <script>` against every frontend package without enumerating them by hand.",
+  "scripts": {
+    "build": "pnpm --filter \"./ecosystem-analytics\" --filter \"./vng\" --filter \"./govtech\" run build",
+    "test": "pnpm --filter \"./ecosystem-analytics\" --filter \"./vng\" --filter \"./govtech\" run test",
+    "typecheck:native": "pnpm --filter \"./ecosystem-analytics\" --filter \"./vng\" --filter \"./govtech\" run typecheck:native"
+  }
+}
