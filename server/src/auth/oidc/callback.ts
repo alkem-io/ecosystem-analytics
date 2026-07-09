@@ -127,12 +127,16 @@ export async function callbackHandler(req: Request, res: Response): Promise<void
     getLogger().info(`Session established for actor ${actorId}`, { context: 'OIDC' });
     res.redirect(tx.returnTo);
   } catch (err) {
-    // Forged/expired/invalid code or token-validation failure → no session.
+    // Code-exchange / token-validation failure (Hydra error, clock skew, network,
+    // misconfiguration). This is the failure a legitimate visitor is most likely to
+    // hit, so surface it as a clean, informative login state (FR-009) rather than a
+    // raw 400 JSON body. The specifics stay server-side; the client shows a generic
+    // "sign-in couldn't be completed" message and never re-prompts for credentials.
     const e = err as { error?: string; error_description?: string };
     const detail = e.error ? ` (${e.error}: ${e.error_description ?? ''})` : '';
     getLogger().warn(`OIDC code exchange failed: ${(err as Error).message}${detail}`, {
       context: 'OIDC',
     });
-    reject(res, 'Sign-in could not be completed');
+    res.redirect('/login?error=failed');
   }
 }
