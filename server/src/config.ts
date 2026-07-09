@@ -321,6 +321,13 @@ function parseOidcConfig(raw: {
   };
 }
 
+/**
+ * The dev-only AES key committed in analytics.yml/.env.default so local boots
+ * out of the box. Public in git history — must never be the effective key in a
+ * shared/hosted env; parseSessionConfig fails closed on it outside local dev.
+ */
+const DEV_ONLY_ENC_KEY_FALLBACK = 'GGvIJ/WJIRBGWoNO0thfWCd2XbEXqdhlokW+qVO484I=';
+
 /** Parse + validate the session block; the AES key must decode to exactly 32 bytes (FR-018a). */
 function parseSessionConfig(raw: {
   cookie_domain: string;
@@ -340,6 +347,19 @@ function parseSessionConfig(raw: {
     throw new Error(
       `OIDC_SESSION_ENC_KEY must decode to exactly 32 bytes (got ${encKey.length}). ` +
         'It must be the base64 encoding of a 32-byte AES-256 key.',
+    );
+  }
+  // Fail closed outside local dev if the committed dev-only fallback key is in
+  // effect (env var forgotten). This key is public in git history — using it in
+  // any shared/hosted env means every session token is encrypted under a known
+  // key. Local dev (NODE_ENV development/test/unset) may still boot on it.
+  const nodeEnv = process.env.NODE_ENV ?? '';
+  const isLocalDev = nodeEnv === '' || nodeEnv === 'development' || nodeEnv === 'test';
+  if (!isLocalDev && encKeyB64 === DEV_ONLY_ENC_KEY_FALLBACK) {
+    throw new Error(
+      'OIDC_SESSION_ENC_KEY is unset in a non-development environment, so the ' +
+        'committed dev-only fallback key would be used. Refusing to start: inject a ' +
+        'fresh 32-byte key from the k8s secret. This is a fail-closed guard (SOC 2 CC6.7).',
     );
   }
 
