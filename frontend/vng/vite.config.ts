@@ -20,6 +20,32 @@ export default defineConfig(({ mode }) => {
       // confirm which frontend build is actually served.
       __BUILD_TIME__: JSON.stringify(new Date().toISOString()),
     },
+    build: {
+      // The only chunk over the default 500 kB is exceljs (~940 kB), a single
+      // pre-minified lib loaded on demand from exportDashboardXlsx() — it never
+      // hits initial page load. Raise the limit so the warning still flags real
+      // eager-bundle regressions without crying wolf over the lazy export chunk.
+      chunkSizeWarningLimit: 1000,
+      rollupOptions: {
+        output: {
+          // Split large third-party libs into their own cacheable chunks so no
+          // single chunk balloons past the 500 kB warning threshold and vendor
+          // code isn't re-downloaded whenever app code changes.
+          manualChunks(id) {
+            if (!id.includes('node_modules')) return undefined;
+            if (/[\\/]node_modules[\\/](react|react-dom|react-router|react-router-dom|scheduler)[\\/]/.test(id))
+              return 'react-vendor';
+            if (/[\\/]node_modules[\\/](recharts|victory-vendor)[\\/]/.test(id)) return 'charts';
+            if (/[\\/]node_modules[\\/]d3(-[a-z]+)?[\\/]/.test(id)) return 'd3';
+            if (id.includes('i18next')) return 'i18n';
+            // Everything else (incl. export-only libs reached via dynamic import,
+            // like exceljs) is left to the bundler so async-only code splits into
+            // its own on-demand chunk instead of being pinned into a vendor chunk.
+            return undefined;
+          },
+        },
+      },
+    },
     resolve: {
       alias: {
         '@': path.resolve(__dirname, 'src'),

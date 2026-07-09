@@ -1,6 +1,10 @@
-import ExcelJS from 'exceljs';
-import { toPng } from 'html-to-image';
+import type { toPng as ToPng } from 'html-to-image';
 import type { VngDashboardResponse } from '@server/types/api.js';
+
+// `exceljs` (~940 kB minified) and `html-to-image` are pulled in lazily inside
+// exportDashboardXlsx() below — they're only needed when the user clicks Export,
+// so a static import would bloat the initial bundle for every visitor. Keeping
+// the imports dynamic lets the bundler split them into an on-demand chunk.
 
 interface ChartCapture {
   /** Sheet/section title for the chart. */
@@ -38,7 +42,7 @@ interface ExportArgs {
 }
 
 /** Capture a DOM node to a PNG data URL (resolves CSS variables / computed styles). */
-async function capture(node: HTMLElement): Promise<string | null> {
+async function capture(node: HTMLElement, toPng: typeof ToPng): Promise<string | null> {
   try {
     return await toPng(node, { backgroundColor: '#ffffff', pixelRatio: 2, cacheBust: true });
   } catch {
@@ -58,6 +62,12 @@ export async function exportDashboardXlsx({
   filename,
   text,
 }: ExportArgs): Promise<void> {
+  // Load the heavy export-only libraries on demand (see note at top of file).
+  const [{ default: ExcelJS }, { toPng }] = await Promise.all([
+    import('exceljs'),
+    import('html-to-image'),
+  ]);
+
   const wb = new ExcelJS.Workbook();
   wb.creator = creator;
   wb.created = new Date();
@@ -117,7 +127,7 @@ export async function exportDashboardXlsx({
   let row = 1;
   for (const chart of charts) {
     if (!chart.node) continue;
-    const dataUrl = await capture(chart.node);
+    const dataUrl = await capture(chart.node, toPng);
     cs.getCell(`A${row}`).value = chart.title;
     cs.getCell(`A${row}`).font = { bold: true, size: 12 };
     row += 1;

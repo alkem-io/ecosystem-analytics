@@ -120,7 +120,7 @@
 /* Base reset — MUST be inside @layer base. Tailwind v4 puts utilities in
    @layer utilities, and unlayered CSS beats ALL layered CSS regardless of
    specificity, so an unlayered `* { margin:0; padding:0 }` silently overrides
-   every mt-*/p-*/gap-* utility. Layering it lets utilities win again. */
+   every spacing utility (mt-, p-, gap-). Layering it lets utilities win again. */
 @layer base {
   *,
   *::before,
