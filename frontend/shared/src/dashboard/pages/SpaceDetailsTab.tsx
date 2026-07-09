@@ -6,7 +6,9 @@ import { cn, proxyImageUrl, SafeImage } from '@ea/shared';
 import type { GraphNode } from '@server/types/graph.js';
 import { useSelectionContext } from '../hooks/SelectionContext.js';
 import { useVngGraph } from '../hooks/useVngGraph.js';
+import { useGraphProgress } from '../hooks/useGraphProgress.js';
 import { InitiativeMap } from '../components/InitiativeMap.js';
+import { LoadingOverlay } from '../components/LoadingOverlay.js';
 
 const SPACE_TYPES = new Set(['SPACE_L0', 'SPACE_L1', 'SPACE_L2']);
 
@@ -36,6 +38,19 @@ export function SpaceDetailsTab({ openSpaceId, openSpaceSeq }: SpaceDetailsTabPr
   const { dataset, loading: graphLoading } = useVngGraph(effectiveSpaceIds, {
     includeInitiatives: state.includeInitiatives,
   });
+
+  // The gemeente map/count come from the (heavy) /api/graph/generate call, which
+  // on a large, cold-cache selection can take a while. Poll server-side progress
+  // while that first generation is in flight so the map shows a live "space X of
+  // Y" bar + the space being fetched, instead of a static "Gemeenten laden…" that
+  // looks stuck. Matches the Dashboard/Graph/Initiatives tabs.
+  const graphFirstLoading = graphLoading && !dataset;
+  const progress = useGraphProgress(graphFirstLoading);
+  const currentSpaceLabel = useMemo(() => {
+    const nameId = progress?.currentSpace;
+    if (!nameId) return null;
+    return selectedSpaces.find((s) => s.nameId === nameId)?.displayName ?? nameId;
+  }, [progress?.currentSpace, selectedSpaces]);
 
   useEffect(() => {
     if (!openSpaceId) return;
@@ -171,11 +186,26 @@ export function SpaceDetailsTab({ openSpaceId, openSpaceSeq }: SpaceDetailsTabPr
             {/* Map of participating gemeentes */}
             <section className="space-y-3">
               <h3 className="text-sm font-semibold text-foreground">{t('details.mapTitle')}</h3>
-              <div className="rounded-xl border border-border bg-card p-4">
-                {graphLoading && !dataset ? (
-                  <div className="flex h-72 items-center justify-center text-sm text-muted-foreground">
-                    {t('details.loading')}
-                  </div>
+              <div className="relative rounded-xl border border-border bg-card p-4">
+                {graphFirstLoading ? (
+                  <>
+                    <div className="h-72" />
+                    <LoadingOverlay
+                      progress={progress}
+                      currentSpace={currentSpaceLabel}
+                      labels={{
+                        loading: t('details.loading'),
+                        transforming: t('states.graphTransforming', {
+                          defaultValue: 'Netwerk opbouwen…',
+                        }),
+                        acquiring: t('states.graphAcquiring', {
+                          defaultValue: 'Initiatieven ophalen',
+                        }),
+                        building: t('states.graphBuilding', { defaultValue: 'Netwerk' }),
+                        hint: t('states.loadingGraphHint', { defaultValue: 'Dit kan even duren' }),
+                      }}
+                    />
+                  </>
                 ) : (
                   <InitiativeMap gemeentes={gemeentes} />
                 )}
@@ -197,7 +227,9 @@ export function SpaceDetailsTab({ openSpaceId, openSpaceSeq }: SpaceDetailsTabPr
                 )}
                 {t('details.gemeentesTitle')} ({gemeentes.length})
               </button>
-              {gemeentesCollapsed ? null : gemeentes.length === 0 ? (
+              {gemeentesCollapsed ? null : graphFirstLoading ? (
+                <p className="text-sm text-muted-foreground">{t('details.loading')}</p>
+              ) : gemeentes.length === 0 ? (
                 <p className="text-sm text-muted-foreground">{t('details.noGemeentes')}</p>
               ) : (
                 <div className="grid grid-cols-3 gap-3 sm:grid-cols-5 lg:grid-cols-[repeat(10,minmax(0,1fr))]">
