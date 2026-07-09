@@ -29,7 +29,7 @@ export function HubSelector({
     <div className="flex flex-col gap-1.5">
       <span className="text-sm font-medium text-muted-foreground">{t('hub.label')}</span>
       <Select.Root
-        value={activeHubNameId ?? undefined}
+        value={activeHubNameId ?? ''}
         onValueChange={onChange}
         disabled={disabled || loading || hubs.length === 0}
       >
