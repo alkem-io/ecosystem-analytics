@@ -159,6 +159,34 @@ describe('full redirect → callback → session loop', () => {
     expect(cbRes.cookies[SESSION_COOKIE]).toBeUndefined();
   });
 
+  it('redirects to /login?error=failed when the code exchange throws (no raw 400, no session)', async () => {
+    vi.mocked(oidc.authorizationCodeGrant).mockRejectedValueOnce(
+      Object.assign(new Error('exchange failed'), {
+        error: 'invalid_grant',
+        error_description: 'code expired',
+      }),
+    );
+
+    const loginRes = res();
+    await loginHandler({ query: {} } as unknown as Request, loginRes as unknown as Response);
+    const txId = loginRes.cookies[PREAUTH_COOKIE];
+    const tx = getAuthTx(txId)!;
+
+    const cbRes = res();
+    await callbackHandler(
+      {
+        query: { code: 'auth-code', state: tx.state },
+        cookies: { [PREAUTH_COOKIE]: txId },
+        originalUrl: `/api/auth/oidc/callback?code=auth-code&state=${tx.state}`,
+      } as unknown as Request,
+      cbRes as unknown as Response,
+    );
+
+    expect(cbRes.redirectUrl).toBe('/login?error=failed');
+    expect(cbRes.statusCode).toBe(200); // not a 400 JSON body
+    expect(cbRes.cookies[SESSION_COOKIE]).toBeUndefined();
+  });
+
   it('never logs tokens, state, or the PKCE verifier across the flow (FR-014)', async () => {
     const captured: string[] = [];
     const logger = getLogger();
