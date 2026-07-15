@@ -39,12 +39,10 @@ export default defineConfig(({ mode }) => {
       },
     },
     resolve: {
-      // i18next declares `typescript` as an optional peer, so pnpm keys a separate
-      // copy per resolved TS version. @ea/shared is aliased to source and pulls its
-      // own copy, leaving the shared components calling useTranslation() on a second,
-      // never-initialised i18next singleton — every key without a defaultValue then
-      // renders raw. Force one copy for the whole app.
-      dedupe: ["i18next", "react-i18next"],
+      // NB: no `dedupe` for i18next/react-i18next here (unlike vng/govtech). This app
+      // declares no i18next dependency of its own — it only ever sees @ea/shared's
+      // copy, so there is nothing to dedupe, and forcing resolution from this app's
+      // root makes the bare import unresolvable at build time.
       alias: {
         "@": path.resolve(__dirname, "src"),
         "@ea/shared": path.resolve(__dirname, "../shared/src"),
