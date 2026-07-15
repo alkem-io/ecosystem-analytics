@@ -14,7 +14,8 @@
     "build": "tsc -b && vite build",
     "preview": "vite preview",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "typecheck:native": "tsc -b --noEmit"
   },
   "dependencies": {
     "@ea/shared": "workspace:*",
@@ -50,7 +51,7 @@
     "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react": "^5.1.4",
     "tailwindcss": "^4.2.1",
-    "typescript": "^5.9.3",
+    "typescript": "7.0.2",
     "vite": "^7.3.1",
     "vitest": "^4.0.18"
   },

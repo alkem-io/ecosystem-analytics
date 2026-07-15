@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo } from 'react';
 import ReactMarkdown from 'react-markdown';
 import type { GraphNode, GraphDataset, ActivityPeriod } from '@server/types/graph.js';
 import type { SpaceSelectionItem } from '@server/types/api.js';
-import { SafeImage } from '@ea/shared';
+import { SafeImage, withImageCacheBust } from '@ea/shared';
 import { api } from '../../services/api.js';
 import { getToken } from '../../services/auth.js';
 import styles from './DetailsDrawer.module.css';
@@ -12,9 +12,11 @@ function proxyImageUrl(url: string | null | undefined): string | null {
   if (!url) return null;
   if (url.includes('/api/private/')) {
     const token = getToken();
-    return `/api/image-proxy?url=${encodeURIComponent(url)}${token ? `&token=${encodeURIComponent(token)}` : ''}`;
+    return withImageCacheBust(
+      `/api/image-proxy?url=${encodeURIComponent(url)}${token ? `&token=${encodeURIComponent(token)}` : ''}`,
+    );
   }
-  return url;
+  return withImageCacheBust(url);
 }
 
 interface Props {

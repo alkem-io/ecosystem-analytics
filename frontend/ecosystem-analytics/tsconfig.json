@@ -8,16 +8,15 @@
     "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true,
     "jsx": "react-jsx",
-    "outDir": "dist",
-    "sourceMap": true,
     "resolveJsonModule": true,
+    "noEmit": true,
+    "types": ["vite/client"],
     "paths": {
       "@/*": ["./src/*"],
       "@ea/shared": ["../shared/src/index.ts"],
       "@ea/shared/*": ["../shared/src/*"],
       "@server/types/*": ["../../server/src/types/*"]
-    },
-    "baseUrl": "."
+    }
   },
   "include": ["src/**/*", "../shared/src/**/*", "../../server/src/types/**/*"],
   "exclude": ["node_modules", "dist", "tests"]

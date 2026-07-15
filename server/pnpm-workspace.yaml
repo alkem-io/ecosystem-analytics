@@ -5,3 +5,15 @@
 # reliably allows these build scripts to run (verified). The lockfile is
 # committed/reviewed, so allowing build scripts during the image build is acceptable.
 dangerouslyAllowAllBuilds: true
+
+# Supply-chain age gate: kept ENABLED (inherited default), with a narrow
+# exclusion for only the freshly-published TypeScript 7 GA artifacts
+# (workspace#019-typescript-7-upgrade, R-10). typescript@7.0.2 and its
+# platform-specific native optionalDependencies were published within the
+# quarantine window; excluding just those packages lets the pinned, lockfile-
+# committed bump install while preserving the publish-age quarantine for every
+# other (present and future) dependency. Do NOT set `minimumReleaseAge: 0` —
+# that would disable the control repo-wide (SOC 2 CC6.8 / ISO A.8.30).
+minimumReleaseAgeExclude:
+  - typescript
+  - '@typescript/*'

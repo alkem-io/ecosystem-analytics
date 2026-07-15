@@ -20,6 +20,7 @@ import { useRef, useEffect, useMemo } from 'react';
 import * as d3 from 'd3';
 import type { GraphDataset, GraphNode, GraphEdge, ActivityPeriod } from '@server/types/graph.js';
 import { NodeType, EdgeType } from '@server/types/graph.js';
+import { withImageCacheBust } from '@ea/shared';
 import { getToken } from '../../services/auth.js';
 import { useViewTheme } from '../../hooks/useViewTheme.js';
 import viewStyles from './Views.module.css';
@@ -31,9 +32,11 @@ function proxyImageUrl(url: string | null | undefined): string | null {
   if (!url) return null;
   if (url.includes('/api/private/')) {
     const token = getToken();
-    return `/api/image-proxy?url=${encodeURIComponent(url)}${token ? `&token=${encodeURIComponent(token)}` : ''}`;
+    return withImageCacheBust(
+      `/api/image-proxy?url=${encodeURIComponent(url)}${token ? `&token=${encodeURIComponent(token)}` : ''}`,
+    );
   }
-  return url;
+  return withImageCacheBust(url);
 }
 
 /** Pick the best image URL for a node: spaces prefer bannerUrl, users/orgs prefer avatarUrl */

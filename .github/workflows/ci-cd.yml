@@ -13,6 +13,46 @@ on:
 #   KUBECONFIG_SECRET_SCALEWAY_PLATFORM - Raw kubeconfig YAML for production K8s cluster
 
 jobs:
+  typecheck:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        package: [frontend, server]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22.20.0'
+
+      - name: Get pnpm store directory
+        id: pnpm-cache
+        run: echo "STORE_PATH=$(pnpm store path --silent)" >> $GITHUB_OUTPUT
+
+      - name: Setup pnpm cache
+        uses: actions/cache@v4
+        with:
+          path: ${{ steps.pnpm-cache.outputs.STORE_PATH }}
+          key: pnpm-${{ runner.os }}-${{ matrix.package }}-${{ hashFiles(format('{0}/pnpm-lock.yaml', matrix.package)) }}
+          restore-keys: |
+            pnpm-${{ runner.os }}-${{ matrix.package }}-
+
+      - name: Install dependencies (${{ matrix.package }})
+        working-directory: ${{ matrix.package }}
+        run: pnpm install --frozen-lockfile
+
+      # TS7 native typecheck gate (workspace#019-typescript-7-upgrade, US1/FR-007).
+      # ecosystem-analytics/frontend + server are single-native installs (no API
+      # consumer of the Compiler API) — this IS the only typecheck, not a second
+      # opinion alongside a JS-line checker.
+      - name: Native TypeScript typecheck (${{ matrix.package }})
+        working-directory: ${{ matrix.package }}
+        run: pnpm run typecheck:native
+
   build:
     runs-on: ubuntu-latest
     steps:

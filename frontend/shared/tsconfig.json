@@ -10,7 +10,6 @@
     "jsx": "react-jsx",
     "noEmit": true,
     "resolveJsonModule": true,
-    "baseUrl": ".",
     "paths": {
       "@server/types/*": ["../../server/src/types/*"]
     }

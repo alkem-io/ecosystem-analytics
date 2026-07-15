@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { clearBrokenVisuals, useAppConfig } from '@ea/shared';
+import { bumpImageCacheBust, clearBrokenVisuals, useAppConfig } from '@ea/shared';
 import { useHubs, type HubSummary, type HubSpace } from './useHubs.js';
 
 /** A space in the effective selected set, carrying its provenance (FR-013). */
@@ -265,8 +265,10 @@ export function useSelectedSpaces(): UseSelectedSpacesResult {
   }, []);
 
   const refresh = useCallback(() => {
-    // The cache-bypassing reload should also re-attempt previously-failed visuals.
+    // The cache-bypassing reload should also re-attempt previously-failed visuals,
+    // and re-fetch visuals that succeeded but may have changed at the source.
     clearBrokenVisuals();
+    bumpImageCacheBust();
     setRefreshNonce((n) => n + 1);
   }, []);
 
