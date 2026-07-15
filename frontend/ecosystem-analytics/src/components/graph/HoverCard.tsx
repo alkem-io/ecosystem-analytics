@@ -1,5 +1,5 @@
 import type { GraphNode, GraphDataset } from '@server/types/graph.js';
-import { SafeImage } from '@ea/shared';
+import { SafeImage, withImageCacheBust } from '@ea/shared';
 import { getToken } from '../../services/auth.js';
 import styles from './HoverCard.module.css';
 
@@ -7,9 +7,11 @@ function proxyImageUrl(url: string | null | undefined): string | null {
   if (!url) return null;
   if (url.includes('/api/private/')) {
     const token = getToken();
-    return `/api/image-proxy?url=${encodeURIComponent(url)}${token ? `&token=${encodeURIComponent(token)}` : ''}`;
+    return withImageCacheBust(
+      `/api/image-proxy?url=${encodeURIComponent(url)}${token ? `&token=${encodeURIComponent(token)}` : ''}`,
+    );
   }
-  return url;
+  return withImageCacheBust(url);
 }
 
 const TYPE_LABELS: Record<string, string> = {
