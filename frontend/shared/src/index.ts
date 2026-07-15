@@ -9,6 +9,12 @@
 export { cn } from './lib/cn.js';
 export { proxyImageUrl } from './lib/imageProxy.js';
 export {
+  bumpImageCacheBust,
+  getImageCacheBust,
+  withImageCacheBust,
+  scopeImageCacheBustToUser,
+} from './lib/imageCacheBust.js';
+export {
   isImageFailed,
   markImageFailed,
   clearBrokenVisuals,

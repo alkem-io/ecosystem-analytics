@@ -3,6 +3,7 @@
  * across TreemapView, SunburstView, ChordView, etc.
  */
 
+import { withImageCacheBust } from '@ea/shared';
 import { getToken } from './auth.js';
 
 /** Proxy private Alkemio storage URLs through our auth endpoint */
@@ -10,9 +11,11 @@ export function proxyImageUrl(url: string | null | undefined): string | null {
   if (!url) return null;
   if (url.includes('/api/private/')) {
     const token = getToken();
-    return `/api/image-proxy?url=${encodeURIComponent(url)}${token ? `&token=${encodeURIComponent(token)}` : ''}`;
+    return withImageCacheBust(
+      `/api/image-proxy?url=${encodeURIComponent(url)}${token ? `&token=${encodeURIComponent(token)}` : ''}`,
+    );
   }
-  return url;
+  return withImageCacheBust(url);
 }
 
 /** Pick the best image URL for a node: spaces prefer bannerUrl, users/orgs prefer avatarUrl */
