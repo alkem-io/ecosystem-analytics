@@ -2,7 +2,10 @@
   "name": "Ecosystem Analytics (Claude Code sandbox, worktree-aware)",
   "build": {
     "dockerfile": "Dockerfile",
-    "context": "..",
+    // The image only needs the two files that live next to this file
+    // (init-firewall.sh, zshrc) — the source tree arrives via workspaceMount,
+    // not via COPY — so keep the context scoped to .devcontainer.
+    "context": ".",
     "args": {
       "TZ": "${localEnv:TZ:Europe/Amsterdam}"
     }
