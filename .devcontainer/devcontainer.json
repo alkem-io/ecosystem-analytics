@@ -1,13 +1,29 @@
 {
-  "name": "Ecosystem Analytics",
+  "name": "Ecosystem Analytics (Claude Code sandbox, worktree-aware)",
   "build": {
     "dockerfile": "Dockerfile",
-    "context": ".."
+    "context": "..",
+    "args": {
+      "TZ": "${localEnv:TZ:Europe/Amsterdam}"
+    }
   },
 
-  // The repo is mounted here; matches WORKDIR in the Dockerfile.
-  "workspaceFolder": "/workspace",
-  "workspaceMount": "source=${localWorkspaceFolder},target=/workspace,type=bind,consistency=cached",
+  // NET_ADMIN + NET_RAW let init-firewall.sh install the outbound allowlist.
+  "runArgs": ["--cap-add=NET_ADMIN", "--cap-add=NET_RAW"],
+
+  // --- Worktree-aware mount ---------------------------------------------------
+  // A git worktree's `.git` is a pointer into the MAIN clone's gitdir, so
+  // mounting the leaf folder alone breaks git inside the container. Instead we
+  // mount the shared parent that holds the main clone *and* all its worktrees,
+  // then point workspaceFolder at whichever leaf you opened. Combined with
+  // `worktree.useRelativePaths=true` + `git worktree repair` on the host, the
+  // gitdir links are relative, so they resolve under /workspaces regardless of
+  // the host path. This is what lets you run several ecosystem-analytics
+  // worktrees in parallel, each in its own container.
+  //
+  // `source` must be a host path; update this one line if the checkout moves.
+  "workspaceMount": "source=/Users/neilsmyth/Documents/DevAlkemio,target=/workspaces,type=bind,consistency=cached",
+  "workspaceFolder": "/workspaces/${localWorkspaceFolderBasename}",
 
   "remoteUser": "node",
 
@@ -16,6 +32,11 @@
     // Let corepack auto-provision the pinned pnpm without an interactive
     // prompt (postCreate runs non-interactively).
     "COREPACK_ENABLE_DOWNLOAD_PROMPT": "0"
+  },
+
+  "remoteEnv": {
+    "NODE_OPTIONS": "--max-old-space-size=4096",
+    "CLAUDE_CONFIG_DIR": "/home/node/.claude"
   },
 
   // Dev servers: BFF 4100 / vng 4101 / govtech 4102, and the three Vite
@@ -30,14 +51,19 @@
     "5175": { "label": "GovTech SPA", "onAutoForward": "silent" }
   },
 
-  // Persist Claude Code auth/config and the pnpm store across rebuilds so
-  // you don't re-login or re-download packages every time.
+  // Fixed volume names (NOT devcontainerId-scoped) so every ecosystem-analytics
+  // worktree container SHARES one Claude login, one pnpm store, and one shell
+  // history — you log in / download packages once, not per worktree.
   "mounts": [
-    "source=ea-claude-config-${devcontainerId},target=/home/node/.claude,type=volume",
-    "source=ea-pnpm-store-${devcontainerId},target=/home/node/.local/share/pnpm/store,type=volume"
+    "source=ea-claude,target=/home/node/.claude,type=volume",
+    "source=ea-pnpm-store,target=/home/node/.local/share/pnpm/store,type=volume",
+    "source=ea-commandhistory,target=/commandhistory,type=volume"
   ],
 
-  "postCreateCommand": "bash .devcontainer/post-create.sh",
+  // Install workspace + server deps (network still open), then lock down the
+  // network with the outbound firewall. init-firewall.sh is the only command
+  // `node` may run via sudo.
+  "postCreateCommand": "bash .devcontainer/post-create.sh && sudo /usr/local/bin/init-firewall.sh",
 
   "customizations": {
     "vscode": {
@@ -45,12 +71,13 @@
         "dbaeumer.vscode-eslint",
         "esbenp.prettier-vscode",
         "ms-playwright.playwright",
-        "anthropic.claude-code"
+        "anthropic.claude-code",
+        "eamodio.gitlens"
       ],
       "settings": {
         "editor.formatOnSave": true,
         "editor.defaultFormatter": "esbenp.prettier-vscode",
-        "terminal.integrated.defaultProfile.linux": "bash"
+        "terminal.integrated.defaultProfile.linux": "zsh"
       }
     }
   }

@@ -3,6 +3,7 @@
 
 # Node / Playwright
 node_modules/
+.pnpm-store/
 playwright-report/
 test-results/
 .env
