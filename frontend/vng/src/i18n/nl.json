@@ -25,6 +25,7 @@
     "search": "Zoek initiatieven…",
     "filterAll": "Alle",
     "filterType": "Type",
+    "filterProvince": "Provincie",
     "filterGemeente": "Gemeente",
     "filterTheme": "Thema",
     "filterNds": "NDS",
@@ -121,7 +122,9 @@
     "tagline": "Over dit initiatief",
     "mapTitle": "Deelnemende gemeenten op de kaart",
     "gemeentesTitle": "Deelnemende gemeenten",
-    "count": "Aantal"
+    "count": "Aantal",
+    "filterProvince": "Provincie",
+    "allProvinces": "Alle provincies"
   },
   "toggles": {
     "showGemeentes": "Gemeentes tonen",

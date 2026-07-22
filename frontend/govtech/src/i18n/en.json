@@ -25,6 +25,7 @@
     "search": "Search initiatives…",
     "filterAll": "All",
     "filterType": "Type",
+    "filterProvince": "Province",
     "filterGemeente": "Gemeente",
     "filterTheme": "Theme",
     "filterNds": "NDS",
@@ -121,7 +122,9 @@
     "tagline": "About this initiative",
     "mapTitle": "Participating municipalities on the map",
     "gemeentesTitle": "Participating municipalities",
-    "count": "Count"
+    "count": "Count",
+    "filterProvince": "Province",
+    "allProvinces": "All provinces"
   },
   "toggles": {
     "showGemeentes": "Show gemeentes",
