@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import * as Select from '@radix-ui/react-select';
 import { Check, ChevronDown, ChevronRight } from 'lucide-react';
-import { cn, proxyImageUrl, SafeImage } from '@ea/shared';
+import { cn, proxyImageUrl, PROVINCE_REGION_OPTIONS, SafeImage, type GraphMapRegion } from '@ea/shared';
 import type { GraphNode } from '@server/types/graph.js';
 import { useSelectionContext } from '../hooks/SelectionContext.js';
 import { useVngGraph } from '../hooks/useVngGraph.js';
@@ -86,6 +86,32 @@ export function SpaceDetailsTab({ openSpaceId, openSpaceSeq }: SpaceDetailsTabPr
       .filter((n) => n.type === 'ORGANIZATION' && n.isGemeente === true && neighbours.has(n.id))
       .sort((a, b) => a.displayName.localeCompare(b.displayName));
   }, [dataset, initiativeNode]);
+
+  // Province filter for the map/gemeente list. 'netherlands' = show all (whole-NL
+  // basemap); a province region narrows the map to that province and its gemeentes.
+  const [provinceRegion, setProvinceRegion] = useState<GraphMapRegion>('netherlands');
+  // Reset when the selected initiative changes — its provinces differ.
+  useEffect(() => {
+    setProvinceRegion('netherlands');
+  }, [selected]);
+
+  // Provinces actually present among this initiative's gemeentes, as map regions.
+  const provinceOptions = useMemo<{ region: GraphMapRegion; name: string }[]>(() => {
+    const present = new Set(gemeentes.map((g) => g.provinceName).filter(Boolean) as string[]);
+    return PROVINCE_REGION_OPTIONS.filter((p) => present.has(p.name));
+  }, [gemeentes]);
+
+  // The selected province's display name (null when showing the whole country).
+  const provinceName =
+    provinceRegion === 'netherlands'
+      ? null
+      : (provinceOptions.find((p) => p.region === provinceRegion)?.name ?? null);
+
+  // Gemeentes shown on the map + avatar grid, narrowed to the selected province.
+  const visibleGemeentes = useMemo<GraphNode[]>(
+    () => (provinceName ? gemeentes.filter((g) => g.provinceName === provinceName) : gemeentes),
+    [gemeentes, provinceName],
+  );
 
   // Per-initiative count of connected gemeentes (for the "(N)" in the picker).
   const gemeenteCountByNameId = useMemo<Map<string, number>>(() => {
@@ -185,7 +211,28 @@ export function SpaceDetailsTab({ openSpaceId, openSpaceSeq }: SpaceDetailsTabPr
 
             {/* Map of participating gemeentes */}
             <section className="space-y-3">
-              <h3 className="text-sm font-semibold text-foreground">{t('details.mapTitle')}</h3>
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <h3 className="text-sm font-semibold text-foreground">{t('details.mapTitle')}</h3>
+                {provinceOptions.length > 0 && (
+                  <label className="flex items-center gap-2 text-sm text-muted-foreground">
+                    <span>{t('details.filterProvince', { defaultValue: 'Provincie' })}</span>
+                    <select
+                      value={provinceRegion}
+                      onChange={(e) => setProvinceRegion(e.target.value as GraphMapRegion)}
+                      className="rounded-md border border-border bg-card px-2 py-1 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+                    >
+                      <option value="netherlands">
+                        {t('details.allProvinces', { defaultValue: 'Alle provincies' })}
+                      </option>
+                      {provinceOptions.map((p) => (
+                        <option key={p.region} value={p.region}>
+                          {p.name}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                )}
+              </div>
               <div className="relative rounded-xl border border-border bg-card p-4">
                 {graphFirstLoading ? (
                   <>
@@ -207,7 +254,7 @@ export function SpaceDetailsTab({ openSpaceId, openSpaceSeq }: SpaceDetailsTabPr
                     />
                   </>
                 ) : (
-                  <InitiativeMap gemeentes={gemeentes} />
+                  <InitiativeMap gemeentes={visibleGemeentes} mapRegion={provinceRegion} />
                 )}
               </div>
             </section>
@@ -225,15 +272,15 @@ export function SpaceDetailsTab({ openSpaceId, openSpaceSeq }: SpaceDetailsTabPr
                 ) : (
                   <ChevronDown className="h-4 w-4" aria-hidden />
                 )}
-                {t('details.gemeentesTitle')} ({gemeentes.length})
+                {t('details.gemeentesTitle')} ({visibleGemeentes.length})
               </button>
               {gemeentesCollapsed ? null : graphFirstLoading ? (
                 <p className="text-sm text-muted-foreground">{t('details.loading')}</p>
-              ) : gemeentes.length === 0 ? (
+              ) : visibleGemeentes.length === 0 ? (
                 <p className="text-sm text-muted-foreground">{t('details.noGemeentes')}</p>
               ) : (
                 <div className="grid grid-cols-3 gap-3 sm:grid-cols-5 lg:grid-cols-[repeat(10,minmax(0,1fr))]">
-                  {gemeentes.map((g) => {
+                  {visibleGemeentes.map((g) => {
                     const avatar = g.avatarUrl ? proxyImageUrl(g.avatarUrl) : null;
                     return (
                       <div

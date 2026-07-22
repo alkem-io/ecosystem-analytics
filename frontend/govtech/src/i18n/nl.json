@@ -25,6 +25,7 @@
     "search": "Zoek initiatieven…",
     "filterAll": "Alle",
     "filterType": "Type",
+    "filterProvince": "Provincie",
     "filterGemeente": "Gemeente",
     "filterTheme": "Thema",
     "filterNds": "NDS",
@@ -121,7 +122,9 @@
     "tagline": "Over dit initiatief",
     "mapTitle": "Deelnemende gemeenten op de kaart",
     "gemeentesTitle": "Deelnemende gemeenten",
-    "count": "Aantal"
+    "count": "Aantal",
+    "filterProvince": "Provincie",
+    "allProvinces": "Alle provincies"
   },
   "toggles": {
     "showGemeentes": "Gemeentes tonen",
@@ -212,7 +215,9 @@
     "offMapOther": "Overig zonder locatie ({{count}})",
     "offMapSpacesL0": "Ruimtes (L0) zonder locatie ({{count}})",
     "offMapSpacesL1": "Subruimtes (L1) zonder locatie ({{count}})",
-    "offMapSpacesL2": "Subruimtes (L2) zonder locatie ({{count}})"
+    "offMapSpacesL2": "Subruimtes (L2) zonder locatie ({{count}})",
+    "region": "Regio",
+    "regionNetherlands": "Heel Nederland"
   },
   "export": {
     "downloadXlsx": "Download XLSX",

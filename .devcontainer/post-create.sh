@@ -3,9 +3,9 @@
 # Keep it idempotent — it may re-run on rebuilds.
 set -euo pipefail
 
-echo "==> Fixing ownership of mounted volumes"
-# Named volumes mount root-owned; hand them to the node user.
-sudo chown -R node:node /home/node/.claude /home/node/.local/share/pnpm 2>/dev/null || true
+# Named volumes seed with node ownership because their mount points are
+# pre-created node-owned in the Dockerfile — no runtime chown needed (and
+# `node` can only sudo the firewall installer, so a chown here would fail).
 
 echo "==> Installing workspace dependencies (frontends + root tooling)"
 pnpm install

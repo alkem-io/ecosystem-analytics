@@ -33,6 +33,8 @@ interface Row {
   name: string;
   kind: Kind;
   gemeentes: string[];
+  /** Distinct provinces of this initiative's gemeentes (feature: provinces). */
+  provinces: string[];
   /** Distinct member / lead user counts (null for GD initiatives — no membership). */
   members: number | null;
   leads: number | null;
@@ -124,10 +126,14 @@ export function InitiativesTab() {
   const allRows = useMemo<Row[]>(() => {
     if (!dataset) return [];
     const gemeenteName = new Map<string, string>();
+    // Gemeente node id → its province name (set on gemeente ORG nodes server-side).
+    const gemeenteProvince = new Map<string, string>();
     const userIds = new Set<string>();
     for (const n of dataset.nodes) {
-      if (n.type === 'ORGANIZATION' && n.isGemeente === true) gemeenteName.set(n.id, n.displayName);
-      else if (n.type === 'USER') userIds.add(n.id);
+      if (n.type === 'ORGANIZATION' && n.isGemeente === true) {
+        gemeenteName.set(n.id, n.displayName);
+        if (n.provinceName) gemeenteProvince.set(n.id, n.provinceName);
+      } else if (n.type === 'USER') userIds.add(n.id);
     }
     const adj = new Map<string, Set<string>>();
     // Distinct member / lead users per space, keyed by space node id.
@@ -161,18 +167,20 @@ export function InitiativesTab() {
       if (!isSpace && !isInitiative) continue;
 
       const neighbours = adj.get(n.id);
-      const gemeentes = neighbours
-        ? [...neighbours]
-            .filter((id) => gemeenteName.has(id))
-            .map((id) => gemeenteName.get(id) as string)
-            .sort((a, b) => a.localeCompare(b))
-        : [];
+      const gemeenteIds = neighbours ? [...neighbours].filter((id) => gemeenteName.has(id)) : [];
+      const gemeentes = gemeenteIds
+        .map((id) => gemeenteName.get(id) as string)
+        .sort((a, b) => a.localeCompare(b));
+      const provinces = [
+        ...new Set(gemeenteIds.map((id) => gemeenteProvince.get(id)).filter(Boolean) as string[]),
+      ].sort((a, b) => a.localeCompare(b));
 
       rows.push({
         id: n.id,
         name: n.displayName,
         kind: isSpace ? 'groei' : 'gd',
         gemeentes,
+        provinces,
         members: isSpace ? (memberUsers.get(n.id)?.size ?? 0) : null,
         leads: isSpace ? (leadUsers.get(n.id)?.size ?? 0) : null,
         themes: n.vngThemes ?? [],
@@ -218,6 +226,12 @@ export function InitiativesTab() {
             ]
           : [],
         matches: (r: Row, v: string) => r.kind === v,
+      },
+      {
+        key: 'province',
+        labelKey: 'initiativesTab.filterProvince',
+        options: distinct((r) => r.provinces).map((v) => ({ value: v, label: v })),
+        matches: (r: Row, v: string) => r.provinces.includes(v),
       },
       {
         key: 'gemeente',

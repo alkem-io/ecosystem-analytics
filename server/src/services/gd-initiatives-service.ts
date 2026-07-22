@@ -14,6 +14,7 @@ import type { GraphNode } from '../types/graph.js';
 import { buildOrgNode } from '../transform/transformer.js';
 import { getLogger } from '../logging/logger.js';
 import { loadConfig } from '../config.js';
+import { loadVngRegistry } from './vng-registry.js';
 
 const logger = getLogger();
 
@@ -85,6 +86,10 @@ export async function resolveGemeenteOrgNode(
 
     const node = buildOrgNode(orgId, org, []);
     node.isGemeente = true;
+    const info = loadVngRegistry().municipalityInfoByNameId(gemeenteNameId);
+    node.provinceCode = info?.provinceCode ?? null;
+    node.provinceName = info?.provinceName ?? null;
+    node.population = info?.population ?? null;
     return node;
   } catch (err) {
     logger.warn(

@@ -1,0 +1,30 @@
+# ~/.zshrc — interactive shell config for the ecosystem-analytics devcontainer.
+# Installed to /home/node/.zshrc by the devcontainer Dockerfile.
+
+# --- Prompt: user@ea  <cwd>  (git-branch±)  % ---------------------------------
+autoload -Uz vcs_info
+zstyle ':vcs_info:git:*' check-for-changes true
+zstyle ':vcs_info:git:*' stagedstr   '+'
+zstyle ':vcs_info:git:*' unstagedstr '*'
+zstyle ':vcs_info:git:*' formats       ' %F{yellow}(%b%u%c)%f'
+zstyle ':vcs_info:git:*' actionformats ' %F{yellow}(%b|%a%u%c)%f'
+precmd() { vcs_info }
+setopt prompt_subst
+# %n=user, fixed host label (container ID is useless), %~=cwd, then git, then %#
+PROMPT='%F{green}%n@ea%f %F{blue}%~%f${vcs_info_msg_0_} %F{cyan}%#%f '
+
+# --- History (persisted via the /commandhistory volume) ------------------------
+HISTFILE=/commandhistory/.zsh_history
+HISTSIZE=10000
+SAVEHIST=10000
+setopt inc_append_history share_history hist_ignore_dups hist_reduce_blanks
+
+# --- Quality-of-life -----------------------------------------------------------
+autoload -Uz compinit && compinit -u
+zstyle ':completion:*' menu select
+setopt auto_cd interactive_comments
+bindkey -e   # emacs keybindings (Ctrl-A/E/R etc.)
+
+# fzf keybindings/completion are installed via the fzf apt package.
+[ -f /usr/share/doc/fzf/examples/key-bindings.zsh ] && \
+  source /usr/share/doc/fzf/examples/key-bindings.zsh
