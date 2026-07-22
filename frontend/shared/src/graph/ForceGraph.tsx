@@ -6,7 +6,7 @@ import type { ActivityPeriod } from '@server/types/graph.js';
 import { computeClusters } from './clustering.js';
 import { computeProximityGroups, type ProximityCluster } from './proximityClustering.js';
 import { computePinnedNodeIds, computeMapBounds, isWithinRegion } from './mapBoundary.js';
-import type { MapRegion } from '../map/MapOverlay.js';
+import { resolveMapConfig, type GraphMapRegion } from '../map/mapConfig.js';
 import { proxyImageUrl } from '../lib/imageProxy.js';
 import { isImageFailed, markImageFailed } from '../lib/badImageCache.js';
 import styles from './ForceGraph.module.css';
@@ -85,24 +85,6 @@ const HULL_STROKES = [
   'rgba(34,197,94,0.18)',
 ];
 
-const MAP_URLS: Record<MapRegion, string> = {
-  world: '/maps/world.geojson',
-  europe: '/maps/europe.geojson',
-  netherlands: '/maps/netherlands.geojson',
-};
-
-const MAP_CENTERS: Record<MapRegion, [number, number]> = {
-  world: [0, 20],
-  europe: [15, 50],
-  netherlands: [5.3, 52.2],
-};
-
-const MAP_SCALES: Record<MapRegion, number> = {
-  world: 180,
-  europe: 900,
-  netherlands: 7000,
-};
-
 interface Props {
   dataset: GraphDataset;
   showPeople: boolean;
@@ -117,7 +99,7 @@ interface Props {
   selectedNodeId: string | null;
   highlightedNodeIds?: string[];
   showMap?: boolean;
-  mapRegion?: MapRegion;
+  mapRegion?: GraphMapRegion;
   activityPulseEnabled?: boolean;
   /** Whether space activity sizing/glow is enabled (default: false) */
   spaceActivityEnabled?: boolean;
@@ -938,11 +920,13 @@ export default function ForceGraph({
       }
     }
 
-    // Build projection for geo-pinning
+    // Build projection for geo-pinning. `mapCfg` resolves url/center/scale/zoom for
+    // the built-in regions AND the 12 province basemaps (see mapConfig.ts).
+    const mapCfg = resolveMapConfig(mapRegion);
     const projection = showMap
       ? geoMercator()
-          .center(MAP_CENTERS[mapRegion])
-          .scale(MAP_SCALES[mapRegion])
+          .center(mapCfg.center)
+          .scale(mapCfg.scale)
           .translate([width / 2, height / 2])
       : null;
 
@@ -971,8 +955,9 @@ export default function ForceGraph({
         return (180 / Math.PI) * Math.atan(0.5 * (Math.exp(n) - Math.exp(-n)));
       }
 
-      // Choose tile zoom level based on the Mercator scale
-      const baseZoom = mapRegion === 'netherlands' ? 8 : mapRegion === 'europe' ? 4 : 2;
+      // Choose tile zoom level based on the Mercator scale (province basemaps are
+      // more magnified than the whole country, so their base zoom is higher).
+      const baseZoom = mapCfg.baseZoom;
 
       function renderTiles(zoomK: number) {
         // The effective tile zoom considers both base projection scale and D3 zoom
@@ -1046,7 +1031,7 @@ export default function ForceGraph({
       renderTiles(1);
       (applyLOD as any)._renderTiles = renderTiles;
 
-      fetch(MAP_URLS[mapRegion])
+      fetch(mapCfg.url)
         .then((res) => {
           if (!res.ok) throw new Error('Map not found');
           return res.json();
@@ -1056,10 +1041,12 @@ export default function ForceGraph({
           mapGeoJSONCacheRef.current[mapRegion] = geojson as GeoPermissibleObjects;
 
           const features = geojson.features || [geojson];
-          const isWorldMap = mapRegion === 'world';
+          const isWorldMap = mapCfg.kind === 'world';
 
-          if (mapRegion === 'netherlands') {
-            // HARD REQUIREMENT (constitution §VII / FR-048): show ONLY the Netherlands.
+          if (mapCfg.masked) {
+            // HARD REQUIREMENT (constitution §VII / FR-048): show ONLY the region
+            // (the whole Netherlands, or a single province). Same white-complement
+            // masking as the NL basemap — the province GeoJSON is wound the same way.
             // The SVG clip-path lives outside the zoom group and does NOT track d3-zoom,
             // so tiles escape it on zoom. Instead we overlay an opaque WHITE "complement"
             // shape that hides everything OUTSIDE the Netherlands while leaving the NL

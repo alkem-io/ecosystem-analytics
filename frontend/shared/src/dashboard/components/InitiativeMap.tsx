@@ -1,15 +1,21 @@
 import { useCallback, useMemo, useState } from 'react';
-import { ForceGraph, HoverCard } from '@ea/shared';
+import { ForceGraph, HoverCard, type GraphMapRegion } from '@ea/shared';
 import type { GraphDataset, GraphNode } from '@server/types/graph.js';
 
 /**
- * Interactive Netherlands-only map for the initiative-details tab. Reuses the
- * shared ForceGraph in map mode (constitution §VII / FR-048: NL-only, tiles
- * clipped, nothing outside) so it pans/zooms/hovers exactly like the main Graph
- * tab and shares the one map implementation. The participating gemeentes are
- * pinned at their geo-locations.
+ * Interactive Netherlands map for the initiative-details tab. Reuses the shared
+ * ForceGraph in map mode (constitution §VII / FR-048: region-only, tiles clipped,
+ * nothing outside) so it pans/zooms/hovers exactly like the main Graph tab and
+ * shares the one map implementation. The participating gemeentes are pinned at
+ * their geo-locations. `mapRegion` narrows the basemap to a single province.
  */
-export function InitiativeMap({ gemeentes }: { gemeentes: GraphNode[] }) {
+export function InitiativeMap({
+  gemeentes,
+  mapRegion = 'netherlands',
+}: {
+  gemeentes: GraphNode[];
+  mapRegion?: GraphMapRegion;
+}) {
   const [hover, setHover] = useState<{ node: GraphNode; x: number; y: number } | null>(null);
 
   // Minimal valid dataset of just the gemeente nodes (all geo-located → pinned).
@@ -51,7 +57,7 @@ export function InitiativeMap({ gemeentes }: { gemeentes: GraphNode[] }) {
         onNodeHover={handleHover}
         selectedNodeId={null}
         showMap
-        mapRegion="netherlands"
+        mapRegion={mapRegion}
         nodeSizeScale={1.4}
       />
       {hover && <HoverCard node={hover.node} dataset={dataset} x={hover.x} y={hover.y} />}

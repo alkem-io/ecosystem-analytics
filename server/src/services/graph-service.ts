@@ -165,6 +165,12 @@ export async function generateGraph(
   for (const node of allNodes) {
     if (node.type === NodeType.ORGANIZATION) {
       node.isGemeente = registry.isGemeenteNameId(node.nameId);
+      if (node.isGemeente) {
+        const info = registry.municipalityInfoByNameId(node.nameId);
+        node.provinceCode = info?.provinceCode ?? null;
+        node.provinceName = info?.provinceName ?? null;
+        node.population = info?.population ?? null;
+      }
     } else if (
       node.type === NodeType.SPACE_L0 ||
       node.type === NodeType.SPACE_L1 ||

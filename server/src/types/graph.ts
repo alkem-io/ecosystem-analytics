@@ -147,6 +147,12 @@ export interface GraphNode {
   // ── Feature 016 (VNG) additions ──
   /** true when an ORGANIZATION node matches the gemeente registry (FR-032). */
   isGemeente?: boolean;
+  /** CBS province code for a gemeente org node (e.g. "PV22"); null for Belgian ones. */
+  provinceCode?: string | null;
+  /** Province display name for a gemeente org node (e.g. "Drenthe"). */
+  provinceName?: string | null;
+  /** Municipality population (CBS) for a gemeente org node; null when unknown/non-NL. */
+  population?: number | null;
   /**
    * Classification flag — true when the entity carries a "Common Ground" tag.
    * Set for both selected (Groei) space nodes and GemeenteDelers INITIATIVE nodes.
