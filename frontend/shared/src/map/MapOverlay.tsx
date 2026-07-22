@@ -2,35 +2,16 @@ import { useRef, useEffect } from 'react';
 import * as d3 from 'd3';
 import { geoMercator, geoPath } from 'd3-geo';
 import styles from './MapOverlay.module.css';
+import { resolveMapConfig, type GraphMapRegion, type MapRegion } from './mapConfig.js';
 
-export type MapRegion = 'world' | 'europe' | 'netherlands';
+export type { MapRegion };
 
 interface Props {
-  region: MapRegion;
+  region: GraphMapRegion;
   width: number;
   height: number;
   visible: boolean;
 }
-
-// GeoJSON basemap paths — static files (Natural Earth, public domain) served from
-// the host app's /public/maps directory.
-const MAP_URLS: Record<MapRegion, string> = {
-  world: '/maps/world.geojson',
-  europe: '/maps/europe.geojson',
-  netherlands: '/maps/netherlands.geojson',
-};
-
-const MAP_CENTERS: Record<MapRegion, [number, number]> = {
-  world: [0, 20],
-  europe: [15, 50],
-  netherlands: [5.3, 52.2],
-};
-
-const MAP_SCALES: Record<MapRegion, number> = {
-  world: 180,
-  europe: 900,
-  netherlands: 7000,
-};
 
 export default function MapOverlay({ region, width, height, visible }: Props) {
   const svgRef = useRef<SVGSVGElement>(null);
@@ -41,15 +22,16 @@ export default function MapOverlay({ region, width, height, visible }: Props) {
     const svg = d3.select(svgRef.current);
     svg.selectAll('*').remove();
 
+    const cfg = resolveMapConfig(region);
     const projection = geoMercator()
-      .center(MAP_CENTERS[region])
-      .scale(MAP_SCALES[region])
+      .center(cfg.center)
+      .scale(cfg.scale)
       .translate([width / 2, height / 2]);
 
     const path = geoPath().projection(projection);
 
     // Load GeoJSON and render
-    fetch(MAP_URLS[region])
+    fetch(cfg.url)
       .then((res) => {
         if (!res.ok) throw new Error('Map not found');
         return res.json();

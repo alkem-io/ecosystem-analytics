@@ -1,0 +1,62 @@
+[
+  {
+    "code": "PV20",
+    "slug": "groningen",
+    "name": "Groningen"
+  },
+  {
+    "code": "PV21",
+    "slug": "fryslan",
+    "name": "Fryslân"
+  },
+  {
+    "code": "PV22",
+    "slug": "drenthe",
+    "name": "Drenthe"
+  },
+  {
+    "code": "PV23",
+    "slug": "overijssel",
+    "name": "Overijssel"
+  },
+  {
+    "code": "PV24",
+    "slug": "flevoland",
+    "name": "Flevoland"
+  },
+  {
+    "code": "PV25",
+    "slug": "gelderland",
+    "name": "Gelderland"
+  },
+  {
+    "code": "PV26",
+    "slug": "utrecht",
+    "name": "Utrecht"
+  },
+  {
+    "code": "PV27",
+    "slug": "noord-holland",
+    "name": "Noord-Holland"
+  },
+  {
+    "code": "PV28",
+    "slug": "zuid-holland",
+    "name": "Zuid-Holland"
+  },
+  {
+    "code": "PV29",
+    "slug": "zeeland",
+    "name": "Zeeland"
+  },
+  {
+    "code": "PV30",
+    "slug": "noord-brabant",
+    "name": "Noord-Brabant"
+  },
+  {
+    "code": "PV31",
+    "slug": "limburg",
+    "name": "Limburg"
+  }
+]

@@ -1,0 +1,1712 @@
+{
+  "GM1680": {
+    "provinceCode": "PV22",
+    "provinceName": "Drenthe",
+    "population": 26062
+  },
+  "GM0358": {
+    "provinceCode": "PV27",
+    "provinceName": "Noord-Holland",
+    "population": 33459
+  },
+  "GM0197": {
+    "provinceCode": "PV25",
+    "provinceName": "Gelderland",
+    "population": 27608
+  },
+  "GM0059": {
+    "provinceCode": "PV21",
+    "provinceName": "Fryslân",
+    "population": 28254
+  },
+  "GM0482": {
+    "provinceCode": "PV28",
+    "provinceName": "Zuid-Holland",
+    "population": 20250
+  },
+  "GM0613": {
+    "provinceCode": "PV28",
+    "provinceName": "Zuid-Holland",
+    "population": 26559
+  },
+  "GM0361": {
+    "provinceCode": "PV27",
+    "provinceName": "Noord-Holland",
+    "population": 113196
+  },
+  "GM0141": {
+    "provinceCode": "PV23",
+    "provinceName": "Overijssel",
+    "population": 75166
+  },
+  "GM0034": {
+    "provinceCode": "PV24",
+    "provinceName": "Flevoland",
+    "population": 232619
+  },
+  "GM0484": {
+    "provinceCode": "PV28",
+    "provinceName": "Zuid-Holland",
+    "population": 117284
+  },
+  "GM1723": {
+    "provinceCode": "PV30",
+    "provinceName": "Noord-Brabant",
+    "population": 10495
+  },
+  "GM1959": {
+    "provinceCode": "PV30",
+    "provinceName": "Noord-Brabant",
+    "population": 58946
+  },
+  "GM0060": {
+    "provinceCode": "PV21",
+    "provinceName": "Fryslân",
+    "population": 3816
+  },
+  "GM0307": {
+    "provinceCode": "PV26",
+    "provinceName": "Utrecht",
+    "population": 163764
+  },
+  "GM0362": {
+    "provinceCode": "PV27",
+    "provinceName": "Noord-Holland",
+    "population": 95840
+  },
+  "GM0363": {
+    "provinceCode": "PV27",
+    "provinceName": "Noord-Holland",
+    "population": 941927
+  },
+  "GM0200": {
+    "provinceCode": "PV25",
+    "provinceName": "Gelderland",
+    "population": 169212
+  },
+  "GM0202": {
+    "provinceCode": "PV25",
+    "provinceName": "Gelderland",
+    "population": 171822
+  },
+  "GM0106": {
+    "provinceCode": "PV22",
+    "provinceName": "Drenthe",
+    "population": 70769
+  },
+  "GM0743": {
+    "provinceCode": "PV30",
+    "provinceName": "Noord-Brabant",
+    "population": 17484
+  },
+  "GM0744": {
+    "provinceCode": "PV30",
+    "provinceName": "Noord-Brabant",
+    "population": 7256
+  },
+  "GM0308": {
+    "provinceCode": "PV26",
+    "provinceName": "Utrecht",
+    "population": 25435
+  },
+  "GM0489": {
+    "provinceCode": "PV28",
+    "provinceName": "Zuid-Holland",
+    "population": 48701
+  },
+  "GM0203": {
+    "provinceCode": "PV25",
+    "provinceName": "Gelderland",
+    "population": 63926
+  },
+  "GM0888": {
+    "provinceCode": "PV31",
+    "provinceName": "Limburg",
+    "population": 16141
+  },
+  "GM1954": {
+    "provinceCode": "PV31",
+    "provinceName": "Limburg",
+    "population": 35903
+  },
+  "GM0889": {
+    "provinceCode": "PV31",
+    "provinceName": "Limburg",
+    "population": 13579
+  },
+  "GM1945": {
+    "provinceCode": "PV25",
+    "provinceName": "Gelderland",
+    "population": 35700
+  },
+  "GM1724": {
+    "provinceCode": "PV30",
+    "provinceName": "Noord-Brabant",
+    "population": 19436
+  },
+  "GM0893": {
+    "provinceCode": "PV31",
+    "provinceName": "Limburg",
+    "population": 13037
+  },
+  "GM0373": {
+    "provinceCode": "PV27",
+    "provinceName": "Noord-Holland",
+    "population": 29653
+  },
+  "GM0748": {
+    "provinceCode": "PV30",
+    "provinceName": "Noord-Brabant",
+    "population": 70692
+  },
+  "GM1859": {
+    "provinceCode": "PV25",
+    "provinceName": "Gelderland",
+    "population": 43986
+  },
+  "GM1721": {
+    "provinceCode": "PV30",
+    "provinceName": "Noord-Brabant",
+    "population": 32947
+  },
+  "GM0753": {
+    "provinceCode": "PV30",
+    "provinceName": "Noord-Brabant",
+    "population": 31699
+  },
+  "GM0209": {
+    "provinceCode": "PV25",
+    "provinceName": "Gelderland",
+    "population": 26868
+  },
+  "GM0375": {
+    "provinceCode": "PV27",
+    "provinceName": "Noord-Holland",
+    "population": 43052
+  },
+  "GM0310": {
+    "provinceCode": "PV26",
+    "provinceName": "Utrecht",
+    "population": 43687
+  },
+  "GM1728": {
+    "provinceCode": "PV30",
+    "provinceName": "Noord-Brabant",
+    "population": 21046
+  },
+  "GM0376": {
+    "provinceCode": "PV27",
+    "provinceName": "Noord-Holland",
+    "population": 12938
+  },
+  "GM0377": {
+    "provinceCode": "PV27",
+    "provinceName": "Noord-Holland",
+    "population": 23554
+  },
+  "GM1901": {
+    "provinceCode": "PV28",
+    "provinceName": "Zuid-Holland",
+    "population": 37291
+  },
+  "GM0755": {
+    "provinceCode": "PV30",
+    "provinceName": "Noord-Brabant",
+    "population": 11686
+  },
+  "GM1681": {
+    "provinceCode": "PV22",
+    "provinceName": "Drenthe",
+    "population": 26162
+  },
+  "GM0147": {
+    "provinceCode": "PV23",
+    "provinceName": "Overijssel",
+    "population": 25038
+  },
+  "GM0654": {
+    "provinceCode": "PV29",
+    "provinceName": "Zeeland",
+    "population": 23186
+  },
+  "GM0757": {
+    "provinceCode": "PV30",
+    "provinceName": "Noord-Brabant",
+    "population": 34302
+  },
+  "GM0758": {
+    "provinceCode": "PV30",
+    "provinceName": "Noord-Brabant",
+    "population": 190204
+  },
+  "GM1876": {
+    "provinceCode": "PV25",
+    "provinceName": "Gelderland",
+    "population": 35983
+  },
+  "GM0213": {
+    "provinceCode": "PV25",
+    "provinceName": "Gelderland",
+    "population": 21562
+  },
+  "GM0899": {
+    "provinceCode": "PV31",
+    "provinceName": "Limburg",
+    "population": 27474
+  },
+  "GM0312": {
+    "provinceCode": "PV26",
+    "provinceName": "Utrecht",
+    "population": 16402
+  },
+  "GM0313": {
+    "provinceCode": "PV26",
+    "provinceName": "Utrecht",
+    "population": 22905
+  },
+  "GM0214": {
+    "provinceCode": "PV25",
+    "provinceName": "Gelderland",
+    "population": 28095
+  },
+  "GM0502": {
+    "provinceCode": "PV28",
+    "provinceName": "Zuid-Holland",
+    "population": 69698
+  },
+  "GM0383": {
+    "provinceCode": "PV27",
+    "provinceName": "Noord-Holland",
+    "population": 37077
+  },
+  "GM0109": {
+    "provinceCode": "PV22",
+    "provinceName": "Drenthe",
+    "population": 35729
+  },
+  "GM1706": {
+    "provinceCode": "PV30",
+    "provinceName": "Noord-Brabant",
+    "population": 21101
+  },
+  "GM0216": {
+    "provinceCode": "PV25",
+    "provinceName": "Gelderland",
+    "population": 30413
+  },
+  "GM0148": {
+    "provinceCode": "PV23",
+    "provinceName": "Overijssel",
+    "population": 30264
+  },
+  "GM1891": {
+    "provinceCode": "PV21",
+    "provinceName": "Fryslân",
+    "population": 19231
+  },
+  "GM0503": {
+    "provinceCode": "PV28",
+    "provinceName": "Zuid-Holland",
+    "population": 110089
+  },
+  "GM0762": {
+    "provinceCode": "PV30",
+    "provinceName": "Noord-Brabant",
+    "population": 33596
+  },
+  "GM0150": {
+    "provinceCode": "PV23",
+    "provinceName": "Overijssel",
+    "population": 105111
+  },
+  "GM0384": {
+    "provinceCode": "PV27",
+    "provinceName": "Noord-Holland",
+    "population": 33327
+  },
+  "GM1980": {
+    "provinceCode": "PV27",
+    "provinceName": "Noord-Holland",
+    "population": 91411
+  },
+  "GM1774": {
+    "provinceCode": "PV23",
+    "provinceName": "Overijssel",
+    "population": 26958
+  },
+  "GM0221": {
+    "provinceCode": "PV25",
+    "provinceName": "Gelderland",
+    "population": 11173
+  },
+  "GM0222": {
+    "provinceCode": "PV25",
+    "provinceName": "Gelderland",
+    "population": 60466
+  },
+  "GM0766": {
+    "provinceCode": "PV30",
+    "provinceName": "Noord-Brabant",
+    "population": 27673
+  },
+  "GM0505": {
+    "provinceCode": "PV28",
+    "provinceName": "Zuid-Holland",
+    "population": 122991
+  },
+  "GM0498": {
+    "provinceCode": "PV27",
+    "provinceName": "Noord-Holland",
+    "population": 20550
+  },
+  "GM1719": {
+    "provinceCode": "PV30",
+    "provinceName": "Noord-Brabant",
+    "population": 28402
+  },
+  "GM0303": {
+    "provinceCode": "PV24",
+    "provinceName": "Flevoland",
+    "population": 45443
+  },
+  "GM0225": {
+    "provinceCode": "PV25",
+    "provinceName": "Gelderland",
+    "population": 20019
+  },
+  "GM0226": {
+    "provinceCode": "PV25",
+    "provinceName": "Gelderland",
+    "population": 24852
+  },
+  "GM1711": {
+    "provinceCode": "PV31",
+    "provinceName": "Limburg",
+    "population": 32385
+  },
+  "GM0385": {
+    "provinceCode": "PV27",
+    "provinceName": "Noord-Holland",
+    "population": 37126
+  },
+  "GM0228": {
+    "provinceCode": "PV25",
+    "provinceName": "Gelderland",
+    "population": 125331
+  },
+  "GM0317": {
+    "provinceCode": "PV26",
+    "provinceName": "Utrecht",
+    "population": 10065
+  },
+  "GM1979": {
+    "provinceCode": "PV20",
+    "provinceName": "Groningen",
+    "population": 44846
+  },
+  "GM0770": {
+    "provinceCode": "PV30",
+    "provinceName": "Noord-Brabant",
+    "population": 20537
+  },
+  "GM1903": {
+    "provinceCode": "PV31",
+    "provinceName": "Limburg",
+    "population": 26350
+  },
+  "GM0772": {
+    "provinceCode": "PV30",
+    "provinceName": "Noord-Brabant",
+    "population": 249783
+  },
+  "GM0230": {
+    "provinceCode": "PV25",
+    "provinceName": "Gelderland",
+    "population": 24039
+  },
+  "GM0114": {
+    "provinceCode": "PV22",
+    "provinceName": "Drenthe",
+    "population": 109881
+  },
+  "GM0388": {
+    "provinceCode": "PV27",
+    "provinceName": "Noord-Holland",
+    "population": 18738
+  },
+  "GM0153": {
+    "provinceCode": "PV23",
+    "provinceName": "Overijssel",
+    "population": 162683
+  },
+  "GM0232": {
+    "provinceCode": "PV25",
+    "provinceName": "Gelderland",
+    "population": 33786
+  },
+  "GM0233": {
+    "provinceCode": "PV25",
+    "provinceName": "Gelderland",
+    "population": 28199
+  },
+  "GM0777": {
+    "provinceCode": "PV30",
+    "provinceName": "Noord-Brabant",
+    "population": 46117
+  },
+  "GM1940": {
+    "provinceCode": "PV21",
+    "provinceName": "Fryslân",
+    "population": 52248
+  },
+  "GM0779": {
+    "provinceCode": "PV30",
+    "provinceName": "Noord-Brabant",
+    "population": 21914
+  },
+  "GM1771": {
+    "provinceCode": "PV30",
+    "provinceName": "Noord-Brabant",
+    "population": 40683
+  },
+  "GM1652": {
+    "provinceCode": "PV30",
+    "provinceName": "Noord-Brabant",
+    "population": 31806
+  },
+  "GM0907": {
+    "provinceCode": "PV31",
+    "provinceName": "Limburg",
+    "population": 17953
+  },
+  "GM0784": {
+    "provinceCode": "PV30",
+    "provinceName": "Noord-Brabant",
+    "population": 28437
+  },
+  "GM1924": {
+    "provinceCode": "PV28",
+    "provinceName": "Zuid-Holland",
+    "population": 52798
+  },
+  "GM0664": {
+    "provinceCode": "PV29",
+    "provinceName": "Zeeland",
+    "population": 40387
+  },
+  "GM0785": {
+    "provinceCode": "PV30",
+    "provinceName": "Noord-Brabant",
+    "population": 24886
+  },
+  "GM1942": {
+    "provinceCode": "PV27",
+    "provinceName": "Noord-Holland",
+    "population": 61213
+  },
+  "GM0512": {
+    "provinceCode": "PV28",
+    "provinceName": "Zuid-Holland",
+    "population": 39060
+  },
+  "GM0513": {
+    "provinceCode": "PV28",
+    "provinceName": "Zuid-Holland",
+    "population": 77818
+  },
+  "GM0518": {
+    "provinceCode": "PV28",
+    "provinceName": "Zuid-Holland",
+    "population": 569468
+  },
+  "GM0014": {
+    "provinceCode": "PV20",
+    "provinceName": "Groningen",
+    "population": 244427
+  },
+  "GM1729": {
+    "provinceCode": "PV31",
+    "provinceName": "Limburg",
+    "population": 13945
+  },
+  "GM0158": {
+    "provinceCode": "PV23",
+    "provinceName": "Overijssel",
+    "population": 24313
+  },
+  "GM0392": {
+    "provinceCode": "PV27",
+    "provinceName": "Noord-Holland",
+    "population": 168898
+  },
+  "GM0394": {
+    "provinceCode": "PV27",
+    "provinceName": "Noord-Holland",
+    "population": 166978
+  },
+  "GM1655": {
+    "provinceCode": "PV30",
+    "provinceName": "Noord-Brabant",
+    "population": 31484
+  },
+  "GM0160": {
+    "provinceCode": "PV23",
+    "provinceName": "Overijssel",
+    "population": 64116
+  },
+  "GM0243": {
+    "provinceCode": "PV25",
+    "provinceName": "Gelderland",
+    "population": 50655
+  },
+  "GM0523": {
+    "provinceCode": "PV28",
+    "provinceName": "Zuid-Holland",
+    "population": 19402
+  },
+  "GM0072": {
+    "provinceCode": "PV21",
+    "provinceName": "Fryslân",
+    "population": 16270
+  },
+  "GM0244": {
+    "provinceCode": "PV25",
+    "provinceName": "Gelderland",
+    "population": 12822
+  },
+  "GM0396": {
+    "provinceCode": "PV27",
+    "provinceName": "Noord-Holland",
+    "population": 39529
+  },
+  "GM0397": {
+    "provinceCode": "PV27",
+    "provinceName": "Noord-Holland",
+    "population": 27556
+  },
+  "GM0246": {
+    "provinceCode": "PV25",
+    "provinceName": "Gelderland",
+    "population": 19325
+  },
+  "GM0074": {
+    "provinceCode": "PV21",
+    "provinceName": "Fryslân",
+    "population": 51955
+  },
+  "GM0917": {
+    "provinceCode": "PV31",
+    "provinceName": "Limburg",
+    "population": 87764
+  },
+  "GM1658": {
+    "provinceCode": "PV30",
+    "provinceName": "Noord-Brabant",
+    "population": 17281
+  },
+  "GM0399": {
+    "provinceCode": "PV27",
+    "provinceName": "Noord-Holland",
+    "population": 24613
+  },
+  "GM0400": {
+    "provinceCode": "PV27",
+    "provinceName": "Noord-Holland",
+    "population": 56678
+  },
+  "GM0163": {
+    "provinceCode": "PV23",
+    "provinceName": "Overijssel",
+    "population": 36354
+  },
+  "GM0794": {
+    "provinceCode": "PV30",
+    "provinceName": "Noord-Brabant",
+    "population": 96860
+  },
+  "GM0531": {
+    "provinceCode": "PV28",
+    "provinceName": "Zuid-Holland",
+    "population": 33100
+  },
+  "GM0164": {
+    "provinceCode": "PV23",
+    "provinceName": "Overijssel",
+    "population": 84045
+  },
+  "GM0796": {
+    "provinceCode": "PV30",
+    "provinceName": "Noord-Brabant",
+    "population": 162295
+  },
+  "GM0252": {
+    "provinceCode": "PV25",
+    "provinceName": "Gelderland",
+    "population": 16978
+  },
+  "GM0797": {
+    "provinceCode": "PV30",
+    "provinceName": "Noord-Brabant",
+    "population": 46689
+  },
+  "GM0534": {
+    "provinceCode": "PV28",
+    "provinceName": "Zuid-Holland",
+    "population": 23078
+  },
+  "GM0798": {
+    "provinceCode": "PV30",
+    "provinceName": "Noord-Brabant",
+    "population": 16315
+  },
+  "GM0402": {
+    "provinceCode": "PV27",
+    "provinceName": "Noord-Holland",
+    "population": 94595
+  },
+  "GM1963": {
+    "provinceCode": "PV28",
+    "provinceName": "Zuid-Holland",
+    "population": 91445
+  },
+  "GM1735": {
+    "provinceCode": "PV23",
+    "provinceName": "Overijssel",
+    "population": 35775
+  },
+  "GM1966": {
+    "provinceCode": "PV20",
+    "provinceName": "Groningen",
+    "population": 48073
+  },
+  "GM1911": {
+    "provinceCode": "PV27",
+    "provinceName": "Noord-Holland",
+    "population": 50592
+  },
+  "GM0118": {
+    "provinceCode": "PV22",
+    "provinceName": "Drenthe",
+    "population": 56781
+  },
+  "GM0405": {
+    "provinceCode": "PV27",
+    "provinceName": "Noord-Holland",
+    "population": 76202
+  },
+  "GM1507": {
+    "provinceCode": "PV31",
+    "provinceName": "Limburg",
+    "population": 44821
+  },
+  "GM0321": {
+    "provinceCode": "PV26",
+    "provinceName": "Utrecht",
+    "population": 50952
+  },
+  "GM0406": {
+    "provinceCode": "PV27",
+    "provinceName": "Noord-Holland",
+    "population": 41287
+  },
+  "GM0677": {
+    "provinceCode": "PV29",
+    "provinceName": "Zeeland",
+    "population": 27376
+  },
+  "GM0353": {
+    "provinceCode": "PV26",
+    "provinceName": "Utrecht",
+    "population": 33171
+  },
+  "GM1884": {
+    "provinceCode": "PV28",
+    "provinceName": "Zuid-Holland",
+    "population": 29467
+  },
+  "GM0166": {
+    "provinceCode": "PV23",
+    "provinceName": "Overijssel",
+    "population": 56835
+  },
+  "GM0678": {
+    "provinceCode": "PV29",
+    "provinceName": "Zeeland",
+    "population": 13186
+  },
+  "GM0537": {
+    "provinceCode": "PV28",
+    "provinceName": "Zuid-Holland",
+    "population": 67149
+  },
+  "GM0928": {
+    "provinceCode": "PV31",
+    "provinceName": "Limburg",
+    "population": 45824
+  },
+  "GM1598": {
+    "provinceCode": "PV27",
+    "provinceName": "Noord-Holland",
+    "population": 24214
+  },
+  "GM0542": {
+    "provinceCode": "PV28",
+    "provinceName": "Zuid-Holland",
+    "population": 29864
+  },
+  "GM1931": {
+    "provinceCode": "PV28",
+    "provinceName": "Zuid-Holland",
+    "population": 57898
+  },
+  "GM1659": {
+    "provinceCode": "PV30",
+    "provinceName": "Noord-Brabant",
+    "population": 23541
+  },
+  "GM1982": {
+    "provinceCode": "PV30",
+    "provinceName": "Noord-Brabant",
+    "population": 93645
+  },
+  "GM0882": {
+    "provinceCode": "PV31",
+    "provinceName": "Limburg",
+    "population": 36844
+  },
+  "GM0415": {
+    "provinceCode": "PV27",
+    "provinceName": "Noord-Holland",
+    "population": 11685
+  },
+  "GM1621": {
+    "provinceCode": "PV28",
+    "provinceName": "Zuid-Holland",
+    "population": 66633
+  },
+  "GM0417": {
+    "provinceCode": "PV27",
+    "provinceName": "Noord-Holland",
+    "population": 11547
+  },
+  "GM0080": {
+    "provinceCode": "PV21",
+    "provinceName": "Fryslân",
+    "population": 130162
+  },
+  "GM0546": {
+    "provinceCode": "PV28",
+    "provinceName": "Zuid-Holland",
+    "population": 130328
+  },
+  "GM0547": {
+    "provinceCode": "PV28",
+    "provinceName": "Zuid-Holland",
+    "population": 27973
+  },
+  "GM1916": {
+    "provinceCode": "PV28",
+    "provinceName": "Zuid-Holland",
+    "population": 78916
+  },
+  "GM0995": {
+    "provinceCode": "PV24",
+    "provinceName": "Flevoland",
+    "population": 85781
+  },
+  "GM1640": {
+    "provinceCode": "PV31",
+    "provinceName": "Limburg",
+    "population": 36099
+  },
+  "GM0327": {
+    "provinceCode": "PV26",
+    "provinceName": "Utrecht",
+    "population": 32287
+  },
+  "GM1705": {
+    "provinceCode": "PV25",
+    "provinceName": "Gelderland",
+    "population": 47802
+  },
+  "GM0553": {
+    "provinceCode": "PV28",
+    "provinceName": "Zuid-Holland",
+    "population": 23842
+  },
+  "GM0262": {
+    "provinceCode": "PV25",
+    "provinceName": "Gelderland",
+    "population": 34213
+  },
+  "GM0809": {
+    "provinceCode": "PV30",
+    "provinceName": "Noord-Brabant",
+    "population": 24111
+  },
+  "GM0331": {
+    "provinceCode": "PV26",
+    "provinceName": "Utrecht",
+    "population": 14802
+  },
+  "GM0168": {
+    "provinceCode": "PV23",
+    "provinceName": "Overijssel",
+    "population": 23472
+  },
+  "GM0263": {
+    "provinceCode": "PV25",
+    "provinceName": "Gelderland",
+    "population": 26225
+  },
+  "GM1641": {
+    "provinceCode": "PV31",
+    "provinceName": "Limburg",
+    "population": 24377
+  },
+  "GM1991": {
+    "provinceCode": "PV30",
+    "provinceName": "Noord-Brabant",
+    "population": 60059
+  },
+  "GM0556": {
+    "provinceCode": "PV28",
+    "provinceName": "Zuid-Holland",
+    "population": 37125
+  },
+  "GM0935": {
+    "provinceCode": "PV31",
+    "provinceName": "Limburg",
+    "population": 126026
+  },
+  "GM0420": {
+    "provinceCode": "PV27",
+    "provinceName": "Noord-Holland",
+    "population": 46305
+  },
+  "GM0938": {
+    "provinceCode": "PV31",
+    "provinceName": "Limburg",
+    "population": 18454
+  },
+  "GM1948": {
+    "provinceCode": "PV30",
+    "provinceName": "Noord-Brabant",
+    "population": 85236
+  },
+  "GM0119": {
+    "provinceCode": "PV22",
+    "provinceName": "Drenthe",
+    "population": 36616
+  },
+  "GM0687": {
+    "provinceCode": "PV29",
+    "provinceName": "Zeeland",
+    "population": 50439
+  },
+  "GM1842": {
+    "provinceCode": "PV28",
+    "provinceName": "Zuid-Holland",
+    "population": 19355
+  },
+  "GM1731": {
+    "provinceCode": "PV22",
+    "provinceName": "Drenthe",
+    "population": 34402
+  },
+  "GM1952": {
+    "provinceCode": "PV20",
+    "provinceName": "Groningen",
+    "population": 61346
+  },
+  "GM1709": {
+    "provinceCode": "PV30",
+    "provinceName": "Noord-Brabant",
+    "population": 38467
+  },
+  "GM1978": {
+    "provinceCode": "PV28",
+    "provinceName": "Zuid-Holland",
+    "population": 45625
+  },
+  "GM1955": {
+    "provinceCode": "PV25",
+    "provinceName": "Gelderland",
+    "population": 37014
+  },
+  "GM0335": {
+    "provinceCode": "PV26",
+    "provinceName": "Utrecht",
+    "population": 13795
+  },
+  "GM0944": {
+    "provinceCode": "PV31",
+    "provinceName": "Limburg",
+    "population": 8192
+  },
+  "GM1740": {
+    "provinceCode": "PV25",
+    "provinceName": "Gelderland",
+    "population": 25925
+  },
+  "GM0946": {
+    "provinceCode": "PV31",
+    "provinceName": "Limburg",
+    "population": 17533
+  },
+  "GM0356": {
+    "provinceCode": "PV26",
+    "provinceName": "Utrecht",
+    "population": 68257
+  },
+  "GM0569": {
+    "provinceCode": "PV28",
+    "provinceName": "Zuid-Holland",
+    "population": 29728
+  },
+  "GM0267": {
+    "provinceCode": "PV25",
+    "provinceName": "Gelderland",
+    "population": 46283
+  },
+  "GM0268": {
+    "provinceCode": "PV25",
+    "provinceName": "Gelderland",
+    "population": 189871
+  },
+  "GM1930": {
+    "provinceCode": "PV28",
+    "provinceName": "Zuid-Holland",
+    "population": 89112
+  },
+  "GM1970": {
+    "provinceCode": "PV21",
+    "provinceName": "Fryslân",
+    "population": 45935
+  },
+  "GM1695": {
+    "provinceCode": "PV29",
+    "provinceName": "Zeeland",
+    "population": 8067
+  },
+  "GM1699": {
+    "provinceCode": "PV22",
+    "provinceName": "Drenthe",
+    "population": 31737
+  },
+  "GM0171": {
+    "provinceCode": "PV24",
+    "provinceName": "Flevoland",
+    "population": 51930
+  },
+  "GM0575": {
+    "provinceCode": "PV28",
+    "provinceName": "Zuid-Holland",
+    "population": 46453
+  },
+  "GM0820": {
+    "provinceCode": "PV30",
+    "provinceName": "Noord-Brabant",
+    "population": 24473
+  },
+  "GM0302": {
+    "provinceCode": "PV25",
+    "provinceName": "Gelderland",
+    "population": 29688
+  },
+  "GM0579": {
+    "provinceCode": "PV28",
+    "provinceName": "Zuid-Holland",
+    "population": 26095
+  },
+  "GM0823": {
+    "provinceCode": "PV30",
+    "provinceName": "Noord-Brabant",
+    "population": 19801
+  },
+  "GM0824": {
+    "provinceCode": "PV30",
+    "provinceName": "Noord-Brabant",
+    "population": 33356
+  },
+  "GM1895": {
+    "provinceCode": "PV20",
+    "provinceName": "Groningen",
+    "population": 39746
+  },
+  "GM0269": {
+    "provinceCode": "PV25",
+    "provinceName": "Gelderland",
+    "population": 24535
+  },
+  "GM0173": {
+    "provinceCode": "PV23",
+    "provinceName": "Overijssel",
+    "population": 32033
+  },
+  "GM1773": {
+    "provinceCode": "PV23",
+    "provinceName": "Overijssel",
+    "population": 19079
+  },
+  "GM0175": {
+    "provinceCode": "PV23",
+    "provinceName": "Overijssel",
+    "population": 19365
+  },
+  "GM1586": {
+    "provinceCode": "PV25",
+    "provinceName": "Gelderland",
+    "population": 29868
+  },
+  "GM0826": {
+    "provinceCode": "PV30",
+    "provinceName": "Noord-Brabant",
+    "population": 58726
+  },
+  "GM0085": {
+    "provinceCode": "PV21",
+    "provinceName": "Fryslân",
+    "population": 25898
+  },
+  "GM0431": {
+    "provinceCode": "PV27",
+    "provinceName": "Noord-Holland",
+    "population": 9778
+  },
+  "GM0432": {
+    "provinceCode": "PV27",
+    "provinceName": "Noord-Holland",
+    "population": 12669
+  },
+  "GM0086": {
+    "provinceCode": "PV21",
+    "provinceName": "Fryslân",
+    "population": 30068
+  },
+  "GM0828": {
+    "provinceCode": "PV30",
+    "provinceName": "Noord-Brabant",
+    "population": 95549
+  },
+  "GM1509": {
+    "provinceCode": "PV25",
+    "provinceName": "Gelderland",
+    "population": 39596
+  },
+  "GM0437": {
+    "provinceCode": "PV27",
+    "provinceName": "Noord-Holland",
+    "population": 14525
+  },
+  "GM0589": {
+    "provinceCode": "PV26",
+    "provinceName": "Utrecht",
+    "population": 10513
+  },
+  "GM1734": {
+    "provinceCode": "PV25",
+    "provinceName": "Gelderland",
+    "population": 49266
+  },
+  "GM0590": {
+    "provinceCode": "PV28",
+    "provinceName": "Zuid-Holland",
+    "population": 32267
+  },
+  "GM1894": {
+    "provinceCode": "PV31",
+    "provinceName": "Limburg",
+    "population": 45816
+  },
+  "GM0765": {
+    "provinceCode": "PV20",
+    "provinceName": "Groningen",
+    "population": 12579
+  },
+  "GM1926": {
+    "provinceCode": "PV28",
+    "provinceName": "Zuid-Holland",
+    "population": 58741
+  },
+  "GM0439": {
+    "provinceCode": "PV27",
+    "provinceName": "Noord-Holland",
+    "population": 96182
+  },
+  "GM0273": {
+    "provinceCode": "PV25",
+    "provinceName": "Gelderland",
+    "population": 25170
+  },
+  "GM0177": {
+    "provinceCode": "PV23",
+    "provinceName": "Overijssel",
+    "population": 39084
+  },
+  "GM0703": {
+    "provinceCode": "PV29",
+    "provinceName": "Zeeland",
+    "population": 23388
+  },
+  "GM0274": {
+    "provinceCode": "PV25",
+    "provinceName": "Gelderland",
+    "population": 31356
+  },
+  "GM0339": {
+    "provinceCode": "PV26",
+    "provinceName": "Utrecht",
+    "population": 5908
+  },
+  "GM1667": {
+    "provinceCode": "PV30",
+    "provinceName": "Noord-Brabant",
+    "population": 13729
+  },
+  "GM0275": {
+    "provinceCode": "PV25",
+    "provinceName": "Gelderland",
+    "population": 43849
+  },
+  "GM0340": {
+    "provinceCode": "PV26",
+    "provinceName": "Utrecht",
+    "population": 20457
+  },
+  "GM0597": {
+    "provinceCode": "PV28",
+    "provinceName": "Zuid-Holland",
+    "population": 48084
+  },
+  "GM1742": {
+    "provinceCode": "PV23",
+    "provinceName": "Overijssel",
+    "population": 39274
+  },
+  "GM0603": {
+    "provinceCode": "PV28",
+    "provinceName": "Zuid-Holland",
+    "population": 61857
+  },
+  "GM1669": {
+    "provinceCode": "PV31",
+    "provinceName": "Limburg",
+    "population": 20995
+  },
+  "GM0957": {
+    "provinceCode": "PV31",
+    "provinceName": "Limburg",
+    "population": 61431
+  },
+  "GM0736": {
+    "provinceCode": "PV26",
+    "provinceName": "Utrecht",
+    "population": 45749
+  },
+  "GM1674": {
+    "provinceCode": "PV30",
+    "provinceName": "Noord-Brabant",
+    "population": 78165
+  },
+  "GM0599": {
+    "provinceCode": "PV28",
+    "provinceName": "Zuid-Holland",
+    "population": 673804
+  },
+  "GM0277": {
+    "provinceCode": "PV25",
+    "provinceName": "Gelderland",
+    "population": 1837
+  },
+  "GM0840": {
+    "provinceCode": "PV30",
+    "provinceName": "Noord-Brabant",
+    "population": 23973
+  },
+  "GM0441": {
+    "provinceCode": "PV27",
+    "provinceName": "Noord-Holland",
+    "population": 48778
+  },
+  "GM0279": {
+    "provinceCode": "PV25",
+    "provinceName": "Gelderland",
+    "population": 10674
+  },
+  "GM0606": {
+    "provinceCode": "PV28",
+    "provinceName": "Zuid-Holland",
+    "population": 81931
+  },
+  "GM0088": {
+    "provinceCode": "PV21",
+    "provinceName": "Fryslân",
+    "population": 972
+  },
+  "GM1676": {
+    "provinceCode": "PV29",
+    "provinceName": "Zeeland",
+    "population": 34409
+  },
+  "GM0965": {
+    "provinceCode": "PV31",
+    "provinceName": "Limburg",
+    "population": 10459
+  },
+  "GM0845": {
+    "provinceCode": "PV30",
+    "provinceName": "Noord-Brabant",
+    "population": 30191
+  },
+  "GM1883": {
+    "provinceCode": "PV31",
+    "provinceName": "Limburg",
+    "population": 92461
+  },
+  "GM0610": {
+    "provinceCode": "PV28",
+    "provinceName": "Zuid-Holland",
+    "population": 26531
+  },
+  "GM1714": {
+    "provinceCode": "PV29",
+    "provinceName": "Zeeland",
+    "population": 23199
+  },
+  "GM0090": {
+    "provinceCode": "PV21",
+    "provinceName": "Fryslân",
+    "population": 57188
+  },
+  "GM0342": {
+    "provinceCode": "PV26",
+    "provinceName": "Utrecht",
+    "population": 47853
+  },
+  "GM0847": {
+    "provinceCode": "PV30",
+    "provinceName": "Noord-Brabant",
+    "population": 20471
+  },
+  "GM0848": {
+    "provinceCode": "PV30",
+    "provinceName": "Noord-Brabant",
+    "population": 18140
+  },
+  "GM0037": {
+    "provinceCode": "PV20",
+    "provinceName": "Groningen",
+    "population": 32110
+  },
+  "GM0180": {
+    "provinceCode": "PV23",
+    "provinceName": "Overijssel",
+    "population": 18219
+  },
+  "GM0532": {
+    "provinceCode": "PV27",
+    "provinceName": "Noord-Holland",
+    "population": 22445
+  },
+  "GM0851": {
+    "provinceCode": "PV30",
+    "provinceName": "Noord-Brabant",
+    "population": 24596
+  },
+  "GM1708": {
+    "provinceCode": "PV23",
+    "provinceName": "Overijssel",
+    "population": 45926
+  },
+  "GM0971": {
+    "provinceCode": "PV31",
+    "provinceName": "Limburg",
+    "population": 24691
+  },
+  "GM1904": {
+    "provinceCode": "PV26",
+    "provinceName": "Utrecht",
+    "population": 66196
+  },
+  "GM1900": {
+    "provinceCode": "PV21",
+    "provinceName": "Fryslân",
+    "population": 90521
+  },
+  "GM0715": {
+    "provinceCode": "PV29",
+    "provinceName": "Zeeland",
+    "population": 55955
+  },
+  "GM0093": {
+    "provinceCode": "PV21",
+    "provinceName": "Fryslân",
+    "population": 4834
+  },
+  "GM0448": {
+    "provinceCode": "PV27",
+    "provinceName": "Noord-Holland",
+    "population": 13958
+  },
+  "GM1525": {
+    "provinceCode": "PV28",
+    "provinceName": "Zuid-Holland",
+    "population": 38739
+  },
+  "GM0716": {
+    "provinceCode": "PV29",
+    "provinceName": "Zeeland",
+    "population": 27031
+  },
+  "GM0281": {
+    "provinceCode": "PV25",
+    "provinceName": "Gelderland",
+    "population": 42524
+  },
+  "GM0855": {
+    "provinceCode": "PV30",
+    "provinceName": "Noord-Brabant",
+    "population": 230746
+  },
+  "GM0183": {
+    "provinceCode": "PV23",
+    "provinceName": "Overijssel",
+    "population": 21604
+  },
+  "GM1700": {
+    "provinceCode": "PV23",
+    "provinceName": "Overijssel",
+    "population": 34234
+  },
+  "GM1730": {
+    "provinceCode": "PV22",
+    "provinceName": "Drenthe",
+    "population": 35116
+  },
+  "GM0737": {
+    "provinceCode": "PV21",
+    "provinceName": "Fryslân",
+    "population": 32874
+  },
+  "GM0450": {
+    "provinceCode": "PV27",
+    "provinceName": "Noord-Holland",
+    "population": 13489
+  },
+  "GM0451": {
+    "provinceCode": "PV27",
+    "provinceName": "Noord-Holland",
+    "population": 32204
+  },
+  "GM0184": {
+    "provinceCode": "PV24",
+    "provinceName": "Flevoland",
+    "population": 22431
+  },
+  "GM0344": {
+    "provinceCode": "PV26",
+    "provinceName": "Utrecht",
+    "population": 378121
+  },
+  "GM1581": {
+    "provinceCode": "PV26",
+    "provinceName": "Utrecht",
+    "population": 51107
+  },
+  "GM0981": {
+    "provinceCode": "PV31",
+    "provinceName": "Limburg",
+    "population": 10106
+  },
+  "GM0994": {
+    "provinceCode": "PV31",
+    "provinceName": "Limburg",
+    "population": 16481
+  },
+  "GM0858": {
+    "provinceCode": "PV30",
+    "provinceName": "Noord-Brabant",
+    "population": 31920
+  },
+  "GM0047": {
+    "provinceCode": "PV20",
+    "provinceName": "Groningen",
+    "population": 27825
+  },
+  "GM0345": {
+    "provinceCode": "PV26",
+    "provinceName": "Utrecht",
+    "population": 70779
+  },
+  "GM0717": {
+    "provinceCode": "PV29",
+    "provinceName": "Zeeland",
+    "population": 22037
+  },
+  "GM0861": {
+    "provinceCode": "PV30",
+    "provinceName": "Noord-Brabant",
+    "population": 47918
+  },
+  "GM0453": {
+    "provinceCode": "PV27",
+    "provinceName": "Noord-Holland",
+    "population": 70361
+  },
+  "GM0983": {
+    "provinceCode": "PV31",
+    "provinceName": "Limburg",
+    "population": 104195
+  },
+  "GM0984": {
+    "provinceCode": "PV31",
+    "provinceName": "Limburg",
+    "population": 45108
+  },
+  "GM1961": {
+    "provinceCode": "PV26",
+    "provinceName": "Utrecht",
+    "population": 63246
+  },
+  "GM0622": {
+    "provinceCode": "PV28",
+    "provinceName": "Zuid-Holland",
+    "population": 77480
+  },
+  "GM0096": {
+    "provinceCode": "PV21",
+    "provinceName": "Fryslân",
+    "population": 1202
+  },
+  "GM0718": {
+    "provinceCode": "PV29",
+    "provinceName": "Zeeland",
+    "population": 45878
+  },
+  "GM0986": {
+    "provinceCode": "PV31",
+    "provinceName": "Limburg",
+    "population": 12432
+  },
+  "GM1992": {
+    "provinceCode": "PV28",
+    "provinceName": "Zuid-Holland",
+    "population": 75012
+  },
+  "GM0626": {
+    "provinceCode": "PV28",
+    "provinceName": "Zuid-Holland",
+    "population": 25975
+  },
+  "GM0285": {
+    "provinceCode": "PV25",
+    "provinceName": "Gelderland",
+    "population": 25569
+  },
+  "GM0865": {
+    "provinceCode": "PV30",
+    "provinceName": "Noord-Brabant",
+    "population": 33202
+  },
+  "GM1949": {
+    "provinceCode": "PV21",
+    "provinceName": "Fryslân",
+    "population": 47158
+  },
+  "GM0866": {
+    "provinceCode": "PV30",
+    "provinceName": "Noord-Brabant",
+    "population": 17864
+  },
+  "GM0867": {
+    "provinceCode": "PV30",
+    "provinceName": "Noord-Brabant",
+    "population": 51635
+  },
+  "GM0627": {
+    "provinceCode": "PV28",
+    "provinceName": "Zuid-Holland",
+    "population": 35542
+  },
+  "GM0289": {
+    "provinceCode": "PV25",
+    "provinceName": "Gelderland",
+    "population": 42779
+  },
+  "GM0629": {
+    "provinceCode": "PV28",
+    "provinceName": "Zuid-Holland",
+    "population": 27975
+  },
+  "GM0852": {
+    "provinceCode": "PV27",
+    "provinceName": "Noord-Holland",
+    "population": 17721
+  },
+  "GM0988": {
+    "provinceCode": "PV31",
+    "provinceName": "Limburg",
+    "population": 51498
+  },
+  "GM1960": {
+    "provinceCode": "PV25",
+    "provinceName": "Gelderland",
+    "population": 53445
+  },
+  "GM0668": {
+    "provinceCode": "PV25",
+    "provinceName": "Gelderland",
+    "population": 20843
+  },
+  "GM1969": {
+    "provinceCode": "PV20",
+    "provinceName": "Groningen",
+    "population": 65067
+  },
+  "GM1701": {
+    "provinceCode": "PV22",
+    "provinceName": "Drenthe",
+    "population": 20035
+  },
+  "GM0293": {
+    "provinceCode": "PV25",
+    "provinceName": "Gelderland",
+    "population": 15253
+  },
+  "GM1950": {
+    "provinceCode": "PV20",
+    "provinceName": "Groningen",
+    "population": 25267
+  },
+  "GM1783": {
+    "provinceCode": "PV28",
+    "provinceName": "Zuid-Holland",
+    "population": 118874
+  },
+  "GM0098": {
+    "provinceCode": "PV21",
+    "provinceName": "Fryslân",
+    "population": 26622
+  },
+  "GM0189": {
+    "provinceCode": "PV23",
+    "provinceName": "Overijssel",
+    "population": 25547
+  },
+  "GM0296": {
+    "provinceCode": "PV25",
+    "provinceName": "Gelderland",
+    "population": 42106
+  },
+  "GM1696": {
+    "provinceCode": "PV27",
+    "provinceName": "Noord-Holland",
+    "population": 24672
+  },
+  "GM0352": {
+    "provinceCode": "PV26",
+    "provinceName": "Utrecht",
+    "population": 23707
+  },
+  "GM0294": {
+    "provinceCode": "PV25",
+    "provinceName": "Gelderland",
+    "population": 29289
+  },
+  "GM0873": {
+    "provinceCode": "PV30",
+    "provinceName": "Noord-Brabant",
+    "population": 22301
+  },
+  "GM0632": {
+    "provinceCode": "PV26",
+    "provinceName": "Utrecht",
+    "population": 54199
+  },
+  "GM1690": {
+    "provinceCode": "PV22",
+    "provinceName": "Drenthe",
+    "population": 24819
+  },
+  "GM0880": {
+    "provinceCode": "PV27",
+    "provinceName": "Noord-Holland",
+    "population": 16328
+  },
+  "GM0351": {
+    "provinceCode": "PV26",
+    "provinceName": "Utrecht",
+    "population": 15099
+  },
+  "GM0479": {
+    "provinceCode": "PV27",
+    "provinceName": "Noord-Holland",
+    "population": 165201
+  },
+  "GM0297": {
+    "provinceCode": "PV25",
+    "provinceName": "Gelderland",
+    "population": 30687
+  },
+  "GM0473": {
+    "provinceCode": "PV27",
+    "provinceName": "Noord-Holland",
+    "population": 17335
+  },
+  "GM0050": {
+    "provinceCode": "PV24",
+    "provinceName": "Flevoland",
+    "population": 24612
+  },
+  "GM0355": {
+    "provinceCode": "PV26",
+    "provinceName": "Utrecht",
+    "population": 66648
+  },
+  "GM0299": {
+    "provinceCode": "PV25",
+    "provinceName": "Gelderland",
+    "population": 45570
+  },
+  "GM0637": {
+    "provinceCode": "PV28",
+    "provinceName": "Zuid-Holland",
+    "population": 130836
+  },
+  "GM0638": {
+    "provinceCode": "PV28",
+    "provinceName": "Zuid-Holland",
+    "population": 10355
+  },
+  "GM1892": {
+    "provinceCode": "PV28",
+    "provinceName": "Zuid-Holland",
+    "population": 49291
+  },
+  "GM0879": {
+    "provinceCode": "PV30",
+    "provinceName": "Noord-Brabant",
+    "population": 23088
+  },
+  "GM0301": {
+    "provinceCode": "PV25",
+    "provinceName": "Gelderland",
+    "population": 49292
+  },
+  "GM1896": {
+    "provinceCode": "PV23",
+    "provinceName": "Overijssel",
+    "population": 23733
+  },
+  "GM0642": {
+    "provinceCode": "PV28",
+    "provinceName": "Zuid-Holland",
+    "population": 44819
+  },
+  "GM0193": {
+    "provinceCode": "PV23",
+    "provinceName": "Overijssel",
+    "population": 134147
+  }
+}

@@ -6,8 +6,11 @@ import {
   HoverCard,
   isWithinRegion,
   proxyImageUrl,
+  resolveMapConfig,
+  PROVINCE_REGION_OPTIONS,
   SafeImage,
   useAppConfig,
+  type GraphMapRegion,
 } from '@ea/shared';
 import type { GeoPermissibleObjects } from 'd3-geo';
 import type { GraphDataset, GraphNode } from '@server/types/graph.js';
@@ -185,15 +188,19 @@ export function GraphTab({
   // ForceGraph renders its OWN projected Netherlands basemap — we must NOT also
   // render a separate static MapOverlay (that produced the misaligned "two maps").
   const [showMap, setShowMap] = useState(false);
+  // Map region: the whole Netherlands or a single province (feature: provinces).
+  const [mapRegion, setMapRegion] = useState<GraphMapRegion>('netherlands');
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
   const [hover, setHover] = useState<{ node: GraphNode; x: number; y: number } | null>(null);
 
-  // Netherlands region boundary — fetched once, used to decide which nodes can't
-  // be pinned on the map (off-map notice at the bottom of the graph area).
+  // Region boundary for the CURRENTLY selected region — used to decide which nodes
+  // can't be pinned on the map (off-map notice at the bottom of the graph area).
+  // Re-fetched when the region changes so the off-map count matches the basemap.
   const [regionGeo, setRegionGeo] = useState<GeoPermissibleObjects | null>(null);
   useEffect(() => {
     let cancelled = false;
-    fetch('/maps/netherlands.geojson')
+    setRegionGeo(null);
+    fetch(resolveMapConfig(mapRegion).url)
       .then((res) => (res.ok ? res.json() : null))
       .then((geo) => {
         if (!cancelled && geo) setRegionGeo(geo as GeoPermissibleObjects);
@@ -204,7 +211,7 @@ export function GraphTab({
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [mapRegion]);
 
   // Nodes that can't be placed on the map: no valid lat/lng, or outside the NL
   // region. Computed from the gemeente-filtered dataset and GROUPED by type so the
@@ -324,6 +331,25 @@ export function GraphTab({
             the shared selection panel. */}
         <div className="absolute left-4 top-4 z-10 flex flex-col gap-2 rounded-md border border-border bg-background/95 px-3 py-1.5 shadow-sm">
           <MapToggle checked={showMap} onChange={setShowMap} />
+          {showMap && (
+            <label className="flex cursor-pointer items-center gap-2 text-sm text-foreground">
+              <span>{t('graph.region', { defaultValue: 'Regio' })}</span>
+              <select
+                value={mapRegion}
+                onChange={(e) => setMapRegion(e.target.value as GraphMapRegion)}
+                className="rounded border border-border bg-background px-1.5 py-0.5 text-sm"
+              >
+                <option value="netherlands">
+                  {t('graph.regionNetherlands', { defaultValue: 'Heel Nederland' })}
+                </option>
+                {PROVINCE_REGION_OPTIONS.map((p) => (
+                  <option key={p.region} value={p.region}>
+                    {p.name}
+                  </option>
+                ))}
+              </select>
+            </label>
+          )}
           {onShowGemeentesChange && (
             <GemeenteToggle checked={showGemeentes} onChange={onShowGemeentesChange} />
           )}
@@ -343,7 +369,7 @@ export function GraphTab({
             selectedNodeId={selectedNodeId}
             highlightedNodeIds={highlightedNodeIds}
             showMap={showMap}
-            mapRegion="netherlands"
+            mapRegion={mapRegion}
           />
         )}
 

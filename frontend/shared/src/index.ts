@@ -36,7 +36,16 @@ export { default as DashboardApp } from './dashboard/App.js';
 // Graph + map visualization (force-directed network over a static basemap).
 export { default as ForceGraph } from './graph/ForceGraph.js';
 export { default as HoverCard } from './graph/HoverCard.js';
-export { default as MapOverlay, type MapRegion } from './map/MapOverlay.js';
+export { default as MapOverlay } from './map/MapOverlay.js';
+export {
+  type MapRegion,
+  type GraphMapRegion,
+  type ProvinceRegion,
+  type ResolvedMapConfig,
+  resolveMapConfig,
+  isProvinceRegion,
+  PROVINCE_REGION_OPTIONS,
+} from './map/mapConfig.js';
 export { computeClusters, type Cluster, type ClusterMode } from './graph/clustering.js';
 export {
   computeProximityGroups,
