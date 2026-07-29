@@ -165,7 +165,10 @@
     "cityNonParticipating": "Neemt niet deel",
     "cityExcluded": "{{count}} gemeenten zonder bekend inwonertal zijn weggelaten",
     "cityInitiatives": "initiatieven",
-    "cityInhabitants": "inwoners"
+    "cityInhabitants": "inwoners",
+    "scaleLog": "Log",
+    "scaleLinear": "Lineair",
+    "cityPopulationXLinear": "Inwoners (lineair)"
   },
   "categories": {
     "nds": {
@@ -255,7 +258,11 @@
     "population": "Inwoners",
     "participating": "Neemt deel",
     "yes": "Ja",
-    "no": "Nee"
+    "no": "Nee",
+    "downloadChart": "Grafiek downloaden",
+    "initiative": "Initiatief",
+    "kind": "Type",
+    "cities": "Gemeenten"
   },
   "about": {
     "title": "Over",
@@ -302,7 +309,8 @@
     "count": "{{count}} gemeenten",
     "loading": "Gemeenten laden…",
     "noResults": "Geen gemeenten gevonden",
-    "unknown": "onbekend"
+    "unknown": "onbekend",
+    "themeFrequency": "{{theme}} — {{count}} initiatief/initiatieven"
   },
   "cityDetailsTab": {
     "pickCity": "Gemeente",

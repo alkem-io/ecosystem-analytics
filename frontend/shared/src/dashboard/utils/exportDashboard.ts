@@ -199,6 +199,12 @@ export async function exportDashboardXlsx({
   cs.getColumn(1).width = 30;
 
   // ---- Download ---------------------------------------------------------
+  await downloadWorkbook(wb, filename);
+}
+
+/** Serialise a workbook and trigger a browser download. */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+async function downloadWorkbook(wb: any, filename: string): Promise<void> {
   const buffer = await wb.xlsx.writeBuffer();
   const blob = new Blob([buffer], {
     type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
@@ -211,4 +217,66 @@ export async function exportDashboardXlsx({
   a.click();
   a.remove();
   URL.revokeObjectURL(url);
+}
+
+/** A single chart's raw data, ready to write as one sheet. */
+export interface ChartTable {
+  columns: string[];
+  rows: (string | number)[][];
+}
+
+/**
+ * Export ONE dashboard chart as its own .xlsx: a Data sheet with that chart's raw
+ * table plus a Chart sheet with the rendered chart image. Used by the per-chart
+ * download buttons (the whole-dashboard workbook stays available separately).
+ */
+export async function exportSingleChartXlsx(opts: {
+  title: string;
+  node: HTMLElement | null;
+  table: ChartTable | null;
+  creator: string;
+  filename: string;
+  sheetDataName: string;
+  sheetChartName: string;
+}): Promise<void> {
+  const { title, node, table, creator, filename, sheetDataName, sheetChartName } = opts;
+  const [{ default: ExcelJS }, { toPng }] = await Promise.all([
+    import('exceljs'),
+    import('html-to-image'),
+  ]);
+
+  const wb = new ExcelJS.Workbook();
+  wb.creator = creator;
+  wb.created = new Date();
+
+  // ---- Data sheet -------------------------------------------------------
+  const ds = wb.addWorksheet(sheetDataName);
+  const tr = ds.addRow([title]);
+  tr.font = { bold: true, size: 13 };
+  ds.addRow([]);
+  if (table && table.rows.length > 0) {
+    const hr = ds.addRow(table.columns);
+    hr.font = { bold: true };
+    hr.eachCell((c) => {
+      c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE8EDF1' } };
+      c.border = { bottom: { style: 'thin', color: { argb: 'FFCBD5E1' } } };
+    });
+    for (const r of table.rows) ds.addRow(r);
+    const last = table.columns.length - 1;
+    ds.columns.forEach((col, i) => {
+      col.width = i === 0 ? 40 : i === last ? 80 : 14;
+    });
+  }
+
+  // ---- Chart sheet ------------------------------------------------------
+  const cs = wb.addWorksheet(sheetChartName);
+  const dataUrl = node ? await capture(node, toPng) : null;
+  if (dataUrl) {
+    const imageId = wb.addImage({ base64: dataUrl, extension: 'png' });
+    cs.addImage(imageId, { tl: { col: 0, row: 0 }, ext: { width: 900, height: 460 } });
+  } else {
+    cs.getCell('A1').value = '(chart image unavailable)';
+  }
+
+  await downloadWorkbook(wb, filename);
 }

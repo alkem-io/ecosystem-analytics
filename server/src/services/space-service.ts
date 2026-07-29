@@ -10,12 +10,13 @@ const SPACES_CACHE_KEY = '__spaces__';
 
 /**
  * Fetches the user's L0 Space memberships from Alkemio.
- * Uses the codegen-generated mySpacesHierarchical query (TR-016).
+ * Uses the lean codegen-generated SpacesForSelector query (TR-016): L0 fields
+ * only, no `subspaces`, so a single orphaned child About can't null the list.
  */
 export async function listUserSpaces(auth: AuthContext): Promise<SpaceSelectionItem[]> {
   const sdk = await createAlkemioSdk(auth);
 
-  const { data } = await sdk.mySpacesHierarchical();
+  const { data } = await sdk.SpacesForSelector();
   const currentUserId = data.me.user?.id;
   getLogger().info(`Listing spaces for user ${currentUserId} — ${data.me.spaceMembershipsHierarchical.length} space(s) found`, { context: 'Spaces' });
 

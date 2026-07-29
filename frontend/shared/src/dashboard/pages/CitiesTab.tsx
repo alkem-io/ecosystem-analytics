@@ -221,6 +221,45 @@ export function CitiesTab() {
       </div>
     );
 
+  /**
+   * Themes as a per-city word cloud: each theme sized by how many of the city's
+   * initiatives carry it, so the recurring themes read larger than the one-offs.
+   * Font size scales linearly between the least- and most-frequent theme in the row.
+   */
+  const themeCloud = (row: CityRow) => {
+    if (row.themes.length === 0) return <span className="text-muted-foreground">—</span>;
+    const freq = new Map<string, number>();
+    for (const init of row.initiatives)
+      for (const th of init.themes) freq.set(th, (freq.get(th) ?? 0) + 1);
+    const counts = [...freq.values()];
+    const min = Math.min(...counts);
+    const max = Math.max(...counts);
+    const MIN_PX = 11;
+    const MAX_PX = 20;
+    const sizeOf = (n: number) =>
+      max === min ? MIN_PX : MIN_PX + ((n - min) / (max - min)) * (MAX_PX - MIN_PX);
+    // Most frequent first, so the visual weight leads.
+    const ordered = [...freq.entries()].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]));
+    return (
+      <div className="flex max-w-[22rem] flex-wrap items-baseline gap-x-2 gap-y-0.5 leading-tight">
+        {ordered.map(([theme, n]) => (
+          <span
+            key={theme}
+            title={t('citiesTab.themeFrequency', {
+              count: n,
+              theme,
+              defaultValue: '{{theme}} — {{count}} initiative(s)',
+            })}
+            className="text-foreground"
+            style={{ fontSize: `${sizeOf(n)}px`, opacity: max === min ? 1 : 0.55 + 0.45 * ((n - min) / (max - min)) }}
+          >
+            {theme}
+          </span>
+        ))}
+      </div>
+    );
+  };
+
   /** Unknown population/province renders as an explicit marker, never as 0 (FR-005). */
   const unknown = (
     <span className="text-muted-foreground" title={t('citiesTab.unknown')}>
@@ -402,7 +441,7 @@ export function CitiesTab() {
                     <td className="px-3 py-2.5">
                       {chips(r.nds, (v) => t(`categories.nds.${v}`, { defaultValue: v }))}
                     </td>
-                    <td className="px-3 py-2.5">{chips(r.themes)}</td>
+                    <td className="px-3 py-2.5">{themeCloud(r)}</td>
                   </tr>
                 ))}
               </tbody>
