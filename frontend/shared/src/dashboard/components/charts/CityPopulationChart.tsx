@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   CartesianGrid,
@@ -18,8 +18,9 @@ interface Props {
   emptyLabel: string;
 }
 
-/** Participating cities carry the brand hue; non-participating stay recessive ink. */
-const PARTICIPATING_COLOR = 'var(--primary)';
+/** Groei = brand hue, GemeenteDelers = green — the same split language as the other charts. */
+const GROEI_COLOR = 'var(--primary)';
+const GD_COLOR = '#16a34a';
 const NON_PARTICIPATING_COLOR = 'var(--text-secondary)';
 
 /** Candidate log-axis ticks — filtered to the range actually present in the data. */
@@ -32,46 +33,83 @@ function compact(value: number): string {
   return String(value);
 }
 
+/** SVG path for a pie slice (angles in degrees, 0° at the top, clockwise). */
+function slicePath(cx: number, cy: number, r: number, startDeg: number, endDeg: number): string {
+  const rad = (deg: number) => (Math.PI / 180) * (deg - 90);
+  const x1 = cx + r * Math.cos(rad(startDeg));
+  const y1 = cy + r * Math.sin(rad(startDeg));
+  const x2 = cx + r * Math.cos(rad(endDeg));
+  const y2 = cy + r * Math.sin(rad(endDeg));
+  const large = endDeg - startDeg > 180 ? 1 : 0;
+  return `M ${cx} ${cy} L ${x1} ${y1} A ${r} ${r} 0 ${large} 1 ${x2} ${y2} Z`;
+}
+
 /**
- * Point marker. Participating cities are filled and ringed in the card surface so
- * overlapping marks stay separable; non-participating cities are hollow, so identity
- * never rests on colour alone. Both carry a transparent hit circle far larger than the
- * visible mark — a dense scatter must not demand pixel-perfect aim.
+ * Participating city marker: a small pie split into the city's Groei and GemeenteDelers
+ * initiatives — the same per-dot pie the NDS × VNG-2030 matrix uses. The pie shows the
+ * MIX; the Y position already encodes the total count, so the radius stays constant to
+ * avoid double-encoding. A transparent hit circle keeps the dense scatter easy to hover.
  */
-function Mark({
+function PieMark({
   cx,
   cy,
-  fill,
-  hollow,
+  payload,
 }: {
   cx?: number;
   cy?: number;
-  fill?: string;
-  hollow?: boolean;
+  payload?: CityPopulationPoint;
 }) {
-  if (cx == null || cy == null) return null;
+  if (cx == null || cy == null || !payload) return null;
+  const { groeiCount, gdCount } = payload;
+  const total = groeiCount + gdCount;
+  const r = 5.5;
   return (
     <g>
       <circle cx={cx} cy={cy} r={12} fill="transparent" />
-      {hollow ? (
-        // Every non-participating municipality sits at y=0, so this series is really a
-        // rug along the baseline — a few hundred marks deep in the 10k–100k band. Keep
-        // it small and faint so the dense middle reads as texture and the informative
-        // case (an isolated large city out on the right) still stands out.
-        <circle cx={cx} cy={cy} r={2.5} fill="none" stroke={fill} strokeWidth={1} opacity={0.5} />
+      {gdCount === 0 || total === 0 ? (
+        <circle cx={cx} cy={cy} r={r} fill={GROEI_COLOR} stroke="var(--card)" strokeWidth={1.25} />
+      ) : groeiCount === 0 ? (
+        <circle cx={cx} cy={cy} r={r} fill={GD_COLOR} stroke="var(--card)" strokeWidth={1.25} />
       ) : (
-        <circle cx={cx} cy={cy} r={5} fill={fill} stroke="var(--card)" strokeWidth={1.5} />
+        <>
+          <path d={slicePath(cx, cy, r, 0, (groeiCount / total) * 360)} fill={GROEI_COLOR} />
+          <path
+            d={slicePath(cx, cy, r, (groeiCount / total) * 360, 360)}
+            fill={GD_COLOR}
+          />
+          <circle cx={cx} cy={cy} r={r} fill="none" stroke="var(--card)" strokeWidth={1.25} />
+        </>
       )}
     </g>
   );
 }
 
-/** Tooltip: city name, population, and the initiative count behind the point. */
+/** Non-participating municipality: a faint hollow rug mark along the baseline. */
+function RugMark({ cx, cy }: { cx?: number; cy?: number }) {
+  if (cx == null || cy == null) return null;
+  return (
+    <g>
+      <circle cx={cx} cy={cy} r={12} fill="transparent" />
+      <circle
+        cx={cx}
+        cy={cy}
+        r={2.5}
+        fill="none"
+        stroke={NON_PARTICIPATING_COLOR}
+        strokeWidth={1}
+        opacity={0.5}
+      />
+    </g>
+  );
+}
+
+/** Tooltip: city name, population, and the initiative count (split Groei/GD) behind it. */
 function PointTooltip({ active, payload }: TooltipProps<number, string>) {
   const { t, i18n } = useTranslation();
   if (!active || !payload?.length) return null;
   const point = payload[0]?.payload as CityPopulationPoint | undefined;
   if (!point) return null;
+  const showSplit = point.gdCount > 0 && point.groeiCount > 0;
   return (
     <div className="rounded-lg border border-border bg-card p-3 text-xs shadow-md">
       <div className="font-semibold text-foreground">{point.name}</div>
@@ -85,6 +123,13 @@ function PointTooltip({ active, payload }: TooltipProps<number, string>) {
       <div className="text-foreground">
         {point.initiativeCount}{' '}
         {t('dashboard.cityInitiatives', { defaultValue: 'initiatieven' })}
+        {showSplit && (
+          <span className="text-muted-foreground">
+            {' '}
+            ({point.groeiCount} {t('dashboard.groei', { defaultValue: 'Groei' })} · {point.gdCount}{' '}
+            {t('dashboard.gemeenteDelers', { defaultValue: 'GemeenteDelers' })})
+          </span>
+        )}
       </div>
     </div>
   );
@@ -92,22 +137,24 @@ function PointTooltip({ active, payload }: TooltipProps<number, string>) {
 
 /**
  * Population × participation scatter (feature 018, US3). One point per municipality:
- * the cities taking part in the current selection, plus the Dutch municipalities taking
- * part in none (plotted at zero, visually distinct) — so a large city with no
- * participation reads as an outreach gap rather than an absence (FR-021).
+ * the cities taking part in the current selection (drawn as a Groei/GD pie), plus the
+ * Dutch municipalities taking part in none (a faint baseline rug) — so a large city with
+ * no participation reads as an outreach gap rather than an absence (FR-021).
  *
- * The population axis is LOG-scaled: Dutch municipalities span ~1 000 to ~900 000
- * inhabitants, and on a linear axis everything below ~50 000 collapses into the left
- * edge (FR-024). Municipalities with an unknown population cannot be placed on that
- * axis at all; they are excluded and their count is stated, never silently dropped
- * (FR-023).
+ * The population axis defaults to LOG scale: Dutch municipalities span ~1 000 to ~900 000
+ * inhabitants, and on a linear axis everything below ~50 000 collapses into the left edge
+ * (FR-024). A toggle switches to linear for readers who want true proportional spacing.
+ * Municipalities with an unknown population cannot be placed on that axis at all; they are
+ * excluded and their count is stated, never silently dropped (FR-023).
  */
 export function CityPopulationChart({ series, emptyLabel }: Props) {
   const { t } = useTranslation();
+  const [logScale, setLogScale] = useState(true);
 
   const participating = series?.participating ?? [];
   const nonParticipating = series?.nonParticipating ?? [];
   const hasAny = participating.length > 0 || nonParticipating.length > 0;
+  const gdIncluded = series?.gdIncluded ?? false;
 
   // Initiative counts are whole numbers, and recharts' auto ticks on a clamped domain
   // come out irregular (0, 2, 5). Step by a whole number so every gridline lands on a
@@ -121,13 +168,21 @@ export function CityPopulationChart({ series, emptyLabel }: Props) {
     return out;
   }, [participating]);
 
-  // Log axes cannot auto-range, so derive the domain from the data and keep only the
-  // ticks that fall inside it.
+  // Log axes cannot auto-range; derive the domain from the data and keep only the ticks
+  // inside it. Linear uses a 0-based domain with recharts' own ticks.
   const { domain, ticks } = useMemo(() => {
     const populations = [...participating, ...nonParticipating].map((p) => p.population);
-    if (populations.length === 0) return { domain: [1_000, 1_000_000] as [number, number], ticks: LOG_TICKS };
+    if (populations.length === 0) {
+      return logScale
+        ? { domain: [1_000, 1_000_000] as [number, number], ticks: LOG_TICKS }
+        : { domain: [0, 1_000_000] as [number, number], ticks: undefined };
+    }
     const min = Math.min(...populations);
     const max = Math.max(...populations);
+    if (!logScale) {
+      // Pad the top so the largest city isn't glued to the axis line.
+      return { domain: [0, Math.ceil(max * 1.05)] as [number, number], ticks: undefined };
+    }
     // Pad by a decade fraction so edge points aren't clipped by the axis line.
     const lo = Math.max(1, min * 0.8);
     const hi = max * 1.2;
@@ -135,38 +190,65 @@ export function CityPopulationChart({ series, emptyLabel }: Props) {
       domain: [lo, hi] as [number, number],
       ticks: LOG_TICKS.filter((v) => v >= lo && v <= hi),
     };
-  }, [participating, nonParticipating]);
+  }, [participating, nonParticipating, logScale]);
+
+  const ScaleButton = ({ value, label }: { value: boolean; label: string }) => (
+    <button
+      type="button"
+      onClick={() => setLogScale(value)}
+      aria-pressed={logScale === value}
+      className={[
+        'rounded px-2 py-0.5 text-xs font-medium transition-colors',
+        logScale === value
+          ? 'bg-primary text-primary-foreground'
+          : 'text-muted-foreground hover:bg-muted',
+      ].join(' ')}
+    >
+      {label}
+    </button>
+  );
 
   return (
     <section className="flex flex-col gap-1 rounded-lg border border-border bg-card p-4">
-      <h3 className="text-sm font-semibold text-foreground">
-        {t('dashboard.cityPopulation', { defaultValue: 'Population versus participation' })}
-      </h3>
-      <p className="text-xs text-muted-foreground">
-        {t('dashboard.cityPopulationSub', {
-          defaultValue: 'Every city by population and number of initiatives',
-        })}
-        {series && series.excludedUnknownPopulation > 0 && (
-          <>
-            {' · '}
-            {t('dashboard.cityExcluded', {
-              count: series.excludedUnknownPopulation,
-              defaultValue: '{{count}} cities with unknown population were excluded',
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <h3 className="text-sm font-semibold text-foreground">
+            {t('dashboard.cityPopulation', { defaultValue: 'Population versus participation' })}
+          </h3>
+          <p className="text-xs text-muted-foreground">
+            {t('dashboard.cityPopulationSub', {
+              defaultValue: 'Every city by population and number of initiatives',
             })}
-          </>
-        )}
-      </p>
+            {series && series.excludedUnknownPopulation > 0 && (
+              <>
+                {' · '}
+                {t('dashboard.cityExcluded', {
+                  count: series.excludedUnknownPopulation,
+                  defaultValue: '{{count}} cities with unknown population were excluded',
+                })}
+              </>
+            )}
+          </p>
+        </div>
+        {/* Population-axis scale toggle (FR-024). */}
+        <div className="flex shrink-0 items-center gap-1 rounded-md border border-border p-0.5">
+          <ScaleButton value label={t('dashboard.scaleLog', { defaultValue: 'Log' })} />
+          <ScaleButton value={false} label={t('dashboard.scaleLinear', { defaultValue: 'Linear' })} />
+        </div>
+      </div>
 
       {/* Custom legend — recharts' default overlaps the plot area. */}
-      <div className="mt-1 flex items-center gap-4 text-xs text-muted-foreground">
+      <div className="mt-1 flex flex-wrap items-center gap-4 text-xs text-muted-foreground">
         <span className="flex items-center gap-1.5">
-          <span
-            className="inline-block h-2.5 w-2.5 rounded-full"
-            style={{ background: PARTICIPATING_COLOR }}
-          />
-          {t('dashboard.cityParticipating', { defaultValue: 'Participating' })} (
-          {participating.length})
+          <span className="inline-block h-2.5 w-2.5 rounded-full" style={{ background: GROEI_COLOR }} />
+          {t('dashboard.groei', { defaultValue: 'Groei' })}
         </span>
+        {gdIncluded && (
+          <span className="flex items-center gap-1.5">
+            <span className="inline-block h-2.5 w-2.5 rounded-full" style={{ background: GD_COLOR }} />
+            {t('dashboard.gemeenteDelers', { defaultValue: 'GemeenteDelers' })}
+          </span>
+        )}
         <span className="flex items-center gap-1.5">
           <span
             className="inline-block h-2.5 w-2.5 rounded-full border"
@@ -189,14 +271,16 @@ export function CityPopulationChart({ series, emptyLabel }: Props) {
               <XAxis
                 type="number"
                 dataKey="population"
-                scale="log"
+                scale={logScale ? 'log' : 'linear'}
                 domain={domain}
                 ticks={ticks}
                 allowDataOverflow
                 tickFormatter={compact}
                 tick={{ fontSize: 11, fill: 'var(--text-secondary)' }}
                 label={{
-                  value: t('dashboard.cityPopulationX', { defaultValue: 'Population (log scale)' }),
+                  value: logScale
+                    ? t('dashboard.cityPopulationX', { defaultValue: 'Population (log scale)' })
+                    : t('dashboard.cityPopulationXLinear', { defaultValue: 'Population (linear)' }),
                   position: 'insideBottom',
                   offset: -14,
                   style: { fontSize: 11, fill: 'var(--text-secondary)' },
@@ -224,15 +308,13 @@ export function CityPopulationChart({ series, emptyLabel }: Props) {
               <Scatter
                 data={nonParticipating}
                 name={t('dashboard.cityNonParticipating', { defaultValue: 'Not participating' })}
-                fill={NON_PARTICIPATING_COLOR}
-                shape={<Mark hollow />}
+                shape={<RugMark />}
                 isAnimationActive={false}
               />
               <Scatter
                 data={participating}
                 name={t('dashboard.cityParticipating', { defaultValue: 'Participating' })}
-                fill={PARTICIPATING_COLOR}
-                shape={<Mark />}
+                shape={<PieMark />}
                 isAnimationActive={false}
               />
             </ScatterChart>

@@ -165,7 +165,10 @@
     "cityNonParticipating": "Not participating",
     "cityExcluded": "{{count}} cities with unknown population were excluded",
     "cityInitiatives": "initiatives",
-    "cityInhabitants": "inhabitants"
+    "cityInhabitants": "inhabitants",
+    "scaleLog": "Log",
+    "scaleLinear": "Linear",
+    "cityPopulationXLinear": "Population (linear)"
   },
   "categories": {
     "nds": {
@@ -255,7 +258,11 @@
     "population": "Population",
     "participating": "Participating",
     "yes": "Yes",
-    "no": "No"
+    "no": "No",
+    "downloadChart": "Download chart",
+    "initiative": "Initiative",
+    "kind": "Type",
+    "cities": "Cities"
   },
   "about": {
     "title": "About",
@@ -302,7 +309,8 @@
     "count": "{{count}} cities",
     "loading": "Loading cities…",
     "noResults": "No cities found",
-    "unknown": "unknown"
+    "unknown": "unknown",
+    "themeFrequency": "{{theme}} — {{count}} initiative(s)"
   },
   "cityDetailsTab": {
     "pickCity": "City",

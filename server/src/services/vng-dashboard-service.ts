@@ -160,6 +160,10 @@ export interface CityInitiativeCount {
   /** Inhabitants, or null when UNKNOWN. Never coerced to 0. */
   population: number | null;
   initiativeCount: number;
+  /** Groei (SPACE_L0) share of `initiativeCount` — feeds the per-dot pie. */
+  groeiCount: number;
+  /** GemeenteDelers (INITIATIVE) share of `initiativeCount`. */
+  gdCount: number;
 }
 
 /**
@@ -181,28 +185,38 @@ export interface CityInitiativeCount {
  */
 export function countCityInitiatives(dataset: GraphDataset): CityInitiativeCount[] {
   const cityNodes = new Map<string, GraphNode>();
-  const initiativeIds = new Set<string>();
+  // Initiative id → kind, so a city's participation can be split Groei vs GD (per-dot pie).
+  const initiativeKind = new Map<string, 'groei' | 'gd'>();
   for (const n of dataset.nodes) {
     if (n.type === NodeType.ORGANIZATION && n.isGemeente) cityNodes.set(n.id, n);
-    else if (n.type === NodeType.SPACE_L0 || n.type === NodeType.INITIATIVE) initiativeIds.add(n.id);
+    else if (n.type === NodeType.SPACE_L0) initiativeKind.set(n.id, 'groei');
+    else if (n.type === NodeType.INITIATIVE) initiativeKind.set(n.id, 'gd');
   }
 
   const byCity = new Map<string, Set<string>>();
   for (const e of dataset.edges) {
-    if (cityNodes.has(e.sourceId) && initiativeIds.has(e.targetId)) {
+    if (cityNodes.has(e.sourceId) && initiativeKind.has(e.targetId)) {
       addToSet(byCity, e.sourceId, e.targetId);
-    } else if (cityNodes.has(e.targetId) && initiativeIds.has(e.sourceId)) {
+    } else if (cityNodes.has(e.targetId) && initiativeKind.has(e.sourceId)) {
       addToSet(byCity, e.targetId, e.sourceId);
     }
   }
 
-  return [...cityNodes.values()].map((n) => ({
-    nameId: n.nameId,
-    name: n.displayName,
-    provinceName: n.provinceName ?? null,
-    population: n.population ?? null,
-    initiativeCount: byCity.get(n.id)?.size ?? 0,
-  }));
+  return [...cityNodes.values()].map((n) => {
+    const ids = byCity.get(n.id) ?? new Set<string>();
+    let groeiCount = 0;
+    let gdCount = 0;
+    for (const id of ids) (initiativeKind.get(id) === 'gd' ? gdCount++ : groeiCount++);
+    return {
+      nameId: n.nameId,
+      name: n.displayName,
+      provinceName: n.provinceName ?? null,
+      population: n.population ?? null,
+      initiativeCount: ids.size,
+      groeiCount,
+      gdCount,
+    };
+  });
 }
 
 /**
@@ -242,6 +256,8 @@ export function buildCityPopulationSeries(
       provinceName: m.info.provinceName,
       population: m.info.population,
       initiativeCount: hit?.initiativeCount ?? 0,
+      groeiCount: hit?.groeiCount ?? 0,
+      gdCount: hit?.gdCount ?? 0,
     });
   }
 
@@ -259,6 +275,8 @@ export function buildCityPopulationSeries(
       provinceName: c.provinceName,
       population: c.population,
       initiativeCount: c.initiativeCount,
+      groeiCount: c.groeiCount,
+      gdCount: c.gdCount,
     });
   }
 
