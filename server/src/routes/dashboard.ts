@@ -1,8 +1,13 @@
 import { Router, Request, Response } from 'express';
 import { authMiddleware, invalidateAndReject } from '../auth/middleware.js';
 import { resolveUser } from '../auth/resolve-user.js';
-import { assembleDashboard, assembleGemeenteDistribution } from '../services/vng-dashboard-service.js';
+import {
+  assembleCityPopulation,
+  assembleDashboard,
+  assembleGemeenteDistribution,
+} from '../services/vng-dashboard-service.js';
 import { fetchGemeentedelersCallouts } from '../services/gd-initiatives-service.js';
+import { generateGraph } from '../services/graph-service.js';
 import { loadVngRegistry } from '../services/vng-registry.js';
 import { createAlkemioSdk, isAlkemioAuthError } from '../graphql/client.js';
 import { loadConfig, type DashboardAppConfig, type DashboardAppId } from '../config.js';
@@ -69,13 +74,31 @@ dashboardRouter.post('/dashboard', async (req: Request, res: Response) => {
       body.includeInitiatives ?? false,
       profile,
     );
+    // The gemeente-distribution and city-population panels both read the same graph,
+    // so generate it once here and hand it to both rather than paying for two cold
+    // generations. The GD layer is folded in only when the GD checkbox is on.
+    const includeGd = body.includeGemeenteDelers ?? false;
+    const dataset = await generateGraph(req.auth!.userId!, req.auth!, {
+      spaceIds: body.spaceIds,
+      includeInitiatives: includeGd,
+    });
     // Initiatives-by-gemeente-count distribution (stacked Groei + GD). Always
     // includes Groei (selected spaces); folds in GD when the GD checkbox is on.
     result.gemeenteDistribution = await assembleGemeenteDistribution(
       req.auth!.userId!,
       req.auth!,
       body.spaceIds,
-      body.includeGemeenteDelers ?? false,
+      includeGd,
+      dataset,
+    );
+    // Population × initiative-count series (feature 018). Plots participating cities
+    // AND the municipalities taking part in nothing, so outreach gaps are visible.
+    result.cityPopulation = await assembleCityPopulation(
+      req.auth!.userId!,
+      req.auth!,
+      body.spaceIds,
+      includeGd,
+      dataset,
     );
     res.json(result);
   } catch (err) {

@@ -2,7 +2,14 @@ import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import * as Select from '@radix-ui/react-select';
 import { Check, ChevronDown, ChevronRight } from 'lucide-react';
-import { cn, proxyImageUrl, PROVINCE_REGION_OPTIONS, SafeImage, type GraphMapRegion } from '@ea/shared';
+import {
+  cn,
+  proxyImageUrl,
+  PROVINCE_REGION_OPTIONS,
+  SafeImage,
+  useAppConfig,
+  type GraphMapRegion,
+} from '@ea/shared';
 import type { GraphNode } from '@server/types/graph.js';
 import { useSelectionContext } from '../hooks/SelectionContext.js';
 import { useVngGraph } from '../hooks/useVngGraph.js';
@@ -32,8 +39,15 @@ function initials(name: string): string {
 /** Initiative information tab (US4) — tagline → city map → gemeente avatar grid. */
 export function SpaceDetailsTab({ openSpaceId, openSpaceSeq }: SpaceDetailsTabProps = {}) {
   const { t } = useTranslation();
+  const cfg = useAppConfig();
   const { selectedSpaces, effectiveSpaceIds, state } = useSelectionContext();
   const [selected, setSelected] = useState<string | null>(null);
+
+  // Choosing a gemeente opens its profile on the City information tab (FR-019).
+  const openCity = (cityId: string) =>
+    window.dispatchEvent(
+      new CustomEvent(`${cfg.eventPrefix}:openCity`, { detail: { cityId } }),
+    );
 
   const { dataset, loading: graphLoading } = useVngGraph(effectiveSpaceIds, {
     includeInitiatives: state.includeInitiatives,
@@ -58,15 +72,21 @@ export function SpaceDetailsTab({ openSpaceId, openSpaceSeq }: SpaceDetailsTabPr
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [openSpaceSeq, openSpaceId, selectedSpaces]);
 
+  // The update MUST be functional. This effect and the `openSpace` one above both run in
+  // the same commit on the mount that a graph-node click triggers (the tab is only
+  // mounted once it is active). A plain `setSelected(selectedSpaces[0].nameId)` here
+  // reads the stale `selected` (still null) and clobbers the requested space with the
+  // first one — i.e. clicking any node in the Graph tab opened the wrong initiative. The
+  // updater form sees the value the effect above just queued and leaves it alone.
   useEffect(() => {
     if (selectedSpaces.length === 0) {
-      if (selected !== null) setSelected(null);
+      setSelected(null);
       return;
     }
-    if (!selected || !selectedSpaces.some((s) => s.nameId === selected)) {
-      setSelected(selectedSpaces[0].nameId);
-    }
-  }, [selectedSpaces, selected]);
+    setSelected((prev) =>
+      prev && selectedSpaces.some((s) => s.nameId === prev) ? prev : selectedSpaces[0].nameId,
+    );
+  }, [selectedSpaces]);
 
   // The selected initiative's graph node + its tagline.
   const initiativeNode = useMemo<GraphNode | null>(() => {
@@ -283,9 +303,15 @@ export function SpaceDetailsTab({ openSpaceId, openSpaceSeq }: SpaceDetailsTabPr
                   {visibleGemeentes.map((g) => {
                     const avatar = g.avatarUrl ? proxyImageUrl(g.avatarUrl) : null;
                     return (
-                      <div
+                      <button
                         key={g.id}
-                        className="flex flex-col items-center gap-1.5 rounded-lg border border-border bg-card p-2 text-center"
+                        type="button"
+                        onClick={() => openCity(g.id)}
+                        className={cn(
+                          'flex flex-col items-center gap-1.5 rounded-lg border border-border bg-card p-2 text-center',
+                          'transition-colors hover:border-primary hover:bg-muted/50',
+                          'focus:outline-none focus-visible:ring-2 focus-visible:ring-primary',
+                        )}
                         title={g.displayName}
                       >
                         <SafeImage
@@ -304,7 +330,7 @@ export function SpaceDetailsTab({ openSpaceId, openSpaceSeq }: SpaceDetailsTabPr
                         <span className="line-clamp-2 text-[11px] font-medium leading-tight text-foreground">
                           {g.displayName.replace(/^gemeente\s+/i, '')}
                         </span>
-                      </div>
+                      </button>
                     );
                   })}
                 </div>

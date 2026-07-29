@@ -25,6 +25,30 @@ const registry: VngRegistry = {
       .map(([name, nameId]) => ({ nameId, title: name[0].toUpperCase() + name.slice(1) }));
   },
   gemeenteNameIds: () => ['gemeente-groningen', 'gemeente-utrecht'],
+  municipalities: () => [
+    {
+      nameId: 'gemeente-groningen',
+      title: 'Groningen',
+      info: {
+        cbsCode: 'GM0014',
+        country: 'NL',
+        provinceCode: 'PV20',
+        provinceName: 'Groningen',
+        population: 1,
+      },
+    },
+    {
+      nameId: 'gemeente-utrecht',
+      title: 'Utrecht',
+      info: {
+        cbsCode: 'GM0344',
+        country: 'NL',
+        provinceCode: 'PV26',
+        provinceName: 'Utrecht',
+        population: 2,
+      },
+    },
+  ],
   provinces: () => [{ code: 'PV20', slug: 'groningen', name: 'Groningen' }],
   municipalityInfoByNameId: (nameId) =>
     nameId === 'gemeente-groningen'

@@ -9,6 +9,8 @@ import { NdsChart } from '../components/charts/NdsChart.js';
 import { Vng2030Chart } from '../components/charts/Vng2030Chart.js';
 import { GemeenteDistributionChart } from '../components/charts/GemeenteDistributionChart.js';
 import { CategoryMatrixChart } from '../components/charts/CategoryMatrixChart.js';
+import { CityPopulationChart } from '../components/charts/CityPopulationChart.js';
+import { PhaseDistributionChart } from '../components/charts/PhaseDistributionChart.js';
 import { GdProvenanceNote } from '../components/GdProvenanceNote.js';
 import { LoadingOverlay } from '../components/LoadingOverlay.js';
 import { exportDashboardXlsx } from '../utils/exportDashboard.js';
@@ -57,10 +59,12 @@ export function DashboardTab() {
   const vng2030Dimension = data?.dimensions.find((d) => d.key === 'vng2030');
   const gdIncluded = data?.gdIncluded ?? false;
 
+  const phaseRef = useRef<HTMLDivElement>(null);
   const ndsRef = useRef<HTMLDivElement>(null);
   const vngRef = useRef<HTMLDivElement>(null);
   const distRef = useRef<HTMLDivElement>(null);
   const matrixRef = useRef<HTMLDivElement>(null);
+  const cityPopRef = useRef<HTMLDivElement>(null);
   const [exporting, setExporting] = useState(false);
 
   const onExport = async () => {
@@ -70,6 +74,10 @@ export function DashboardTab() {
       await exportDashboardXlsx({
         data,
         charts: [
+          {
+            title: t('dashboard.phases', { defaultValue: 'Initiatieven per groeifase' }),
+            node: phaseRef.current,
+          },
           { title: t('dashboard.nds'), node: ndsRef.current },
           { title: t('dashboard.vng2030'), node: vngRef.current },
           {
@@ -79,6 +87,12 @@ export function DashboardTab() {
           {
             title: t('dashboard.categoryMatrix', { defaultValue: 'NDS × VNG-2030' }),
             node: matrixRef.current,
+          },
+          {
+            title: t('dashboard.cityPopulation', {
+              defaultValue: 'Inwoners versus deelname',
+            }),
+            node: cityPopRef.current,
           },
         ],
         labelOf: (ns, key) => t(`${ns}.${key}`, { defaultValue: key }),
@@ -95,11 +109,26 @@ export function DashboardTab() {
           gemeenteDistribution: t('dashboard.gemeenteDistribution', {
             defaultValue: 'Initiatieven per aantal gemeenten',
           }),
+          phases: t('dashboard.phases', { defaultValue: 'Initiatieven per groeifase' }),
+          phase: t('export.phase', { defaultValue: 'Groeifase' }),
           bucket: t('export.bucket', { defaultValue: 'Aantal gemeenten' }),
           groei: t('dashboard.groei', { defaultValue: 'Groei' }),
           gd: t('dashboard.gemeenteDelers', { defaultValue: 'GemeenteDelers' }),
           total: t('dashboard.total', { defaultValue: 'Totaal' }),
           noClassification: t('dashboard.uncategorised', { defaultValue: 'No classification' }),
+          cityPopulation: t('dashboard.cityPopulation', {
+            defaultValue: 'Inwoners versus deelname',
+          }),
+          city: t('export.city', { defaultValue: 'Gemeente' }),
+          province: t('export.province', { defaultValue: 'Provincie' }),
+          population: t('export.population', { defaultValue: 'Inwoners' }),
+          participating: t('export.participating', { defaultValue: 'Neemt deel' }),
+          yes: t('export.yes', { defaultValue: 'Ja' }),
+          no: t('export.no', { defaultValue: 'Nee' }),
+          cityExcluded: t('dashboard.cityExcluded', {
+            count: data.cityPopulation?.excludedUnknownPopulation ?? 0,
+            defaultValue: '{{count}} gemeenten zonder bekend inwonertal zijn weggelaten',
+          }),
         },
       });
     } finally {
@@ -160,6 +189,16 @@ export function DashboardTab() {
       </div>
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+        {/* Growth-phase pipeline leads the dashboard; omitted entirely when the
+            selected spaces carry no phase tags (the server then sends no data). */}
+        {data?.phaseDistribution && (
+          <div className="lg:col-span-2" ref={phaseRef}>
+            <PhaseDistributionChart
+              distribution={data.phaseDistribution}
+              emptyLabel={t('dashboard.noData')}
+            />
+          </div>
+        )}
         <div ref={ndsRef}>
           <NdsChart dimension={ndsDimension} gdIncluded={gdIncluded} />
         </div>
@@ -176,6 +215,12 @@ export function DashboardTab() {
           <CategoryMatrixChart
             matrix={data?.categoryMatrix}
             gdIncluded={gdIncluded}
+            emptyLabel={t('dashboard.noData')}
+          />
+        </div>
+        <div className="lg:col-span-2" ref={cityPopRef}>
+          <CityPopulationChart
+            series={data?.cityPopulation}
             emptyLabel={t('dashboard.noData')}
           />
         </div>

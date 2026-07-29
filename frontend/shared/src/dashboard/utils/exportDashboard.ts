@@ -32,12 +32,26 @@ interface ExportArgs {
     nds: string;
     vng2030: string;
     gemeenteDistribution: string;
+    /** Heading for the growth-phase table. */
+    phases: string;
+    /** Column heading for the phase name. */
+    phase: string;
     bucket: string;
     groei: string;
     gd: string;
     total: string;
     /** Label for the leading 0-gemeente bucket. */
     noClassification: string;
+    /** Heading for the city population × participation table (feature 018). */
+    cityPopulation: string;
+    city: string;
+    province: string;
+    population: string;
+    participating: string;
+    yes: string;
+    no: string;
+    /** Already-interpolated "N cities with unknown population were excluded". */
+    cityExcluded: string;
   };
 }
 
@@ -100,6 +114,16 @@ export async function exportDashboardXlsx({
     ds.addRow([]);
   };
 
+  if (data.phaseDistribution) {
+    titleRow(text.phases);
+    headerRow([text.phase, text.count, text.initiatives]);
+    for (const p of data.phaseDistribution.phases) {
+      ds.addRow([labelOf('categories.phase', p.key), p.count, p.items.join(', ')]);
+    }
+    ds.addRow([]);
+    ds.addRow([]);
+  }
+
   dimension('nds', text.nds);
   dimension('vng2030', text.vng2030);
 
@@ -115,6 +139,34 @@ export async function exportDashboardXlsx({
         b.groei + b.gd,
         [...b.groeiItems, ...b.gdItems].join(', '),
       ]);
+    }
+  }
+
+  // Population × participation, one row per plotted municipality (feature 018, FR-025).
+  // Municipalities excluded for unknown population are not rows, so their count is
+  // stated instead — the same disclosure the chart makes.
+  if (data.cityPopulation) {
+    const { participating, nonParticipating, excludedUnknownPopulation } = data.cityPopulation;
+    ds.addRow([]);
+    ds.addRow([]);
+    titleRow(text.cityPopulation);
+    headerRow([text.city, text.province, text.population, text.count, text.participating]);
+    const rows = [
+      ...participating.map((p) => ({ p, participating: true })),
+      ...nonParticipating.map((p) => ({ p, participating: false })),
+    ].sort((a, b) => b.p.population - a.p.population || a.p.name.localeCompare(b.p.name));
+    for (const { p, participating: isParticipating } of rows) {
+      ds.addRow([
+        p.name,
+        p.provinceName ?? '',
+        p.population,
+        p.initiativeCount,
+        isParticipating ? text.yes : text.no,
+      ]);
+    }
+    if (excludedUnknownPopulation > 0) {
+      ds.addRow([]);
+      ds.addRow([text.cityExcluded]);
     }
   }
 

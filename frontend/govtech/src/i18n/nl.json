@@ -19,7 +19,9 @@
     "graph": "Graph",
     "details": "Initiatief informatie",
     "dashboard": "Dashboard",
-    "initiatives": "Initiatieven"
+    "initiatives": "Initiatieven",
+    "cities": "Gemeenten",
+    "cityDetails": "Gemeente informatie"
   },
   "initiativesTab": {
     "search": "Zoek initiatieven…",
@@ -152,7 +154,18 @@
     "categoryMatrix": "NDS × VNG-2030",
     "categoryMatrixSub": "Initiatieven volgens primaire NDS- en VNG-2030-categorie",
     "multiCategoryTitle": "Initiatieven met meerdere categorieën",
-    "multiCategoryNote": "Deze staan hierboven onder hun eerste categorie per as; hun volledige categorieën staan hier."
+    "multiCategoryNote": "Deze staan hierboven onder hun eerste categorie per as; hun volledige categorieën staan hier.",
+    "phases": "Initiatieven per groeifase",
+    "phasesSub": "Groei-initiatieven, verdeeld over de groeifases",
+    "cityPopulation": "Inwoners versus deelname",
+    "cityPopulationSub": "Elke gemeente naar inwonertal en aantal initiatieven",
+    "cityPopulationX": "Inwoners (logaritmisch)",
+    "cityPopulationY": "Aantal initiatieven",
+    "cityParticipating": "Neemt deel",
+    "cityNonParticipating": "Neemt niet deel",
+    "cityExcluded": "{{count}} gemeenten zonder bekend inwonertal zijn weggelaten",
+    "cityInitiatives": "initiatieven",
+    "cityInhabitants": "inwoners"
   },
   "categories": {
     "nds": {
@@ -177,6 +190,14 @@
       "bestuurskracht": "Bestuurskracht en kwaliteit van uitvoering",
       "kwalitatieve-besluitvorming": "Kwalitatieve besluitvorming en mandaat",
       "uncategorised": "Geen classificatie"
+    },
+    "phase": {
+      "pre-intake": "Pre-intake",
+      "intake": "Intake",
+      "initiatief": "Initiatief",
+      "formalisatie": "Formalisatie",
+      "beheer": "Beheer",
+      "unknown": "Geen fase"
     }
   },
   "warning": {
@@ -226,7 +247,15 @@
     "category": "Categorie",
     "count": "Aantal",
     "initiatives": "Initiatieven",
-    "bucket": "Aantal gemeenten"
+    "bucket": "Aantal gemeenten",
+    "phase": "Groeifase",
+    "cityPopulation": "Inwoners versus deelname",
+    "city": "Gemeente",
+    "province": "Provincie",
+    "population": "Inwoners",
+    "participating": "Neemt deel",
+    "yes": "Ja",
+    "no": "Nee"
   },
   "about": {
     "title": "Over",
@@ -250,5 +279,40 @@
       "maxQueryLength": "Max. querylengte",
       "maxFeedbackLength": "Max. feedbacklengte"
     }
+  },
+  "citiesTab": {
+    "search": "Zoek gemeente…",
+    "filterAll": "Alle",
+    "filterProvince": "Provincie",
+    "filterVng2030": "VNG 2030",
+    "filterNds": "NDS",
+    "filterTheme": "Thema",
+    "groupCity": "Gemeente",
+    "groupParticipation": "Deelname",
+    "groupClassification": "Classificatie",
+    "colName": "Gemeente",
+    "colProvince": "Provincie",
+    "colPopulation": "Inwoners",
+    "colInitiatives": "Initiatieven",
+    "colGroei": "Groei",
+    "colGd": "GD",
+    "colVng2030": "VNG 2030",
+    "colNds": "NDS",
+    "colThemes": "Thema's",
+    "count": "{{count}} gemeenten",
+    "loading": "Gemeenten laden…",
+    "noResults": "Geen gemeenten gevonden",
+    "unknown": "onbekend"
+  },
+  "cityDetailsTab": {
+    "pickCity": "Gemeente",
+    "population": "Inwoners",
+    "province": "Provincie",
+    "unknown": "onbekend",
+    "mapTitle": "Locatie",
+    "initiativesTitle": "Initiatieven",
+    "noInitiatives": "Deze gemeente neemt niet deel aan een geselecteerd initiatief",
+    "noCities": "Geen gemeenten in de huidige selectie",
+    "loading": "Gemeenten laden…"
   }
 }
