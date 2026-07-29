@@ -12,15 +12,18 @@ import { GraphTab } from './pages/GraphTab.js';
 import { SpaceDetailsTab } from './pages/SpaceDetailsTab.js';
 import { DashboardTab } from './pages/DashboardTab.js';
 import { InitiativesTab } from './pages/InitiativesTab.js';
+import { CitiesTab } from './pages/CitiesTab.js';
+import { CityDetailsTab } from './pages/CityDetailsTab.js';
 
-type TabKey = 'dashboard' | 'details' | 'initiatives' | 'graph';
-const TABS: TabKey[] = ['dashboard', 'details', 'initiatives', 'graph'];
+type TabKey = 'dashboard' | 'details' | 'initiatives' | 'cityDetails' | 'cities' | 'graph';
+const TABS: TabKey[] = ['dashboard', 'details', 'initiatives', 'cityDetails', 'cities', 'graph'];
 
 /**
  * VNG app shell (FR-006/007): persistent branding header, authorisation warning,
  * a persistent data-selection panel (hub + toggles + selected initiatives, on the
- * left and shared by every tab), and a four-tab layout
- * (Dashboard / Initiative information / Initiatives / Graph).
+ * left and shared by every tab), and a tabbed layout — the initiative pair
+ * (Initiative information / Initiatives) followed by the city pair
+ * (City information / Cities), with Dashboard leading and Graph last.
  *
  * Lives inside <SelectionProvider> so it can feed the shared selection straight
  * into GraphTab as props (rather than relying on the localStorage fallback), and
@@ -38,6 +41,11 @@ function AppShell() {
   const [openSpaceId, setOpenSpaceId] = useState<string | null>(null);
   const [openSpaceSeq, setOpenSpaceSeq] = useState(0);
 
+  // Same bridge, city side (feature 018, FR-018/019): the Cities table and an
+  // initiative's gemeente grid broadcast `<app>:openCity`.
+  const [openCityId, setOpenCityId] = useState<string | null>(null);
+  const [openCitySeq, setOpenCitySeq] = useState(0);
+
   // T042 — clicking a space node in GraphTab broadcasts `<app>:openSpace`; switch
   // to the Space details tab and request that space.
   useEffect(() => {
@@ -52,6 +60,21 @@ function AppShell() {
     const evt = `${cfg.eventPrefix}:openSpace`;
     window.addEventListener(evt, onOpenSpace as EventListener);
     return () => window.removeEventListener(evt, onOpenSpace as EventListener);
+  }, [cfg.eventPrefix]);
+
+  // Choosing a city (in the Cities table, or on an initiative's gemeente grid)
+  // broadcasts `<app>:openCity`; switch to the City information tab.
+  useEffect(() => {
+    const onOpenCity = (e: Event) => {
+      const cityId = (e as CustomEvent<{ cityId?: string }>).detail?.cityId;
+      if (!cityId) return;
+      setOpenCityId(cityId);
+      setOpenCitySeq((n) => n + 1);
+      setActive('cityDetails');
+    };
+    const evt = `${cfg.eventPrefix}:openCity`;
+    window.addEventListener(evt, onOpenCity as EventListener);
+    return () => window.removeEventListener(evt, onOpenCity as EventListener);
   }, [cfg.eventPrefix]);
 
   return (
@@ -104,6 +127,10 @@ function AppShell() {
                 <SpaceDetailsTab openSpaceId={openSpaceId} openSpaceSeq={openSpaceSeq} />
               )}
               {active === 'initiatives' && <InitiativesTab />}
+              {active === 'cityDetails' && (
+                <CityDetailsTab openCityId={openCityId} openCitySeq={openCitySeq} />
+              )}
+              {active === 'cities' && <CitiesTab />}
               {active === 'dashboard' && <DashboardTab />}
             </ErrorBoundary>
           </main>

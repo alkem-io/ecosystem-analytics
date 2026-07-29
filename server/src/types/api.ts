@@ -118,6 +118,53 @@ export interface CategoryMatrix {
   }[];
 }
 
+/**
+ * Number of Groei initiatives in each growth phase ("groeifase"). The phase list is a
+ * fixed in-app constant (`server/src/services/groei-phases.ts`), so `phases` is always
+ * in pipeline order (pre-intake → beheer) and includes phases with count 0.
+ */
+export interface PhaseDistribution {
+  phases: {
+    /** Phase tag key, or `unknown` for the trailing no-phase-tag bucket. */
+    key: string;
+    /** Ordinal phase number (`fase_nr`); null for the `unknown` bucket. */
+    nr: number | null;
+    count: number;
+    /** Names of the initiatives in this phase (for the hover tooltip). */
+    items: string[];
+  }[];
+  /** Total Groei initiatives placed (including the `unknown` bucket). */
+  total: number;
+}
+
+/** One plotted municipality on the population × initiative-count chart (feature 018). */
+export interface CityPopulationPoint {
+  /** Gemeente organisation nameID — the stable key across both series. */
+  nameId: string;
+  name: string;
+  provinceName: string | null;
+  /** Always > 0 — municipalities with an unknown population are excluded, not zeroed. */
+  population: number;
+  /** Distinct initiatives in the current selection; always 0 in `nonParticipating`. */
+  initiativeCount: number;
+}
+
+/**
+ * Population × initiative-count scatter series (feature 018, US3). Plots BOTH the
+ * cities taking part in the current selection and the Dutch municipalities taking part
+ * in none, so "large city, no participation" outreach gaps are visible (FR-021).
+ */
+export interface CityPopulationSeries {
+  /** True when GD initiatives were folded into the counts (the GD checkbox). */
+  gdIncluded: boolean;
+  /** Cities with >= 1 initiative in the current selection. */
+  participating: CityPopulationPoint[];
+  /** Municipalities with 0 initiatives in the current selection. */
+  nonParticipating: CityPopulationPoint[];
+  /** Municipalities omitted for unknown population — the UI MUST surface this (FR-023). */
+  excludedUnknownPopulation: number;
+}
+
 /** Response for POST /api/vng/dashboard (feature 016, US3). */
 export interface VngDashboardResponse {
   /** True when GD initiatives were folded into the category counts (stacked segment). */
@@ -131,6 +178,13 @@ export interface VngDashboardResponse {
   gemeenteDistribution?: GemeenteDistribution;
   /** NDS × VNG-2030 bubble-matrix cross-tab (the 4th chart). */
   categoryMatrix?: CategoryMatrix;
+  /**
+   * Groei initiatives per growth phase. Omitted when no selected space carries a
+   * phase tag, so dashboards that don't use groeifases simply have no phase chart.
+   */
+  phaseDistribution?: PhaseDistribution;
+  /** Population × initiative-count scatter series (feature 018, US3). */
+  cityPopulation?: CityPopulationSeries;
 }
 
 /** An entity (space or GD initiative) counted by the dashboard, with its tags. */

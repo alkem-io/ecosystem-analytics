@@ -55,6 +55,14 @@ export interface MunicipalityInfo {
   population: number | null;
 }
 
+/** One known gemeente: its Alkemio nameID, display title, and NL geo facts. */
+export interface RegistryMunicipalityEntry {
+  nameId: string;
+  /** Canonical gemeente name (the snapshot title, e.g. "Groningen"). */
+  title: string;
+  info: MunicipalityInfo;
+}
+
 /** A gemeente found in free text. */
 export interface GemeenteMatch {
   nameId: string;
@@ -76,6 +84,12 @@ export interface VngRegistry {
   findGemeentesInText(text: string | null | undefined): GemeenteMatch[];
   /** Every known gemeente org nameID. */
   gemeenteNameIds(): string[];
+  /**
+   * Every known gemeente with its title and geo facts, sorted by title. This is the
+   * ONLY source of municipalities that are absent from a graph — the city-population
+   * chart needs them to plot non-participating gemeentes (feature 018, FR-021).
+   */
+  municipalities(): RegistryMunicipalityEntry[];
   /** The 12 Dutch provinces, ordered by CBS code. */
   provinces(): RegistryProvince[];
   /**
@@ -148,18 +162,22 @@ export function loadVngRegistry(): VngRegistry {
     Record<string, { provinceCode: string; provinceName: string; population: number }>
   >(nlDir, 'municipality-facts.json');
   const infoByNameId = new Map<string, MunicipalityInfo>();
+  const municipalityEntries: RegistryMunicipalityEntry[] = [];
   for (const m of municipalities) {
     if (!m.alkemioNameId) continue;
     const f = m.cbsCode ? factsByCbs[m.cbsCode] : undefined;
-    infoByNameId.set(m.alkemioNameId, {
+    const info: MunicipalityInfo = {
       cbsCode: m.cbsCode,
       // The only municipalities without a CBS code in the snapshot are Belgian.
       country: m.cbsCode ? 'NL' : 'BE',
       provinceCode: f?.provinceCode ?? null,
       provinceName: f?.provinceName ?? null,
       population: f?.population ?? null,
-    });
+    };
+    infoByNameId.set(m.alkemioNameId, info);
+    municipalityEntries.push({ nameId: m.alkemioNameId, title: m.title, info });
   }
+  municipalityEntries.sort((a, b) => a.title.localeCompare(b.title));
 
   const gemeenteNameIdSet = new Set<string>();
   const tagToGemeenteNameId = new Map<string, string>();
@@ -209,6 +227,7 @@ export function loadVngRegistry(): VngRegistry {
       return [...seen.values()].sort((a, b) => a.title.localeCompare(b.title));
     },
     gemeenteNameIds: () => [...gemeenteNameIdSet],
+    municipalities: () => municipalityEntries,
     provinces: () => provinces,
     municipalityInfoByNameId: (nameId) => (nameId ? infoByNameId.get(nameId) ?? null : null),
     meta: () => meta,
