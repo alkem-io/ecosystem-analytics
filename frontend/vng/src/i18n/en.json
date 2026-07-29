@@ -168,7 +168,13 @@
     "cityInhabitants": "inhabitants",
     "scaleLog": "Log",
     "scaleLinear": "Linear",
-    "cityPopulationXLinear": "Population (linear)"
+    "cityPopulationXLinear": "Population (linear)",
+    "populationRange": "Population range",
+    "rangeMin": "Min",
+    "rangeMax": "Max",
+    "rangeAll": "Show all",
+    "notShownCount": "{{count}} not shown",
+    "cityNoneInRange": "No cities in this population range"
   },
   "categories": {
     "nds": {
@@ -310,7 +316,7 @@
     "loading": "Loading cities…",
     "noResults": "No cities found",
     "unknown": "unknown",
-    "themeFrequency": "{{theme}} — {{count}} initiative(s)"
+    "wordFrequency": "{{word}} — {{count}} initiative(s)"
   },
   "cityDetailsTab": {
     "pickCity": "City",
