@@ -168,7 +168,13 @@
     "cityInhabitants": "inwoners",
     "scaleLog": "Log",
     "scaleLinear": "Lineair",
-    "cityPopulationXLinear": "Inwoners (lineair)"
+    "cityPopulationXLinear": "Inwoners (lineair)",
+    "populationRange": "Inwonersbereik",
+    "rangeMin": "Min",
+    "rangeMax": "Max",
+    "rangeAll": "Alles tonen",
+    "notShownCount": "{{count}} niet getoond",
+    "cityNoneInRange": "Geen gemeenten in dit inwonersbereik"
   },
   "categories": {
     "nds": {
@@ -310,7 +316,7 @@
     "loading": "Gemeenten laden…",
     "noResults": "Geen gemeenten gevonden",
     "unknown": "onbekend",
-    "themeFrequency": "{{theme}} — {{count}} initiatief/initiatieven"
+    "wordFrequency": "{{word}} — {{count}} initiatief/initiatieven"
   },
   "cityDetailsTab": {
     "pickCity": "Gemeente",

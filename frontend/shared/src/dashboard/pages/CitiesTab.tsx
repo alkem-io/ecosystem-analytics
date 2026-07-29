@@ -222,38 +222,54 @@ export function CitiesTab() {
     );
 
   /**
-   * Themes as a per-city word cloud: each theme sized by how many of the city's
-   * initiatives carry it, so the recurring themes read larger than the one-offs.
-   * Font size scales linearly between the least- and most-frequent theme in the row.
+   * A per-city word cloud for a classification column (themes / VNG-2030 / NDS). Each
+   * value is sized by how many of the city's initiatives carry it, so recurring values
+   * read larger than one-offs. The values are arranged biggest-in-the-middle with the
+   * rest fanning outward, and the container is centred — a compact cloud rather than a
+   * left-aligned list. `pick` selects the value list from an initiative; `labelFor`
+   * localises the value for display (themes are shown verbatim).
    */
-  const themeCloud = (row: CityRow) => {
-    if (row.themes.length === 0) return <span className="text-muted-foreground">—</span>;
+  const wordCloud = (
+    row: CityRow,
+    values: string[],
+    pick: (init: CityRow['initiatives'][number]) => string[],
+    labelFor?: (v: string) => string,
+  ) => {
+    if (values.length === 0) return <span className="text-muted-foreground">—</span>;
     const freq = new Map<string, number>();
     for (const init of row.initiatives)
-      for (const th of init.themes) freq.set(th, (freq.get(th) ?? 0) + 1);
-    const counts = [...freq.values()];
+      for (const v of pick(init)) freq.set(v, (freq.get(v) ?? 0) + 1);
+    // Only the row's union values, each with its frequency (≥ 1).
+    const entries = values.map((v) => [v, freq.get(v) ?? 1] as [string, number]);
+    const counts = entries.map((e) => e[1]);
     const min = Math.min(...counts);
     const max = Math.max(...counts);
     const MIN_PX = 11;
     const MAX_PX = 20;
     const sizeOf = (n: number) =>
       max === min ? MIN_PX : MIN_PX + ((n - min) / (max - min)) * (MAX_PX - MIN_PX);
-    // Most frequent first, so the visual weight leads.
-    const ordered = [...freq.entries()].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]));
+    // Sort by weight, then fan out around the centre so the biggest word sits in the
+    // middle and smaller words flank it (alternately prepended/appended).
+    const sorted = [...entries].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]));
+    const arranged: [string, number][] = [];
+    sorted.forEach((e, i) => (i % 2 === 0 ? arranged.push(e) : arranged.unshift(e)));
     return (
-      <div className="flex max-w-[22rem] flex-wrap items-baseline gap-x-2 gap-y-0.5 leading-tight">
-        {ordered.map(([theme, n]) => (
+      <div className="flex max-w-[22rem] flex-wrap items-center justify-center gap-x-2 gap-y-0.5 text-center leading-tight">
+        {arranged.map(([v, n]) => (
           <span
-            key={theme}
-            title={t('citiesTab.themeFrequency', {
+            key={v}
+            title={t('citiesTab.wordFrequency', {
               count: n,
-              theme,
-              defaultValue: '{{theme}} — {{count}} initiative(s)',
+              word: labelFor ? labelFor(v) : v,
+              defaultValue: '{{word}} — {{count}} initiative(s)',
             })}
             className="text-foreground"
-            style={{ fontSize: `${sizeOf(n)}px`, opacity: max === min ? 1 : 0.55 + 0.45 * ((n - min) / (max - min)) }}
+            style={{
+              fontSize: `${sizeOf(n)}px`,
+              opacity: max === min ? 1 : 0.55 + 0.45 * ((n - min) / (max - min)),
+            }}
           >
-            {theme}
+            {labelFor ? labelFor(v) : v}
           </span>
         ))}
       </div>
@@ -436,12 +452,16 @@ export function CitiesTab() {
                     <td className="px-3 py-2.5 tabular-nums text-muted-foreground">{r.groeiCount}</td>
                     <td className="px-3 py-2.5 tabular-nums text-muted-foreground">{r.gdCount}</td>
                     <td className="border-l border-border px-3 py-2.5">
-                      {chips(r.vng2030, (v) => t(`categories.vng2030.${v}`, { defaultValue: v }))}
+                      {wordCloud(r, r.vng2030, (i) => i.vng2030, (v) =>
+                        t(`categories.vng2030.${v}`, { defaultValue: v }),
+                      )}
                     </td>
                     <td className="px-3 py-2.5">
-                      {chips(r.nds, (v) => t(`categories.nds.${v}`, { defaultValue: v }))}
+                      {wordCloud(r, r.nds, (i) => i.nds, (v) =>
+                        t(`categories.nds.${v}`, { defaultValue: v }),
+                      )}
                     </td>
-                    <td className="px-3 py-2.5">{themeCloud(r)}</td>
+                    <td className="px-3 py-2.5">{wordCloud(r, r.themes, (i) => i.themes)}</td>
                   </tr>
                 ))}
               </tbody>
