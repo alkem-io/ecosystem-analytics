@@ -1,0 +1,34 @@
+# Backs the L0 space SELECTOR (listUserSpaces) only. Deliberately selects a
+# minimal set of L0 fields and does NOT descend into `subspaces`. The rich
+# `mySpacesHierarchical` (SpaceGraphInfoFragment) pulls `subspaces { about }`,
+# and a single orphaned child About (ENTITY_NOT_FOUND) null-propagates to
+# `data: null`, taking down the whole space list (e.g. `templatesmaloe > other`).
+# Selecting only what the selector maps makes the list immune to broken nested
+# data — and much cheaper. Graph generation / the AI index keep the rich query.
+query SpacesForSelector($limit: Float = 200) {
+  me {
+    user {
+      id
+    }
+    spaceMembershipsHierarchical(limit: $limit) {
+      space {
+        id
+        nameID
+        visibility
+        about {
+          isContentPublic
+          profile {
+            displayName
+          }
+        }
+        community {
+          roleSet {
+            leadUsers: usersInRole(role: LEAD) {
+              id
+            }
+          }
+        }
+      }
+    }
+  }
+}

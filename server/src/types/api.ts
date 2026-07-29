@@ -147,6 +147,10 @@ export interface CityPopulationPoint {
   population: number;
   /** Distinct initiatives in the current selection; always 0 in `nonParticipating`. */
   initiativeCount: number;
+  /** Groei (selected top-level space) share of `initiativeCount` — for the per-dot pie. */
+  groeiCount: number;
+  /** GemeenteDelers share of `initiativeCount` (0 unless the GD layer is included). */
+  gdCount: number;
 }
 
 /**
