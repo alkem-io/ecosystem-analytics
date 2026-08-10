@@ -21,6 +21,11 @@ export interface AppConfig {
   exportCreator: string;
   /** XLSX download filename stem, e.g. `vng-dashboard`. */
   exportFilenameStem: string;
+  /**
+   * Show the Usage Explorer tab (feature 019, FR-003). VNG-only today; other
+   * dashboards opt in by setting this rather than by forking the shared shell.
+   */
+  usageExplorer?: boolean;
 }
 
 const AppConfigContext = createContext<AppConfig | null>(null);

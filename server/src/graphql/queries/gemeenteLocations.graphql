@@ -1,0 +1,34 @@
+# Feature 019 (Usage Explorer): the geo-location of every Dutch gemeente, independent
+# of any space selection. Unlike `organizationByID` — which the acquire service calls
+# once per organisation found in a selected space's role set — this pages through the
+# platform's organisations so gemeentes that take part in NO initiative still get a
+# position, which is what lets the map draw them as grey squares (FR-005a).
+#
+# `filter.nameID` is an optimisation only. Correctness comes from joining the result
+# against the committed gemeente registry server-side, so this works whether the filter
+# matches by prefix, substring, or exact value. See research.md R1.
+
+query GemeenteLocations($first: Int!, $after: UUID, $filter: OrganizationFilterInput) {
+  organizationsPaginated(first: $first, after: $after, filter: $filter) {
+    total
+    pageInfo {
+      endCursor
+      hasNextPage
+    }
+    organization {
+      id
+      nameID
+      profile {
+        displayName
+        location {
+          country
+          city
+          geoLocation {
+            latitude
+            longitude
+          }
+        }
+      }
+    }
+  }
+}

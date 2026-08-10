@@ -15948,6 +15948,15 @@ export type ActivityFeedGroupedQuery = { activityFeedGrouped: Array<
     | { id: string, type: ActivityEventType, createdDate: Date, triggeredBy: { id: string }, space?: { id: string } | undefined }
   > };
 
+export type GemeenteLocationsQueryVariables = Exact<{
+  first: Scalars['Int']['input'];
+  after?: InputMaybe<Scalars['UUID']['input']>;
+  filter?: InputMaybe<OrganizationFilterInput>;
+}>;
+
+
+export type GemeenteLocationsQuery = { organizationsPaginated: { total: number, pageInfo: { endCursor?: string | undefined, hasNextPage: boolean }, organization: Array<{ id: string, nameID: string, profile?: { displayName: string, location?: { country?: string | undefined, city?: string | undefined, geoLocation: { latitude?: number | undefined, longitude?: number | undefined } } | undefined } | undefined }> } };
+
 export type GemeentedelersCalloutsQueryVariables = Exact<{
   nameId: Scalars['NameID']['input'];
 }>;

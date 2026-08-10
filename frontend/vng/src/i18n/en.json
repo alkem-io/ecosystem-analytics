@@ -21,7 +21,8 @@
     "dashboard": "Dashboard",
     "initiatives": "Initiatives",
     "cities": "Cities",
-    "cityDetails": "City information"
+    "cityDetails": "City information",
+    "usage": "Usage explorer"
   },
   "initiativesTab": {
     "search": "Search initiatives…",
@@ -328,5 +329,31 @@
     "noInitiatives": "This city does not take part in any selected initiative",
     "noCities": "No cities in the current selection",
     "loading": "Loading cities…"
+  },
+  "usageExplorer": {
+    "loading": "Loading map…",
+    "loadingSpace": "Loading {{name}}…",
+    "noSelection": "Select one or more initiatives to explore usage on the map.",
+    "mapUnavailable": "The map cannot be drawn",
+    "mapUnavailableHint": "Municipality locations could not be loaded. Try again shortly.",
+    "province": "Province",
+    "allProvinces": "All of the Netherlands",
+    "reset": "Reset view",
+    "inView": "{{total}} municipalities in view · {{participating}} taking part",
+    "initiativeCount": "{{count}} initiative",
+    "initiativeCount_other": "{{count}} initiatives",
+    "legend": "Dot size = initiatives",
+    "legendNone": "none",
+    "legendOne": "1",
+    "unplaced": "{{count}} municipality has no known location",
+    "unplaced_other": "{{count}} municipalities have no known location",
+    "staleLocations": "Locations may be out of date",
+    "ranking": "Initiatives in use in this area",
+    "rankingHint": "Zoom or pan the map to change the area.",
+    "rankingEmpty": "No initiatives are in use in the visible area.",
+    "ofInView": "{{count}} of {{total}} in view",
+    "openCity": "Open city profile",
+    "clearFocus": "Clear",
+    "focusNoInitiatives": "This municipality takes part in no initiatives in the current selection."
   }
 }

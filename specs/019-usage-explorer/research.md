@@ -25,6 +25,8 @@ Six unknowns blocked the design. Each is resolved below with the decision, why, 
 
 **To verify before implementation**: whether `OrganizationFilterInput.nameID` matches by substring/prefix or only exactly, and whether `organizationsPaginated` is available to an ordinary authenticated user (not just platform admins).
 
+**Outcome (T058, recorded after implementation)**: `pnpm -C server run codegen` ran successfully against the **live** Alkemio schema with the query as written, which confirms `organizationsPaginated(first, after, filter)` exists and accepts `profile.location.geoLocation`. The two runtime questions — prefix-vs-exact matching on `nameID`, and availability to a non-admin user — could **not** be settled here: doing so needs a completed OIDC login, which this environment cannot perform. Rung 1 of the ladder therefore shipped **with the filter treated strictly as an optimisation**: `gemeente-geo-service.ts` runs the filtered sweep, counts how many registry gemeentes it actually matched, and automatically retries unfiltered when that is under half the expected 342. Both paths are covered by tests. Whichever way the API behaves, the registry join decides the output — so this resolves correctly without the answer.
+
 **Fallback ladder**, in order, if the sweep proves unavailable:
 
 1. `organizationsPaginated` with no filter, paging everything and joining on the registry (more pages, same correctness).
