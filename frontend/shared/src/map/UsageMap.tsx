@@ -9,6 +9,7 @@ import {
   type UsageMarker,
   type VisibleArea,
 } from '../dashboard/utils/usage.js';
+import { pieSlices } from '../dashboard/utils/pie.js';
 import type { GemeenteLocation } from '@server/types/api.js';
 import type { CityRow } from '../dashboard/utils/cities.js';
 
@@ -175,13 +176,21 @@ export function UsageMap({
     groups.each(function (d) {
       const sel = d3.select(this);
       if (d.shape === 'dot') {
+        // A participating gemeente is a PIE, split Groei / GemeenteDelers — the same
+        // split language the city-population scatter uses (utils/pie.ts). Size still
+        // encodes how many initiatives; the slices encode where they come from.
+        const r = d.diameter / 2;
+        for (const slice of pieSlices(d.groeiCount, d.gdCount, r)) {
+          sel.append('path').attr('d', slice.d).attr('fill', slice.fill).attr('fill-opacity', 0.9);
+        }
+        // One outline over the whole pie, so slice seams don't read as separate markers.
         sel
           .append('circle')
-          .attr('r', d.diameter / 2)
-          .attr('fill', 'var(--vng-marker-fill, #2563eb)')
-          .attr('fill-opacity', 0.85)
+          .attr('r', r)
+          .attr('fill', 'none')
           .attr('stroke', '#ffffff')
-          .attr('stroke-width', 1);
+          .attr('stroke-width', 1)
+          .attr('class', 'marker-outline');
       } else {
         // Grey square for a gemeente taking part in nothing — distinguishable from the
         // smallest dot by BOTH shape and colour (FR-009).
@@ -194,7 +203,8 @@ export function UsageMap({
           .attr('fill', '#9ca3af')
           .attr('fill-opacity', 0.7)
           .attr('stroke', '#ffffff')
-          .attr('stroke-width', 0.75);
+          .attr('stroke-width', 0.75)
+          .attr('class', 'marker-outline');
       }
     });
 
@@ -297,8 +307,10 @@ export function UsageMap({
       .selectAll<SVGGElement, UsageMarker>('g.usage-marker')
       .each(function (d) {
         const isFocused = d.nameId === focusedNameId;
+        // The outline, not the pie slices — a focused marker gets a dark ring while its
+        // Groei/GD split stays readable underneath.
         d3.select(this)
-          .select('circle, rect')
+          .select('.marker-outline')
           .attr('stroke', isFocused ? '#111827' : '#ffffff')
           .attr('stroke-width', isFocused ? 2.5 : d.shape === 'dot' ? 1 : 0.75);
       });

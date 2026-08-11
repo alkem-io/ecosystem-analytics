@@ -354,6 +354,7 @@
     "ofInView": "{{count}} of {{total}} in view",
     "openCity": "Open city profile",
     "clearFocus": "Clear",
-    "focusNoInitiatives": "This municipality takes part in no initiatives in the current selection."
+    "focusNoInitiatives": "This municipality takes part in no initiatives in the current selection.",
+    "moreInitiatives": "+{{count}} more"
   }
 }

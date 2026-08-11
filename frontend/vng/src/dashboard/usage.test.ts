@@ -155,6 +155,28 @@ describe('buildUsageMarkers', () => {
     expect(unplaced).toBe(1);
   });
 
+  it('carries the Groei/GD split through for the marker pie, without recounting', () => {
+    const mixed = row('a', 'Aa', ['X', 'Y', 'Z']);
+    // Make one of the three a GemeenteDelers initiative.
+    mixed.initiatives[2] = { ...mixed.initiatives[2], kind: 'gd' };
+    mixed.groeiCount = 2;
+    mixed.gdCount = 1;
+
+    const { markers } = buildUsageMarkers([location('a', 'Aa', 5, 52)], [mixed], project);
+    const marker = markers[0];
+
+    expect(marker.groeiCount).toBe(2);
+    expect(marker.gdCount).toBe(1);
+    // The split must always sum to the total the Cities view reports (FR-029).
+    expect(marker.groeiCount + marker.gdCount).toBe(marker.initiativeCount);
+  });
+
+  it('gives a gemeente outside the graph a zero split, so its pie draws nothing', () => {
+    const { markers } = buildUsageMarkers([location('a', 'Aa', 5, 52)], [], project);
+    expect(markers[0].groeiCount).toBe(0);
+    expect(markers[0].gdCount).toBe(0);
+  });
+
   it('treats a gemeente absent from the graph as zero, not as missing (FR-006)', () => {
     const { markers } = buildUsageMarkers([location('a', 'Aa', 5, 52)], [], project);
 

@@ -354,6 +354,7 @@
     "ofInView": "{{count}} van {{total}} in beeld",
     "openCity": "Gemeenteprofiel openen",
     "clearFocus": "Wissen",
-    "focusNoInitiatives": "Deze gemeente doet in de huidige selectie aan geen enkel initiatief mee."
+    "focusNoInitiatives": "Deze gemeente doet in de huidige selectie aan geen enkel initiatief mee.",
+    "moreInitiatives": "+{{count}} meer"
   }
 }

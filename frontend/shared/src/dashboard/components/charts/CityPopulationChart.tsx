@@ -12,15 +12,14 @@ import {
   type TooltipProps,
 } from 'recharts';
 import type { CityPopulationPoint, CityPopulationSeries } from '@server/types/api.js';
+import { GROEI_COLOR, GD_COLOR, slicePath } from '../../utils/pie.js';
 
 interface Props {
   series: CityPopulationSeries | undefined;
   emptyLabel: string;
 }
 
-/** Groei = brand hue, GemeenteDelers = green — the same split language as the other charts. */
-const GROEI_COLOR = 'var(--primary)';
-const GD_COLOR = '#16a34a';
+/** Split colours and slice geometry are shared with the Usage Explorer map (utils/pie.ts). */
 const NON_PARTICIPATING_COLOR = 'var(--text-secondary)';
 
 /** Candidate log-axis ticks — filtered to the range actually present in the data. */
@@ -31,17 +30,6 @@ function compact(value: number): string {
   if (value >= 1_000_000) return `${value / 1_000_000}M`;
   if (value >= 1_000) return `${value / 1_000}k`;
   return String(value);
-}
-
-/** SVG path for a pie slice (angles in degrees, 0° at the top, clockwise). */
-function slicePath(cx: number, cy: number, r: number, startDeg: number, endDeg: number): string {
-  const rad = (deg: number) => (Math.PI / 180) * (deg - 90);
-  const x1 = cx + r * Math.cos(rad(startDeg));
-  const y1 = cy + r * Math.sin(rad(startDeg));
-  const x2 = cx + r * Math.cos(rad(endDeg));
-  const y2 = cy + r * Math.sin(rad(endDeg));
-  const large = endDeg - startDeg > 180 ? 1 : 0;
-  return `M ${cx} ${cy} L ${x1} ${y1} A ${r} ${r} 0 ${large} 1 ${x2} ${y2} Z`;
 }
 
 /**

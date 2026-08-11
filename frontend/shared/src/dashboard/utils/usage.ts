@@ -31,6 +31,10 @@ export interface UsageMarker {
   provinceName: string;
   /** Distinct initiatives in the current selection. 0 for a non-participating gemeente. */
   initiativeCount: number;
+  /** Groei share of `initiativeCount` — the brand-hue slice of the marker pie. */
+  groeiCount: number;
+  /** GemeenteDelers share of `initiativeCount` — the green slice. */
+  gdCount: number;
   /** Projected position in SVG coordinates. Static: computed once, never on zoom. */
   x: number;
   y: number;
@@ -133,6 +137,10 @@ export function buildUsageMarkers(
       provinceCode: loc.provinceCode,
       provinceName: loc.provinceName,
       initiativeCount: count,
+      // Carried through from the CityRow rather than recounted, so the marker pie always
+      // splits the same total the Cities view reports (FR-029).
+      groeiCount: row?.groeiCount ?? 0,
+      gdCount: row?.gdCount ?? 0,
       x: projected[0],
       y: projected[1],
       shape: count > 0 ? 'dot' : 'square',

@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Loader2, MapPin, RotateCcw } from 'lucide-react';
 import { cn, useAppConfig } from '../../index.js';
@@ -14,6 +14,7 @@ import {
   type VisibleArea,
 } from '../utils/usage.js';
 import { buildCityRows, type CityRow } from '../utils/cities.js';
+import { GROEI_COLOR, GD_COLOR } from '../utils/pie.js';
 import { useSelectionContext } from '../hooks/SelectionContext.js';
 import { useVngGraph } from '../hooks/useVngGraph.js';
 import { useGraphProgress } from '../hooks/useGraphProgress.js';
@@ -183,17 +184,7 @@ export function UsageExplorerTab() {
           }
         />
 
-        {hover && (
-          <div
-            className="pointer-events-none fixed z-50 rounded-md border bg-popover px-2.5 py-1.5 text-xs shadow-md"
-            style={{ left: hover.x + 12, top: hover.y + 12 }}
-          >
-            <div className="font-medium">{hover.marker.name}</div>
-            <div className="text-muted-foreground">
-              {t('usageExplorer.initiativeCount', { count: hover.marker.initiativeCount })}
-            </div>
-          </div>
-        )}
+        {hover && <MarkerHoverCard marker={hover.marker} x={hover.x} y={hover.y} />}
       </div>
 
       {/* ── Size legend (FR-015a) ────────────────────────────────────────────── */}
@@ -209,6 +200,19 @@ export function UsageExplorerTab() {
           />
         )}
         {scaleMax > 1 && <LegendItem shape="dot" size={MAX_DIAMETER} label={String(scaleMax)} />}
+        {/* The slice colours mean the same here as on the population scatter. */}
+        <span className="inline-flex items-center gap-1.5 border-l pl-5">
+          <span
+            className="inline-block h-2.5 w-2.5 rounded-full"
+            style={{ background: GROEI_COLOR }}
+          />
+          Groei
+        </span>
+        <span className="inline-flex items-center gap-1.5">
+          <span className="inline-block h-2.5 w-2.5 rounded-full" style={{ background: GD_COLOR }} />
+          GemeenteDelers
+        </span>
+
         {unplaced > 0 && (
           <span className="ml-auto">{t('usageExplorer.unplaced', { count: unplaced })}</span>
         )}
@@ -309,6 +313,119 @@ export function UsageExplorerTab() {
   );
 }
 
+/**
+ * How many initiatives the hover card names before collapsing the rest into "+N more".
+ *
+ * Deliberately small. Den Haag is in 35 initiatives with names like "De begrijpelijkheid,
+ * inclusiviteit en toegankelijkheid van brieven verhogen door brieven te laten voorlezen
+ * en vertalen" — at a dozen entries the card covered half the country. The card is for a
+ * quick read on hover; the focus panel below the map carries the full list.
+ */
+const HOVER_INITIATIVE_LIMIT = 7;
+
+/** Card geometry, in px. Fixed so position can be clamped without measuring. */
+const HOVER_CARD_WIDTH = 264;
+const HOVER_CARD_GAP = 16;
+
+/**
+ * Hover card for a gemeente marker: name, the Groei/GD split, and the initiatives it
+ * takes part in, each colour-coded by source.
+ *
+ * Three things this has to get right, all of which it got wrong first time round:
+ *  • OPAQUE. `bg-popover` is not a token this app defines, so it rendered transparent and
+ *    the map showed straight through the text. The background is set explicitly here, the
+ *    same way the graph's HoverCard does it.
+ *  • SHORT. One line per initiative, ellipsised — Dutch initiative names run long enough
+ *    to wrap three times each, which is what made the card enormous.
+ *  • IN VIEW. Position is clamped to the viewport rather than flipped, so the card never
+ *    rides up over the tab bar or off the right edge.
+ */
+function MarkerHoverCard({ marker, x, y }: { marker: UsageMarker; x: number; y: number }) {
+  const { t } = useTranslation();
+  const cardRef = useRef<HTMLDivElement | null>(null);
+  const [clamped, setClamped] = useState<{ left: number; top: number } | null>(null);
+
+  const initiatives = marker.cityRow?.initiatives ?? [];
+  const shown = initiatives.slice(0, HOVER_INITIATIVE_LIMIT);
+  const overflow = initiatives.length - shown.length;
+  const showSplit = marker.groeiCount > 0 && marker.gdCount > 0;
+
+  // Measure once rendered, then clamp inside the viewport. Measuring beats estimating:
+  // the card's height depends on how many initiatives this particular gemeente has.
+  useLayoutEffect(() => {
+    const el = cardRef.current;
+    if (!el) return;
+    const { width, height } = el.getBoundingClientRect();
+    const left = Math.min(
+      Math.max(HOVER_CARD_GAP, x + HOVER_CARD_GAP),
+      window.innerWidth - width - HOVER_CARD_GAP,
+    );
+    const top = Math.min(
+      Math.max(HOVER_CARD_GAP, y + HOVER_CARD_GAP),
+      window.innerHeight - height - HOVER_CARD_GAP,
+    );
+    setClamped({ left, top });
+  }, [x, y, marker.nameId]);
+
+  return (
+    <div
+      ref={cardRef}
+      className="pointer-events-none fixed z-50 rounded-lg px-3 py-2 text-xs"
+      style={{
+        width: HOVER_CARD_WIDTH,
+        // Explicit, not a Tailwind token — see the note above about `bg-popover`.
+        background: 'rgba(255, 255, 255, 0.97)',
+        backdropFilter: 'blur(8px)',
+        border: '1px solid rgba(0, 0, 0, 0.08)',
+        boxShadow: '0 4px 16px rgba(0,0,0,0.10), 0 1px 4px rgba(0,0,0,0.06)',
+        color: '#111827',
+        // Render off-screen for the first paint so the unclamped position is never seen.
+        left: clamped?.left ?? -9999,
+        top: clamped?.top ?? -9999,
+      }}
+    >
+      <div className="truncate font-semibold">{marker.name}</div>
+
+      <div className="mt-0.5" style={{ color: '#6b7280' }}>
+        {t('usageExplorer.initiativeCount', { count: marker.initiativeCount })}
+        {showSplit && (
+          <>
+            {' · '}
+            {/* Labelled, not just "5 / 30" — the bare ratio reads as cryptic even with
+                the colours to go on. "GD" keeps it on one line at this width. */}
+            <span style={{ color: GROEI_COLOR }}>{marker.groeiCount} Groei</span>
+            {' · '}
+            <span style={{ color: GD_COLOR }}>{marker.gdCount} GD</span>
+          </>
+        )}
+      </div>
+
+      {shown.length > 0 && (
+        <ul className="mt-1.5 space-y-1 pt-1.5" style={{ borderTop: '1px solid rgba(0,0,0,0.08)' }}>
+          {shown.map((i) => (
+            <li key={i.id} className="flex items-center gap-1.5">
+              <span
+                aria-hidden
+                className="inline-block h-1.5 w-1.5 shrink-0 rounded-full"
+                style={{ background: i.kind === 'groei' ? GROEI_COLOR : GD_COLOR }}
+              />
+              {/* One line each — long Dutch names ellipsise rather than wrap. min-w-0 is
+                  required: without it a flex item won't shrink below its content width
+                  and `truncate` silently does nothing. */}
+              <span className="min-w-0 truncate">{i.name}</span>
+            </li>
+          ))}
+          {overflow > 0 && (
+            <li className="pt-0.5" style={{ color: '#6b7280' }}>
+              {t('usageExplorer.moreInitiatives', { count: overflow })}
+            </li>
+          )}
+        </ul>
+      )}
+    </div>
+  );
+}
+
 /** One entry in the size legend, drawn at the same geometry the map uses. */
 function LegendItem({ shape, size, label }: { shape: 'dot' | 'square'; size: number; label: string }) {
   return (
@@ -319,8 +436,8 @@ function LegendItem({ shape, size, label }: { shape: 'dot' | 'square'; size: num
             cx={MAX_DIAMETER / 2}
             cy={MAX_DIAMETER / 2}
             r={size / 2}
-            fill="var(--vng-marker-fill, #2563eb)"
-            fillOpacity={0.85}
+            fill={GROEI_COLOR}
+            fillOpacity={0.9}
           />
         ) : (
           <rect
