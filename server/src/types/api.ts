@@ -191,6 +191,45 @@ export interface VngDashboardResponse {
   cityPopulation?: CityPopulationSeries;
 }
 
+/**
+ * One Dutch gemeente's position as held in Alkemio (feature 019, FR-005/005a).
+ *
+ * Selection-independent: unlike every other dashboard payload, this varies with
+ * neither the space selection nor the GD toggle. That independence is what lets the
+ * Usage Explorer recompute rankings locally on every zoom without a round trip.
+ */
+export interface GemeenteLocation {
+  /** Alkemio organisation nameID, e.g. "gemeente-groningen" — the join key. */
+  nameId: string;
+  /** Canonical registry name (NOT the Alkemio display name) so labels stay stable. */
+  title: string;
+  /** Official CBS municipality code, e.g. "GM0014". Non-null by construction (FR-005c). */
+  cbsCode: string;
+  /** Null when Alkemio holds no geo-location — the gemeente is then "unplaced" (FR-030). */
+  latitude: number | null;
+  longitude: number | null;
+  provinceCode: string;
+  provinceName: string;
+}
+
+/** Response for GET /api/<app>/gemeente-locations (contracts/api-gemeente-locations.md). */
+export interface GemeenteLocationsResponse {
+  /** Every eligible gemeente, sorted by title. Unplaced ones are INCLUDED, with null coords. */
+  locations: GemeenteLocation[];
+  /** The registry's gemeente count (342) — lets the client detect shortfall without hard-coding. */
+  expected: number;
+  /** How many carry usable coordinates; `expected - withLocation` is the unplaced total. */
+  withLocation: number;
+  /** The Alkemio sweep completed but did not reach every gemeente — usable but incomplete. */
+  partial: boolean;
+  /** When the Alkemio sweep ran (NOT when this response was served). */
+  fetchedAt: string;
+  /** Served from cache rather than a fresh sweep. Diagnostic only. */
+  cached: boolean;
+  /** Served from an EXPIRED cache entry because the refresh failed (FR-030a). */
+  stale: boolean;
+}
+
 /** An entity (space or GD initiative) counted by the dashboard, with its tags. */
 export interface DashboardCountable {
   id: string;

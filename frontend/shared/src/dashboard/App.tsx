@@ -14,9 +14,17 @@ import { DashboardTab } from './pages/DashboardTab.js';
 import { InitiativesTab } from './pages/InitiativesTab.js';
 import { CitiesTab } from './pages/CitiesTab.js';
 import { CityDetailsTab } from './pages/CityDetailsTab.js';
+import { UsageExplorerTab } from './pages/UsageExplorerTab.js';
 
-type TabKey = 'dashboard' | 'details' | 'initiatives' | 'cityDetails' | 'cities' | 'graph';
-const TABS: TabKey[] = ['dashboard', 'details', 'initiatives', 'cityDetails', 'cities', 'graph'];
+type TabKey =
+  | 'dashboard'
+  | 'details'
+  | 'initiatives'
+  | 'cityDetails'
+  | 'cities'
+  | 'usage'
+  | 'graph';
+const BASE_TABS: TabKey[] = ['dashboard', 'details', 'initiatives', 'cityDetails', 'cities'];
 
 /**
  * VNG app shell (FR-006/007): persistent branding header, authorisation warning,
@@ -33,6 +41,12 @@ function AppShell() {
   const { t } = useTranslation();
   const cfg = useAppConfig();
   const [active, setActive] = useState<TabKey>('dashboard');
+
+  // The Usage Explorer is VNG-only for now (feature 019, FR-003). Dashboards opt in via
+  // their AppConfig rather than by forking this shell — Graph stays last either way.
+  const TABS: TabKey[] = cfg.usageExplorer
+    ? [...BASE_TABS, 'usage', 'graph']
+    : [...BASE_TABS, 'graph'];
   const { effectiveSpaceIds, state, refreshNonce, setShowGemeentes } = useSelectionContext();
 
   // The space whose details should be shown when the Space details tab opens
@@ -131,6 +145,7 @@ function AppShell() {
                 <CityDetailsTab openCityId={openCityId} openCitySeq={openCitySeq} />
               )}
               {active === 'cities' && <CitiesTab />}
+              {active === 'usage' && <UsageExplorerTab />}
               {active === 'dashboard' && <DashboardTab />}
             </ErrorBoundary>
           </main>

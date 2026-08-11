@@ -15,6 +15,17 @@ export interface CachedDataset {
 export const GD_CACHE_SPACE_ID = '__gd_initiatives__';
 
 /**
+ * Reserved cache space_id for the per-user, long-TTL gemeente geo-location set
+ * (feature 019, FR-005b). Same pattern as {@link GD_CACHE_SPACE_ID}: not a real
+ * space nameID, so it never collides with one.
+ *
+ * The data is selection-independent and identical for every user, but the row stays
+ * keyed by `user_id` so constitution §IV's read-time ownership check applies here
+ * exactly as it does everywhere else — see specs/019-usage-explorer/research.md R2.
+ */
+export const GEO_CACHE_SPACE_ID = '__gemeente_geo__';
+
+/**
  * Get a cached dataset for a specific user + space combination.
  * Returns null if no cache exists or if the entry has expired.
  */
@@ -32,6 +43,37 @@ export function getCacheEntry(userId: string, spaceId: string): CachedDataset | 
     datasetJson: row.dataset_json,
     createdAt: row.created_at,
     expiresAt: row.expires_at,
+  };
+}
+
+/**
+ * Read a cache entry **even if it has expired**, reporting whether it is stale.
+ *
+ * Only for datasets whose staleness is preferable to absence — the gemeente geo set
+ * (feature 019, FR-030a): a failure to refresh locations must not blank the map. The
+ * ownership check is identical to {@link getCacheEntry}; only the expiry filter differs,
+ * so this never widens access across users.
+ *
+ * Normal caches must keep using {@link getCacheEntry} — silently serving expired graph
+ * data would defeat the TTL.
+ */
+export function getCacheEntryAllowStale(
+  userId: string,
+  spaceId: string,
+): (CachedDataset & { stale: boolean }) | null {
+  const db = getDatabase();
+
+  const row = db
+    .prepare('SELECT dataset_json, created_at, expires_at FROM cache_entries WHERE user_id = ? AND space_id = ?')
+    .get(userId, spaceId) as { dataset_json: string; created_at: number; expires_at: number } | undefined;
+
+  if (!row) return null;
+
+  return {
+    datasetJson: row.dataset_json,
+    createdAt: row.created_at,
+    expiresAt: row.expires_at,
+    stale: row.expires_at <= Date.now(),
   };
 }
 

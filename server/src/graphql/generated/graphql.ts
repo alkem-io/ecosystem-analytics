@@ -15869,6 +15869,15 @@ export type ActivityFeedGroupedQuery = { activityFeedGrouped: Array<
     | { id: string, type: SchemaTypes.ActivityEventType, createdDate: Date, triggeredBy: { id: string }, space?: { id: string } | undefined }
   > };
 
+export type GemeenteLocationsQueryVariables = SchemaTypes.Exact<{
+  first: SchemaTypes.Scalars['Int']['input'];
+  after?: SchemaTypes.InputMaybe<SchemaTypes.Scalars['UUID']['input']>;
+  filter?: SchemaTypes.InputMaybe<SchemaTypes.OrganizationFilterInput>;
+}>;
+
+
+export type GemeenteLocationsQuery = { organizationsPaginated: { total: number, pageInfo: { endCursor?: string | undefined, hasNextPage: boolean }, organization: Array<{ id: string, nameID: string, profile?: { displayName: string, location?: { country?: string | undefined, city?: string | undefined, geoLocation: { latitude?: number | undefined, longitude?: number | undefined } } | undefined } | undefined }> } };
+
 export type GemeentedelersCalloutsQueryVariables = SchemaTypes.Exact<{
   nameId: SchemaTypes.Scalars['NameID']['input'];
 }>;
@@ -16063,6 +16072,32 @@ export const ActivityFeedGroupedDocument = gql`
         id
       }
       actorType
+    }
+  }
+}
+    `;
+export const GemeenteLocationsDocument = gql`
+    query GemeenteLocations($first: Int!, $after: UUID, $filter: OrganizationFilterInput) {
+  organizationsPaginated(first: $first, after: $after, filter: $filter) {
+    total
+    pageInfo {
+      endCursor
+      hasNextPage
+    }
+    organization {
+      id
+      nameID
+      profile {
+        displayName
+        location {
+          country
+          city
+          geoLocation {
+            latitude
+            longitude
+          }
+        }
+      }
     }
   }
 }
@@ -16370,6 +16405,7 @@ export type SdkFunctionWrapper = <T>(action: (requestHeaders?:Record<string, str
 
 const defaultWrapper: SdkFunctionWrapper = (action, _operationName, _operationType, _variables) => action();
 const ActivityFeedGroupedDocumentString = print(ActivityFeedGroupedDocument);
+const GemeenteLocationsDocumentString = print(GemeenteLocationsDocument);
 const GemeentedelersCalloutsDocumentString = print(GemeentedelersCalloutsDocument);
 const InnovationHubByIdDocumentString = print(InnovationHubByIdDocument);
 const InnovationHubByNameIdDocumentString = print(InnovationHubByNameIdDocument);
@@ -16387,6 +16423,9 @@ export function getSdk(client: GraphQLClient, withWrapper: SdkFunctionWrapper = 
   return {
     ActivityFeedGrouped(variables?: SchemaTypes.ActivityFeedGroupedQueryVariables, requestHeaders?: GraphQLClientRequestHeaders): Promise<{ data: SchemaTypes.ActivityFeedGroupedQuery; errors?: GraphQLError[]; extensions?: any; headers: Headers; status: number; }> {
         return withWrapper((wrappedRequestHeaders) => client.rawRequest<SchemaTypes.ActivityFeedGroupedQuery>(ActivityFeedGroupedDocumentString, variables, {...requestHeaders, ...wrappedRequestHeaders}), 'ActivityFeedGrouped', 'query', variables);
+    },
+    GemeenteLocations(variables: SchemaTypes.GemeenteLocationsQueryVariables, requestHeaders?: GraphQLClientRequestHeaders): Promise<{ data: SchemaTypes.GemeenteLocationsQuery; errors?: GraphQLError[]; extensions?: any; headers: Headers; status: number; }> {
+        return withWrapper((wrappedRequestHeaders) => client.rawRequest<SchemaTypes.GemeenteLocationsQuery>(GemeenteLocationsDocumentString, variables, {...requestHeaders, ...wrappedRequestHeaders}), 'GemeenteLocations', 'query', variables);
     },
     GemeentedelersCallouts(variables: SchemaTypes.GemeentedelersCalloutsQueryVariables, requestHeaders?: GraphQLClientRequestHeaders): Promise<{ data: SchemaTypes.GemeentedelersCalloutsQuery; errors?: GraphQLError[]; extensions?: any; headers: Headers; status: number; }> {
         return withWrapper((wrappedRequestHeaders) => client.rawRequest<SchemaTypes.GemeentedelersCalloutsQuery>(GemeentedelersCalloutsDocumentString, variables, {...requestHeaders, ...wrappedRequestHeaders}), 'GemeentedelersCallouts', 'query', variables);

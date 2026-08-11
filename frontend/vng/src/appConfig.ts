@@ -14,4 +14,6 @@ export const appConfig: AppConfig = {
   Logo: VngLogo,
   exportCreator: 'VNG Kenniscentrum Innovatie',
   exportFilenameStem: 'vng-dashboard',
+  // Feature 019 — VNG-only for now (FR-003).
+  usageExplorer: true,
 };
