@@ -3,11 +3,15 @@
   align-items: center;
   justify-content: center;
   min-height: 100vh;
+  min-height: 100dvh;
+  padding: 24px max(20px, var(--safe-left)) calc(24px + var(--safe-bottom))
+    max(20px, var(--safe-right));
   background-color: var(--surface);
 }
 
 .card {
   width: 420px;
+  max-width: 100%;
   background: var(--surface-raised);
   border-radius: var(--radius-lg);
   box-shadow: var(--elevation-lg);
@@ -120,8 +124,9 @@
   color: var(--error);
   margin: 0 0 16px;
   padding: 8px 12px;
-  background: #fef2f2;
+  background: color-mix(in srgb, var(--error) 10%, transparent);
   border-radius: var(--radius-sm);
+  line-height: 1.5;
 }
 
 .cta {
@@ -237,4 +242,32 @@
   font-size: 12px;
   color: var(--text-muted);
   word-break: break-all;
+}
+
+/* ─── Mobile ─── */
+@media (max-width: 767px) {
+  .header {
+    padding: 28px 24px 0;
+  }
+
+  .title {
+    font-size: 22px;
+  }
+
+  .body {
+    padding: 20px 24px;
+  }
+
+  .cta {
+    min-height: 48px;
+    font-size: 16px;
+  }
+
+  .ssoDecline {
+    min-height: 48px;
+  }
+
+  .footer {
+    padding: 16px 24px;
+  }
 }

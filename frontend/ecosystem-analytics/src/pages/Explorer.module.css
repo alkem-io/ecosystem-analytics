@@ -1,7 +1,11 @@
 .layout {
   display: flex;
   flex-direction: column;
+  /* 100vh on mobile browsers measures the viewport *without* the collapsing
+     URL bar, which pushes the metrics bar off screen. dvh tracks the real
+     visible height; vh stays as the fallback for older engines. */
   height: 100vh;
+  height: 100dvh;
   overflow: hidden;
 }
 
@@ -10,12 +14,17 @@
   display: flex;
   overflow: hidden;
   position: relative;
+  min-height: 0;
 }
 
 .canvas {
   flex: 1;
   position: relative;
   overflow: hidden;
+  min-width: 0;
+  /* The graph owns every gesture inside it (d3-zoom pan/pinch); without this
+     a one-finger drag scrolls the page instead of panning the graph. */
+  touch-action: none;
 }
 
 .errorContainer {
@@ -24,92 +33,39 @@
   align-items: center;
   justify-content: center;
   height: 100vh;
+  height: 100dvh;
   gap: 16px;
-  color: var(--error);
+  padding: 24px max(24px, var(--safe-left)) 24px max(24px, var(--safe-right));
+  text-align: center;
   font-family: var(--font-family);
 }
 
-.addSpaceSelect {
-  font-size: 13px;
-  font-family: var(--font-family);
-  padding: 4px 8px;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
-  background: var(--surface);
-  color: var(--text-secondary);
-  cursor: pointer;
-  margin-left: 8px;
-}
-
-.addSpaceSelect:hover {
-  border-color: var(--border-focus);
-}
-
-.askBtn {
-  font-size: 13px;
-  font-family: var(--font-family);
-  font-weight: 500;
-  padding: 6px 14px;
-  border: 1px solid var(--primary);
-  border-radius: var(--radius-sm);
-  background: var(--primary);
-  color: white;
-  cursor: pointer;
-  margin-left: 8px;
-  transition: opacity 0.15s;
-}
-
-.askBtn:hover {
-  opacity: 0.9;
-}
-
-.backToConversationBtn {
-  position: fixed;
-  bottom: 80px;
-  right: 24px;
-  z-index: 100;
-  padding: 10px 20px;
-  border-radius: 20px;
-  border: 1px solid var(--primary);
-  background: var(--surface-raised);
-  color: var(--primary);
-  font-size: 13px;
-  font-family: var(--font-family);
-  font-weight: 500;
-  cursor: pointer;
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.15);
-  transition: background 0.15s;
-}
-
-.backToConversationBtn:hover {
-  background: var(--primary-faded, rgba(99, 102, 241, 0.1));
-}
-
-.errorContainer button {
-  padding: 8px 20px;
-  font-family: var(--font-family);
+.errorText {
   font-size: 14px;
-  background: var(--primary);
-  color: var(--primary-foreground);
-  border: none;
-  border-radius: var(--radius);
-  cursor: pointer;
+  color: var(--error);
+  max-width: 40ch;
+  line-height: 1.5;
 }
 
+/* ─── Warning banner ─── */
 .warningBanner {
   display: flex;
   align-items: flex-start;
   gap: 12px;
-  padding: 8px 16px;
+  padding: 8px max(16px, var(--safe-left));
   background: var(--warning-bg, #fef3c7);
   border-bottom: 1px solid var(--warning-border, #f59e0b);
   color: var(--warning-text, #92400e);
   font-family: var(--font-family);
   font-size: 13px;
+  flex-shrink: 0;
+  max-height: 30vh;
+  overflow-y: auto;
 }
 
 .warningContent {
   flex: 1;
+  min-width: 0;
 }
 
 .warningContent ul {
@@ -119,10 +75,12 @@
 
 .warningContent li {
   margin-bottom: 2px;
+  overflow-wrap: anywhere;
 }
 
 .warningDismiss {
   flex-shrink: 0;
+  min-height: 32px;
   padding: 4px 12px;
   font-family: var(--font-family);
   font-size: 12px;
@@ -138,6 +96,83 @@
   color: white;
 }
 
+/* ─── Mobile control-panel drawer ───
+   The panel is designed as a fixed-width column; inside a sheet it must fill
+   the sheet instead and lose its own border/scroller. */
+.sheetPanelBody {
+  padding: 0 4px;
+}
+
+/* ─── Floating action buttons ─── */
+.fab {
+  position: fixed;
+  right: max(16px, var(--safe-right));
+  /* Clear the metrics bar and the iOS home indicator */
+  bottom: calc(var(--metrics-strip-height) + 16px + var(--safe-bottom));
+  /* Above the canvas but *below* the metrics bar (z-index 20), so expanding
+     the rankings panel covers the button instead of the button covering the
+     rankings. */
+  z-index: 15;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-width: 56px;
+  min-height: 56px;
+  padding: 0 18px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-full);
+  background: var(--surface-raised);
+  color: var(--primary);
+  font-family: var(--font-family);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  box-shadow: var(--elevation-lg);
+  transition: transform 0.15s ease, background 0.15s ease;
+}
+
+.fab:active {
+  transform: scale(0.96);
+}
+
+.fab:focus-visible {
+  outline: 2px solid var(--border-focus);
+  outline-offset: 2px;
+}
+
+.fabPrimary {
+  padding: 0;
+  width: 56px;
+  border-color: transparent;
+  background: var(--primary);
+  color: var(--primary-foreground);
+}
+
+.fabPrimary:hover {
+  background: var(--primary-hover);
+}
+
+.fabWide {
+  max-width: calc(100vw - 32px);
+}
+
+.fabLabel {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .fab {
+    transition: none;
+  }
+
+  .fab:active {
+    transform: none;
+  }
+}
+
 .viewPlaceholder {
   display: flex;
   align-items: center;
@@ -148,4 +183,23 @@
   font-size: 1.125rem;
   font-family: var(--font-family);
   user-select: none;
+}
+
+@media (max-width: 767px) {
+  .warningBanner {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+    font-size: 12px;
+  }
+
+  .warningDismiss {
+    align-self: flex-end;
+    min-height: var(--tap-target);
+    padding: 8px 16px;
+  }
+
+  .fab {
+    right: max(12px, var(--safe-right));
+  }
 }

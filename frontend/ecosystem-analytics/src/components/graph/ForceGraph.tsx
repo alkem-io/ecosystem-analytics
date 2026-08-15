@@ -357,6 +357,8 @@ export default function ForceGraph({
   nodeSizeScale = 1,
 }: Props) {
   const svgRef = useRef<SVGSVGElement>(null);
+  /** Fallback timer for the initial fit-to-view (cleared on unmount/re-render). */
+  const fitTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const simulationRef = useRef<d3.Simulation<SimNode, SimLink>>(null);
   // Refs to D3 selections so selection-highlighting can run without re-rendering
   const nodeSelRef = useRef<d3.Selection<SVGGElement, SimNode, SVGGElement, unknown>>(null);
@@ -402,6 +404,11 @@ export default function ForceGraph({
 
     const width = svgRef.current.clientWidth;
     const height = svgRef.current.clientHeight;
+
+    // Finger-driven devices need larger hit areas than the painted node radius.
+    const isCoarsePointer =
+      typeof window !== 'undefined' &&
+      window.matchMedia?.('(hover: none) and (pointer: coarse)').matches === true;
 
     svg.selectAll('*').remove();
 
@@ -1425,6 +1432,24 @@ export default function ForceGraph({
         return 0.5;
       });
 
+    // Touch hit area — a person node draws at ~5px radius, which is far below
+    // the ~44px target a finger needs. On coarse-pointer devices each node gets
+    // an invisible circle sized to a fingertip. It is appended *after* the
+    // visible circle so `select('circle')` elsewhere still resolves to the
+    // painted one, and carries no styling of its own.
+    if (isCoarsePointer) {
+      const MIN_TOUCH_RADIUS = 16;
+      nodeSelection
+        .append('circle')
+        .attr('class', 'node-touch-target')
+        .attr('r', (d) =>
+          Math.max(MIN_TOUCH_RADIUS, effectiveRadius(d, isGeoMode, currentZoomScale)),
+        )
+        .attr('fill', 'transparent')
+        .attr('stroke', 'none')
+        .attr('pointer-events', 'all');
+    }
+
     // Node images (avatars / banners) — clipped to circle, with fallback on error.
     // For space nodes using bannerUrl, pre-check via fetch to detect Alkemio default
     // placeholder images (small files like the padlock icon) and skip them.
@@ -1971,6 +1996,60 @@ export default function ForceGraph({
 
     simulationRef.current = simulation;
     simulationLocal = simulation;
+
+    // ── Initial fit-to-view ──────────────────────────────────────────────
+    // The force layout settles wherever it likes and the SVG then shows an
+    // arbitrary crop of it. On a 1440px canvas that mostly happens to work;
+    // on a phone the opening view is three oversized blobs and no structure.
+    // Once the simulation cools, frame the whole graph. Skipped in geo mode,
+    // where node positions are tied to the map drawn behind them.
+    let hasFitted = false;
+    const fitToView = () => {
+      if (hasFitted || isGeoMode || !svgRef.current) return;
+      hasFitted = true;
+
+      let minX = Infinity;
+      let minY = Infinity;
+      let maxX = -Infinity;
+      let maxY = -Infinity;
+      for (const n of simNodes) {
+        if (n.x == null || n.y == null || !isFinite(n.x) || !isFinite(n.y)) continue;
+        const r = nodeRadius(n);
+        minX = Math.min(minX, n.x - r);
+        maxX = Math.max(maxX, n.x + r);
+        minY = Math.min(minY, n.y - r);
+        maxY = Math.max(maxY, n.y + r);
+      }
+      const boxW = maxX - minX;
+      const boxH = maxY - minY;
+      if (!isFinite(boxW) || !isFinite(boxH) || boxW <= 0 || boxH <= 0) return;
+
+      const padding = width < 600 ? 20 : 48;
+      // Cap at 1.5× so a two-node graph doesn't fill the screen with one circle.
+      const scale = Math.min(
+        (width - padding * 2) / boxW,
+        (height - padding * 2) / boxH,
+        1.5,
+      );
+      if (!isFinite(scale) || scale <= 0) return;
+
+      const transform = d3.zoomIdentity
+        .translate(width / 2, height / 2)
+        .scale(Math.max(0.1, scale))
+        .translate(-(minX + maxX) / 2, -(minY + maxY) / 2);
+
+      svg
+        .transition()
+        .duration(400)
+        .ease(d3.easeCubicOut)
+        .call(zoom.transform as any, transform);
+    };
+
+    simulation.on('end', fitToView);
+    // Belt and braces: on a large graph the simulation can take a while to
+    // reach alphaMin, and an un-framed first impression is the whole problem.
+    if (fitTimerRef.current) clearTimeout(fitTimerRef.current);
+    fitTimerRef.current = setTimeout(fitToView, 2500);
 
     /**
      * Label collision culling.
@@ -2846,14 +2925,36 @@ export default function ForceGraph({
     renderGraph();
     return () => {
       simulationRef.current?.stop();
+      if (fitTimerRef.current) clearTimeout(fitTimerRef.current);
     };
   }, [renderGraph]);
 
-  // Re-render on resize
+  // Re-render on resize.
+  //
+  // Mobile browsers fire `resize` every time the URL bar collapses or expands
+  // during a gesture. Rebuilding the whole graph for a ~60px height change
+  // would discard the user's pan/zoom mid-interaction, so ignore small
+  // height-only changes and debounce the rest.
   useEffect(() => {
-    const handleResize = () => renderGraph();
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    let lastWidth = svgRef.current?.clientWidth ?? 0;
+    let lastHeight = svgRef.current?.clientHeight ?? 0;
+
+    const handleResize = () => {
+      const width = svgRef.current?.clientWidth ?? 0;
+      const height = svgRef.current?.clientHeight ?? 0;
+      if (Math.abs(width - lastWidth) < 24 && Math.abs(height - lastHeight) < 140) return;
+      lastWidth = width;
+      lastHeight = height;
+      clearTimeout(timer);
+      timer = setTimeout(() => renderGraph(), 200);
+    };
+
     window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
+    return () => {
+      window.removeEventListener('resize', handleResize);
+      clearTimeout(timer);
+    };
   }, [renderGraph]);
 
   // Re-render when theme changes so label backdrops use correct colors

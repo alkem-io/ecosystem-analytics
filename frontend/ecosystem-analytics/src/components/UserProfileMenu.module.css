@@ -3,8 +3,8 @@
 }
 
 .avatarBtn {
-  width: 32px;
-  height: 32px;
+  width: var(--tap-target);
+  height: var(--tap-target);
   padding: 0;
   border: none;
   border-radius: 50%;
@@ -13,6 +13,12 @@
   display: flex;
   align-items: center;
   justify-content: center;
+  flex-shrink: 0;
+}
+
+.avatarBtn:focus-visible {
+  outline: 2px solid var(--border-focus);
+  outline-offset: -2px;
 }
 
 .avatarBtn:hover {
@@ -45,6 +51,7 @@
   top: calc(100% + 6px);
   right: 0;
   min-width: 180px;
+  max-width: min(280px, calc(100vw - 24px));
   background: var(--surface-raised);
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
@@ -78,6 +85,7 @@
 
 .dropdownItem {
   width: 100%;
+  min-height: var(--tap-target);
   padding: 10px 14px;
   font-size: 13px;
   font-family: var(--font-family);
@@ -91,4 +99,16 @@
 .dropdownItem:hover {
   background: var(--surface);
   color: var(--error);
+}
+
+@media (max-width: 767px) {
+  .dropdown {
+    /* Anchor to the viewport edge so the menu can't overflow a narrow phone */
+    right: max(4px, var(--safe-right));
+  }
+
+  .dropdownName,
+  .dropdownItem {
+    font-size: 15px;
+  }
 }

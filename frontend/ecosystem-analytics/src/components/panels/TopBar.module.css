@@ -1,33 +1,63 @@
 .bar {
-  height: var(--top-bar-height);
+  height: calc(var(--top-bar-height) + var(--safe-top));
+  padding: var(--safe-top) max(16px, var(--safe-right)) 0 max(16px, var(--safe-left));
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 0 16px;
+  gap: 8px;
   background: var(--surface-raised);
   border-bottom: 1px solid var(--border);
   flex-shrink: 0;
+  position: relative;
+  z-index: 30;
 }
 
 .left {
   display: flex;
   align-items: center;
   gap: 6px;
+  min-width: 0;
+  flex: 1;
 }
 
+.right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+/* ─── Breadcrumb ─── */
 .backBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  min-width: 0;
   font-size: 13px;
   font-family: var(--font-family);
-  font-weight: 500;
+  font-weight: 600;
   color: var(--primary);
   background: none;
   border: none;
   cursor: pointer;
-  padding: 4px 0;
+  padding: 8px 0;
+  white-space: nowrap;
+}
+
+.backBtn span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .backBtn:hover {
   text-decoration: underline;
+}
+
+.backBtn:focus-visible {
+  outline: 2px solid var(--border-focus);
+  outline-offset: 2px;
+  border-radius: var(--radius-sm);
 }
 
 .separator {
@@ -38,37 +68,43 @@
 .breadcrumb {
   font-size: 13px;
   color: var(--text-secondary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
-.right {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-
-.refreshBtn {
-  width: 32px;
-  height: 32px;
-  font-size: 18px;
-  display: flex;
+/* ─── Controls ─── */
+.iconBtn {
+  width: var(--tap-target);
+  height: var(--tap-target);
+  display: inline-flex;
   align-items: center;
   justify-content: center;
   background: none;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
+  border: 1px solid transparent;
+  border-radius: var(--radius);
   cursor: pointer;
   color: var(--text-secondary);
+  flex-shrink: 0;
+  transition: background 0.15s ease, color 0.15s ease;
 }
 
-.refreshBtn:hover {
+.iconBtn:hover:not(:disabled) {
   background: var(--surface);
+  color: var(--text-primary);
 }
 
-.refreshBtn:disabled {
+.iconBtn:focus-visible {
+  outline: 2px solid var(--border-focus);
+  outline-offset: -2px;
+}
+
+.iconBtn:disabled {
   opacity: 0.5;
+  cursor: default;
 }
 
-.spinning {
+.spinning svg {
   animation: spin 1s linear infinite;
 }
 
@@ -78,44 +114,61 @@
   }
 }
 
-.clearCacheBtn {
+@media (prefers-reduced-motion: reduce) {
+  .spinning svg {
+    animation: none;
+    opacity: 0.6;
+  }
+}
+
+.pillBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 36px;
   font-size: 12px;
   font-family: var(--font-family);
   padding: 6px 12px;
   background: none;
   border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius);
   cursor: pointer;
   color: var(--text-secondary);
+  white-space: nowrap;
 }
 
-.clearCacheBtn:hover {
+.pillBtn:hover:not(:disabled) {
   background: var(--surface);
+  color: var(--text-primary);
 }
 
-.clearCacheBtn:disabled {
+.pillBtn:focus-visible {
+  outline: 2px solid var(--border-focus);
+  outline-offset: 1px;
+}
+
+.pillBtn:disabled {
   opacity: 0.5;
   cursor: default;
 }
 
-.clearCacheDone {
-  color: #16a34a;
-  border-color: #16a34a;
+.pillBtnDone {
+  color: var(--success);
+  border-color: var(--success);
 }
 
-.exportBtn {
-  font-size: 12px;
+.textBtn {
+  font-size: 14px;
   font-family: var(--font-family);
-  padding: 6px 12px;
+  font-weight: 500;
+  color: var(--primary);
   background: none;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
+  border: none;
+  padding: 0 4px;
+  min-height: var(--tap-target);
   cursor: pointer;
-  color: var(--text-secondary);
-}
-
-.exportBtn:hover {
-  background: var(--surface);
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 
 .syncTime {
@@ -124,37 +177,229 @@
   white-space: nowrap;
 }
 
-.logoutBtn {
-  font-size: 12px;
-  font-family: var(--font-family);
-  padding: 6px 12px;
-  background: none;
+/* ─── Add space / Ask (wide screens) ─── */
+.addSpaceSelect {
+  margin-left: 12px;
+  height: 36px;
+  padding: 0 12px;
+  font-size: 13px;
+  font-family: inherit;
+  border-radius: var(--radius);
   border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
-  cursor: pointer;
-  color: var(--text-secondary);
-}
-
-.logoutBtn:hover {
   background: var(--surface);
-  color: var(--error);
-  border-color: var(--error);
+  color: var(--text-secondary);
+  cursor: pointer;
+  outline: none;
+  max-width: 180px;
 }
 
-.themeBtn {
-  width: 32px;
-  height: 32px;
-  font-size: 16px;
-  display: flex;
+.addSpaceSelect:hover {
+  border-color: var(--border-focus);
+}
+
+.askBtn {
+  display: inline-flex;
   align-items: center;
-  justify-content: center;
-  background: none;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
+  gap: 8px;
+  margin-left: 12px;
+  height: 36px;
+  padding: 0 16px;
+  font-size: 13px;
+  font-weight: 500;
+  font-family: inherit;
+  color: var(--primary-foreground);
+  background: var(--primary);
+  border: none;
+  border-radius: var(--radius);
   cursor: pointer;
+  box-shadow: var(--elevation-sm);
+  white-space: nowrap;
   transition: background 0.15s ease;
 }
 
-.themeBtn:hover {
+.askBtn:hover {
+  background: var(--primary-hover);
+}
+
+.askBtn:focus-visible {
+  outline: 2px solid var(--border-focus);
+  outline-offset: 2px;
+}
+
+/* ─── Search ─── */
+.searchField {
+  min-width: 0;
+}
+
+/* ─── Overflow menu ─── */
+.menuWrap {
+  position: relative;
+}
+
+.menu {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  min-width: 232px;
+  padding: 6px;
+  background: var(--surface-raised);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--elevation-lg);
+  z-index: 120;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.menuItem {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  min-height: var(--tap-target);
+  padding: 10px 12px;
+  font-size: 14px;
+  font-family: var(--font-family);
+  color: var(--text-primary);
+  background: none;
+  border: none;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  text-align: left;
+}
+
+.menuItem:hover:not(:disabled) {
   background: var(--surface);
+}
+
+.menuItem:focus-visible {
+  outline: 2px solid var(--border-focus);
+  outline-offset: -2px;
+}
+
+.menuItem:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.menuSelectRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  min-height: var(--tap-target);
+  padding: 6px 12px;
+  font-size: 14px;
+  color: var(--text-primary);
+}
+
+.menuSelect {
+  flex: 1;
+  min-width: 0;
+  max-width: 130px;
+  height: 34px;
+  padding: 0 8px;
+  font-family: inherit;
+  font-size: 13px;
+  color: var(--text-secondary);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+}
+
+.menuNote {
+  padding: 8px 12px 4px;
+  font-size: 12px;
+  color: var(--text-muted);
+  border-top: 1px solid var(--border);
+  margin-top: 2px;
+}
+
+/* ─── Breakpoint visibility utilities ───
+   Kept as `display: none` in the *hiding* query so each element keeps its own
+   natural display value when shown. Breakpoints mirror useMediaQuery.ts. */
+@media (max-width: 767px) {
+  .wideOnly,
+  .desktopOnly {
+    display: none !important;
+  }
+}
+
+@media (min-width: 768px) {
+  .mobileOnly {
+    display: none !important;
+  }
+}
+
+@media (max-width: 1023px) {
+  .desktopOnly {
+    display: none !important;
+  }
+}
+
+@media (min-width: 1024px) {
+  .compactOnly {
+    display: none !important;
+  }
+}
+
+/* ─── Mobile bar ─── */
+@media (max-width: 767px) {
+  .bar {
+    gap: 2px;
+    padding-left: max(4px, var(--safe-left));
+    padding-right: max(4px, var(--safe-right));
+  }
+
+  .left {
+    gap: 4px;
+  }
+
+  /* The lone crumb becomes the screen title — tapping it still goes back. */
+  .backBtn {
+    min-height: var(--tap-target);
+    min-width: 0;
+    gap: 0;
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--text-primary);
+    padding: 8px 2px;
+  }
+
+  .backBtn:hover {
+    text-decoration: none;
+  }
+
+  .right {
+    gap: 0;
+  }
+
+  /* Collapsed by default; the magnifier expands it over the whole row. */
+  .searchField {
+    display: none;
+  }
+
+  .searchFieldOpen {
+    display: block;
+    flex: 1;
+    min-width: 0;
+  }
+
+  .barSearching .left,
+  .barSearching .searchToggle {
+    display: none;
+  }
+
+  .barSearching .right {
+    flex: 1;
+    gap: 4px;
+  }
+
+  .menu {
+    /* Anchor to the viewport edge so a 232px menu can't overflow a 360px phone */
+    right: max(4px, var(--safe-right));
+    min-width: min(280px, calc(100vw - 24px));
+  }
 }
