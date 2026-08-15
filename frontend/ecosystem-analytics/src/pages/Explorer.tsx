@@ -5,6 +5,8 @@ import { useSpaces } from '../hooks/useSpaces.js';
 import { useViewState } from '../hooks/useViewState.js';
 import { useTheme } from '../hooks/useTheme.js';
 import { useFeatures } from '../hooks/useFeatures.js';
+import { useIsCompact, useIsMobile, useIsTouch } from '../hooks/useMediaQuery.js';
+import Sheet from '../components/mobile/Sheet.js';
 import ForceGraph from '../components/graph/ForceGraph.js';
 import LoadingOverlay from '../components/graph/LoadingOverlay.js';
 import ViewSwitcher from '../components/graph/ViewSwitcher.js';
@@ -49,6 +51,13 @@ export default function Explorer({ onLogout }: ExplorerProps) {
   const viewState = useViewState();
   const { theme, toggle: toggleTheme } = useTheme();
   const { aiQueryEnabled } = useFeatures();
+  // `isCompact` (≤1023px) moves the control panel into a drawer — a fixed
+  // 240px column costs a portrait tablet ~30% of its canvas. `isMobile`
+  // (≤767px) additionally turns the details panel into a bottom sheet.
+  // `isTouch` covers touch-first devices at any width.
+  const isCompact = useIsCompact();
+  const isMobile = useIsMobile();
+  const isTouch = useIsTouch();
 
   const [showPeople, setShowPeople] = useState(true);
   const [showOrganizations, setShowOrganizations] = useState(true);
@@ -76,6 +85,8 @@ export default function Explorer({ onLogout }: ExplorerProps) {
   const canvasRef = useRef<HTMLDivElement>(null);
   const [canvasSize, setCanvasSize] = useState({ width: 0, height: 0 });
   const [controlPanelCollapsed, setControlPanelCollapsed] = useState(false);
+  /** Compact layouts only: whether the controls drawer is open. */
+  const [controlsOpen, setControlsOpen] = useState(false);
 
   // Prefer localStorage (kept in sync by setActiveSpaceIds) over navigation state,
   // because nav state becomes stale when spaces are added/removed in Explorer.
@@ -207,10 +218,19 @@ export default function Explorer({ onLogout }: ExplorerProps) {
     setHighlightedNodeIds(EMPTY_IDS);
   }, []);
 
+  const closeDetails = useCallback(() => {
+    setSelectedNode(null);
+    setHoveredNode(null);
+  }, []);
+
   const handleNodeHover = useCallback((node: GraphNode | null, position?: { x: number; y: number }) => {
+    // Touch devices synthesise a mouseenter on tap, which would leave a hover
+    // card stranded on screen with no way to dismiss it. Tapping a node opens
+    // the details sheet instead — that is the touch equivalent.
+    if (isTouch) return;
     setHoveredNode(node);
     if (position) setHoverPos(position);
-  }, []);
+  }, [isTouch]);
 
   const handleExport = useCallback(async () => {
     if (!activeSpaceIds.length) return;
@@ -231,15 +251,74 @@ export default function Explorer({ onLogout }: ExplorerProps) {
 
   if (error) {
     return (
-      <div className="flex flex-col items-center justify-center h-screen gap-4 font-sans">
-        <AlertCircle className="h-8 w-8 text-destructive" />
-        <p className="text-destructive text-sm">Failed to generate graph: {error}</p>
-        <Button variant="outline" onClick={() => navigate('/spaces')}>Back to Space Selector</Button>
+      <div className={styles.errorContainer}>
+        <AlertCircle className="h-8 w-8 text-destructive" aria-hidden="true" />
+        <p className={styles.errorText}>Failed to generate graph: {error}</p>
+        <Button variant="outline" onClick={() => navigate('/spaces')}>
+          Back to Space Selector
+        </Button>
       </div>
     );
   }
 
   const lastSync = dataset?.generatedAt || null;
+
+  // The control panel renders twice depending on viewport — as a fixed left
+  // column on desktop, and inside a modal drawer on mobile. Sharing one props
+  // object keeps the two in step.
+  const controlPanelProps = dataset
+    ? {
+        dataset,
+        showPeople,
+        showOrganizations,
+        showSpaces,
+        onTogglePeople: () => setShowPeople((p) => !p),
+        onToggleOrganizations: () => setShowOrganizations((p) => !p),
+        onToggleSpaces: () => setShowSpaces((p) => !p),
+        showMembers,
+        showLeads,
+        showAdmins,
+        onToggleMembers: () => setShowMembers((m) => !m),
+        onToggleLeads: () => setShowLeads((l) => !l),
+        onToggleAdmins: () => setShowAdmins((a) => !a),
+        showPublic,
+        showPrivate,
+        onTogglePublic: () => setShowPublic((p) => !p),
+        onTogglePrivate: () => setShowPrivate((p) => !p),
+        showL1Spaces,
+        showL2Spaces,
+        onToggleL1Spaces: () => setShowL1Spaces((p) => !p),
+        onToggleL2Spaces: () => setShowL2Spaces((p) => !p),
+        showMap,
+        onToggleMap: () => setShowMap((m) => !m),
+        mapRegion,
+        onMapRegionChange: setMapRegion,
+        onRemoveSpace: handleRemoveSpace,
+        activityPulseEnabled,
+        onToggleActivityPulse: () => setActivityPulseEnabled((p) => !p),
+        hasActivityData: dataset.hasActivityData ?? false,
+        spaceActivityEnabled,
+        onToggleSpaceActivity: () => setSpaceActivityEnabled((p) => !p),
+        activityPeriod,
+        onActivityPeriodChange: setActivityPeriod,
+        directConnectionsOnly,
+        onToggleDirectConnections: () => setDirectConnectionsOnly((d) => !d),
+        nodeSizeScale,
+        onNodeSizeScaleChange: setNodeSizeScale,
+        activeView: viewState.state.activeView,
+        sizeMetric: viewState.state.sizeMetric,
+        onSizeMetricChange: viewState.setSizeMetric,
+        chordMode: viewState.state.chordMode,
+        onChordModeChange: viewState.setChordMode,
+        chordGroupLevel: viewState.state.chordGroupLevel,
+        onChordGroupLevelChange: viewState.setChordGroupLevel,
+        showMemberLeaves: viewState.state.showMembers,
+        onToggleMemberLeaves: () => viewState.setShowMembers(!viewState.state.showMembers),
+        timelineChartType: viewState.state.timelineChartType,
+        onTimelineChartTypeChange: (type: 'stacked' | 'stream') =>
+          viewState.setTimelineChartType(type),
+      }
+    : null;
 
   return (
     <div className={styles.layout} role="application" aria-label="Ecosystem Analytics Explorer">
@@ -255,61 +334,11 @@ export default function Explorer({ onLogout }: ExplorerProps) {
         onLogout={onLogout}
         theme={theme}
         onToggleTheme={toggleTheme}
-      >
-        {availableSpaces.length > 0 && (
-          <select
-            style={{
-              marginLeft: 12,
-              height: 36,
-              padding: '0 14px',
-              fontSize: 13,
-              borderRadius: 8,
-              border: '1.5px solid #e2e8f0',
-              background: '#f8fafc',
-              color: '#64748b',
-              cursor: 'pointer',
-              outline: 'none',
-              fontFamily: 'inherit',
-            }}
-            value=""
-            onChange={(e) => {
-              if (e.target.value) handleExpandSpace(e.target.value);
-            }}
-          >
-            <option value="" disabled>+ Add Space</option>
-            {availableSpaces.map((s) => (
-              <option key={s.nameId} value={s.nameId}>{s.displayName}</option>
-            ))}
-          </select>
-        )}
-        {aiQueryEnabled && (
-          <button
-            onClick={() => setQueryOverlayOpen(true)}
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: 8,
-              marginLeft: 12,
-              height: 36,
-              padding: '0 16px',
-              fontSize: 13,
-              fontWeight: 500,
-              color: '#ffffff',
-              background: '#2563eb',
-              border: 'none',
-              borderRadius: 8,
-              cursor: 'pointer',
-              fontFamily: 'inherit',
-              boxShadow: '0 1px 2px rgba(0,0,0,0.05)',
-            }}
-            onMouseEnter={(e) => { e.currentTarget.style.background = '#1d4ed8'; }}
-            onMouseLeave={(e) => { e.currentTarget.style.background = '#2563eb'; }}
-          >
-            <Sparkles style={{ width: 14, height: 14 }} />
-            Ask the Ecosystem
-          </button>
-        )}
-      </TopBar>
+        availableSpaces={availableSpaces}
+        onAddSpace={handleExpandSpace}
+        onAsk={aiQueryEnabled ? () => setQueryOverlayOpen(true) : undefined}
+        onOpenControls={dataset ? () => setControlsOpen(true) : undefined}
+      />
       {warnings.length > 0 && !dismissedWarnings && (
         <div className={styles.warningBanner} role="alert">
           <div className={styles.warningContent}>
@@ -326,58 +355,11 @@ export default function Explorer({ onLogout }: ExplorerProps) {
         </div>
       )}
       <div className={styles.main}>
-        {dataset && (
+        {controlPanelProps && !isCompact && (
           <ControlPanel
-            dataset={dataset}
-            showPeople={showPeople}
-            showOrganizations={showOrganizations}
-            showSpaces={showSpaces}
-            onTogglePeople={() => setShowPeople((p) => !p)}
-            onToggleOrganizations={() => setShowOrganizations((p) => !p)}
-            onToggleSpaces={() => setShowSpaces((p) => !p)}
-            showMembers={showMembers}
-            showLeads={showLeads}
-            showAdmins={showAdmins}
-            onToggleMembers={() => setShowMembers((m) => !m)}
-            onToggleLeads={() => setShowLeads((l) => !l)}
-            onToggleAdmins={() => setShowAdmins((a) => !a)}
-            showPublic={showPublic}
-            showPrivate={showPrivate}
-            onTogglePublic={() => setShowPublic((p) => !p)}
-            onTogglePrivate={() => setShowPrivate((p) => !p)}
-            showL1Spaces={showL1Spaces}
-            showL2Spaces={showL2Spaces}
-            onToggleL1Spaces={() => setShowL1Spaces((p) => !p)}
-            onToggleL2Spaces={() => setShowL2Spaces((p) => !p)}
+            {...controlPanelProps}
             collapsed={controlPanelCollapsed}
             onToggleCollapse={() => setControlPanelCollapsed((c) => !c)}
-            showMap={showMap}
-            onToggleMap={() => setShowMap((m) => !m)}
-            mapRegion={mapRegion}
-            onMapRegionChange={setMapRegion}
-            onRemoveSpace={handleRemoveSpace}
-            activityPulseEnabled={activityPulseEnabled}
-            onToggleActivityPulse={() => setActivityPulseEnabled((p) => !p)}
-            hasActivityData={dataset.hasActivityData ?? false}
-            spaceActivityEnabled={spaceActivityEnabled}
-            onToggleSpaceActivity={() => setSpaceActivityEnabled((p) => !p)}
-            activityPeriod={activityPeriod}
-            onActivityPeriodChange={setActivityPeriod}
-            directConnectionsOnly={directConnectionsOnly}
-            onToggleDirectConnections={() => setDirectConnectionsOnly((d) => !d)}
-            nodeSizeScale={nodeSizeScale}
-            onNodeSizeScaleChange={setNodeSizeScale}
-            activeView={viewState.state.activeView}
-            sizeMetric={viewState.state.sizeMetric}
-            onSizeMetricChange={viewState.setSizeMetric}
-            chordMode={viewState.state.chordMode}
-            onChordModeChange={viewState.setChordMode}
-            chordGroupLevel={viewState.state.chordGroupLevel}
-            onChordGroupLevelChange={viewState.setChordGroupLevel}
-            showMemberLeaves={viewState.state.showMembers}
-            onToggleMemberLeaves={() => viewState.setShowMembers(!viewState.state.showMembers)}
-            timelineChartType={viewState.state.timelineChartType}
-            onTimelineChartTypeChange={(type) => viewState.setTimelineChartType(type)}
           />
         )}
         <div className={styles.canvas} ref={canvasRef}>
@@ -564,11 +546,11 @@ export default function Explorer({ onLogout }: ExplorerProps) {
           )}
           {loading && <LoadingOverlay progress={progress} />}
         </div>
-        {selectedNode && dataset && (
+        {selectedNode && dataset && !isMobile && (
           <DetailsDrawer
             node={selectedNode}
             dataset={dataset}
-            onClose={() => { setSelectedNode(null); setHoveredNode(null); }}
+            onClose={closeDetails}
             onExpandSpace={handleExpandSpace}
             onNodeSelect={handleNodeClick}
             showPeople={showPeople}
@@ -577,10 +559,47 @@ export default function Explorer({ onLogout }: ExplorerProps) {
             activityPeriod={activityPeriod}
           />
         )}
-        {hoveredNode && !selectedNode && dataset && (
+        {/* Hover previews are pointer-only — see handleNodeHover */}
+        {hoveredNode && !selectedNode && dataset && !isTouch && (
           <HoverCard node={hoveredNode} dataset={dataset} x={hoverPos.x} y={hoverPos.y} />
         )}
       </div>
+
+      {/* ─── Mobile: the two side panels become modal sheets ─── */}
+      {isCompact && controlPanelProps && (
+        <Sheet
+          open={controlsOpen}
+          onClose={() => setControlsOpen(false)}
+          side="left"
+          title="Filters & legend"
+        >
+          <div className={styles.sheetPanelBody}>
+            <ControlPanel {...controlPanelProps} />
+          </div>
+        </Sheet>
+      )}
+
+      {isMobile && selectedNode && dataset && (
+        <Sheet
+          open
+          onClose={closeDetails}
+          side="bottom"
+          title={selectedNode.displayName || 'Details'}
+          hideHeader
+        >
+          <DetailsDrawer
+            node={selectedNode}
+            dataset={dataset}
+            onClose={closeDetails}
+            onExpandSpace={handleExpandSpace}
+            onNodeSelect={handleNodeClick}
+            showPeople={showPeople}
+            showOrganizations={showOrganizations}
+            showSpaces={showSpaces}
+            activityPeriod={activityPeriod}
+          />
+        </Sheet>
+      )}
       {dataset && (
         <MetricsBar
           metrics={dataset.metrics}
@@ -610,18 +629,29 @@ export default function Explorer({ onLogout }: ExplorerProps) {
           }}
         />
       )}
+      {/* Floating actions — stacked above the metrics bar and the home indicator */}
       {aiQueryEnabled && !queryOverlayOpen && highlightedNodeIds.length > 0 && (
-        <Button
-          variant="outline"
-          className="fixed bottom-20 right-6 z-[100] gap-2 rounded-full shadow-lg"
+        <button
+          className={`${styles.fab} ${styles.fabWide}`}
           onClick={() => {
             setHighlightedNodeIds(EMPTY_IDS);
             setQueryOverlayOpen(true);
           }}
         >
-          <MessageCircle className="h-4 w-4" />
-          Back to conversation
-        </Button>
+          <MessageCircle size={18} aria-hidden="true" />
+          <span className={styles.fabLabel}>Back to conversation</span>
+        </button>
+      )}
+
+      {/* Below 1024px the inline "Ask" CTA is hidden, so it becomes a FAB */}
+      {aiQueryEnabled && isCompact && !queryOverlayOpen && highlightedNodeIds.length === 0 && (
+        <button
+          className={`${styles.fab} ${styles.fabPrimary}`}
+          onClick={() => setQueryOverlayOpen(true)}
+          aria-label="Ask the Ecosystem"
+        >
+          <Sparkles size={20} aria-hidden="true" />
+        </button>
       )}
     </div>
   );

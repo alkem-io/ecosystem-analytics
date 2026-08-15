@@ -21,7 +21,8 @@
     "dashboard": "Dashboard",
     "initiatives": "Initiatieven",
     "cities": "Gemeenten",
-    "cityDetails": "Gemeente informatie"
+    "cityDetails": "Gemeente informatie",
+    "usage": "Gebruiksverkenner"
   },
   "initiativesTab": {
     "search": "Zoek initiatieven…",
@@ -328,5 +329,32 @@
     "noInitiatives": "Deze gemeente neemt niet deel aan een geselecteerd initiatief",
     "noCities": "Geen gemeenten in de huidige selectie",
     "loading": "Gemeenten laden…"
+  },
+  "usageExplorer": {
+    "loading": "Kaart laden…",
+    "loadingSpace": "{{name}} laden…",
+    "noSelection": "Selecteer één of meer initiatieven om het gebruik op de kaart te verkennen.",
+    "mapUnavailable": "De kaart kan niet worden getoond",
+    "mapUnavailableHint": "Locaties van gemeenten konden niet worden geladen. Probeer het zo weer.",
+    "province": "Provincie",
+    "allProvinces": "Heel Nederland",
+    "reset": "Weergave herstellen",
+    "inView": "{{total}} gemeenten in beeld · {{participating}} doen mee",
+    "initiativeCount": "{{count}} initiatief",
+    "initiativeCount_other": "{{count}} initiatieven",
+    "legend": "Puntgrootte = initiatieven",
+    "legendNone": "geen",
+    "legendOne": "1",
+    "unplaced": "{{count}} gemeente heeft geen bekende locatie",
+    "unplaced_other": "{{count}} gemeenten hebben geen bekende locatie",
+    "staleLocations": "Locaties zijn mogelijk verouderd",
+    "ranking": "Initiatieven in gebruik in dit gebied",
+    "rankingHint": "Zoom of verschuif de kaart om het gebied te wijzigen.",
+    "rankingEmpty": "In het zichtbare gebied zijn geen initiatieven in gebruik.",
+    "ofInView": "{{count}} van {{total}} in beeld",
+    "openCity": "Gemeenteprofiel openen",
+    "clearFocus": "Wissen",
+    "focusNoInitiatives": "Deze gemeente doet in de huidige selectie aan geen enkel initiatief mee.",
+    "moreInitiatives": "+{{count}} meer"
   }
 }

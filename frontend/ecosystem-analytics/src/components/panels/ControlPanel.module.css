@@ -74,7 +74,8 @@
   font-size: 12px;
   font-weight: 500;
   color: var(--primary);
-  background: #eff6ff;
+  /* Derived from --primary so the chip stays legible in dark mode */
+  background: color-mix(in srgb, var(--primary) 12%, transparent);
   padding: 4px 10px;
   border-radius: var(--radius-full);
 }
@@ -190,7 +191,7 @@
 }
 
 .insightBtn:hover {
-  background: #eff6ff;
+  background: color-mix(in srgb, var(--primary) 10%, transparent);
   color: var(--primary);
 }
 
@@ -268,4 +269,85 @@
   width: 100%;
   accent-color: var(--primary);
   cursor: pointer;
+}
+
+/* ─── Phone + tablet ───
+   Inside the controls drawer the panel is no longer a fixed column: it fills
+   the sheet, scrolls with it, and every row grows to a finger-sized target. */
+@media (max-width: 1023px) {
+  .panel {
+    width: 100%;
+    height: auto;
+    padding: 4px 16px 16px;
+    border-right: none;
+    overflow: visible;
+    transition: none;
+  }
+
+  .section {
+    padding: 16px 0;
+  }
+
+  .heading {
+    font-size: 12px;
+  }
+
+  .chips {
+    gap: 8px;
+  }
+
+  .chip {
+    font-size: 13px;
+    padding: 8px 12px;
+  }
+
+  .chipRemove {
+    width: 24px;
+    height: 24px;
+    font-size: 16px;
+    opacity: 0.8;
+  }
+
+  .toggleRow {
+    gap: 12px;
+    min-height: var(--tap-target);
+    padding: 4px 0;
+    font-size: 15px;
+  }
+
+  .legendItem {
+    font-size: 14px;
+    padding: 6px 0;
+  }
+
+  .legendGroupLabel {
+    font-size: 11px;
+  }
+
+  .sectionHint {
+    font-size: 12px;
+    margin-left: 32px;
+  }
+
+  .regionSelect,
+  .viewSelect {
+    min-height: var(--tap-target);
+    font-size: 16px;
+    padding: 8px 12px;
+  }
+
+  .insightBtn {
+    min-height: var(--tap-target);
+    font-size: 14px;
+  }
+
+  .mapHint,
+  .mapStats,
+  .mapStatsMuted {
+    font-size: 12px;
+  }
+
+  .sliderLabel {
+    font-size: 15px;
+  }
 }

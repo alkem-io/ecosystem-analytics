@@ -70,6 +70,12 @@ export interface DashboardAppConfig {
   gemeentedelersSpaceNameId: string;
   /** Long cache TTL for the archival GD initiative layer. FR-035. */
   gdCacheTtlHours: number;
+  /**
+   * Long cache TTL for the selection-independent gemeente geo-location set
+   * (feature 019, FR-005b). Locations essentially never move, so this matches the
+   * GD corpus at ~1 week.
+   */
+  geoCacheTtlHours: number;
   /** Raw space/callout tag (lower-cased) → dashboard category key, per dimension. FR-025. */
   tagCategoryMapping: {
     nds: Record<string, string>;
@@ -246,6 +252,7 @@ interface DashboardYamlBlock {
   default_hub_nameid?: string;
   gemeentedelers_space_nameid?: string;
   gd_cache_ttl_hours?: number;
+  geo_cache_ttl_hours?: number;
   tag_category_mapping?: { nds?: Record<string, unknown>; vng2030?: Record<string, unknown> };
 }
 
@@ -266,6 +273,7 @@ function parseDashboardConfig(raw?: DashboardYamlBlock): DashboardAppConfig {
       ? String(raw.gemeentedelers_space_nameid).trim()
       : 'gemeentedelers',
     gdCacheTtlHours: Number(raw?.gd_cache_ttl_hours) || 168,
+    geoCacheTtlHours: Number(raw?.geo_cache_ttl_hours) || 168,
     tagCategoryMapping: {
       nds: stringMap(raw?.tag_category_mapping?.nds),
       vng2030: stringMap(raw?.tag_category_mapping?.vng2030),

@@ -32,3 +32,27 @@
   opacity: 0.4;
   pointer-events: none;
 }
+
+@media (max-width: 1023px) {
+  .section {
+    padding: 16px 0;
+  }
+
+  .heading {
+    font-size: 12px;
+  }
+
+  /* Filter toggles are the most-tapped controls in the drawer — give each row
+     a full touch target rather than the 21px it gets from a bare checkbox. */
+  .toggle {
+    gap: 12px;
+    min-height: var(--tap-target);
+    padding: 4px 0;
+    font-size: 15px;
+  }
+
+  .roleFilters {
+    padding-left: 16px;
+    margin-left: 10px;
+  }
+}

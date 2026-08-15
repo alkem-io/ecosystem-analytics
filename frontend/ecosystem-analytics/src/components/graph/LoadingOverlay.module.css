@@ -4,8 +4,9 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  background: rgba(255, 255, 255, 0.85);
+  background: var(--view-overlay-bg);
   z-index: 100;
+  padding: 24px;
 }
 
 .card {
@@ -13,7 +14,9 @@
   flex-direction: column;
   align-items: center;
   gap: 16px;
-  padding: 40px 60px;
+  padding: 40px min(60px, 8vw);
+  max-width: 100%;
+  text-align: center;
   background: var(--surface-raised);
   border-radius: var(--radius-lg);
   box-shadow: var(--elevation-lg);
@@ -45,4 +48,10 @@
   font-size: 13px;
   color: var(--text-secondary);
   margin: 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .spinner {
+    animation-duration: 2.4s;
+  }
 }

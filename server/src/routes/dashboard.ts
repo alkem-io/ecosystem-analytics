@@ -7,6 +7,8 @@ import {
   assembleGemeenteDistribution,
 } from '../services/vng-dashboard-service.js';
 import { fetchGemeentedelersCallouts } from '../services/gd-initiatives-service.js';
+import { getGemeenteLocations } from '../services/gemeente-geo-service.js';
+import type { GemeenteLocationsResponse } from '../types/api.js';
 import { generateGraph } from '../services/graph-service.js';
 import { loadVngRegistry } from '../services/vng-registry.js';
 import { createAlkemioSdk, isAlkemioAuthError } from '../graphql/client.js';
@@ -136,5 +138,28 @@ dashboardRouter.get('/initiatives', async (req: Request, res: Response) => {
     if (isAlkemioAuthError(err)) return invalidateAndReject(req, res);
     logger.error(`GD initiatives list failed: ${(err as Error).message}`, { context: 'Dashboard' });
     res.status(502).json({ error: 'GD_LIST_FAILED', message: 'Failed to list GD initiatives' });
+  }
+});
+
+// GET /api/:app/gemeente-locations — the position of EVERY Dutch gemeente (feature 019).
+// No body, no query params: the response varies with neither selection nor toggles, which
+// is what lets the Usage Explorer recompute its ranking locally on every zoom (FR-005b).
+// See specs/019-usage-explorer/contracts/api-gemeente-locations.md.
+dashboardRouter.get('/gemeente-locations', async (req: Request, res: Response) => {
+  try {
+    if (!resolveProfile(req, res)) return;
+    const appId = req.baseUrl.split('/').filter(Boolean).pop() as DashboardAppId;
+    const { set, cached, stale } = await getGemeenteLocations(req.auth!, req.auth!.userId, appId);
+    const response: GemeenteLocationsResponse = { ...set, cached, stale };
+    res.json(response);
+  } catch (err) {
+    if (isAlkemioAuthError(err)) return invalidateAndReject(req, res);
+    // Reached only when there is NO cached set to fall back on — the service already
+    // prefers a stale set over failing (FR-030a). The client shows "the map cannot be
+    // drawn" rather than an empty country.
+    logger.error(`Gemeente locations failed: ${(err as Error).message}`, { context: 'Dashboard' });
+    res
+      .status(503)
+      .json({ error: 'GEMEENTE_LOCATIONS_UNAVAILABLE', message: 'Failed to load gemeente locations' });
   }
 });

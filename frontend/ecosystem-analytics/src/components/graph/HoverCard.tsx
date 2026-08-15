@@ -37,12 +37,26 @@ export default function HoverCard({ node, dataset, x, y }: Props) {
   const typeKey = node.type.toLowerCase();
   const typeLabel = TYPE_LABELS[node.type] || node.type;
 
-  // Position card slightly offset from cursor, clamped to viewport
+  // Offset the card from the cursor, then keep it inside the viewport — near
+  // the right or bottom edge it flips to the other side of the pointer rather
+  // than hanging off screen (which it previously did on narrow windows).
   const OFFSET = 16;
-  const style: React.CSSProperties = {
-    left: `${x + OFFSET}px`,
-    top: `${y + OFFSET}px`,
-  };
+  const CARD_WIDTH = 280;
+  const CARD_HEIGHT = 64;
+  const MARGIN = 8;
+  const viewportWidth = typeof window === 'undefined' ? CARD_WIDTH : window.innerWidth;
+  const viewportHeight = typeof window === 'undefined' ? CARD_HEIGHT : window.innerHeight;
+
+  const left = Math.max(
+    MARGIN,
+    Math.min(x + OFFSET, viewportWidth - CARD_WIDTH - MARGIN),
+  );
+  const top = Math.max(
+    MARGIN,
+    Math.min(y + OFFSET, viewportHeight - CARD_HEIGHT - MARGIN),
+  );
+
+  const style: React.CSSProperties = { left: `${left}px`, top: `${top}px` };
 
   return (
     <div className={styles.hoverCard} style={style}>

@@ -1,14 +1,39 @@
 .input {
   width: 240px;
+  max-width: 100%;
+  min-height: 36px;
   padding: 6px 12px;
   font-size: 13px;
   font-family: var(--font-family);
+  color: var(--text-primary);
   border: 1px solid var(--border);
   border-radius: var(--radius);
   outline: none;
   background: var(--surface-raised);
 }
 
+.input::placeholder {
+  color: var(--text-muted);
+}
+
 .input:focus {
   border-color: var(--border-focus);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary) 15%, transparent);
+}
+
+@media (max-width: 1023px) {
+  .input {
+    width: 180px;
+  }
+}
+
+@media (max-width: 767px) {
+  /* Expanded over the whole top-bar row — see TopBar.module.css .searchFieldOpen */
+  .input {
+    width: 100%;
+    min-height: var(--tap-target);
+    /* 16px prevents iOS from zooming the viewport on focus */
+    font-size: 16px;
+    background: var(--surface);
+  }
 }

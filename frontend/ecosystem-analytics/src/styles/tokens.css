@@ -61,6 +61,25 @@
   --details-drawer-width: 320px;
   --space-selector-card-height: 600px;
 
+  /* ─── Responsive / touch layout ───
+     Breakpoints mirror src/hooks/useMediaQuery.ts — change both together.
+     mobile ≤ 767px · compact (phone + tablet) ≤ 1023px */
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-right: env(safe-area-inset-right, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+  --safe-left: env(safe-area-inset-left, 0px);
+
+  /* Minimum comfortable touch target (WCAG 2.2 target size AA is 24px; 44px is
+     the Apple/Material recommendation and what we design controls against). */
+  --tap-target: 44px;
+
+  /* Bottom-sheet geometry (see components/mobile/Sheet.module.css) */
+  --sheet-peek-height: 52dvh;
+  --sheet-top-gap: 56px;
+
+  /* Height of the compact stats strip pinned to the bottom on mobile */
+  --metrics-strip-height: 64px;
+
   /* ─── View Canvas Theme (light default) ─── */
   --view-bg: #f8fafc;
   --view-text: #1e293b;
@@ -116,6 +135,17 @@
   --view-color-inactive: #475569;
 }
 
+/* ─── Mobile token overrides ─── */
+@media (max-width: 767px) {
+  :root {
+    /* A 48px bar is too tight once the row holds 44px touch targets. */
+    --top-bar-height: 56px;
+    /* The control panel is a full-height drawer on mobile, not a column. */
+    --left-panel-width: min(88vw, 340px);
+    --details-drawer-width: 100%;
+  }
+}
+
 /* Base reset */
 *,
 *::before,
@@ -125,10 +155,65 @@
   padding: 0;
 }
 
+html {
+  /* Stop iOS/Android from inflating text in landscape. */
+  -webkit-text-size-adjust: 100%;
+}
+
 body {
   font-family: var(--font-family);
   color: var(--text-primary);
   background-color: var(--background);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  /* The Explorer is a fixed-viewport app: never rubber-band or pull-to-refresh
+     the page behind the graph canvas. */
+  overscroll-behavior: none;
+}
+
+/* Touch ergonomics — apply everywhere, they cost nothing on desktop. */
+button,
+[role='button'],
+a,
+label,
+summary,
+select,
+input[type='checkbox'],
+input[type='radio'] {
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
+
+/* iOS zooms the whole page when a focused field is under 16px. Bumping the
+   font size on small screens is the only reliable way to prevent that without
+   disabling user zoom (which we must not do — it breaks accessibility). */
+@media (max-width: 767px) {
+  input,
+  select,
+  textarea {
+    font-size: 16px;
+  }
+
+  /* Checkboxes in the filter lists are the primary controls on mobile. */
+  input[type='checkbox'],
+  input[type='radio'] {
+    width: 20px;
+    height: 20px;
+    flex-shrink: 0;
+  }
+
+  /* Give range sliders a thumb a finger can actually catch. */
+  input[type='range'] {
+    height: 28px;
+  }
+}
+
+/* Screen-reader-only utility used by the responsive top bar. */
+.visuallyHidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
 }

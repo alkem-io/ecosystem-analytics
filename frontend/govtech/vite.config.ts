@@ -60,6 +60,12 @@ export default defineConfig(({ mode }) => {
       },
     },
     server: {
+      // Bind all interfaces, not just loopback. Vite defaults to `localhost`,
+      // which inside a container listens on [::1] only — Docker/devcontainer
+      // port forwarding connects over IPv4 loopback and gets ECONNREFUSED, so
+      // the dev server is invisible from the host. See .devcontainer
+      // forwardPorts, which already publishes 5175.
+      host: true,
       port: 5175,
       proxy: {
         '/api': {

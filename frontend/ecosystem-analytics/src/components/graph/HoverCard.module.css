@@ -1,17 +1,21 @@
+/* HoverCard — pointer-only preview. Suppressed on touch devices (see
+   Explorer.handleNodeHover), where tapping a node opens the details sheet. */
+
 .hoverCard {
   position: fixed;
   z-index: 1000;
   pointer-events: none;
-  background: rgba(255, 255, 255, 0.96);
+  background: var(--view-tooltip-bg);
   backdrop-filter: blur(8px);
-  border: 1px solid rgba(0, 0, 0, 0.08);
+  border: 1px solid var(--view-tooltip-border);
   border-radius: 10px;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.10), 0 1px 4px rgba(0, 0, 0, 0.06);
+  box-shadow: var(--view-tooltip-shadow);
   padding: 10px 14px;
   display: flex;
   align-items: center;
   gap: 10px;
-  max-width: 280px;
+  width: max-content;
+  max-width: min(280px, calc(100vw - 16px));
   transition: opacity 0.12s ease;
 }
 
@@ -21,7 +25,7 @@
   border-radius: 50%;
   object-fit: cover;
   flex-shrink: 0;
-  background: #e5e7eb;
+  background: var(--surface);
 }
 
 .avatarPlaceholder {
@@ -29,13 +33,13 @@
   height: 32px;
   border-radius: 50%;
   flex-shrink: 0;
-  background: #e5e7eb;
+  background: var(--surface);
   display: flex;
   align-items: center;
   justify-content: center;
   font-size: 14px;
   font-weight: 600;
-  color: #6b7280;
+  color: var(--text-secondary);
 }
 
 .info {
@@ -47,7 +51,7 @@
 .name {
   font-size: 13px;
   font-weight: 600;
-  color: #1f2937;
+  color: var(--view-text);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -69,31 +73,35 @@
   padding: 1px 6px;
   border-radius: 4px;
   line-height: 1.4;
+  white-space: nowrap;
 }
 
-.typeBadge_space {
-  background: rgba(99, 102, 241, 0.10);
-  color: #4f46e5;
+.typeBadge_space,
+.typeBadge_space_l0,
+.typeBadge_space_l1,
+.typeBadge_space_l2 {
+  background: color-mix(in srgb, var(--node-space-l0) 15%, transparent);
+  color: color-mix(in srgb, var(--node-space-l0) 75%, var(--view-text));
 }
 
 .typeBadge_user {
-  background: rgba(16, 185, 129, 0.10);
-  color: #059669;
+  background: color-mix(in srgb, var(--success) 15%, transparent);
+  color: color-mix(in srgb, var(--success) 75%, var(--view-text));
 }
 
 .typeBadge_organization {
-  background: rgba(245, 158, 11, 0.10);
-  color: #b45309;
+  background: color-mix(in srgb, var(--node-organization) 15%, transparent);
+  color: color-mix(in srgb, var(--node-organization) 75%, var(--view-text));
 }
 
 .connections {
   font-size: 11px;
-  color: #9ca3af;
+  color: var(--view-text-muted);
   white-space: nowrap;
 }
 
 .restrictedBadge {
   font-size: 11px;
-  color: #92400e;
+  color: var(--warning-text, #92400e);
   white-space: nowrap;
 }

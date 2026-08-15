@@ -7,6 +7,7 @@ import { computeClusters } from './clustering.js';
 import { computeProximityGroups, type ProximityCluster } from './proximityClustering.js';
 import { computePinnedNodeIds, computeMapBounds, isWithinRegion } from './mapBoundary.js';
 import { resolveMapConfig, type GraphMapRegion } from '../map/mapConfig.js';
+import { renderNlBasemap, type NlBasemap } from '../map/nl-basemap.js';
 import { proxyImageUrl } from '../lib/imageProxy.js';
 import { isImageFailed, markImageFailed } from '../lib/badImageCache.js';
 import styles from './ForceGraph.module.css';
@@ -919,10 +920,15 @@ export default function ForceGraph({
         (applyLOD as any)._renderTiles(k);
       }
     }
-
     // Build projection for geo-pinning. `mapCfg` resolves url/center/scale/zoom for
     // the built-in regions AND the 12 province basemaps (see mapConfig.ts).
+    //
+    // The basemap itself — CARTO tiles, region borders, and the constitution-§VII white
+    // complement that hides everything outside the Netherlands — lives in the shared
+    // `renderNlBasemap` module, so this map and the Usage Explorer map cannot drift apart.
+    // Everything below the `onGeoJson` callback is simulation work that stays here.
     const mapCfg = resolveMapConfig(mapRegion);
+    let basemap: NlBasemap | null = null;
     const projection = showMap
       ? geoMercator()
           .center(mapCfg.center)
@@ -930,167 +936,20 @@ export default function ForceGraph({
           .translate([width / 2, height / 2])
       : null;
 
-    // Render map tiles + GeoJSON boundary data inside the zoom group (behind everything)
     if (showMap && projection) {
-      const mapGroup = g.append('g').attr('class', 'map-layer');
-      const path = geoPath().projection(projection);
-
-      // Clip definition: tiles will be clipped to this path once GeoJSON loads
-      const clipId = 'map-region-clip';
-      const mapClipDef = svg.append('defs').append('clipPath').attr('id', clipId);
-
-      const tileGroup = mapGroup.append('g').attr('class', 'tile-layer');
-
-      // --- Tile rendering helpers ---
-      // Convert lon/lat to tile x/y at a given zoom level (Web Mercator)
-      function lon2tile(lon: number, z: number) { return ((lon + 180) / 360) * Math.pow(2, z); }
-      function lat2tile(lat: number, z: number) {
-        const latRad = (lat * Math.PI) / 180;
-        return ((1 - Math.log(Math.tan(latRad) + 1 / Math.cos(latRad)) / Math.PI) / 2) * Math.pow(2, z);
-      }
-      // Inverse: tile x/y → lon/lat
-      function tile2lon(x: number, z: number) { return (x / Math.pow(2, z)) * 360 - 180; }
-      function tile2lat(y: number, z: number) {
-        const n = Math.PI - (2 * Math.PI * y) / Math.pow(2, z);
-        return (180 / Math.PI) * Math.atan(0.5 * (Math.exp(n) - Math.exp(-n)));
-      }
-
-      // Choose tile zoom level based on the Mercator scale (province basemaps are
-      // more magnified than the whole country, so their base zoom is higher).
-      const baseZoom = mapCfg.baseZoom;
-
-      function renderTiles(zoomK: number) {
-        // The effective tile zoom considers both base projection scale and D3 zoom
-        const tileZ = Math.max(0, Math.min(18, Math.round(baseZoom + Math.log2(Math.max(zoomK, 0.1)))));
-        // Compute SVG-space bounds visible in the viewport.
-        // When zoomed, the g-transform is "translate(tx,ty) scale(k)".
-        // The inverse maps SVG viewport corners to coordinate space.
-        const currentTransform = d3.zoomTransform(svg.node()!);
-        const topLeft = currentTransform.invert([0, 0]);
-        const bottomRight = currentTransform.invert([width, height]);
-        // Convert SVG coordinates to lon/lat via the inverse projection
-        const inv = projection!.invert!;
-        const geoTL = inv(topLeft as [number, number]);
-        const geoBR = inv(bottomRight as [number, number]);
-        if (!geoTL || !geoBR) return;
-
-        // Tile range for the visible extent
-        const xMin = Math.max(0, Math.floor(lon2tile(geoTL[0], tileZ)));
-        const xMax = Math.min(Math.pow(2, tileZ) - 1, Math.floor(lon2tile(geoBR[0], tileZ)));
-        const yMin = Math.max(0, Math.floor(lat2tile(geoTL[1], tileZ)));
-        const yMax = Math.min(Math.pow(2, tileZ) - 1, Math.floor(lat2tile(geoBR[1], tileZ)));
-
-        // Build tile data array
-        const tiles: { tx: number; ty: number; z: number; key: string }[] = [];
-        for (let tx = xMin; tx <= xMax; tx++) {
-          for (let ty = yMin; ty <= yMax; ty++) {
-            tiles.push({ tx, ty, z: tileZ, key: `${tileZ}/${tx}/${ty}` });
-          }
-        }
-
-        // Cap tiles to prevent flooding the DOM
-        if (tiles.length > 200) return;
-
-        const subdomains = ['a', 'b', 'c', 'd'];
-
-        // Data join
-        const images = tileGroup.selectAll<SVGImageElement, typeof tiles[0]>('image')
-          .data(tiles, (d) => d.key);
-
-        images.exit().remove();
-
-        images.enter()
-          .append('image')
-          .attr('preserveAspectRatio', 'none')
-          .attr('pointer-events', 'none')
-          .merge(images as any)
-          .attr('href', (d) => {
-            const s = subdomains[(d.tx + d.ty) % subdomains.length];
-            return `https://${s}.basemaps.cartocdn.com/light_nolabels/${d.z}/${d.tx}/${d.ty}.png`;
-          })
-          .each(function (d) {
-            // Project tile corners from lon/lat to SVG coordinates
-            const topLeftLon = tile2lon(d.tx, d.z);
-            const topLeftLat = tile2lat(d.ty, d.z);
-            const bottomRightLon = tile2lon(d.tx + 1, d.z);
-            const bottomRightLat = tile2lat(d.ty + 1, d.z);
-            const pTL = projection!([topLeftLon, topLeftLat]);
-            const pBR = projection!([bottomRightLon, bottomRightLat]);
-            if (pTL && pBR) {
-              d3.select(this)
-                .attr('x', pTL[0])
-                .attr('y', pTL[1])
-                .attr('width', pBR[0] - pTL[0])
-                .attr('height', pBR[1] - pTL[1]);
-            }
-          });
-      }
-
-      // CARTO map tiles are rendered for every region (inc. the Netherlands, which
-      // MUST show real map-tile detail per constitution §VII / FR-048).
-      renderTiles(1);
-      (applyLOD as any)._renderTiles = renderTiles;
-
-      fetch(mapCfg.url)
-        .then((res) => {
-          if (!res.ok) throw new Error('Map not found');
-          return res.json();
-        })
-        .then((geojson) => {
+      basemap = renderNlBasemap({
+        svg,
+        group: g,
+        region: mapRegion,
+        width,
+        height,
+        onGeoJson: (geojson) => {
           // Cache GeoJSON for boundary checking (used by computePinnedNodeIds)
-          mapGeoJSONCacheRef.current[mapRegion] = geojson as GeoPermissibleObjects;
-
-          const features = geojson.features || [geojson];
-          const isWorldMap = mapCfg.kind === 'world';
-
-          if (mapCfg.masked) {
-            // HARD REQUIREMENT (constitution §VII / FR-048): show ONLY the region
-            // (the whole Netherlands, or a single province). Same white-complement
-            // masking as the NL basemap — the province GeoJSON is wound the same way.
-            // The SVG clip-path lives outside the zoom group and does NOT track d3-zoom,
-            // so tiles escape it on zoom. Instead we overlay an opaque WHITE "complement"
-            // shape that hides everything OUTSIDE the Netherlands while leaving the NL
-            // tiles visible. Built from the raw region rings filled with the even-odd
-            // rule: the source geojson is wound backwards for d3-geo, so even-odd fills
-            // the COMPLEMENT of the Netherlands (verified pixel-by-pixel — see
-            // tests/vng-map-nl-only.spec.mjs). It lives INSIDE the zoom group, so it
-            // pans/zooms with the tiles and can never leak. Drawn over the tiles, under
-            // the borders and nodes.
-            const complementD = (features as Array<unknown>)
-              .map((f) => path(f as any))
-              .filter(Boolean)
-              .join(' ');
-            mapGroup
-              .selectAll('path.nl-complement')
-              .data([0])
-              .join('path')
-              .attr('class', 'nl-complement')
-              .attr('d', complementD)
-              .attr('fill', '#ffffff')
-              .attr('fill-rule', 'evenodd')
-              .style('fill-rule', 'evenodd')
-              .style('pointer-events', 'none');
-          } else {
-            // Explorer world/europe: clip tiles to the region.
-            mapClipDef.selectAll('path').data(features).join('path').attr('d', path as any);
-            tileGroup.attr('clip-path', `url(#${clipId})`);
-          }
-
-          // Subtle province/region borders on top.
-          mapGroup
-            .selectAll('path.region-border')
-            .data(features)
-            .join('path')
-            .attr('class', 'region-border')
-            .attr('d', path as any)
-            .attr('fill', 'none')
-            .attr('stroke', isWorldMap ? 'rgba(150,150,150,0.3)' : 'rgba(120, 135, 150, 0.55)')
-            .attr('stroke-width', isWorldMap ? 0.5 : 0.8)
-            .style('pointer-events', 'none');
+          mapGeoJSONCacheRef.current[mapRegion] = geojson;
 
           // After GeoJSON loads: re-apply boundary filtering to pin only in-region nodes
           if (projection && simulationLocal) {
-            const pinnedIds = computePinnedNodeIds(simNodes, geojson as GeoPermissibleObjects);
+            const pinnedIds = computePinnedNodeIds(simNodes, geojson);
             // Clear geoTargets and rebuild with only boundary-filtered nodes
             geoTargets.clear();
             for (const node of simNodes) {
@@ -1116,21 +975,13 @@ export default function ForceGraph({
               }
             }
             // Update repulsion force with new bounds and pinned set
-            const bounds = computeMapBounds(geojson as GeoPermissibleObjects, projection as (point: [number, number]) => [number, number] | null);
+            const bounds = computeMapBounds(geojson, projection as (point: [number, number]) => [number, number] | null);
             simulationLocal.force('map-repulsion', mapRepulsionForce(bounds, pinnedIds));
             simulationLocal.alpha(0.3).restart();
           }
-        })
-        .catch(() => {
-          mapGroup
-            .append('text')
-            .attr('x', width / 2)
-            .attr('y', height / 2)
-            .attr('text-anchor', 'middle')
-            .attr('fill', 'var(--text-muted)')
-            .attr('font-size', 14)
-            .text('Map unavailable');
-        });
+        },
+      });
+      (applyLOD as any)._renderTiles = basemap.renderTiles;
     }
 
     // Precompute geo target positions for nodes with location data.
