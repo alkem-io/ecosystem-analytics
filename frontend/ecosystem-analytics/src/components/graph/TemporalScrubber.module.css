@@ -4,7 +4,8 @@
   display: flex;
   align-items: center;
   gap: 0.75rem;
-  padding: 0.5rem 1rem;
+  padding: 0.5rem max(1rem, var(--safe-right)) calc(0.5rem + var(--safe-bottom))
+    max(1rem, var(--safe-left));
   background: var(--view-color-bg, #0f172a);
   border-top: 1px solid var(--view-color-border, #334155);
   color: var(--view-color-text, #e2e8f0);
@@ -53,4 +54,36 @@
   padding: 0.25rem 0.5rem;
   font-size: 0.8rem;
   cursor: pointer;
+}
+
+@media (max-width: 767px) {
+  .scrubber {
+    gap: 0.5rem;
+    padding-left: max(0.5rem, var(--safe-left));
+    padding-right: max(0.5rem, var(--safe-right));
+  }
+
+  .playBtn {
+    width: var(--tap-target);
+    height: var(--tap-target);
+    flex-shrink: 0;
+  }
+
+  .slider {
+    min-width: 60px;
+    height: 28px;
+  }
+
+  /* A full date eats half the row — the slider needs the space more. */
+  .dateLabel {
+    min-width: 0;
+    font-size: 0.7rem;
+    white-space: nowrap;
+  }
+
+  .speedSelect {
+    min-height: 36px;
+    padding: 0.25rem 0.35rem;
+    font-size: 0.75rem;
+  }
 }

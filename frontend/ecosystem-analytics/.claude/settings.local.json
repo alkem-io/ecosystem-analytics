@@ -1,0 +1,16 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(cd /Users/neilsmyth/Documents/DevAlkemio/ecosystem-analytics/server && pnpm run build 2>&1 | tail -5)",
+      "Bash(npx tsc:*)",
+      "Bash(pnpm run:*)",
+      "Bash(cd /Users/neilsmyth/Documents/DevAlkemio/ecosystem-analytics/frontend && npx tsc --noEmit 2>&1; echo \"EXIT: $?\")",
+      "Bash(cd /Users/neilsmyth/Documents/DevAlkemio/ecosystem-analytics/server && pnpm run build 2>&1; echo \"EXIT: $?\")",
+      "Bash(git checkout:*)",
+      "Bash(pnpm install:*)",
+      "Bash(cd /Users/neilsmyth/Documents/DevAlkemio/ecosystem-analytics/frontend && cat package.json | python3 -c \"import sys,json; d=json.load\\(sys.stdin\\); print\\(json.dumps\\({**d.get\\('dependencies',{}\\), **d.get\\('devDependencies',{}\\)}, indent=2\\)\\)\" 2>/dev/null | head -40)",
+      "Bash(cd /Users/neilsmyth/Documents/DevAlkemio/ecosystem-analytics/frontend && pnpm add lucide-react @radix-ui/react-avatar @radix-ui/react-slot @radix-ui/react-checkbox @radix-ui/react-label @radix-ui/react-scroll-area @radix-ui/react-separator @radix-ui/react-tooltip class-variance-authority clsx tailwind-merge 2>&1 | tail -10)",
+      "Bash(pnpm add:*)"
+    ]
+  }
+}

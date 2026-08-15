@@ -1,0 +1,206 @@
+/* Sheet — modal side drawer / bottom sheet used below the tablet breakpoint. */
+
+.root {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+}
+
+.scrim {
+  position: absolute;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.45);
+  backdrop-filter: blur(2px);
+  animation: fadeIn 0.18s ease;
+}
+
+.panel {
+  position: absolute;
+  display: flex;
+  flex-direction: column;
+  background: var(--surface-raised);
+  color: var(--text-primary);
+  box-shadow: var(--elevation-lg);
+  outline: none;
+  overscroll-behavior: contain;
+  will-change: transform;
+}
+
+/* ── Left drawer (filters / controls) ── */
+.panelLeft {
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: min(88vw, 340px);
+  padding-left: var(--safe-left);
+  border-right: 1px solid var(--border);
+  animation: slideInLeft 0.22s cubic-bezier(0.32, 0.72, 0, 1);
+}
+
+/* ── Bottom sheet (node details) ── */
+.panelBottom {
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: var(--sheet-peek-height);
+  max-height: calc(100dvh - var(--sheet-top-gap));
+  border-top-left-radius: var(--radius-lg);
+  border-top-right-radius: var(--radius-lg);
+  border-top: 1px solid var(--border);
+  animation: slideInUp 0.24s cubic-bezier(0.32, 0.72, 0, 1);
+  transition: height 0.24s cubic-bezier(0.32, 0.72, 0, 1);
+}
+
+.panelExpanded {
+  height: calc(100dvh - var(--sheet-top-gap));
+}
+
+/* While a finger is on the grabber the height must not animate — the inline
+   translateY is doing the work and a competing transition feels laggy. */
+.panelDragging {
+  transition: none;
+  animation: none;
+}
+
+.noMotion,
+.noMotion.panelBottom {
+  animation: none;
+  transition: none;
+}
+
+/* ── Grabber ── */
+.grabberZone {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 28px;
+  flex-shrink: 0;
+  cursor: grab;
+  /* The grabber owns vertical gestures; the browser must not scroll instead. */
+  touch-action: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.grabberZone:active {
+  cursor: grabbing;
+}
+
+.grabberZone:focus-visible {
+  outline: 2px solid var(--border-focus);
+  outline-offset: -4px;
+  border-radius: var(--radius-sm);
+}
+
+.grabber {
+  width: 40px;
+  height: 4px;
+  border-radius: var(--radius-full);
+  background: var(--border);
+}
+
+/* ── Header ── */
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 8px 12px 8px 16px;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+.panelLeft .header {
+  padding-top: calc(12px + var(--safe-top));
+}
+
+.title {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin: 0;
+}
+
+.srOnlyHeader {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.closeBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--tap-target);
+  height: var(--tap-target);
+  border: none;
+  border-radius: var(--radius);
+  background: transparent;
+  color: var(--text-secondary);
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.closeBtn:hover {
+  background: var(--surface);
+  color: var(--text-primary);
+}
+
+.closeBtn:focus-visible {
+  outline: 2px solid var(--border-focus);
+  outline-offset: -2px;
+}
+
+/* ── Content ── */
+.content {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+  padding-bottom: var(--safe-bottom);
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes slideInLeft {
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: translateX(0);
+  }
+}
+
+@keyframes slideInUp {
+  from {
+    transform: translateY(100%);
+  }
+  to {
+    transform: translateY(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .scrim,
+  .panel {
+    animation: none;
+    transition: none;
+  }
+}
+
+@media (min-width: 768px) {
+  /* Tablets have the room for a roomier controls drawer. */
+  .panelLeft {
+    width: min(60vw, 380px);
+  }
+}

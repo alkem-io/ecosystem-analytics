@@ -5,6 +5,7 @@
   border-left: 1px solid var(--border);
   padding: 20px;
   overflow-y: auto;
+  overscroll-behavior: contain;
   display: flex;
   flex-direction: column;
   gap: 16px;
@@ -77,20 +78,32 @@
   text-transform: uppercase;
   letter-spacing: 0.03em;
   color: var(--primary);
-  background: #eff6ff;
+  background: color-mix(in srgb, var(--primary) 12%, transparent);
   padding: 2px 8px;
   border-radius: var(--radius-full);
   margin-top: 4px;
 }
 
 .closeBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 32px;
+  min-height: 32px;
   font-size: 24px;
   line-height: 1;
   background: none;
   border: none;
+  border-radius: var(--radius-sm);
   color: var(--text-muted);
   cursor: pointer;
   padding: 0 4px;
+  flex-shrink: 0;
+}
+
+.closeBtn:focus-visible {
+  outline: 2px solid var(--border-focus);
+  outline-offset: 0;
 }
 
 .closeBtn:hover {
@@ -211,7 +224,7 @@
 }
 
 .addBtn:hover {
-  background: #eff6ff;
+  background: color-mix(in srgb, var(--primary) 10%, transparent);
 }
 
 /* Direct Connections */
@@ -246,7 +259,7 @@
 }
 
 .connectionItem:hover {
-  background: rgba(0, 0, 0, 0.03);
+  background: color-mix(in srgb, var(--text-primary) 5%, transparent);
 }
 
 .connectionLeft {
@@ -268,7 +281,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  background: #e5e7eb;
+  background: var(--surface);
   color: var(--text-secondary);
   font-size: 12px;
   font-weight: 600;
@@ -289,27 +302,27 @@
   padding: 2px 8px;
   border-radius: var(--radius-full);
   flex-shrink: 0;
-  background: #f3f4f6;
+  background: var(--surface);
   color: var(--text-secondary);
-  border: 1px solid #e5e7eb;
+  border: 1px solid var(--border);
 }
 
 .edgeBadge_child {
-  background: #eff6ff;
-  color: #2563eb;
-  border-color: #bfdbfe;
+  background: color-mix(in srgb, var(--primary) 12%, transparent);
+  color: var(--primary);
+  border-color: color-mix(in srgb, var(--primary) 35%, transparent);
 }
 
 .edgeBadge_member {
-  background: #f3f4f6;
-  color: #6b7280;
-  border-color: #e5e7eb;
+  background: var(--surface);
+  color: var(--text-secondary);
+  border-color: var(--border);
 }
 
 .edgeBadge_lead {
-  background: #fef9c3;
-  color: #a16207;
-  border-color: #fde68a;
+  background: color-mix(in srgb, var(--warning) 18%, transparent);
+  color: color-mix(in srgb, var(--warning) 70%, var(--text-primary));
+  border-color: color-mix(in srgb, var(--warning) 40%, transparent);
 }
 
 /* Organization enriched profile */
@@ -380,9 +393,9 @@
   font-size: 11px;
   padding: 2px 8px;
   border-radius: var(--radius-full);
-  background: #f3f4f6;
+  background: var(--surface);
   color: var(--text-secondary);
-  border: 1px solid #e5e7eb;
+  border: 1px solid var(--border);
 }
 
 .referencesSection {
@@ -400,4 +413,109 @@
 
 .referenceLink:hover {
   text-decoration: underline;
+}
+
+/* ─── Mobile ───
+   The drawer is rendered inside a bottom sheet (see components/mobile/Sheet),
+   so it stops being an absolutely-positioned right-hand column and becomes
+   ordinary flow content that fills the sheet's scroll area. */
+@media (max-width: 767px) {
+  .drawer {
+    position: static;
+    width: 100%;
+    height: auto;
+    padding: 0 16px 16px;
+    border-left: none;
+    overflow: visible;
+  }
+
+  .bannerWrap {
+    /* Bleed to the sheet edges; the sheet's own radius clips the corners. */
+    margin: 0 -16px;
+    min-height: 96px;
+    max-height: 96px;
+  }
+
+  .banner {
+    height: 96px;
+  }
+
+  .header {
+    position: sticky;
+    top: 0;
+    z-index: 1;
+    padding: 12px 0 8px;
+    background: var(--surface-raised);
+  }
+
+  .name {
+    font-size: 18px;
+  }
+
+  .closeBtn {
+    min-width: var(--tap-target);
+    min-height: var(--tap-target);
+  }
+
+  .tagline,
+  .description,
+  .relatedName,
+  .connectionName,
+  .detail {
+    font-size: 15px;
+  }
+
+  .stats {
+    gap: 24px;
+    justify-content: space-around;
+  }
+
+  .statValue {
+    font-size: 22px;
+  }
+
+  .statLabel {
+    font-size: 12px;
+  }
+
+  .link {
+    min-height: var(--tap-target);
+    display: inline-flex;
+    align-items: center;
+    font-size: 15px;
+  }
+
+  .connectionItem {
+    min-height: var(--tap-target);
+    padding: 8px;
+  }
+
+  .connectionAvatar {
+    width: 32px;
+    height: 32px;
+  }
+
+  .relatedItem {
+    min-height: var(--tap-target);
+    gap: 12px;
+  }
+
+  .addBtn {
+    min-height: 36px;
+    padding: 8px 14px;
+    font-size: 13px;
+  }
+
+  .edgeBadge,
+  .tag {
+    font-size: 11px;
+    padding: 4px 10px;
+  }
+
+  .referenceLink {
+    min-height: var(--tap-target);
+    display: inline-flex;
+    align-items: center;
+    font-size: 15px;
+  }
 }

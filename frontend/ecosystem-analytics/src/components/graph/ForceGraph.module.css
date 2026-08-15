@@ -2,4 +2,11 @@
   width: 100%;
   height: 100%;
   display: block;
+  background: var(--view-bg);
+  /* d3-zoom sets this too, but declaring it here means the canvas never
+     scrolls the page even before the zoom behaviour is attached. */
+  touch-action: none;
+  -webkit-tap-highlight-color: transparent;
+  /* Dragging a node must not start a text selection on the labels */
+  user-select: none;
 }

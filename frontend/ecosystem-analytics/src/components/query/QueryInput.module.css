@@ -9,7 +9,8 @@
   display: flex;
   align-items: flex-end;
   gap: 8px;
-  padding: 12px 16px;
+  padding: 12px max(16px, var(--safe-right)) calc(12px + var(--safe-bottom))
+    max(16px, var(--safe-left));
 }
 
 .input {
@@ -61,4 +62,17 @@
 .send:focus-visible {
   outline: 2px solid var(--primary);
   outline-offset: 2px;
+}
+
+@media (max-width: 767px) {
+  .input {
+    /* 16px keeps iOS from zooming the viewport when the composer is focused */
+    font-size: 16px;
+    padding: 12px 16px;
+  }
+
+  .send {
+    width: var(--tap-target);
+    height: var(--tap-target);
+  }
 }

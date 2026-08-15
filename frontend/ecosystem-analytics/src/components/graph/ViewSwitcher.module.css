@@ -8,6 +8,10 @@
   border-bottom: 1px solid var(--border);
   overflow-x: auto;
   scrollbar-width: none;
+  /* Momentum scrolling with soft snapping — the strip overflows on phones */
+  scroll-snap-type: x proximity;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-x: contain;
 }
 
 .switcher::-webkit-scrollbar {
@@ -30,6 +34,8 @@
   transition: background 0.15s ease, color 0.15s ease;
   white-space: nowrap;
   user-select: none;
+  scroll-snap-align: start;
+  flex-shrink: 0;
 }
 
 .tab:hover {
@@ -56,4 +62,39 @@
 .label {
   font-size: 0.75rem;
   letter-spacing: 0.02em;
+}
+
+/* ─── Mobile ───
+   The strip sits directly over the canvas and is the primary way to move
+   between visualisations, so every tab gets a full touch target and the row
+   scrolls horizontally rather than wrapping or squashing. */
+@media (max-width: 767px) {
+  .switcher {
+    gap: 4px;
+    padding: 4px max(8px, var(--safe-left)) 0 max(8px, var(--safe-right));
+    /* Fade the right edge so it reads as "more tabs this way" */
+    mask-image: linear-gradient(to right, #000 calc(100% - 24px), transparent 100%);
+  }
+
+  .tab {
+    min-height: var(--tap-target);
+    padding: 6px 14px;
+    border-radius: var(--radius) var(--radius) 0 0;
+  }
+
+  .tab:hover {
+    /* Hover styling on touch sticks after a tap — keep the resting look */
+    background: transparent;
+    color: var(--text-muted);
+  }
+
+  .active,
+  .active:hover {
+    background: color-mix(in srgb, var(--primary) 12%, transparent);
+    color: var(--primary);
+  }
+
+  .label {
+    font-size: 0.8125rem;
+  }
 }

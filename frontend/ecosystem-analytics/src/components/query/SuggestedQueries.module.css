@@ -41,3 +41,22 @@
   outline: 2px solid var(--primary);
   outline-offset: 2px;
 }
+
+@media (max-width: 767px) {
+  .container {
+    padding: 20px 16px;
+  }
+
+  .chips {
+    /* Full-width stacked chips read better than a ragged wrap on a phone */
+    flex-direction: column;
+    align-items: stretch;
+    width: 100%;
+  }
+
+  .chip {
+    min-height: var(--tap-target);
+    font-size: 14px;
+    text-align: left;
+  }
+}
