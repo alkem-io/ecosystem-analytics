@@ -31,9 +31,18 @@ describe('config — dashboard app registry (feature 017)', () => {
     expect(config.dashboards.govtech.gdCacheTtlHours).toBe(168);
   });
 
-  it('seeds the GovTech taxonomy as a working copy of VNG (FR-026)', () => {
-    expect(config.dashboards.govtech.tagCategoryMapping.nds).toMatchObject({ cloud: 'cloud' });
-    expect(Object.keys(config.dashboards.govtech.tagCategoryMapping.vng2030).length).toBeGreaterThan(0);
+  it('seeds the GovTech classification designations as a working copy of VNG (FR-026)', () => {
+    expect(config.dashboards.govtech.classifications).toEqual(config.dashboards.vng.classifications);
+    expect(config.dashboards.govtech.classifications.nds).toBe('NDS');
+    expect(config.dashboards.govtech.classifications.phase).toBe('Groeifase');
+  });
+
+  // FR-011: the per-dashboard tag→category keyword lists are retired outright — the
+  // dashboard must boot and count with no such list configured anywhere.
+  it('carries no tag→category keyword list on any dashboard profile', () => {
+    for (const profile of Object.values(config.dashboards)) {
+      expect(profile).not.toHaveProperty('tagCategoryMapping');
+    }
   });
 
   it('serves the three frontends on contiguous ports (Explorer, VNG=+1, GovTech=+2)', () => {

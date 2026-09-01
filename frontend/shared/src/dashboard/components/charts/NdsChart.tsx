@@ -16,7 +16,6 @@ export function NdsChart({ dimension, gdIncluded }: NdsChartProps) {
       title={t('dashboard.nds')}
       sourceLabel={gdIncluded ? t('dashboard.sourceSpacesGd') : t('dashboard.sourceSpaces')}
       dimension={dimension}
-      labelNamespace="categories.nds"
       emptyLabel={t('dashboard.noData')}
       gdIncluded={gdIncluded}
     />

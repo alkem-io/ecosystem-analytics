@@ -26,8 +26,6 @@ interface CategoryBarChartProps {
   title: string;
   sourceLabel: string;
   dimension: DashboardDimension | undefined;
-  /** i18n namespace for category labels, e.g. "categories.nds". */
-  labelNamespace: string;
   emptyLabel: string;
   /** Render the GD-initiatives segment as a second stacked bar + legend. */
   gdIncluded: boolean;
@@ -88,17 +86,15 @@ export function CategoryBarChart({
   title,
   sourceLabel,
   dimension,
-  labelNamespace,
   emptyLabel,
   gdIncluded,
 }: CategoryBarChartProps) {
   const { t } = useTranslation();
   const data: Datum[] = (dimension?.categories ?? []).map((c) => ({
     key: c.key,
-    label:
-      c.key === 'uncategorised'
-        ? t('dashboard.uncategorised', { defaultValue: 'No classification' })
-        : t(`${labelNamespace}.${c.key}`, { defaultValue: c.key }),
+    // Category labels are authored in Alkemio and rendered verbatim (FR-024) — only the
+    // synthetic bucket (label === null) is localised here.
+    label: c.label ?? t('dashboard.uncategorised', { defaultValue: 'No classification' }),
     count: c.count,
     items: c.items ?? [],
     spacesCount: c.spacesCount,

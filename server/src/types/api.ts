@@ -44,7 +44,17 @@ export interface DashboardDimension {
    * FIRST entry, so its bar sits in the same leading position across both charts.
    */
   categories: {
+    /**
+     * A `ClassificationValue.id` (feature 020) — the stable aggregation key, copied
+     * verbatim into every Space's snapshot so it is comparable across Spaces — or the
+     * literal `uncategorised`. OPAQUE to the client: never parse it, never display it.
+     */
     key: string;
+    /**
+     * The value's label as authored in Alkemio, rendered verbatim (FR-024). `null` for
+     * the synthetic `uncategorised` bucket, which the client localises itself.
+     */
+    label: string | null;
     count: number;
     items: string[];
     /** Names contributed by selected spaces (the base stack segment). */
@@ -90,10 +100,13 @@ export interface GemeenteDistribution {
  * detail below the chart can surface everything the primary-only placement omits.
  */
 export interface CategoryMatrix {
-  /** Ordered NDS axis keys (Y axis) — `uncategorised` leads, mirroring the bar charts. */
-  ndsCategories: string[];
-  /** Ordered VNG-2030 axis keys (X axis) — `uncategorised` leads. */
-  vng2030Categories: string[];
+  /**
+   * Ordered NDS axis categories (Y axis) — `uncategorised` leads, mirroring the bar
+   * charts. Carries the label so the axis renders without a client-side lookup.
+   */
+  ndsCategories: { key: string; label: string | null }[];
+  /** Ordered VNG-2030 axis categories (X axis) — `uncategorised` leads. */
+  vng2030Categories: { key: string; label: string | null }[];
   /** One entry per occupied intersection (count > 0). */
   cells: {
     /** Primary NDS category key (row). */
@@ -125,9 +138,14 @@ export interface CategoryMatrix {
  */
 export interface PhaseDistribution {
   phases: {
-    /** Phase tag key, or `unknown` for the trailing no-phase-tag bucket. */
+    /** `ClassificationValue.id` of the phase, or `unknown` for the trailing bucket. */
     key: string;
-    /** Ordinal phase number (`fase_nr`); null for the `unknown` bucket. */
+    /** The phase's label as authored in Alkemio; `null` for the `unknown` bucket. */
+    label: string | null;
+    /**
+     * Position in the phase vocabulary's AUTHORED order (feature 020) — an ordering
+     * hint only, never a fixed phase identity. `null` for the `unknown` bucket.
+     */
     nr: number | null;
     count: number;
     /** Names of the initiatives in this phase (for the hover tooltip). */
@@ -177,6 +195,13 @@ export interface VngDashboardResponse {
   totalCounted: number;
   /** Entities matching no category in ANY dimension (shown as a summary line). */
   uncategorisedCount: number;
+  /**
+   * Selected spaces carrying NO classification data at all — the rollout gap (feature
+   * 020, FR-016). Distinct from `uncategorisedCount`: a space that IS classified but
+   * has selected nothing is uncategorised yet NOT unclassified. GD initiatives never
+   * count here — they are tag-derived by design and the programme will never classify them.
+   */
+  unclassifiedCount: number;
   dimensions: DashboardDimension[];
   /** Initiatives-by-gemeente-count distribution for the stacked bar chart. */
   gemeenteDistribution?: GemeenteDistribution;
@@ -230,12 +255,28 @@ export interface GemeenteLocationsResponse {
   stale: boolean;
 }
 
-/** An entity (space or GD initiative) counted by the dashboard, with its tags. */
+/** An entity (space or GD initiative) counted by the dashboard. */
 export interface DashboardCountable {
   id: string;
   /** Display name (for the per-category tooltip list). */
   label: string;
+  /**
+   * Free-text profile/callout tags. Read ONLY for `source: 'gd'` entities, which are
+   * Callouts and carry no classifications (FR-020). For a space this is never consulted
+   * when placing it in a classification-driven chart (invariant I-1).
+   */
   tags: string[];
+  /**
+   * Dimension key (`nds` / `vng2030` / `phase`) → selected `ClassificationValue.id`s.
+   * An absent dimension means nothing selected there. THE placement input for spaces.
+   */
+  selections: Record<string, string[]>;
+  /**
+   * True when the space carried a non-empty `classifications` array. Distinct from
+   * "selected nothing": it is what separates the rollout gap from a deliberate
+   * non-selection (invariant I-8).
+   */
+  hasClassifications: boolean;
   /** Which stacked segment this entity belongs to; defaults to 'spaces'. */
   source?: 'spaces' | 'gd';
 }

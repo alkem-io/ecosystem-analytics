@@ -1,71 +1,65 @@
 /**
  * Groei growth phases ("groeifases") — the pipeline a Groei initiative moves through.
  *
- * The phase list is FIXED in this application (it is not operator-configurable like the
- * NDS / VNG-2030 taxonomies in analytics.yml). An initiative declares its phase with a
- * profile tag matching a phase key, e.g. a space tagged `intake` is in the intake phase.
+ * The phases are a classification like any other (feature 020): an initiative declares
+ * its phase by SELECTING a value in the designated phase classification, not by carrying
+ * a phase keyword tag. That removes the defect the keyword approach carried — an old
+ * `intake` tag left on a profile could pull an initiative into a phase it had left.
+ *
+ * The pipeline ORDER is the vocabulary's authored order. Alkemio documents
+ * `ClassificationEntry.values` as "in authored order. Never re-sorted", and an editor
+ * writing down growth phases writes them in pipeline order because no other order makes
+ * sense. That means adding or renaming a phase needs no code change here (research
+ * R-005, superseding spec assumption A-004).
+ *
+ * DEPLOYMENT EXPECTATION: whoever authors the phase classification template must author
+ * its values in pipeline order (pre-intake → beheer). Nothing in the data can detect an
+ * alphabetically-authored vocabulary — the chart would simply show the wrong x-axis.
  */
 import type { DashboardCountable, PhaseDistribution } from '../types/api.js';
-
-/** A growth phase: its tag key and its ordinal position (`fase_nr`). */
-export interface GroeiPhase {
-  /** Tag key as it appears on the space profile (lowercase). */
-  key: string;
-  /** Ordinal phase number — pre-intake is -1, beheer is 3. */
-  nr: number;
-}
+import type { Vocabulary } from '../transform/classifications.js';
 
 /**
- * The five growth phases, in pipeline order. This ordering IS the chart's x-axis order,
- * so entries must stay sorted by `nr`.
- */
-export const GROEI_PHASES: readonly GroeiPhase[] = [
-  { key: 'pre-intake', nr: -1 },
-  { key: 'intake', nr: 0 },
-  { key: 'initiatief', nr: 1 },
-  { key: 'formalisatie', nr: 2 },
-  { key: 'beheer', nr: 3 },
-];
-
-/**
- * Bucket key for initiatives carrying no recognised phase tag. Emitted as a trailing
- * bucket only when non-empty, mirroring the category charts' `uncategorised` bar.
+ * Bucket key for initiatives carrying no phase selection. Emitted as a trailing bucket
+ * only when non-empty, mirroring the category charts' `uncategorised` bar.
  */
 export const UNKNOWN_PHASE_KEY = 'unknown';
-
-/** Resolve an entity's phase from its tags, or null when it carries no phase tag. */
-function resolvePhase(tags: string[]): GroeiPhase | null {
-  const normalised = new Set(tags.map((t) => t.trim().toLowerCase()).filter(Boolean));
-  // An initiative should carry exactly one phase tag; if it carries several (e.g. an old
-  // phase tag was never removed) the furthest-along phase wins, since that is the state
-  // the initiative has actually reached.
-  let best: GroeiPhase | null = null;
-  for (const phase of GROEI_PHASES) {
-    if (normalised.has(phase.key) && (best === null || phase.nr > best.nr)) best = phase;
-  }
-  return best;
-}
 
 /**
  * Count Groei initiatives per growth phase. Only the selected spaces are counted —
  * GemeenteDelers initiatives are a separate, completed programme and carry no phase.
  *
- * Every phase is present in the result even at count 0 (so `beheer` still renders an
- * empty slot in the pipeline); the trailing `unknown` bucket appears only when some
- * initiative carries no phase tag. Returns `undefined` when NO initiative carries a
- * phase tag at all — dashboards whose spaces don't use groeifases then omit the chart
- * entirely rather than showing five empty bars.
+ * Every phase in the vocabulary is present even at count 0 (so a late phase still renders
+ * an empty slot in the pipeline, which is the point of the chart: it shows where the
+ * pipeline is thin). The trailing `unknown` bucket appears only when some initiative
+ * carries no phase selection.
+ *
+ * Returns `undefined` when NO initiative carries a phase at all — dashboards whose spaces
+ * don't use groeifases, and dashboards whose phase designation matched nothing, then omit
+ * the chart entirely rather than showing empty slots (FR-013).
  */
-export function countGroeiPhases(entities: DashboardCountable[]): PhaseDistribution | undefined {
-  const byPhase = new Map<string, string[]>(GROEI_PHASES.map((p) => [p.key, []]));
+export function countGroeiPhases(
+  entities: DashboardCountable[],
+  vocabulary: Vocabulary,
+): PhaseDistribution | undefined {
+  if (vocabulary.length === 0) return undefined;
+
+  const byPhase = new Map<string, string[]>(vocabulary.map((v) => [v.key, []]));
   const unknown: string[] = [];
   let matched = 0;
 
   for (const entity of entities) {
     if ((entity.source ?? 'spaces') !== 'spaces') continue;
-    const phase = resolvePhase(entity.tags);
-    if (phase) {
-      byPhase.get(phase.key)!.push(entity.label);
+    // An initiative should select exactly one phase. If it somehow carries several, the
+    // FURTHEST-ALONG one wins — that is the state the initiative has actually reached,
+    // and with the vocabulary in pipeline order "furthest along" is simply the highest index.
+    let best = -1;
+    for (const valueId of entity.selections?.phase ?? []) {
+      const index = vocabulary.findIndex((v) => v.key === valueId);
+      if (index > best) best = index;
+    }
+    if (best >= 0) {
+      byPhase.get(vocabulary[best].key)!.push(entity.label);
       matched += 1;
     } else {
       unknown.push(entity.label);
@@ -75,12 +69,19 @@ export function countGroeiPhases(entities: DashboardCountable[]): PhaseDistribut
   if (matched === 0) return undefined;
 
   const sortNames = (a: string[]) => a.sort((x, y) => x.localeCompare(y));
-  const phases: PhaseDistribution['phases'] = GROEI_PHASES.map((p) => {
-    const items = sortNames(byPhase.get(p.key)!);
-    return { key: p.key, nr: p.nr, count: items.length, items };
+  const phases: PhaseDistribution['phases'] = vocabulary.map((value, index) => {
+    const items = sortNames(byPhase.get(value.key)!);
+    return { key: value.key, label: value.label, nr: index, count: items.length, items };
   });
+
   if (unknown.length > 0) {
-    phases.push({ key: UNKNOWN_PHASE_KEY, nr: null, count: unknown.length, items: sortNames(unknown) });
+    phases.push({
+      key: UNKNOWN_PHASE_KEY,
+      label: null,
+      nr: null,
+      count: unknown.length,
+      items: sortNames(unknown),
+    });
   }
 
   return { phases, total: matched + unknown.length };

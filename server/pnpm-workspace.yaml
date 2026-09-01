@@ -17,3 +17,4 @@ dangerouslyAllowAllBuilds: true
 minimumReleaseAgeExclude:
   - typescript
   - '@typescript/*'
+  - '@alkemio/client-lib@0.37.0'

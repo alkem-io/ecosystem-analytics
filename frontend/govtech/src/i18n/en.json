@@ -174,38 +174,12 @@
     "rangeMax": "Max",
     "rangeAll": "Show all",
     "notShownCount": "{{count}} not shown",
-    "cityNoneInRange": "No cities in this population range"
+    "cityNoneInRange": "No cities in this population range",
+    "unclassifiedCount": "{{count}} not yet classified",
+    "classificationsHeading": "Classifications"
   },
   "categories": {
-    "nds": {
-      "cloud": "Cloud",
-      "data": "Data",
-      "ai": "Artificial Intelligence",
-      "dienstverlening": "Central services",
-      "weerbaarheid": "Digital resilience",
-      "vakmanschap": "Digital craftsmanship",
-      "uncategorised": "No classification"
-    },
-    "vng2030": {
-      "bedrijfsvoering": "Operations & municipal services",
-      "wonen-ruimte": "Housing & Space",
-      "bestaanszekerheid": "Livelihood security",
-      "klimaat-energie": "Climate & energy",
-      "kansengelijkheid": "Equal opportunity/youth",
-      "vergrijzing": "Ageing/healthy living",
-      "een-sterke-bestuurslaag": "One strong governance layer",
-      "samenwerken-in-regios": "Collaborating in regions",
-      "knooppunt-van-netwerken": "Hub of networks",
-      "bestuurskracht": "Administrative capacity & quality of execution",
-      "kwalitatieve-besluitvorming": "Quality decision-making & mandate",
-      "uncategorised": "No classification"
-    },
     "phase": {
-      "pre-intake": "Pre-intake",
-      "intake": "Intake",
-      "initiatief": "Initiative",
-      "formalisatie": "Formalisation",
-      "beheer": "Management",
       "unknown": "No phase"
     }
   },

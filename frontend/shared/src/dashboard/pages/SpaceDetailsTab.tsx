@@ -169,6 +169,10 @@ export function SpaceDetailsTab({ openSpaceId, openSpaceSeq }: SpaceDetailsTabPr
 
   const current = selectedSpaces.find((s) => s.nameId === selected) ?? null;
   const tagline = initiativeNode?.tagline ?? null;
+  // Curated Classifications on the Space (feature 020, FR-022). Groups flagged
+  // `display: false` are already filtered out server-side; the flag is render-only and
+  // never affects how the space is counted (FR-023).
+  const classifications = initiativeNode?.classifications ?? [];
 
   return (
     <div className="h-full overflow-auto">
@@ -228,6 +232,34 @@ export function SpaceDetailsTab({ openSpaceId, openSpaceSeq }: SpaceDetailsTabPr
               </h2>
               {tagline && <p className="mt-2 max-w-3xl text-base text-muted-foreground">{tagline}</p>}
             </header>
+
+            {/* Curated classifications — named, editor-chosen facets, deliberately
+                distinct from the free-text keyword tags shown elsewhere. Renders
+                nothing at all when the space carries none. */}
+            {classifications.length > 0 && (
+              <section className="space-y-2">
+                <h3 className="text-sm font-semibold text-foreground">
+                  {t('dashboard.classificationsHeading', { defaultValue: 'Classifications' })}
+                </h3>
+                <dl className="flex flex-col gap-2">
+                  {classifications.map((group) => (
+                    <div key={group.label} className="flex flex-wrap items-baseline gap-2">
+                      <dt className="text-xs font-medium text-muted-foreground">{group.label}</dt>
+                      <dd className="flex flex-wrap gap-1.5">
+                        {group.values.map((v) => (
+                          <span
+                            key={v.id}
+                            className="rounded-md border border-primary/30 bg-primary/10 px-2 py-0.5 text-xs font-medium text-foreground"
+                          >
+                            {v.label}
+                          </span>
+                        ))}
+                      </dd>
+                    </div>
+                  ))}
+                </dl>
+              </section>
+            )}
 
             {/* Map of participating gemeentes */}
             <section className="space-y-3">

@@ -94,6 +94,17 @@ describe('buildInitiativeLayer', () => {
     const theme = layer.nodes.find((n) => n.type === NodeType.THEME);
     expect(theme).toMatchObject({ id: 'theme:energietransitie', displayName: 'Energietransitie' });
 
+    // Feature 020: the callout's tags travel on the node. The GD subgraph is cached
+    // independently of any space selection, while the NDS / VNG-2030 vocabulary comes
+    // from the selected spaces' snapshots — so the category resolution happens
+    // post-merge in graph-service, which needs these tags to do it (research R-006).
+    expect(initiative!.tags).toEqual({
+      default: ['Energietransitie', 'gd-2024', 'sdg-08', 'winner'],
+    });
+    // …and the layer itself no longer resolves categories from a keyword list (FR-011).
+    expect(initiative!.ndsCategories).toBeUndefined();
+    expect(initiative!.vng2030Categories).toBeUndefined();
+
     expect(layer.edges).toContainEqual(
       expect.objectContaining({ sourceId: 'cal-1', targetId: 'org-groningen', type: EdgeType.INITIATIVE_GEMEENTE }),
     );

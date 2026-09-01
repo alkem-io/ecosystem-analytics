@@ -85,25 +85,15 @@ vng:
   # Gemeente geo-location set (feature 019). Selection-independent reference data —
   # gemeente locations change on municipal reorganisation, an annual event at most.
   geo_cache_ttl_hours: ${VNG_GEO_CACHE_TTL_HOURS}:168 # ~1 week
-  # Space tag (lower-cased) -> dashboard category key, per dimension. Keys are the
-  # EXACT label strings the VNG Groei publisher emits as profile tags (see
-  # vng-gemeente-delers publisher/src/groei/vocab.ts), lower-cased. Operator-editable.
-  tag_category_mapping:
-    nds:
-      "cloud": cloud
-      "data": data
-      "artificiële intelligentie": ai
-      "centrale (digitale) dienstverlening": dienstverlening
-      "digitale weerbaarheid en autonomie": weerbaarheid
-      "digitaal vakmanschap en moderne werkomgeving": vakmanschap
-    vng2030:
-      # Omkeringsthema's (the 6 shown on the VNG-2030 chart)
-      "bedrijfsvoering & gemeentediensten": bedrijfsvoering
-      "wonen en ruimte": wonen-ruimte
-      "bestaanszekerheid": bestaanszekerheid
-      "klimaat en energie": klimaat-energie
-      "kansengelijkheid/jeugd": kansengelijkheid
-      "vergrijzing/gezond leven": vergrijzing
+  # Which Alkemio Classification drives which dashboard panel (feature 020). Matched on
+  # the classification's displayLabel, case- and whitespace-insensitively. The VALUES
+  # inside each classification come from Alkemio and are NEVER restated here — adding a
+  # value to a vocabulary shows up on the chart with no config change (FR-007/FR-010).
+  # An empty string = no classification designated; that panel renders empty.
+  classifications:
+    nds: "${VNG_CLASSIFICATION_NDS}:NDS"
+    vng2030: "${VNG_CLASSIFICATION_VNG2030}:VNG 2030"
+    phase: "${VNG_CLASSIFICATION_PHASE}:Groeifase"
 
 # GovTech Netherlands frontend (feature 017-govtech-frontend). A separate dashboard
 # profile with its OWN GOVTECH_* env vars (independent of VNG). The Alkemio/OIDC/
@@ -118,19 +108,9 @@ govtech:
   gd_cache_ttl_hours: ${GOVTECH_GD_CACHE_TTL_HOURS}:168 # ~1 week (shared archival GD corpus)
   # Gemeente geo-location set (feature 019) — same reference data as VNG.
   geo_cache_ttl_hours: ${GOVTECH_GEO_CACHE_TTL_HOURS}:168 # ~1 week
-  # Seeded as a copy of VNG's mapping; operator-editable to diverge from VNG (FR-026).
-  tag_category_mapping:
-    nds:
-      "cloud": cloud
-      "data": data
-      "artificiële intelligentie": ai
-      "centrale (digitale) dienstverlening": dienstverlening
-      "digitale weerbaarheid en autonomie": weerbaarheid
-      "digitaal vakmanschap en moderne werkomgeving": vakmanschap
-    vng2030:
-      "bedrijfsvoering & gemeentediensten": bedrijfsvoering
-      "wonen en ruimte": wonen-ruimte
-      "bestaanszekerheid": bestaanszekerheid
-      "klimaat en energie": klimaat-energie
-      "kansengelijkheid/jeugd": kansengelijkheid
-      "vergrijzing/gezond leven": vergrijzing
+  # Same designation mechanism as VNG, with independent GOVTECH_* env vars so the two
+  # dashboards can point at different classifications without a code change (FR-021).
+  classifications:
+    nds: "${GOVTECH_CLASSIFICATION_NDS}:NDS"
+    vng2030: "${GOVTECH_CLASSIFICATION_VNG2030}:VNG 2030"
+    phase: "${GOVTECH_CLASSIFICATION_PHASE}:Groeifase"

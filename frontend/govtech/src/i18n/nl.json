@@ -174,38 +174,12 @@
     "rangeMax": "Max",
     "rangeAll": "Alles tonen",
     "notShownCount": "{{count}} niet getoond",
-    "cityNoneInRange": "Geen gemeenten in dit inwonersbereik"
+    "cityNoneInRange": "Geen gemeenten in dit inwonersbereik",
+    "unclassifiedCount": "{{count}} nog niet geclassificeerd",
+    "classificationsHeading": "Classificaties"
   },
   "categories": {
-    "nds": {
-      "cloud": "Cloud",
-      "data": "Data",
-      "ai": "Artificiële Intelligentie",
-      "dienstverlening": "Centrale dienstverlening",
-      "weerbaarheid": "Digitale weerbaarheid",
-      "vakmanschap": "Digitaal vakmanschap",
-      "uncategorised": "Geen classificatie"
-    },
-    "vng2030": {
-      "bedrijfsvoering": "Bedrijfsvoering & gemeentediensten",
-      "wonen-ruimte": "Wonen en Ruimte",
-      "bestaanszekerheid": "Bestaanszekerheid",
-      "klimaat-energie": "Klimaat en energie",
-      "kansengelijkheid": "Kansengelijkheid/jeugd",
-      "vergrijzing": "Vergrijzing/gezond leven",
-      "een-sterke-bestuurslaag": "Eén sterke bestuurslaag",
-      "samenwerken-in-regios": "Samenwerken in regio's",
-      "knooppunt-van-netwerken": "Knooppunt van netwerken",
-      "bestuurskracht": "Bestuurskracht en kwaliteit van uitvoering",
-      "kwalitatieve-besluitvorming": "Kwalitatieve besluitvorming en mandaat",
-      "uncategorised": "Geen classificatie"
-    },
     "phase": {
-      "pre-intake": "Pre-intake",
-      "intake": "Intake",
-      "initiatief": "Initiatief",
-      "formalisatie": "Formalisatie",
-      "beheer": "Beheer",
       "unknown": "Geen fase"
     }
   },

@@ -1,0 +1,35 @@
+query SpaceClassifications($nameId: NameID!) {
+  lookupByName {
+    space(NAMEID: $nameId) {
+      id
+      nameID
+      about {
+        # Curated Classifications drive the dashboard category charts (feature 020).
+        classifications {
+          id
+          displayLabel
+          cardinality
+          display
+          sortOrder
+          values {
+            id
+            label
+          }
+          selectedValues {
+            id
+            label
+          }
+        }
+        profile {
+          displayName
+          # Free-text tags are still read here: the GemeenteDelers layer and the
+          # "Common Ground" marker remain tag-derived (spec FR-020, A-006/A-007).
+          tagsets {
+            name
+            tags
+          }
+        }
+      }
+    }
+  }
+}
