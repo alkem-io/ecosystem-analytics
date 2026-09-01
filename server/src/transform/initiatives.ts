@@ -21,6 +21,7 @@ import {
 } from '../types/graph.js';
 import type { GdCalloutInput } from '../types/api.js';
 import type { VngRegistry } from '../services/vng-registry.js';
+import { resolveByLabel, type Vocabulary } from './classifications.js';
 
 export interface InitiativeLayer {
   /** INITIATIVE + canonical THEME nodes (gemeente org nodes are owned by the caller). */
@@ -160,4 +161,38 @@ export function buildInitiativeLayer(
   }
 
   return { nodes, edges, unresolvedGemeenteNameIds: [...unresolved] };
+}
+
+/**
+ * Resolve the NDS / VNG-2030 categories of the GemeenteDelers INITIATIVE nodes in a
+ * merged graph, from their callout tags matched against the vocabulary LABELS
+ * (research R-006). Non-INITIATIVE nodes are left untouched.
+ *
+ * Deliberately a separate pass over the FINAL node set rather than part of the graph's
+ * enrichment loop: INITIATIVE nodes only join the graph when the GD subgraph is merged
+ * in (it lives in its own cache row, not the per-space rows), so a caller that runs this
+ * before the merge silently categorises nothing. Returns the counts so the caller can
+ * report a vocabulary whose wording matches none of the tags.
+ */
+export function resolveInitiativeCategories(
+  nodes: GraphNode[],
+  ndsVocabulary: Vocabulary,
+  vng2030Vocabulary: Vocabulary,
+): { total: number; matched: number } {
+  const labelsFor = (vocabulary: Vocabulary, ids: string[]): string[] =>
+    ids.map((id) => vocabulary.find((v) => v.key === id)?.label).filter((l): l is string => !!l);
+
+  let total = 0;
+  let matched = 0;
+  for (const node of nodes) {
+    if (node.type !== NodeType.INITIATIVE) continue;
+    total += 1;
+    const tags = node.tags?.default ?? [];
+    const nds = labelsFor(ndsVocabulary, resolveByLabel(tags, ndsVocabulary));
+    const vng2030 = labelsFor(vng2030Vocabulary, resolveByLabel(tags, vng2030Vocabulary));
+    node.ndsCategories = nds.length ? nds : undefined;
+    node.vng2030Categories = vng2030.length ? vng2030 : undefined;
+    if (nds.length || vng2030.length) matched += 1;
+  }
+  return { total, matched };
 }

@@ -1,6 +1,11 @@
 import { describe, it, expect } from 'vitest';
-import { buildInitiativeLayer, hasCommonGroundTag } from './initiatives.js';
-import { NodeType, EdgeType } from '../types/graph.js';
+import {
+  buildInitiativeLayer,
+  hasCommonGroundTag,
+  resolveInitiativeCategories,
+} from './initiatives.js';
+import type { Vocabulary } from './classifications.js';
+import { NodeType, EdgeType, type GraphNode } from '../types/graph.js';
 import type { VngRegistry, RegistryTheme } from '../services/vng-registry.js';
 import type { GdCalloutInput } from '../types/api.js';
 
@@ -174,5 +179,55 @@ describe('buildInitiativeLayer', () => {
     expect(themeNodes).toHaveLength(1);
     const themeEdges = layer.edges.filter((e) => e.type === EdgeType.INITIATIVE_THEME);
     expect(themeEdges).toHaveLength(2);
+  });
+});
+
+describe('resolveInitiativeCategories', () => {
+  const NDS: Vocabulary = [
+    { key: 'v-data', label: 'Data' },
+    { key: 'v-ai', label: 'Artificiële Intelligentie' },
+  ];
+  const VNG2030: Vocabulary = [{ key: 'v-wonen', label: 'Wonen en Ruimte' }];
+
+  const initiative = (id: string, tags: string[]): GraphNode =>
+    ({ id, type: NodeType.INITIATIVE, displayName: id, nameId: id, tags: { default: tags } }) as GraphNode;
+
+  it('resolves a GD initiative’s categories from its tags, by vocabulary label', () => {
+    const nodes = [initiative('a', ['data', 'Wonen en Ruimte', 'gd-2024'])];
+    const counts = resolveInitiativeCategories(nodes, NDS, VNG2030);
+
+    expect(nodes[0].ndsCategories).toEqual(['Data']);
+    expect(nodes[0].vng2030Categories).toEqual(['Wonen en Ruimte']);
+    expect(counts).toEqual({ total: 1, matched: 1 });
+  });
+
+  it('leaves an initiative whose tags match no value uncategorised, and reports it', () => {
+    const nodes = [initiative('a', ['gd-2024', 'sdg-08'])];
+    const counts = resolveInitiativeCategories(nodes, NDS, VNG2030);
+
+    expect(nodes[0].ndsCategories).toBeUndefined();
+    expect(counts).toEqual({ total: 1, matched: 0 });
+  });
+
+  /**
+   * The regression this function exists to prevent: INITIATIVE nodes only join the graph
+   * when the GD subgraph is merged in, so running the resolution over a node set that
+   * does not contain them yet silently categorises nothing — with no error anywhere.
+   */
+  it('reports total 0 when no initiative is in the node set yet (the pre-merge trap)', () => {
+    const spacesOnly = [{ id: 's', type: NodeType.SPACE_L0, displayName: 's', nameId: 's' } as GraphNode];
+    expect(resolveInitiativeCategories(spacesOnly, NDS, VNG2030)).toEqual({ total: 0, matched: 0 });
+
+    // …and once the GD nodes are merged in, the very same call categorises them.
+    const merged = [...spacesOnly, initiative('a', ['Data'])];
+    expect(resolveInitiativeCategories(merged, NDS, VNG2030)).toEqual({ total: 1, matched: 1 });
+    expect(merged[1].ndsCategories).toEqual(['Data']);
+  });
+
+  it('never touches a non-initiative node', () => {
+    const space = { id: 's', type: NodeType.SPACE_L0, displayName: 's', nameId: 's',
+      ndsCategories: ['Cloud'], tags: { default: ['Data'] } } as GraphNode;
+    resolveInitiativeCategories([space], NDS, VNG2030);
+    expect(space.ndsCategories).toEqual(['Cloud']);
   });
 });

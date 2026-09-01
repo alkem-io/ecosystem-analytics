@@ -39,6 +39,7 @@ interface SpaceLike {
     };
     /** Curated Classifications on the Space (feature 020). Absent on older cached shapes. */
     classifications?: Array<{
+      id?: string;
       displayLabel: string;
       cardinality?: string;
       display?: boolean;

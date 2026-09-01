@@ -83,6 +83,8 @@ dashboardRouter.post('/dashboard', async (req: Request, res: Response) => {
     const dataset = await generateGraph(req.auth!.userId!, req.auth!, {
       spaceIds: body.spaceIds,
       includeInitiatives: includeGd,
+      // Enrich nodes with THIS app's classification designations (feature 020).
+      app: req.baseUrl.split('/').filter(Boolean).pop(),
     });
     // Initiatives-by-gemeente-count distribution (stacked Groei + GD). Always
     // includes Groei (selected spaces); folds in GD when the GD checkbox is on.

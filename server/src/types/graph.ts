@@ -188,7 +188,7 @@ export interface GraphNode {
    * Groups flagged `display: false` are filtered out server-side; that flag is
    * render-only and never affects counting (FR-023, invariant I-7).
    */
-  classifications?: { label: string; values: { id: string; label: string }[] }[];
+  classifications?: { id: string; label: string; values: { id: string; label: string }[] }[];
   /**
    * SPACE, INTERNAL: the raw Alkemio classification entries, carried so that the
    * post-cache enrichment in graph-service can resolve designations for CACHED spaces
@@ -200,6 +200,7 @@ export interface GraphNode {
 
 /** Raw Alkemio classification entry as carried through the cache (feature 020). */
 export interface ClassificationEntryInput {
+  id?: string;
   displayLabel: string;
   cardinality?: string;
   display?: boolean;

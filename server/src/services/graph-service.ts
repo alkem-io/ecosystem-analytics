@@ -4,7 +4,7 @@ import { transformToGraph, computeActivityTiers } from '../transform/transformer
 import { computeMetrics } from '../transform/metrics.js';
 import { computeInsights } from '../transform/insights.js';
 import { getCacheEntry, setCacheEntry, invalidateCache, GD_CACHE_SPACE_ID } from '../cache/cache-service.js';
-import { loadConfig } from '../config.js';
+import { loadConfig, type DashboardAppId } from '../config.js';
 import { createAlkemioSdk } from '../graphql/client.js';
 import { loadVngRegistry } from './vng-registry.js';
 import {
@@ -17,7 +17,11 @@ import {
   type Vocabulary,
 } from '../transform/classifications.js';
 import { fetchGemeentedelersCallouts, resolveGemeenteOrgNode } from './gd-initiatives-service.js';
-import { buildInitiativeLayer, resolveThemeTitles } from '../transform/initiatives.js';
+import {
+  buildInitiativeLayer,
+  resolveInitiativeCategories,
+  resolveThemeTitles,
+} from '../transform/initiatives.js';
 import { getLogger } from '../logging/logger.js';
 import { type GraphDataset, type GraphNode, type GraphEdge, type SpaceCacheInfo, type SpaceTimeSeries, type ActivityPeriodCounts, NodeType, EdgeType, ActivityTier } from '../types/graph.js';
 import type { GraphGenerationRequest, GraphProgress } from '../types/api.js';
@@ -170,7 +174,12 @@ export async function generateGraph(
   // fields straight off the node. Uses the VNG designations (currently shared with
   // GovTech); revisit if per-app designations diverge.
   const registry = loadVngRegistry();
-  const designations = loadConfig().vng.classifications;
+  // Per-app designations (feature 020): GovTech may point at differently-named
+  // classifications than VNG, and the table columns must agree with that app's charts.
+  // Falls back to the VNG profile for the Explorer, which sends no `app`.
+  const cfg = loadConfig();
+  const designations = (request.app ? cfg.dashboards[request.app as DashboardAppId] : undefined)
+    ?.classifications ?? cfg.vng.classifications;
 
   // Pass 1 — union the selected spaces' snapshot vocabularies. Vocabularies are per-space
   // snapshots, so a selection can straddle template versions and the union is what keeps
@@ -222,15 +231,6 @@ export async function generateGraph(
       // Internal-only: never sent to the browser. The cache row was written before this
       // loop ran, so the cached copy keeps the raw entries for the next enrichment pass.
       delete node.classificationEntries;
-    } else if (node.type === NodeType.INITIATIVE) {
-      // GemeenteDelers initiatives are Callouts and carry no classifications, so their
-      // tags are matched against the same vocabulary's LABELS (research R-006). This is
-      // the ONLY place a tag still places anything, and never for a Space.
-      const tags = node.tags?.default ?? [];
-      const ndsLabels = labelsFor(ndsVocabulary, resolveByLabel(tags, ndsVocabulary));
-      const vngLabels = labelsFor(vngVocabulary, resolveByLabel(tags, vngVocabulary));
-      node.ndsCategories = ndsLabels.length ? ndsLabels : undefined;
-      node.vng2030Categories = vngLabels.length ? vngLabels : undefined;
     }
   }
 
@@ -263,6 +263,29 @@ export async function generateGraph(
     } catch (err) {
       logger.warn(`GD initiative layer unavailable: ${(err as Error).message}`, { context: 'Graph' });
       gdLayer = { available: false, initiativeCount: 0, source, error: 'GD_LAYER_UNAVAILABLE' };
+    }
+  }
+
+  // Resolve the GD initiatives' NDS / VNG-2030 categories. This MUST run after the GD
+  // merge above: INITIATIVE nodes do not exist in `allNodes` until then (they come from
+  // the separate `__gd_initiatives__` cache row, not the per-space rows), so doing it in
+  // the enrichment loop would silently leave every GD initiative uncategorised.
+  //
+  // GD initiatives are Callouts and carry no classifications, so their tags are matched
+  // against the same vocabulary's LABELS (research R-006). This is the ONLY place a tag
+  // still places anything, and never for a Space.
+  if (ndsVocabulary.length > 0 || vngVocabulary.length > 0) {
+    const { total, matched } = resolveInitiativeCategories(allNodes, ndsVocabulary, vngVocabulary);
+    // Label matching is exact (after normalisation), so a vocabulary authored with
+    // different wording than the GD callout tags silently drops every initiative into the
+    // "no classification" bar. Surfacing that makes it diagnosable without logging any
+    // Alkemio-derived content.
+    if (total > 0 && matched === 0) {
+      logger.warn(
+        `None of the ${total} GemeenteDelers initiatives matched a classification value label — ` +
+          `check that the vocabulary wording matches the callout tags.`,
+        { context: 'Graph' },
+      );
     }
   }
 

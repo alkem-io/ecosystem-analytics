@@ -312,3 +312,43 @@ Recorded so the diff is readable against this plan rather than silently divergin
    Netherlands-only map tests (Constitution §VII) and they pass unchanged. **No chart snapshot
    was exercised**, so label drift in the category charts is not yet verified by a snapshot.
    Re-run with a live app before relying on T050.
+
+---
+
+## Post-review fixes (code review, high effort)
+
+A `/code-review high` pass over the full diff found five issues. All are fixed; the
+regression in #1 was real and shipped-breaking.
+
+- **[HIGH] GD initiatives silently lost their categories.** The `NodeType.INITIATIVE`
+  branch added to graph-service's enrichment loop was dead code: INITIATIVE nodes only
+  enter `allNodes` when the GD subgraph is merged in *after* that loop (they live in the
+  `__gd_initiatives__` cache row, not the per-space rows). Combined with T029 removing the
+  old mapping-based resolution, every GD initiative shipped with `ndsCategories` /
+  `vng2030Categories` undefined — empty NDS/VNG-2030 columns and filters on the
+  Initiatives tab, and no GD contribution to the Cities tab. Fixed by extracting
+  `resolveInitiativeCategories()` into `transform/initiatives.ts` and calling it after the
+  merge. Four new tests pin it, including the pre-merge trap itself.
+- **[MEDIUM] GD label matching can silently match nothing.** `resolveByLabel` needs exact
+  (normalised) equality, and the retired keyword list shows the old tag spellings were
+  *longer* than the display labels ("digitale weerbaarheid en autonomie" vs "Digitale
+  weerbaarheid"). If the vocabulary is authored with the short wording, every GD callout
+  falls into `uncategorised` with no signal. Now warns when 0 of N initiatives match.
+- **[MEDIUM] `GOVTECH_CLASSIFICATION_*` was advertised as independent but ignored.**
+  `assembleDashboard` used the per-app profile; graph enrichment hard-coded VNG's, so a
+  diverging GovTech would get charts and table columns computed from different
+  designations. `GraphGenerationRequest` now carries an optional `app`, sent by
+  `useVngGraph` and by the dashboard route, falling back to VNG for the Explorer.
+- **[LOW] The v2 cache purge was too wide.** `DELETE FROM cache_entries` also dropped the
+  feature-019 gemeente geo row, forcing a ~342-gemeente Alkemio sweep per user on first
+  request. Now scoped to keep `__gemeente_geo__` (which holds no classification data); the
+  GD row is still purged, because its INITIATIVE nodes only started carrying callout tags
+  in this change.
+- **[LOW] React key collision.** `SpaceDetailsTab` keyed classification groups on
+  `displayLabel`, which Alkemio explicitly allows to be duplicated. `presentClassifications`
+  now carries the entry `id` and the component keys on it.
+- Removed an orphaned doc comment in `exportDashboard.ts`.
+
+Not acted on: the `CategoryMatrixChart` `points` memo omits `t` from its deps, so a language
+switch does not relabel tooltips until the data changes. Pre-existing, unrelated to this
+feature, and out of scope here.

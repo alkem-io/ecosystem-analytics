@@ -17,7 +17,6 @@ interface ExportArgs {
   data: VngDashboardResponse;
   /** Charts to embed as images (captured from the live DOM). */
   charts: ChartCapture[];
-  /** i18n category-label resolver, e.g. (ns, key) => localized label. */
   /**
    * Localise a synthetic bucket that has no Alkemio label (feature 020). Real category
    * names come off the payload verbatim and are never passed through here (FR-024).

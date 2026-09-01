@@ -191,17 +191,28 @@ describe('presentClassifications', () => {
   it('lists displayable groups in sortOrder with their selected values', () => {
     const entries = [
       entry({
+        id: 'e-vng',
         displayLabel: 'VNG 2030',
         sortOrder: 2,
         values: [{ id: 'w', label: 'Wonen en Ruimte' }],
         selectedValues: [{ id: 'w', label: 'Wonen en Ruimte' }],
       }),
-      entry({ sortOrder: 1, selectedValues: [{ id: 'v-data', label: 'Data' }] }),
+      entry({ id: 'e-nds', sortOrder: 1, selectedValues: [{ id: 'v-data', label: 'Data' }] }),
     ];
     expect(presentClassifications(entries)).toEqual([
-      { label: 'NDS', values: [{ id: 'v-data', label: 'Data' }] },
-      { label: 'VNG 2030', values: [{ id: 'w', label: 'Wonen en Ruimte' }] },
+      { id: 'e-nds', label: 'NDS', values: [{ id: 'v-data', label: 'Data' }] },
+      { id: 'e-vng', label: 'VNG 2030', values: [{ id: 'w', label: 'Wonen en Ruimte' }] },
     ]);
+  });
+
+  it('keeps two same-named groups distinguishable by id (safe as a render key)', () => {
+    const entries = [
+      entry({ id: 'e-1', sortOrder: 1, selectedValues: [{ id: 'v-data', label: 'Data' }] }),
+      entry({ id: 'e-2', sortOrder: 2, selectedValues: [{ id: 'v-ai', label: 'AI' }] }),
+    ];
+    const presented = presentClassifications(entries);
+    expect(presented.map((g) => g.label)).toEqual(['NDS', 'NDS']);
+    expect(new Set(presented.map((g) => g.id)).size).toBe(2);
   });
 
   it('excludes a display:false group from presentation (invariant I-7)', () => {

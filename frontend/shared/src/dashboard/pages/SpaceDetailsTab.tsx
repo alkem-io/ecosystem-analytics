@@ -243,7 +243,7 @@ export function SpaceDetailsTab({ openSpaceId, openSpaceSeq }: SpaceDetailsTabPr
                 </h3>
                 <dl className="flex flex-col gap-2">
                   {classifications.map((group) => (
-                    <div key={group.label} className="flex flex-wrap items-baseline gap-2">
+                    <div key={group.id} className="flex flex-wrap items-baseline gap-2">
                       <dt className="text-xs font-medium text-muted-foreground">{group.label}</dt>
                       <dd className="flex flex-wrap gap-1.5">
                         {group.values.map((v) => (

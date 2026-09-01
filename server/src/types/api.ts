@@ -14,6 +14,14 @@ export interface SpaceSelectionItem {
 export interface GraphGenerationRequest {
   spaceIds: string[];
   forceRefresh?: boolean;
+  /**
+   * Which dashboard is asking (feature 020). Selects that app's classification
+   * designations for the node-level category enrichment, so the Initiatives/Cities
+   * columns agree with the app's own Dashboard tab. Defaults to the VNG profile —
+   * `/api/graph/generate` is shared by every SPA, including the Explorer, which has
+   * no dashboard profile of its own.
+   */
+  app?: string;
   /** Fold in the GemeenteDelers initiative layer (feature 016, US10/FR-039). */
   includeInitiatives?: boolean;
 }

@@ -163,13 +163,21 @@ export function runDeploymentCacheMaintenance(): {
     if (current < 1) {
       gdRowsCleared = invalidateGdCacheForAllUsers();
     }
-    // v2 (feature 020): cached datasets carry TAG-derived category fields on their
-    // nodes (`ndsCategories` / `vng2030Categories`) and no `classifications` at all.
-    // Serving them after this deployment would show tag-derived chips beside
-    // classification-derived charts for up to the cache TTL, so every dataset is
-    // dropped once per environment and recomputed on next use (FR-019).
+    // v2 (feature 020): cached datasets carry TAG-derived category fields on their nodes
+    // (`ndsCategories` / `vng2030Categories`) and no `classifications` at all. Serving
+    // them after this deployment would show tag-derived chips beside classification-
+    // derived charts for up to the cache TTL, so they are dropped once per environment
+    // and recomputed on next use (FR-019).
+    //
+    // The GD subgraph row goes too: its INITIATIVE nodes only started carrying their
+    // callout tags in this change, and without them the categories cannot be resolved.
+    // The gemeente GEO row (feature 019) is deliberately KEPT — it holds no
+    // classification data, and rebuilding it costs a ~342-gemeente Alkemio sweep per
+    // user that this deployment has no reason to trigger.
     if (current < 2) {
-      classificationRowsCleared = db.prepare('DELETE FROM cache_entries').run().changes;
+      classificationRowsCleared = db
+        .prepare('DELETE FROM cache_entries WHERE space_id != ?')
+        .run(GEO_CACHE_SPACE_ID).changes;
     }
     db.pragma(`user_version = ${CACHE_MAINTENANCE_VERSION}`);
   }

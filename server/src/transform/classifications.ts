@@ -39,6 +39,8 @@ export interface ClassificationValueInput {
  * throwing.
  */
 export interface ClassificationEntryInput {
+  /** Per-Space instance id. Never used for aggregation or designation — see resolveDesignated. */
+  id?: string;
   displayLabel: string;
   cardinality?: string;
   display?: boolean;
@@ -189,6 +191,12 @@ export function resolveByLabel(
 
 /** A classification group as presented to a user (details view). */
 export interface PresentedClassification {
+  /**
+   * The per-Space entry id. Carried because `displayLabel` is NOT unique — Alkemio
+   * allows it to be overridden "to resolve a conflict" — so it is the only safe React
+   * key for a Space holding two same-named groups.
+   */
+  id: string;
   label: string;
   values: ClassificationValueInput[];
 }
@@ -211,6 +219,7 @@ export function presentClassifications(
     .slice()
     .sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0))
     .map((entry) => ({
+      id: entry.id ?? entry.displayLabel ?? '',
       label: entry.displayLabel ?? '',
       values: selectionOf(entry).map((id) => {
         const hit = (entry.values ?? []).find((v) => v?.id === id);
