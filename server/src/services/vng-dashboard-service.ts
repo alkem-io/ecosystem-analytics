@@ -563,6 +563,11 @@ export async function assembleDashboard(
       const entries = space?.about.classifications;
       const read = readSpaceClassifications(entries, designations);
       return {
+        // Diagnostics only (never rendered). `resolved: false` means the nameID did not
+        // resolve to an L0 space at all — indistinguishable from "unclassified" in the
+        // counts, but a completely different problem, so it is reported separately.
+        resolved: !!space,
+        presentLabels: (entries ?? []).map((e) => e.displayLabel),
         countable: {
           id: nameId,
           label: space?.about.profile.displayName ?? nameId,
@@ -588,7 +593,12 @@ export async function assembleDashboard(
   };
   const phaseVocabulary = unionVocabularies(perSpace.map((p) => p.phaseVocabulary));
 
-  warnOnUnmatchedDesignations(designations, vocabularies, phaseVocabulary, spaceIds.length);
+  warnOnUnmatchedDesignations(
+    designations,
+    vocabularies,
+    phaseVocabulary,
+    perSpace.map((p) => ({ resolved: p.resolved, presentLabels: p.presentLabels })),
+  );
 
   const entities: DashboardCountable[] = perSpace.map((p) => p.countable);
 
@@ -616,18 +626,40 @@ export async function assembleDashboard(
 }
 
 /**
- * Warn once per request for each designation that matched no classification on any
- * selected Space — enough to diagnose a typo or a renamed template. Logs the app-level
- * designation only: never a Space id, name, or any other Alkemio-derived data
- * (Constitution IV).
+ * Report, once per request, anything that would make every space look unclassified.
+ *
+ * Three very different causes produce an identical-looking dashboard — a full "no
+ * classification" bar — and before this they were indistinguishable from the outside:
+ *
+ *   1. the nameIDs did not resolve to L0 spaces (nothing was read at all);
+ *   2. the spaces carry no classifications yet (the expected rollout state);
+ *   3. the spaces ARE classified, but under a different `displayLabel` than the
+ *      dashboard designates — a one-line config fix, if you know to make it.
+ *
+ * For (3) the message names the labels that WERE found, because "no classification
+ * named 'VNG 2030'" without them sends you looking in the wrong place. Only
+ * classification group names are logged — never a space name, id, or any user data.
  */
 function warnOnUnmatchedDesignations(
   designations: VngConfig['classifications'],
   vocabularies: DashboardVocabularies,
   phaseVocabulary: Vocabulary,
-  spaceCount: number,
+  diagnostics: { resolved: boolean; presentLabels: string[] }[],
 ): void {
-  if (spaceCount === 0) return;
+  if (diagnostics.length === 0) return;
+
+  const unresolved = diagnostics.filter((d) => !d.resolved).length;
+  if (unresolved > 0) {
+    logger.warn(
+      `${unresolved} of ${diagnostics.length} selected space ids did not resolve to an L0 space — ` +
+        `they are counted as unclassified, but the cause is the lookup, not the classification rollout.`,
+      { context: 'Dashboard' },
+    );
+  }
+
+  const present = [...new Set(diagnostics.flatMap((d) => d.presentLabels))].sort();
+  const classified = diagnostics.filter((d) => d.presentLabels.length > 0).length;
+
   const panels: [string, string, Vocabulary][] = [
     ['nds', designations.nds, vocabularies.nds],
     ['vng2030', designations.vng2030, vocabularies.vng2030],
@@ -635,9 +667,13 @@ function warnOnUnmatchedDesignations(
   ];
   for (const [panel, designation, vocabulary] of panels) {
     if (!designation || vocabulary.length > 0) continue;
+    const found = present.length
+      ? `Classifications present on the selection: ${present.map((l) => `'${l}'`).join(', ')}.`
+      : `No selected space carries ANY classification yet (${classified}/${diagnostics.length} classified) — ` +
+        `this is the expected state until the classification rollout reaches them.`;
     logger.warn(
-      `No classification named '${designation}' found on any of the ${spaceCount} selected spaces ` +
-        `for the '${panel}' panel — it will render with only the "no classification" bucket.`,
+      `The '${panel}' panel designates a classification named '${designation}', which matched nothing. ` +
+        `${found} It will render with only the "no classification" bucket.`,
       { context: 'Dashboard' },
     );
   }

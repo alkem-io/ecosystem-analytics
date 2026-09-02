@@ -92,7 +92,7 @@ vng:
   # An empty string = no classification designated; that panel renders empty.
   classifications:
     nds: "${VNG_CLASSIFICATION_NDS}:NDS"
-    vng2030: "${VNG_CLASSIFICATION_VNG2030}:VNG 2030"
+    vng2030: "${VNG_CLASSIFICATION_VNG2030}:VNG priorities 2030"
     phase: "${VNG_CLASSIFICATION_PHASE}:Groeifase"
 
 # GovTech Netherlands frontend (feature 017-govtech-frontend). A separate dashboard
@@ -112,5 +112,5 @@ govtech:
   # dashboards can point at different classifications without a code change (FR-021).
   classifications:
     nds: "${GOVTECH_CLASSIFICATION_NDS}:NDS"
-    vng2030: "${GOVTECH_CLASSIFICATION_VNG2030}:VNG 2030"
+    vng2030: "${GOVTECH_CLASSIFICATION_VNG2030}:VNG priorities 2030"
     phase: "${GOVTECH_CLASSIFICATION_PHASE}:Groeifase"
