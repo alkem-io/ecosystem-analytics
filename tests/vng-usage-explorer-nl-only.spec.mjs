@@ -25,6 +25,12 @@ import { dirname, resolve } from 'node:path';
  * RED stands in for CARTO tiles, and the white even-odd complement sits above them inside
  * the same zoom group. The path itself is pinned to the shipped `buildComplementPath` by
  * frontend/vng/src/dashboard/nl-basemap.test.ts.
+ *
+ * SCOPE (feature 021): this spec verifies the mask's GEOMETRY, not the shipped picture.
+ * It rebuilds the layering here and stands a red rectangle in for the map, and it samples
+ * by serialising `document.querySelector('svg')` — so it can only ever see the SVG layer.
+ * Imagery drawn in a layer BENEATH the SVG is invisible to it. For the composited result
+ * the user actually sees, see tests/nl-only-composited.spec.mjs.
  */
 
 const __dirname = dirname(fileURLToPath(import.meta.url));

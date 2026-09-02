@@ -1,12 +1,53 @@
+.stack {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  height: 100%;
+}
+
+/*
+ * Map layer stack (feature 021) — mirrors frontend/shared/src/graph/ForceGraph.module.css,
+ * because this component now draws its basemap through the same shared module.
+ */
+.container {
+  position: relative;
+  flex: 1 1 auto;
+  min-height: 0;
+  background: var(--view-bg);
+}
+
+.canvas {
+  position: absolute;
+  inset: 0;
+}
+
 .svg {
+  position: absolute;
+  inset: 0;
+  /* Explicit size is REQUIRED, not redundant with `inset: 0`: an <svg> otherwise falls
+     back to its intrinsic 300x150 and every camera measurement is built on that. */
   width: 100%;
   height: 100%;
   display: block;
-  background: var(--view-bg);
+  background: transparent;
   /* d3-zoom sets this too, but declaring it here means the canvas never
      scrolls the page even before the zoom behaviour is attached. */
   touch-action: none;
   -webkit-tap-highlight-color: transparent;
   /* Dragging a node must not start a text selection on the labels */
   user-select: none;
+}
+
+/*
+ * Map mode pointer routing: the SVG sits above the basemap canvas and would swallow every
+ * gesture before MapLibre saw it. Nodes and cluster badges opt back in so hover, click,
+ * selection and drag keep working.
+ */
+.mapMode {
+  pointer-events: none;
+}
+
+.mapMode :global(.nodes),
+.mapMode :global(.cluster-badges) {
+  pointer-events: auto;
 }

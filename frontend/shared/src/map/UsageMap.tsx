@@ -1,6 +1,8 @@
-import { useEffect, useRef, useCallback } from 'react';
+import { useEffect, useRef, useCallback, useState } from 'react';
 import * as d3 from 'd3';
-import { renderNlBasemap } from './nl-basemap.js';
+import { renderNlBasemap, type NlBasemap } from './nl-basemap.js';
+import { MapAttribution } from './MapAttribution.js';
+import { MapFallback } from './MapFallback.js';
 import { resolveMapConfig, type ProvinceRegion } from './mapConfig.js';
 import { PROVINCE_BASEMAPS } from './province-basemaps.generated.js';
 import {
@@ -106,6 +108,12 @@ export function UsageMap({
 }: UsageMapProps) {
   const svgRef = useRef<SVGSVGElement | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
+  /** Where the basemap canvas mounts, beneath the SVG (feature 021). */
+  const mapLayerRef = useRef<HTMLDivElement | null>(null);
+  /** The live basemap, so the province-framing effect can drive its camera. */
+  const basemapRef = useRef<NlBasemap | null>(null);
+  /** True once the basemap has reported it cannot draw (FR-021/FR-022). */
+  const [basemapFailed, setBasemapFailed] = useState(false);
   const zoomRef = useRef<d3.ZoomBehavior<SVGSVGElement, unknown> | null>(null);
   const projectionRef = useRef<d3.GeoProjection | null>(null);
   const markersRef = useRef<UsageMarker[]>([]);
@@ -146,13 +154,24 @@ export function UsageMap({
 
     // Constitution §VII — always the whole-Netherlands basemap, never a masked province.
     const basemap = renderNlBasemap({
-      svg: svg as unknown as d3.Selection<SVGSVGElement | null, unknown, null, undefined>,
+      container: mapLayerRef.current,
+      onBasemapFallback: (reason) => {
+        console.warn(`[UsageMap] basemap unavailable: ${reason}`);
+        setBasemapFailed(true);
+      },
+      // The notification d3-zoom used to give us. Marker counter-scaling and the
+      // visible-area report were zoom-driven; they hang off the camera now instead.
+      onCameraChange: (k) => {
+        positionMarkers(k);
+        scheduleVisibleAreaReport(width, h);
+      },
       group: g as unknown as d3.Selection<SVGGElement, unknown, null, undefined>,
       region: NL_REGION,
       width,
       height: h,
     });
     projectionRef.current = basemap.projection;
+    basemapRef.current = basemap;
 
     const project = (p: [number, number]) => basemap.projection(p) as [number, number] | null;
     const { markers, unplaced } = buildUsageMarkers(locations, cityRows, project);
@@ -242,24 +261,20 @@ export function UsageMap({
       groups.attr('transform', (d) => `translate(${d.x},${d.y}) scale(${1 / k})`);
     }
 
-    const zoom = d3
-      .zoom<SVGSVGElement, unknown>()
-      .scaleExtent([0.8, 40])
-      .on('zoom', (event) => {
-        g.attr('transform', event.transform);
-        positionMarkers(event.transform.k);
-        basemap.renderTiles(event.transform.k);
-        scheduleVisibleAreaReport(width, h);
-      });
-
+    // MapLibre owns the camera (feature 021). d3-zoom is deliberately NOT attached: it
+    // would write the same `transform` attribute the basemap writes, and — because this
+    // SVG sits above the canvas — it would swallow the gesture so MapLibre's camera never
+    // moved at all. The behaviour that used to hang off it now hangs off onCameraChange.
+    const zoom = d3.zoom<SVGSVGElement, unknown>().scaleExtent([0.8, 40]);
     zoomRef.current = zoom;
-    svg.call(zoom as never);
 
     positionMarkers(1);
     scheduleVisibleAreaReport(width, h);
 
     return () => {
       if (settleTimer.current) clearTimeout(settleTimer.current);
+      // Release the basemap's WebGL context (feature 021).
+      basemap.destroy();
     };
   }, [locations, cityRows, height, scheduleVisibleAreaReport]);
 
@@ -272,18 +287,17 @@ export function UsageMap({
    * feature exists to show.
    */
   useEffect(() => {
-    const svgEl = svgRef.current;
-    const zoom = zoomRef.current;
     const projection = projectionRef.current;
     const container = containerRef.current;
-    if (!svgEl || !zoom || !projection || !container) return;
+    const basemap = basemapRef.current;
+    if (!projection || !container || !basemap) return;
 
     const width = container.clientWidth || 800;
-    const h = height;
-    const svg = d3.select(svgEl);
 
+    // Framing goes through the basemap's camera, not d3-zoom: MapLibre owns the view and
+    // would overwrite a d3-written transform on its next painted frame (feature 021).
     if (!province) {
-      svg.transition().duration(500).call(zoom.transform as never, d3.zoomIdentity);
+      basemap.zoomTo({ k: 1, tx: 0, ty: 0 }, 500);
       return;
     }
 
@@ -291,12 +305,10 @@ export function UsageMap({
       province,
       (p) => projection(p) as [number, number] | null,
       width,
-      h,
+      height,
     );
     if (!framed) return;
-
-    const transform = d3.zoomIdentity.translate(framed.tx, framed.ty).scale(framed.k);
-    svg.transition().duration(500).call(zoom.transform as never, transform);
+    basemap.zoomTo(framed, 500);
   }, [province, resetNonce, height]);
 
   /** Focused-marker treatment, applied without rebuilding the map. */
@@ -317,8 +329,31 @@ export function UsageMap({
   }, [focusedNameId]);
 
   return (
-    <div ref={containerRef} className="relative w-full overflow-hidden rounded-lg bg-white">
-      <svg ref={svgRef} width="100%" height={height} role="img" aria-label="Netherlands usage map" />
+    // Same layer stack as ForceGraph (feature 021, data-model.md §1): the container is
+    // the positioning context and carries the background the §VII guard samples; the
+    // basemap canvas sits beneath a transparent SVG, so the SVG's opaque complement
+    // path masks the canvas exactly as it masked the old <image> tiles.
+    <div
+      ref={containerRef}
+      className="relative w-full overflow-hidden rounded-lg bg-white"
+      data-testid="map-container"
+    >
+      <div ref={mapLayerRef} className="absolute inset-0 z-0" aria-hidden="true" />
+      {/* pointer-events-none lets pan/zoom reach the basemap canvas beneath; markers opt
+          back in so hover and click still work (feature 021). */}
+      <svg
+        ref={svgRef}
+        width="100%"
+        height={height}
+        role="img"
+        aria-label="Netherlands usage map"
+        className="relative pointer-events-none [&_.usage-marker]:pointer-events-auto"
+      />
+      {/* Below the map area, never over it — §VII (feature 021). */}
+      {basemapFailed && (
+        <MapFallback className="absolute bottom-4 left-0 bg-white/85 pointer-events-auto" />
+      )}
+      <MapAttribution className="absolute bottom-0 left-0 bg-white/85 pointer-events-auto" />
     </div>
   );
 }

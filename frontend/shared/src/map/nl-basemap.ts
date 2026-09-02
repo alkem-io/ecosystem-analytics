@@ -1,6 +1,8 @@
 import * as d3 from 'd3';
 import { geoMercator, geoPath, type GeoPermissibleObjects } from 'd3-geo';
 import { resolveMapConfig, type GraphMapRegion } from './mapConfig.js';
+import { createBasemap, type BasemapHandle } from './basemap.js';
+import { toSvgTransform } from './overlay-transform.js';
 
 /**
  * The shared basemap layer: CARTO tiles, region boundary, and — for the Netherlands and
@@ -26,25 +28,24 @@ import { resolveMapConfig, type GraphMapRegion } from './mapConfig.js';
  *   source GeoJSON is wound backwards for d3-geo, so even-odd fills the complement of
  *   the Netherlands rather than the Netherlands itself.
  *
- * Verified pixel-by-pixel by tests/vng-map-nl-only.spec.mjs and
- * tests/govtech-map-nl-only.spec.mjs, and on the real component by
- * frontend/shared/src/map/nl-basemap.test.ts.
+ * Verification, and what each layer of it does and does NOT cover:
+ *   • tests/vng-map-nl-only.spec.mjs, tests/govtech-map-nl-only.spec.mjs — prove by real
+ *     pixels that a given complement path hides everything outside the region. They
+ *     rebuild the layering inside the test, so they never load this module.
+ *   • frontend/vng/src/dashboard/nl-basemap.test.ts — proves the path string THIS module
+ *     produces is exactly the one those specs verified. (Note the path: it lives under
+ *     frontend/vng, not next to this file.)
+ *   • tests/nl-only-composited.spec.mjs — the only check that looks at the finished
+ *     picture: it screenshots the real component's container, so it sees every layer
+ *     composited. The three above read the SVG alone and would not notice imagery
+ *     rendered in a layer beneath it.
  */
-
-/** Tile subdomains — spreading requests keeps the browser's per-host limit out of the way. */
-const TILE_SUBDOMAINS = ['a', 'b', 'c', 'd'];
-
-/** Cap on tiles rendered in one pass, so a wild zoom can't flood the DOM. */
-const MAX_TILES = 200;
 
 export interface NlBasemapOptions {
   /**
-   * The SVG root — used only for reading the current zoom transform and hosting the
-   * clipPath def. Typed to allow a nullable element so it accepts both `d3.select(ref)`
-   * (which yields `SVGSVGElement | null`) and an already-narrowed selection.
+   * The zoom group. The mask, borders and consumer content live here, and its transform
+   * is what keeps them locked to the basemap beneath (feature 021).
    */
-  svg: d3.Selection<SVGSVGElement | null, unknown, null, undefined>;
-  /** The zoom group. The basemap is appended here so it pans/zooms with everything else. */
   group: d3.Selection<SVGGElement, unknown, null, undefined>;
   region: GraphMapRegion;
   width: number;
@@ -57,31 +58,39 @@ export interface NlBasemapOptions {
   onGeoJson?: (geojson: GeoPermissibleObjects) => void;
   /** Called when the GeoJSON cannot be loaded, so the consumer can show a fallback. */
   onError?: () => void;
+  /**
+   * Positioned element hosting the basemap canvas BENEATH the SVG (feature 021). Null
+   * only while a ref has not attached; a genuinely absent basemap is the fallback path,
+   * not a caller option.
+   */
+  container: HTMLElement | null;
+  /** Called when the basemap cannot draw, so the consumer can show the outline fallback. */
+  onBasemapFallback?: (reason: string) => void;
+  /**
+   * Called whenever the camera changes, with the current overlay scale.
+   *
+   * This is the notification d3-zoom used to provide. Everything that was zoom-driven —
+   * level-of-detail, label culling, marker counter-scaling — hangs off this, so it keeps
+   * working whichever camera is in charge.
+   */
+  onCameraChange?: (k: number) => void;
 }
 
 export interface NlBasemap {
   /** Mercator projection for the region — lon/lat → SVG coordinates. */
   projection: d3.GeoProjection;
-  /** Re-render tiles for the given d3-zoom scale. Call on every zoom event. */
-  renderTiles: (zoomK: number) => void;
   /** The layer group, for consumers that need to append beneath their own content. */
   mapGroup: d3.Selection<SVGGElement, unknown, null, undefined>;
-}
-
-/** Web Mercator: lon/lat → fractional tile coordinates at zoom z, and back. */
-function lon2tile(lon: number, z: number) {
-  return ((lon + 180) / 360) * Math.pow(2, z);
-}
-function lat2tile(lat: number, z: number) {
-  const latRad = (lat * Math.PI) / 180;
-  return ((1 - Math.log(Math.tan(latRad) + 1 / Math.cos(latRad)) / Math.PI) / 2) * Math.pow(2, z);
-}
-function tile2lon(x: number, z: number) {
-  return (x / Math.pow(2, z)) * 360 - 180;
-}
-function tile2lat(y: number, z: number) {
-  const n = Math.PI - (2 * Math.PI * y) / Math.pow(2, z);
-  return (180 / Math.PI) * Math.atan(0.5 * (Math.exp(n) - Math.exp(-n)));
+  /**
+   * Tear down the basemap's WebGL context. A canvas needs this where the old <image>
+   * tiles did not; skipping it leaks a context per region change until the tab dies.
+   */
+  destroy: () => void;
+  /**
+   * Move the camera. Consumers MUST use this rather than writing the group transform —
+   * MapLibre owns the camera and overwrites that attribute on its next painted frame.
+   */
+  zoomTo: (target: { k: number; tx: number; ty: number }, durationMs?: number) => void;
 }
 
 /**
@@ -109,13 +118,15 @@ export function buildComplementPath(
  * borders. Consumers append their own content above all of it.
  */
 export function renderNlBasemap({
-  svg,
   group,
   region,
   width,
   height,
   onGeoJson,
   onError,
+  container,
+  onBasemapFallback,
+  onCameraChange,
 }: NlBasemapOptions): NlBasemap {
   const mapCfg = resolveMapConfig(region);
   const projection = geoMercator()
@@ -126,74 +137,38 @@ export function renderNlBasemap({
   const mapGroup = group.append('g').attr('class', 'map-layer');
   const path = geoPath().projection(projection);
 
-  // Clip definition: used only by the Explorer's world/europe basemaps, which are not
-  // masked. The Netherlands and the provinces use the white complement instead.
-  const clipId = 'map-region-clip';
-  const mapClipDef = svg.append('defs').append('clipPath').attr('id', clipId);
 
-  const tileGroup = mapGroup.append('g').attr('class', 'tile-layer');
-
-  const baseZoom = mapCfg.baseZoom;
-
-  function renderTiles(zoomK: number) {
-    // The effective tile zoom considers both base projection scale and D3 zoom.
-    const tileZ = Math.max(0, Math.min(18, Math.round(baseZoom + Math.log2(Math.max(zoomK, 0.1)))));
-    // Compute SVG-space bounds visible in the viewport. When zoomed, the g-transform is
-    // "translate(tx,ty) scale(k)"; the inverse maps viewport corners to coordinate space.
-    const currentTransform = d3.zoomTransform(svg.node()!);
-    const topLeft = currentTransform.invert([0, 0]);
-    const bottomRight = currentTransform.invert([width, height]);
-    const inv = projection.invert!;
-    const geoTL = inv(topLeft as [number, number]);
-    const geoBR = inv(bottomRight as [number, number]);
-    if (!geoTL || !geoBR) return;
-
-    const xMin = Math.max(0, Math.floor(lon2tile(geoTL[0], tileZ)));
-    const xMax = Math.min(Math.pow(2, tileZ) - 1, Math.floor(lon2tile(geoBR[0], tileZ)));
-    const yMin = Math.max(0, Math.floor(lat2tile(geoTL[1], tileZ)));
-    const yMax = Math.min(Math.pow(2, tileZ) - 1, Math.floor(lat2tile(geoBR[1], tileZ)));
-
-    const tiles: { tx: number; ty: number; z: number; key: string }[] = [];
-    for (let tx = xMin; tx <= xMax; tx++) {
-      for (let ty = yMin; ty <= yMax; ty++) {
-        tiles.push({ tx, ty, z: tileZ, key: `${tileZ}/${tx}/${ty}` });
-      }
-    }
-
-    if (tiles.length > MAX_TILES) return;
-
-    const images = tileGroup
-      .selectAll<SVGImageElement, (typeof tiles)[0]>('image')
-      .data(tiles, (d) => d.key);
-
-    images.exit().remove();
-
-    images
-      .enter()
-      .append('image')
-      .attr('preserveAspectRatio', 'none')
-      .attr('pointer-events', 'none')
-      .merge(images as never)
-      .attr('href', (d) => {
-        const s = TILE_SUBDOMAINS[(d.tx + d.ty) % TILE_SUBDOMAINS.length];
-        return `https://${s}.basemaps.cartocdn.com/light_nolabels/${d.z}/${d.tx}/${d.ty}.png`;
-      })
-      .each(function (d) {
-        const pTL = projection([tile2lon(d.tx, d.z), tile2lat(d.ty, d.z)]);
-        const pBR = projection([tile2lon(d.tx + 1, d.z), tile2lat(d.ty + 1, d.z)]);
-        if (pTL && pBR) {
-          d3.select(this)
-            .attr('x', pTL[0])
-            .attr('y', pTL[1])
-            .attr('width', pBR[0] - pTL[0])
-            .attr('height', pBR[1] - pTL[1]);
-        }
-      });
+  // The basemap is drawn by MapLibre into a canvas BENEATH this SVG (feature 021). It
+  // owns pan and zoom; on every camera change the zoom group is given the matching affine
+  // so the mask, borders and nodes stay locked to the imagery, and `onCameraChange` fires
+  // so everything that used to hang off d3-zoom keeps working. Started here and left to
+  // resolve — the mask and borders below do not wait on it, so a slow or failed basemap
+  // degrades to "no imagery, still masked" rather than to a blank component.
+  let handle: BasemapHandle | null = null;
+  let destroyed = false;
+  if (container) {
+    void createBasemap({
+      container,
+      projection,
+      center: mapCfg.center,
+      scale: mapCfg.scale,
+      width,
+      height,
+      onSync: (t) => {
+        group.attr('transform', toSvgTransform(t));
+        onCameraChange?.(t.k);
+      },
+      onFallback: (reason) => onBasemapFallback?.(reason),
+    }).then((created) => {
+      // Unmounting before this resolves would otherwise orphan the map: its render
+      // listener keeps painting into a detached container and retains the whole graph
+      // scope for the lifetime of the tab.
+      if (destroyed) created.destroy();
+      else handle = created;
+    });
+  } else {
+    onBasemapFallback?.('no container element for the basemap canvas');
   }
-
-  // CARTO tiles are rendered for every region (including the Netherlands, which MUST
-  // show real map-tile detail per constitution §VII).
-  renderTiles(1);
 
   fetch(mapCfg.url)
     .then((res) => {
@@ -220,15 +195,10 @@ export function renderNlBasemap({
           .attr('fill-rule', 'evenodd')
           .style('fill-rule', 'evenodd')
           .style('pointer-events', 'none');
-      } else {
-        // Explorer world/europe: clip tiles to the region.
-        mapClipDef
-          .selectAll('path')
-          .data(features)
-          .join('path')
-          .attr('d', path as never);
-        tileGroup.attr('clip-path', `url(#${clipId})`);
       }
+      // Unmasked regions (the Explorer's world/europe) simply show the basemap with the
+      // region outline drawn over it. There is no clip: the imagery is a canvas outside
+      // this SVG, so an SVG clipPath cannot reach it.
 
       // Subtle province/region borders on top.
       mapGroup
@@ -243,6 +213,15 @@ export function renderNlBasemap({
         .style('pointer-events', 'none');
     })
     .catch(() => {
+      // FAIL CLOSED (constitution §VII): with no region geometry there is no mask, so
+      // showing the basemap would show everything outside the region. Tear the imagery
+      // down rather than render it unmasked — an outline-less blank map is a degraded
+      // map; an unmasked one is a constitutional violation.
+      destroyed = true;
+      handle?.destroy();
+      handle = null;
+      if (container) container.style.display = 'none';
+      onBasemapFallback?.('region geometry unavailable — imagery withheld to stay masked');
       if (onError) {
         onError();
         return;
@@ -258,5 +237,14 @@ export function renderNlBasemap({
         .text('Map unavailable');
     });
 
-  return { projection, renderTiles, mapGroup };
+  return {
+    projection,
+    mapGroup,
+    destroy: () => {
+      destroyed = true;
+      handle?.destroy();
+      handle = null;
+    },
+    zoomTo: (target, durationMs) => handle?.zoomTo(target, durationMs),
+  };
 }

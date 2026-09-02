@@ -8,6 +8,8 @@ import { computeProximityGroups, type ProximityCluster } from './proximityCluste
 import { computePinnedNodeIds, computeMapBounds, isWithinRegion } from './mapBoundary.js';
 import { resolveMapConfig, type GraphMapRegion } from '../map/mapConfig.js';
 import { renderNlBasemap, type NlBasemap } from '../map/nl-basemap.js';
+import { MapAttribution } from '../map/MapAttribution.js';
+import { MapFallback } from '../map/MapFallback.js';
 import { proxyImageUrl } from '../lib/imageProxy.js';
 import { isImageFailed, markImageFailed } from '../lib/badImageCache.js';
 import styles from './ForceGraph.module.css';
@@ -332,6 +334,17 @@ export default function ForceGraph({
   nodeSizeScale = 1,
 }: Props) {
   const svgRef = useRef<SVGSVGElement>(null);
+  // Positioning context for the basemap canvas + SVG stack (feature 021).
+  const containerRef = useRef<HTMLDivElement>(null);
+  const mapLayerRef = useRef<HTMLDivElement>(null);
+  /**
+   * Teardown for the current basemap's WebGL context (feature 021). A canvas needs this
+   * where the old <image> tiles did not: without it every region change or re-render
+   * leaks a context, and browsers cap how many a page may hold.
+   */
+  const destroyBasemapRef = useRef<() => void>(() => {});
+  /** True once the basemap has reported it cannot draw (FR-021/FR-022). */
+  const [basemapFailed, setBasemapFailed] = useState(false);
   const simulationRef = useRef<d3.Simulation<SimNode, SimLink>>(null);
   // Refs to D3 selections so selection-highlighting can run without re-rendering
   const nodeSelRef = useRef<d3.Selection<SVGGElement, SimNode, SVGGElement, unknown>>(null);
@@ -811,6 +824,8 @@ export default function ForceGraph({
     // Setup zoom
     let simulationLocal: d3.Simulation<SimNode, SimLink> | null = null;
     const g = svg.append('g');
+    // Built even in map mode: `zoomTransform`/`zoom.transform` are still referenced by the
+    // programmatic fan-out below, which routes through the basemap's camera when one exists.
     const zoom = d3.zoom<SVGSVGElement, unknown>().scaleExtent([0.1, 20]).on('zoom', (event) => {
       g.attr('transform', event.transform);
       currentZoomScale = event.transform.k;
@@ -820,7 +835,12 @@ export default function ForceGraph({
         simulationLocal.alpha(0.01).restart();
       }
     });
-    svg.call(zoom as any);
+    // Camera ownership (feature 021). With a basemap, MapLibre owns pan and zoom and
+    // writes the group transform from its render event — attaching d3-zoom as well would
+    // give one camera two authorities. Pointer routing (letting gestures reach the canvas
+    // beneath while nodes stay interactive) is a property of the layer stack, so it lives
+    // in the stylesheet next to that stack, not as an imperative toggle here.
+    if (!showMap) svg.call(zoom as any);
 
     // Background click: collapse any revealed cluster
     svg.on('click.reveal', () => {
@@ -915,10 +935,6 @@ export default function ForceGraph({
       // Re-cull labels on zoom change
       cullOverlappingLabels();
 
-      // Refresh map tiles at the new zoom level
-      if ((applyLOD as any)._renderTiles) {
-        (applyLOD as any)._renderTiles(k);
-      }
     }
     // Build projection for geo-pinning. `mapCfg` resolves url/center/scale/zoom for
     // the built-in regions AND the 12 province basemaps (see mapConfig.ts).
@@ -937,12 +953,28 @@ export default function ForceGraph({
       : null;
 
     if (showMap && projection) {
+      // Release the previous context before claiming another.
+      destroyBasemapRef.current();
       basemap = renderNlBasemap({
-        svg,
         group: g,
         region: mapRegion,
         width,
         height,
+        // The basemap canvas mounts here, beneath the SVG (feature 021).
+        container: mapLayerRef.current,
+        // The notification d3-zoom used to give us. Without it every zoom-driven
+        // behaviour — node radii, avatar clip radii, edge and badge counter-scaling,
+        // label culling — would stay frozen at the initial k for the whole session.
+        onCameraChange: (k) => {
+          currentZoomScale = k;
+          applyLOD(k);
+        },
+        onBasemapFallback: (reason) => {
+          // Constitution §V: no imagery, but the mask, the region outline and every
+          // marker interaction remain — a degraded map, not a blank one.
+          console.warn(`[ForceGraph] basemap unavailable: ${reason}`);
+          setBasemapFailed(true);
+        },
         onGeoJson: (geojson) => {
           // Cache GeoJSON for boundary checking (used by computePinnedNodeIds)
           mapGeoJSONCacheRef.current[mapRegion] = geojson;
@@ -981,7 +1013,10 @@ export default function ForceGraph({
           }
         },
       });
-      (applyLOD as any)._renderTiles = basemap.renderTiles;
+      destroyBasemapRef.current = basemap.destroy;
+    } else {
+      destroyBasemapRef.current();
+      destroyBasemapRef.current = () => {};
     }
 
     // Precompute geo target positions for nodes with location data.
@@ -1750,10 +1785,19 @@ export default function ForceGraph({
             .scale(targetScale)
             .translate(-d.centroidX, -d.centroidY);
 
-          svg.transition()
-            .duration(ZOOM_TRANSITION_MS)
-            .ease(d3.easeCubicInOut)
-            .call(zoom.transform as any, transform);
+          // Route through whichever camera owns the view. Writing d3-zoom's transform in
+          // map mode would be overwritten by MapLibre on its next painted frame.
+          if (basemap) {
+            basemap.zoomTo(
+              { k: transform.k, tx: transform.x, ty: transform.y },
+              ZOOM_TRANSITION_MS,
+            );
+          } else {
+            svg.transition()
+              .duration(ZOOM_TRANSITION_MS)
+              .ease(d3.easeCubicInOut)
+              .call(zoom.transform as any, transform);
+          }
 
           // Restart simulation so nodes animate to their new fixed positions
           if (simulationLocal) {
@@ -2707,6 +2751,8 @@ export default function ForceGraph({
     renderGraph();
     return () => {
       simulationRef.current?.stop();
+      destroyBasemapRef.current();
+      destroyBasemapRef.current = () => {};
     };
   }, [renderGraph]);
 
@@ -2724,5 +2770,24 @@ export default function ForceGraph({
     return () => observer.disconnect();
   }, [renderGraph]);
 
-  return <svg ref={svgRef} className={styles.svg} role="img" aria-label="Ecosystem network graph" />;
+  // The container is the element the §VII guard screenshots: it composites the basemap
+  // canvas (feature 021) with the SVG above it, which is the only way to see what the
+  // user actually sees. It also carries the page background — the colour "outside the
+  // region" must equal. `mapLayerRef` is where the basemap mounts.
+  return (
+    <div className={styles.stack}>
+      <div ref={containerRef} className={styles.container} data-testid="map-container">
+        <div ref={mapLayerRef} className={styles.canvas} aria-hidden="true" />
+        <svg
+          ref={svgRef}
+          className={showMap ? `${styles.svg} ${styles.mapMode}` : styles.svg}
+          role="img"
+          aria-label="Ecosystem network graph"
+        />
+      </div>
+      {showMap && basemapFailed && <MapFallback />}
+      {/* Below the map, never over it — §VII keeps the area outside the border blank. */}
+      {showMap && <MapAttribution />}
+    </div>
+  );
 }

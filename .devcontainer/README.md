@@ -16,7 +16,8 @@ bypass-permissions mode, and the mount is worktree-aware so you can run several
 - **Playwright + Chromium** (browsers preinstalled at `/ms-playwright`) so
   `pnpm test:visual` runs in-container
 - **GitHub CLI (`gh`)**, plus `fzf`, `jq`, `ripgrep`, `vim`, `nano`, `wget`, …
-- **Claude Code CLI** (`claude`) installed globally
+- **Claude Code CLI** (`claude`), installed into the `node` user's own npm prefix
+  (`~/.npm-global`) so `claude update` and the auto-updater work without sudo
 - **zsh** as the default terminal, with a git-aware prompt and persisted history
 - **Outbound firewall** (`init-firewall.sh`) — default-deny with an allowlist
 - Runs as the non-root `node` user with **restricted `sudo`** (firewall only)
