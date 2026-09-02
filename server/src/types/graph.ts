@@ -154,6 +154,16 @@ export interface GraphNode {
   /** Municipality population (CBS) for a gemeente org node; null when unknown/non-NL. */
   population?: number | null;
   /**
+   * Official CBS municipality code (e.g. "GM0518") for a gemeente org node.
+   *
+   * Carried because it is the only STABLE identifier a gemeente has. Alkemio's `nameID`
+   * is editable and does get edited — 's-Gravenhage has been both `gemeente-den-haag`
+   * and `gemeente-gravenhage` — which silently orphans anything joined on it, most
+   * visibly the Usage Explorer's 7-day-cached location set against a freshly rebuilt
+   * graph. Null for a non-NL or unregistered org.
+   */
+  cbsCode?: string | null;
+  /**
    * Classification flag — true when the entity carries a "Common Ground" tag.
    * Set for both selected (Groei) space nodes and GemeenteDelers INITIATIVE nodes.
    */
@@ -164,9 +174,13 @@ export interface GraphNode {
    * (no extra Alkemio fetch) and stored on the node so both the graph filters and
    * the Initiatives table can read them directly.
    */
-  /** NDS dimension category keys (e.g. `cloud`, `ai`) the entity maps into. */
+  /**
+   * Selected value LABELS of the designated NDS classification (feature 020) — e.g.
+   * `["Cloud"]`. Previously tag-derived category keys; now read straight off the
+   * Space's classification selection, so the table and filters show what an editor chose.
+   */
   ndsCategories?: string[];
-  /** VNG-2030 dimension category keys the entity maps into. */
+  /** Selected value labels of the designated VNG-2030 classification. */
   vng2030Categories?: string[];
   /** Resolved GemeenteDelers theme titles (also exposed as THEME nodes/edges). */
   vngThemes?: string[];
@@ -178,6 +192,31 @@ export interface GraphNode {
   globalGoals?: string[];
   /** INITIATIVE: original vng.nl/praktijkvoorbeelden source link. */
   sourceUrl?: string | null;
+  /**
+   * SPACE: the Space's Alkemio Classifications as presented to a user (feature 020,
+   * FR-022) — displayable groups only, in `sortOrder`, each with its selected values.
+   * Groups flagged `display: false` are filtered out server-side; that flag is
+   * render-only and never affects counting (FR-023, invariant I-7).
+   */
+  classifications?: { id: string; label: string; values: { id: string; label: string }[] }[];
+  /**
+   * SPACE, INTERNAL: the raw Alkemio classification entries, carried so that the
+   * post-cache enrichment in graph-service can resolve designations for CACHED spaces
+   * too (the cache is written before enrichment runs). Stripped from the node before the
+   * dataset is returned, so it never reaches the browser — read `classifications` there.
+   */
+  classificationEntries?: ClassificationEntryInput[];
+}
+
+/** Raw Alkemio classification entry as carried through the cache (feature 020). */
+export interface ClassificationEntryInput {
+  id?: string;
+  displayLabel: string;
+  cardinality?: string;
+  display?: boolean;
+  sortOrder?: number;
+  values?: { id: string; label: string }[];
+  selectedValues?: { id: string; label: string }[];
 }
 
 /** An edge in the graph dataset */

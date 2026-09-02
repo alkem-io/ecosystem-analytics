@@ -31,14 +31,27 @@ export default defineConfig({
     viewport: { width: 1440, height: 900 },
     colorScheme: 'light'
   },
-  ...(usePrototype
-    ? {
-        webServer: {
-          command: `npm --prefix "${prototypeDir}" run dev -- --host 127.0.0.1 --port 5173`,
-          url: 'http://127.0.0.1:5173/analytics',
-          reuseExistingServer: !process.env.CI,
-          timeout: 120_000
-        }
-      }
-    : {})
+  // The §VII guard harness (feature 021). A plain Vite dev server over
+  // frontend/vng, which serves harness/index.html without it ever entering the
+  // production build. `vite` directly, NOT `pnpm run dev` — that script chains a
+  // full `tsc` build first, so a typecheck error would present as the guard
+  // hanging rather than as a compile failure.
+  webServer: [
+    {
+      command: 'pnpm -C frontend/vng exec vite --host 127.0.0.1 --port 5199 --strictPort',
+      url: 'http://127.0.0.1:5199/harness/index.html',
+      reuseExistingServer: !process.env.CI,
+      timeout: 120_000
+    },
+    ...(usePrototype
+      ? [
+          {
+            command: `npm --prefix "${prototypeDir}" run dev -- --host 127.0.0.1 --port 5173`,
+            url: 'http://127.0.0.1:5173/analytics',
+            reuseExistingServer: !process.env.CI,
+            timeout: 120_000
+          }
+        ]
+      : [])
+  ]
 });

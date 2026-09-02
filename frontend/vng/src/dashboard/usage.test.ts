@@ -52,6 +52,7 @@ function row(nameId: string, name: string, initiativeNames: string[]): CityRow {
   return {
     id: `org-${nameId}`,
     nameId,
+    cbsCode: null,
     name,
     provinceName: 'Groningen',
     population: 1000,
@@ -388,5 +389,38 @@ describe('agreement with buildCityRows', () => {
     }
     expect(markers.find((m) => m.nameId === 'gemeente-groningen')!.initiativeCount).toBe(2);
     expect(markers.find((m) => m.nameId === 'gemeente-utrecht')!.initiativeCount).toBe(1);
+  });
+});
+
+describe('buildUsageMarkers — joining across independently cached datasets', () => {
+  /** A location whose nameId is STALE relative to the graph, but whose cbsCode is not. */
+  const location = (nameId: string, cbsCode: string) => ({
+    nameId,
+    title: 'Den Haag',
+    cbsCode,
+    latitude: 52.0799838,
+    longitude: 4.3113461,
+    provinceCode: 'PV28',
+    provinceName: 'Zuid-Holland',
+  });
+
+  const identity = (p: [number, number]): [number, number] => p;
+
+  it('matches on cbsCode when Alkemio renamed the org after the locations were cached', () => {
+    const rows = [{ ...row('gemeente-den-haag', 'Den Haag', ['A', 'B']), cbsCode: 'GM0518' }];
+    const { markers } = buildUsageMarkers([location('gemeente-gravenhage', 'GM0518')], rows, identity);
+    expect(markers).toHaveLength(1);
+    // Without the cbsCode join this was 0 — the gemeente plotted as "no initiatives".
+    expect(markers[0].initiativeCount).toBe(2);
+  });
+
+  it('still matches on nameId when no cbsCode is available on the row', () => {
+    const rows = [row('gemeente-groningen', 'Groningen', ['A'])];
+    const { markers } = buildUsageMarkers(
+      [{ ...location('gemeente-groningen', 'GM0014'), title: 'Groningen' }],
+      rows,
+      identity,
+    );
+    expect(markers[0].initiativeCount).toBe(1);
   });
 });

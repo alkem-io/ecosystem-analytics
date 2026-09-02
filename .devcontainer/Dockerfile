@@ -65,18 +65,19 @@ RUN mkdir /commandhistory && \
 ENV DEVCONTAINER=true
 
 # --- Restricted sudo ----------------------------------------------------
-# The `node` user may run ONLY the firewall installer as root (via sudo).
-# Everything else runs unprivileged — the sandbox's second line of defence
-# after the outbound firewall.
-RUN echo "node ALL=(root) NOPASSWD: /usr/local/bin/init-firewall.sh" > /etc/sudoers.d/node-firewall && \
+# The `node` user may run ONLY two root helpers via sudo: the firewall
+# installer, and the node_modules mount-point chown. Everything else runs
+# unprivileged — the sandbox's second line of defence after the outbound
+# firewall. Both take no arguments, so neither widens into a general root
+# primitive.
+RUN printf '%s\n' \
+      "node ALL=(root) NOPASSWD: /usr/local/bin/init-firewall.sh" \
+      "node ALL=(root) NOPASSWD: /usr/local/bin/claim-node-modules.sh" \
+      > /etc/sudoers.d/node-firewall && \
   chmod 0440 /etc/sudoers.d/node-firewall
 
 # --- pnpm (pinned to the repo's packageManager version) via corepack ----
 RUN corepack enable && corepack prepare pnpm@11.7.0 --activate
-
-# --- Claude Code CLI ----------------------------------------------------
-# Installed globally so `claude` is on PATH for every shell in the container.
-RUN npm install -g @anthropic-ai/claude-code
 
 # --- Playwright browsers + OS dependencies ------------------------------
 # Installed into a shared, world-readable location so any user in the
@@ -88,18 +89,24 @@ ENV PLAYWRIGHT_BROWSERS_PATH=/ms-playwright
 RUN npx --yes playwright@1.58.2 install --with-deps chromium \
   && chmod -R a+rx /ms-playwright
 
-# --- Firewall installer -------------------------------------------------
+# --- Root helper scripts ------------------------------------------------
 COPY init-firewall.sh /usr/local/bin/init-firewall.sh
-RUN chmod +x /usr/local/bin/init-firewall.sh
+COPY claim-node-modules.sh /usr/local/bin/claim-node-modules.sh
+RUN chmod +x /usr/local/bin/init-firewall.sh /usr/local/bin/claim-node-modules.sh
 
 # --- Node-owned mount points --------------------------------------------
 # Pre-create the dirs that named volumes mount onto, owned by `node`, so a
 # fresh volume seeds with node ownership instead of root. Covers the Claude
 # config/credentials and the persistent pnpm store.
+#
+# `.npm-global` is also pre-created here: it is the npm prefix for the `node`
+# user (see the Claude Code step below). It is deliberately NOT a volume mount
+# — a volume would mask the baked-in install at runtime.
 ENV PNPM_HOME=/home/node/.local/share/pnpm
-ENV PATH=$PNPM_HOME:$PATH
-RUN mkdir -p /home/node/.claude /home/node/.local/share/pnpm/store && \
-  chown -R node:node /home/node/.claude /home/node/.local/share/pnpm
+ENV NPM_CONFIG_PREFIX=/home/node/.npm-global
+ENV PATH=/home/node/.npm-global/bin:$PNPM_HOME:$PATH
+RUN mkdir -p /home/node/.claude /home/node/.local/share/pnpm/store /home/node/.npm-global && \
+  chown -R node:node /home/node/.claude /home/node/.local/share/pnpm /home/node/.npm-global
 
 # --- Interactive shell config -------------------------------------------
 # zsh is the default terminal profile (see devcontainer.json); without a
@@ -108,6 +115,18 @@ RUN mkdir -p /home/node/.claude /home/node/.local/share/pnpm/store && \
 COPY --chown=node:node zshrc /home/node/.zshrc
 
 USER node
+
+# --- Claude Code CLI ----------------------------------------------------
+# Installed as `node`, into the node-owned npm prefix set above — NOT as root
+# into /usr/local. The container runs as `node`, so a root-owned global install
+# leaves the CLI unable to write its own package directory and every
+# auto-update fails with `no_permissions` (surfaced by `claude doctor` as
+# "npm global folder isn't writable"). Installing under the user that runs it
+# keeps `claude update` and the auto-updater working with no sudo.
+#
+# registry.npmjs.org is on the firewall allow-list (init-firewall.sh), so
+# updates still reach the registry once the network is locked down.
+RUN npm install -g @anthropic-ai/claude-code
 
 # bash history persistence (bash is the non-interactive default shell).
 RUN echo 'export PROMPT_COMMAND="history -a"' >> /home/node/.bashrc && \

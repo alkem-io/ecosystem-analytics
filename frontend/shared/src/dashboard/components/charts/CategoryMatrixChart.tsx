@@ -191,25 +191,25 @@ function YTick(props: any) {
 export function CategoryMatrixChart({ matrix, gdIncluded, emptyLabel }: Props) {
   const { t } = useTranslation();
 
-  const ndsLabel = (key: string) =>
-    key === 'uncategorised'
-      ? t('dashboard.uncategorised', { defaultValue: 'No classification' })
-      : t(`categories.nds.${key}`, { defaultValue: key });
-  const vngLabel = (key: string) =>
-    key === 'uncategorised'
-      ? t('dashboard.uncategorised', { defaultValue: 'No classification' })
-      : t(`categories.vng2030.${key}`, { defaultValue: key });
-
   const rows = matrix?.ndsCategories ?? [];
   const cols = matrix?.vng2030Categories ?? [];
+
+  // Axis entries carry their Alkemio-authored label (FR-024); only the synthetic
+  // bucket (label === null) is localised. Cells and multiCategoryItems reference an
+  // axis by its value id, so labels are looked up through the axis, never translated.
+  const uncategorised = t('dashboard.uncategorised', { defaultValue: 'No classification' });
+  const labelIn = (axis: { key: string; label: string | null }[], key: string) =>
+    axis.find((a) => a.key === key)?.label ?? uncategorised;
+  const ndsLabel = (key: string) => labelIn(rows, key);
+  const vngLabel = (key: string) => labelIn(cols, key);
 
   const points: Point[] = useMemo(() => {
     if (!matrix) return [];
     return matrix.cells
       .filter((c) => c.count > 0)
       .map((c) => ({
-        x: cols.indexOf(c.vng2030),
-        y: rows.indexOf(c.nds),
+        x: cols.findIndex((a) => a.key === c.vng2030),
+        y: rows.findIndex((a) => a.key === c.nds),
         count: c.count,
         spacesCount: c.spacesItems.length,
         gdCount: c.gdItems.length,
@@ -278,7 +278,7 @@ export function CategoryMatrixChart({ matrix, gdIncluded, emptyLabel }: Props) {
                     ticks={cols.map((_, i) => i)}
                     interval={0}
                     tickLine={false}
-                    tick={<XTick formatter={(i: number) => vngLabel(cols[i])} />}
+                    tick={<XTick formatter={(i: number) => cols[i]?.label ?? uncategorised} />}
                   />
                   <YAxis
                     type="number"
@@ -287,7 +287,7 @@ export function CategoryMatrixChart({ matrix, gdIncluded, emptyLabel }: Props) {
                     ticks={rows.map((_, i) => i)}
                     interval={0}
                     tickLine={false}
-                    tick={<YTick formatter={(i: number) => ndsLabel(rows[i])} />}
+                    tick={<YTick formatter={(i: number) => rows[i]?.label ?? uncategorised} />}
                   />
                   {/* Kept so recharts sizes the domain; actual radius is computed in PieMark. */}
                   <ZAxis type="number" dataKey="count" range={[60, 60]} />

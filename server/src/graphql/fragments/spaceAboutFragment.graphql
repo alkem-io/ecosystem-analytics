@@ -4,6 +4,24 @@ fragment spaceAboutFragment on SpaceAbout {
   membership {
     myPrivileges
   }
+  # Curated Classifications on the Space (feature 020). Read-only: the dashboards
+  # count on `values`/`selectedValues` ids and display their labels. `display` is a
+  # render-only flag and never gates counting.
+  classifications {
+    id
+    displayLabel
+    cardinality
+    display
+    sortOrder
+    values {
+      id
+      label
+    }
+    selectedValues {
+      id
+      label
+    }
+  }
   profile {
     id
     displayName

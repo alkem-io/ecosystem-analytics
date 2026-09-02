@@ -21,6 +21,7 @@ import {
 } from '../types/graph.js';
 import type { GdCalloutInput } from '../types/api.js';
 import type { VngRegistry } from '../services/vng-registry.js';
+import { resolveByLabel, type Vocabulary } from './classifications.js';
 
 export interface InitiativeLayer {
   /** INITIATIVE + canonical THEME nodes (gemeente org nodes are owned by the caller). */
@@ -49,25 +50,6 @@ const COMMON_GROUND_TAGS = new Set(['common ground', 'commonground', 'common-gro
 /** True when any tag marks the entity as Common Ground (case/space-insensitive). */
 export function hasCommonGroundTag(tags: readonly string[]): boolean {
   return tags.some((t) => COMMON_GROUND_TAGS.has(t.trim().toLowerCase().replace(/\s+/g, ' ')));
-}
-
-/** A tag→category map for one dashboard dimension (lower-cased tag keys). */
-export type DimensionMap = Record<string, string>;
-
-/** The NDS + VNG-2030 tag→category mappings used to classify entities. */
-export interface TagCategoryMapping {
-  nds: DimensionMap;
-  vng2030: DimensionMap;
-}
-
-/** Distinct category keys an entity's tags map into for one dimension (sorted). */
-export function resolveCategories(tags: readonly string[], map: DimensionMap): string[] {
-  const hit = new Set<string>();
-  for (const t of tags) {
-    const cat = map[t.trim().toLowerCase()];
-    if (cat) hit.add(cat);
-  }
-  return [...hit].sort();
 }
 
 /** Distinct GemeenteDelers theme titles an entity's tags resolve to (sorted). */
@@ -103,8 +85,6 @@ export function buildInitiativeLayer(
   registry: VngRegistry,
   /** Resolve a gemeente org nameID to an existing/added node id (null if unresolvable). */
   resolveGemeenteNodeId: (gemeenteNameId: string) => string | null,
-  /** NDS / VNG-2030 tag→category mappings, used to classify each initiative. */
-  mapping?: TagCategoryMapping,
 ): InitiativeLayer {
   const nodes: GraphNode[] = [];
   const edges: GraphEdge[] = [];
@@ -170,17 +150,49 @@ export function buildInitiativeLayer(
     if (globalGoals.length) node.globalGoals = globalGoals;
     if (hasCommonGroundTag(callout.tags)) node.commonGround = true;
 
-    // Resolved classification dimensions (stored on the node for the table + graph
-    // filtering). All computed in-memory from the callout tags — no extra fetch.
+    // GemeenteDelers themes stay tag-derived and out of scope (spec A-006).
     const themeTitles = resolveThemeTitles(callout.tags, registry);
     if (themeTitles.length) node.vngThemes = themeTitles;
-    if (mapping) {
-      const nds = resolveCategories(callout.tags, mapping.nds);
-      const vng2030 = resolveCategories(callout.tags, mapping.vng2030);
-      if (nds.length) node.ndsCategories = nds;
-      if (vng2030.length) node.vng2030Categories = vng2030;
-    }
+    // The NDS / VNG-2030 categories are NOT resolved here any more (feature 020). The GD
+    // subgraph is cached independently of any space selection, while the vocabulary comes
+    // from the selected spaces' snapshots — so the resolution happens post-merge in
+    // graph-service, which has both. The callout's tags travel on the node for it.
+    if (callout.tags.length) node.tags = { default: [...callout.tags] };
   }
 
   return { nodes, edges, unresolvedGemeenteNameIds: [...unresolved] };
+}
+
+/**
+ * Resolve the NDS / VNG-2030 categories of the GemeenteDelers INITIATIVE nodes in a
+ * merged graph, from their callout tags matched against the vocabulary LABELS
+ * (research R-006). Non-INITIATIVE nodes are left untouched.
+ *
+ * Deliberately a separate pass over the FINAL node set rather than part of the graph's
+ * enrichment loop: INITIATIVE nodes only join the graph when the GD subgraph is merged
+ * in (it lives in its own cache row, not the per-space rows), so a caller that runs this
+ * before the merge silently categorises nothing. Returns the counts so the caller can
+ * report a vocabulary whose wording matches none of the tags.
+ */
+export function resolveInitiativeCategories(
+  nodes: GraphNode[],
+  ndsVocabulary: Vocabulary,
+  vng2030Vocabulary: Vocabulary,
+): { total: number; matched: number } {
+  const labelsFor = (vocabulary: Vocabulary, ids: string[]): string[] =>
+    ids.map((id) => vocabulary.find((v) => v.key === id)?.label).filter((l): l is string => !!l);
+
+  let total = 0;
+  let matched = 0;
+  for (const node of nodes) {
+    if (node.type !== NodeType.INITIATIVE) continue;
+    total += 1;
+    const tags = node.tags?.default ?? [];
+    const nds = labelsFor(ndsVocabulary, resolveByLabel(tags, ndsVocabulary));
+    const vng2030 = labelsFor(vng2030Vocabulary, resolveByLabel(tags, vng2030Vocabulary));
+    node.ndsCategories = nds.length ? nds : undefined;
+    node.vng2030Categories = vng2030.length ? vng2030 : undefined;
+    if (nds.length || vng2030.length) matched += 1;
+  }
+  return { total, matched };
 }

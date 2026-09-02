@@ -37,6 +37,16 @@ interface SpaceLike {
       bannerWide?: { uri: string } | null;
       tagsets?: Array<{ name: string; tags: string[]; type?: string; allowedValues?: string[] }>;
     };
+    /** Curated Classifications on the Space (feature 020). Absent on older cached shapes. */
+    classifications?: Array<{
+      id?: string;
+      displayLabel: string;
+      cardinality?: string;
+      display?: boolean;
+      sortOrder?: number;
+      values?: Array<{ id: string; label: string }>;
+      selectedValues?: Array<{ id: string; label: string }>;
+    }>;
   };
   community?: {
     roleSet: {
@@ -216,6 +226,11 @@ function addSpaceNode(
     visibility: parseVisibility(space.visibility),
     tags: extractTags(profile.tagsets),
     commonGround: commonGround || undefined,
+    // Raw entries only — the designated groups are resolved post-cache in graph-service
+    // (so cached spaces are enriched too) and this field is stripped before the response.
+    classificationEntries: space.about.classifications?.length
+      ? space.about.classifications
+      : undefined,
   });
 }
 

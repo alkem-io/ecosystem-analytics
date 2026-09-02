@@ -37,6 +37,13 @@ export { default as DashboardApp } from './dashboard/App.js';
 export { default as ForceGraph } from './graph/ForceGraph.js';
 export { default as HoverCard } from './graph/HoverCard.js';
 export { default as MapOverlay } from './map/MapOverlay.js';
+// The shared basemap (feature 021) — the ONE implementation of map imagery and the
+// region mask, consumed by the dashboards' ForceGraph/UsageMap and by the Explorer.
+export { renderNlBasemap, buildComplementPath, type NlBasemap } from './map/nl-basemap.js';
+export { MapAttribution } from './map/MapAttribution.js';
+export { MapFallback } from './map/MapFallback.js';
+export { UsageMap } from './map/UsageMap.js';
+export { buildCityRows, type CityRow } from './dashboard/utils/cities.js';
 export {
   type MapRegion,
   type GraphMapRegion,
