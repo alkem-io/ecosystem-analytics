@@ -38,6 +38,37 @@ const BUILTINS: Record<MapRegion, ResolvedMapConfig> = {
 // much more the province is magnified (see generate-nl-geo.mts scale derivation).
 const NL_SCALE = 7000;
 
+/**
+ * The Netherlands' projected size, in pixels per unit of projection scale.
+ *
+ * Measured once, offline, with `geoPath().projection(geoMercator().center([5.3, 52.2]))`
+ * over `public/maps/netherlands.geojson`: at scale 7000 the country projects to
+ * 472.67 × 558.84 px. Both dimensions are linear in the scale, so dividing by 7000 gives
+ * a constant that converts a desired pixel size back into the scale that produces it.
+ *
+ * Baked in rather than derived at runtime because the projection has to exist before the
+ * GeoJSON is fetched — markers are projected against it immediately — so there is no
+ * point at which a measured bounding box would be available in time.
+ */
+const NL_PX_PER_SCALE = { width: 0.06752373, height: 0.07983454 };
+
+/**
+ * The projection scale that makes the Netherlands fill `width` × `height`.
+ *
+ * Fits the tighter axis so the country is contained rather than cropped, and never
+ * returns less than the configured constant — a small viewport keeps today's behaviour
+ * (the country slightly overflowing) instead of shrinking to a postage stamp.
+ */
+export function fitScaleForViewport(width: number, height: number, padding = 24): number {
+  const usableWidth = Math.max(width - padding * 2, 1);
+  const usableHeight = Math.max(height - padding * 2, 1);
+  const fitted = Math.min(
+    usableWidth / NL_PX_PER_SCALE.width,
+    usableHeight / NL_PX_PER_SCALE.height,
+  );
+  return Math.max(NL_SCALE, Math.round(fitted));
+}
+
 export function isProvinceRegion(region: GraphMapRegion): region is ProvinceRegion {
   return region in PROVINCE_BASEMAPS;
 }

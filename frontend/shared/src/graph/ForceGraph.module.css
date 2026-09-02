@@ -1,5 +1,52 @@
+/* Map surface + its credit line. The credit sits BELOW the map area (feature 021,
+ * §VII): nothing may be drawn over the plain background outside the region. */
+.stack {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  height: 100%;
+}
+
+.container {
+  position: relative;
+  flex: 1 1 auto;
+  min-height: 0;
+  background: var(--surface, #ffffff);
+}
+
+.canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
 .svg {
+  position: absolute;
+  inset: 0;
+  /*
+   * Explicit size is REQUIRED, not redundant with `inset: 0`. An <svg> has an intrinsic
+   * 300x150 default; without these the element reports clientWidth 300 / clientHeight 150,
+   * and the projection, the reference points and the whole camera solve are built on that
+   * wrong size — the map ends up framed and masked in the wrong place.
+   */
   width: 100%;
   height: 100%;
   display: block;
+}
+
+/*
+ * Map mode pointer routing. The SVG sits above the basemap canvas, so it would swallow
+ * every pan and zoom gesture before MapLibre saw it. Making the root transparent to
+ * pointers lets gestures through; nodes and cluster badges opt back in so hover, click,
+ * selection and drag keep working. Only these two need it — labels, borders and the mask
+ * are already `pointer-events: none`.
+ */
+.mapMode {
+  pointer-events: none;
+}
+
+.mapMode :global(.nodes),
+.mapMode :global(.cluster-badges) {
+  pointer-events: auto;
 }

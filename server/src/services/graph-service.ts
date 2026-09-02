@@ -3,12 +3,31 @@ import type { AuthContext } from '../auth/middleware.js';
 import { transformToGraph, computeActivityTiers } from '../transform/transformer.js';
 import { computeMetrics } from '../transform/metrics.js';
 import { computeInsights } from '../transform/insights.js';
-import { getCacheEntry, setCacheEntry, invalidateCache, GD_CACHE_SPACE_ID } from '../cache/cache-service.js';
-import { loadConfig } from '../config.js';
+import {
+  getCacheEntry,
+  setCacheEntry,
+  invalidateCache,
+  GD_CACHE_SPACE_ID,
+  GEO_CACHE_SPACE_ID,
+} from '../cache/cache-service.js';
+import { loadConfig, type DashboardAppId } from '../config.js';
 import { createAlkemioSdk } from '../graphql/client.js';
 import { loadVngRegistry } from './vng-registry.js';
+import {
+  presentClassifications,
+  resolveByLabel,
+  resolveDesignated,
+  selectionOf,
+  unionVocabularies,
+  vocabularyOf,
+  type Vocabulary,
+} from '../transform/classifications.js';
 import { fetchGemeentedelersCallouts, resolveGemeenteOrgNode } from './gd-initiatives-service.js';
-import { buildInitiativeLayer, resolveCategories, resolveThemeTitles } from '../transform/initiatives.js';
+import {
+  buildInitiativeLayer,
+  resolveInitiativeCategories,
+  resolveThemeTitles,
+} from '../transform/initiatives.js';
 import { getLogger } from '../logging/logger.js';
 import { type GraphDataset, type GraphNode, type GraphEdge, type SpaceCacheInfo, type SpaceTimeSeries, type ActivityPeriodCounts, NodeType, EdgeType, ActivityTier } from '../types/graph.js';
 import type { GraphGenerationRequest, GraphProgress } from '../types/api.js';
@@ -31,17 +50,29 @@ export async function generateGraph(
 
   logger.info(`Graph generation requested for spaces [${spaceIds.join(', ')}] by user ${userId}`, { context: 'Graph' });
 
-  // If force refresh, invalidate the listed space rows AND the long-TTL GD
-  // initiative subgraph. Gemeente ORGANIZATION nodes (and their avatar URLs)
-  // resolved only via the GemeenteDelers layer live in the __gd_initiatives__
-  // row, which invalidateCache(spaceIds) does NOT cover — so without this a
-  // Refresh leaves stale/missing gemeente images untouched for the full
-  // gdCacheTtlHours window. Deleting the row also forces a rebuild even when the
-  // includeInitiatives checkbox is off at refresh time (loadGdSubgraph isn't
-  // called in that case, so the bypass there is not enough on its own).
+  // If force refresh, invalidate the listed space rows AND BOTH long-TTL synthetic
+  // rows. Neither is covered by invalidateCache(spaceIds), and both outlive any
+  // plausible debugging session, so a row poisoned by a transient Alkemio fault stays
+  // poisoned for a week unless Refresh clears it:
+  //
+  //  • __gd_initiatives__ — the GemeenteDelers subgraph. Gemeente ORGANIZATION nodes
+  //    (and their avatar URLs) resolved ONLY via this layer live here, so a gemeente
+  //    whose org lookup failed while this row was written has no GD initiatives
+  //    attributed to it at all. Deleting it also forces a rebuild when the
+  //    includeInitiatives checkbox is off at refresh time (loadGdSubgraph isn't called
+  //    then, so the bypass inside it is not enough on its own).
+  //
+  //  • __gemeente_geo__ — the gemeente location set behind the Usage Explorer map. It
+  //    stores Alkemio's nameID per gemeente, and that nameID is editable: when one is
+  //    renamed, this row keeps the old value and every consumer joining on it silently
+  //    plots the gemeente as "no initiatives". Marker matching now prefers the stable
+  //    cbsCode, but a Refresh must still be able to re-fetch this.
   if (forceRefresh) {
-    logger.info(`Force refresh: invalidating cache for spaces [${spaceIds.join(', ')}] + GD layer`, { context: 'Graph' });
-    invalidateCache(userId, [...spaceIds, GD_CACHE_SPACE_ID]);
+    logger.info(
+      `Force refresh: invalidating cache for spaces [${spaceIds.join(', ')}] + GD layer + gemeente locations`,
+      { context: 'Graph' },
+    );
+    invalidateCache(userId, [...spaceIds, GD_CACHE_SPACE_ID, GEO_CACHE_SPACE_ID]);
   }
 
   // Check cache for each space
@@ -154,14 +185,37 @@ export async function generateGraph(
   // without requiring a force-refresh.
   recomputeSpaceActivity(allNodes, allEdges);
 
-  // Tag gemeente organisations from the snapshot registry (FR-032/035) and resolve
-  // the classification dimensions (NDS / VNG-2030 / themes) onto SPACE nodes from
-  // their already-fetched profile tags. Done here (post-cache) so cached spaces are
-  // enriched too, with NO extra Alkemio fetch — the table + graph filters read these
-  // fields straight off the node. Uses the VNG taxonomy (currently shared with
-  // GovTech); revisit if per-app mappings diverge.
+  // Tag gemeente organisations from the snapshot registry (FR-032/035) and resolve the
+  // classification dimensions (NDS / VNG-2030 / themes) onto SPACE nodes from their
+  // Alkemio Classifications (feature 020). Done here (post-cache) so cached spaces are
+  // enriched too, with NO extra Alkemio fetch — the table and graph filters read these
+  // fields straight off the node. Uses the VNG designations (currently shared with
+  // GovTech); revisit if per-app designations diverge.
   const registry = loadVngRegistry();
-  const mapping = loadConfig().vng.tagCategoryMapping;
+  // Per-app designations (feature 020): GovTech may point at differently-named
+  // classifications than VNG, and the table columns must agree with that app's charts.
+  // Falls back to the VNG profile for the Explorer, which sends no `app`.
+  const cfg = loadConfig();
+  const designations = (request.app ? cfg.dashboards[request.app as DashboardAppId] : undefined)
+    ?.classifications ?? cfg.vng.classifications;
+
+  // Pass 1 — union the selected spaces' snapshot vocabularies. Vocabularies are per-space
+  // snapshots, so a selection can straddle template versions and the union is what keeps
+  // every value renderable (research R-003).
+  const perSpaceNds: Vocabulary[] = [];
+  const perSpaceVng: Vocabulary[] = [];
+  for (const node of allNodes) {
+    if (!node.classificationEntries?.length) continue;
+    perSpaceNds.push(vocabularyOf(resolveDesignated(node.classificationEntries, designations.nds)));
+    perSpaceVng.push(
+      vocabularyOf(resolveDesignated(node.classificationEntries, designations.vng2030)),
+    );
+  }
+  const ndsVocabulary = unionVocabularies(perSpaceNds);
+  const vngVocabulary = unionVocabularies(perSpaceVng);
+  const labelsFor = (vocabulary: Vocabulary, ids: string[]): string[] =>
+    ids.map((id) => vocabulary.find((v) => v.key === id)?.label).filter((l): l is string => !!l);
+
   for (const node of allNodes) {
     if (node.type === NodeType.ORGANIZATION) {
       node.isGemeente = registry.isGemeenteNameId(node.nameId);
@@ -170,23 +224,32 @@ export async function generateGraph(
         node.provinceCode = info?.provinceCode ?? null;
         node.provinceName = info?.provinceName ?? null;
         node.population = info?.population ?? null;
+        node.cbsCode = info?.cbsCode ?? null;
       }
     } else if (
       node.type === NodeType.SPACE_L0 ||
       node.type === NodeType.SPACE_L1 ||
       node.type === NodeType.SPACE_L2
     ) {
-      const tags = [
-        ...(node.tags?.keywords ?? []),
-        ...(node.tags?.skills ?? []),
-        ...(node.tags?.default ?? []),
-      ];
-      const nds = resolveCategories(tags, mapping.nds);
-      const vng2030 = resolveCategories(tags, mapping.vng2030);
-      const themes = resolveThemeTitles(tags, registry);
-      node.ndsCategories = nds.length ? nds : undefined;
-      node.vng2030Categories = vng2030.length ? vng2030 : undefined;
+      const entries = node.classificationEntries;
+      const nds = selectionOf(resolveDesignated(entries, designations.nds));
+      const vng2030 = selectionOf(resolveDesignated(entries, designations.vng2030));
+      // The table and filters show LABELS now, not tag-derived category keys.
+      const ndsLabels = labelsFor(ndsVocabulary, nds);
+      const vngLabels = labelsFor(vngVocabulary, vng2030);
+      node.ndsCategories = ndsLabels.length ? ndsLabels : undefined;
+      node.vng2030Categories = vngLabels.length ? vngLabels : undefined;
+      // GemeenteDelers themes remain tag-derived and out of scope (spec A-006).
+      const themes = resolveThemeTitles(
+        [...(node.tags?.keywords ?? []), ...(node.tags?.skills ?? []), ...(node.tags?.default ?? [])],
+        registry,
+      );
       node.vngThemes = themes.length ? themes : undefined;
+      const presented = presentClassifications(entries);
+      node.classifications = presented.length ? presented : undefined;
+      // Internal-only: never sent to the browser. The cache row was written before this
+      // loop ran, so the cached copy keeps the raw entries for the next enrichment pass.
+      delete node.classificationEntries;
     }
   }
 
@@ -219,6 +282,29 @@ export async function generateGraph(
     } catch (err) {
       logger.warn(`GD initiative layer unavailable: ${(err as Error).message}`, { context: 'Graph' });
       gdLayer = { available: false, initiativeCount: 0, source, error: 'GD_LAYER_UNAVAILABLE' };
+    }
+  }
+
+  // Resolve the GD initiatives' NDS / VNG-2030 categories. This MUST run after the GD
+  // merge above: INITIATIVE nodes do not exist in `allNodes` until then (they come from
+  // the separate `__gd_initiatives__` cache row, not the per-space rows), so doing it in
+  // the enrichment loop would silently leave every GD initiative uncategorised.
+  //
+  // GD initiatives are Callouts and carry no classifications, so their tags are matched
+  // against the same vocabulary's LABELS (research R-006). This is the ONLY place a tag
+  // still places anything, and never for a Space.
+  if (ndsVocabulary.length > 0 || vngVocabulary.length > 0) {
+    const { total, matched } = resolveInitiativeCategories(allNodes, ndsVocabulary, vngVocabulary);
+    // Label matching is exact (after normalisation), so a vocabulary authored with
+    // different wording than the GD callout tags silently drops every initiative into the
+    // "no classification" bar. Surfacing that makes it diagnosable without logging any
+    // Alkemio-derived content.
+    if (total > 0 && matched === 0) {
+      logger.warn(
+        `None of the ${total} GemeenteDelers initiatives matched a classification value label — ` +
+          `check that the vocabulary wording matches the callout tags.`,
+        { context: 'Graph' },
+      );
     }
   }
 
@@ -284,12 +370,10 @@ async function loadGdSubgraph(
   // First pass: build the layer, collecting gemeente nameIds we couldn't resolve
   // to a node (the GD subgraph starts with no org nodes of its own).
   const resolvedOrgNodeIdByNameId = new Map<string, string>();
-  const mapping = loadConfig().vng.tagCategoryMapping;
   const firstPass = buildInitiativeLayer(
     callouts,
     registry,
     (nameId) => resolvedOrgNodeIdByNameId.get(nameId) ?? null,
-    mapping,
   );
 
   // Resolve each missing gemeente org exactly once (dedup via the map), creating
@@ -310,7 +394,6 @@ async function loadGdSubgraph(
     callouts,
     registry,
     (nameId) => resolvedOrgNodeIdByNameId.get(nameId) ?? null,
-    mapping,
   );
 
   const subgraph: GdSubgraph = {

@@ -21,11 +21,15 @@ export default defineConfig(({ mode }) => {
       __BUILD_TIME__: JSON.stringify(new Date().toISOString()),
     },
     build: {
-      // The only chunk over the default 500 kB is exceljs (~940 kB), a single
-      // pre-minified lib loaded on demand from exportDashboardXlsx() — it never
-      // hits initial page load. Raise the limit so the warning still flags real
-      // eager-bundle regressions without crying wolf over the lazy export chunk.
-      chunkSizeWarningLimit: 1000,
+      // Two chunks sit above the default 500 kB limit, and neither is in the
+      // initial page load — both are reached through a dynamic import():
+      //   maplibre-gl (~1030 kB) — shared/src/map/basemap.ts, loaded when a
+      //                            surface actually draws a basemap (feature 021)
+      //   exceljs     (~915 kB)  — exportDashboard.ts, loaded on export
+      // Raise the limit past both so the warning still flags a real eager-bundle
+      // regression instead of crying wolf over the lazy chunks. Keep this in step
+      // with the largest lazy chunk if either library grows.
+      chunkSizeWarningLimit: 1200,
       rollupOptions: {
         output: {
           // Split large third-party libs into their own cacheable chunks so no

@@ -27,11 +27,12 @@ export function DashboardTab() {
   const { exportCreator, exportFilenameStem } = useAppConfig();
   const { effectiveSpaceIds, selectedSpaces, state, refreshNonce } = useSelectionContext();
 
-  // The dashboard always counts the selected spaces (VNG Groei initiatives) by their
-  // NDS / VNG-2030 profile tags. When the GD ("include GemeenteDelers initiatives")
-  // checkbox is on, GD initiatives are additionally stacked into every chart — they
-  // carry GemeenteDelers themes rather than NDS/VNG-2030 tags, so most land in the
-  // "Overig" (no classification) bar.
+  // The dashboard counts the selected spaces (VNG Groei initiatives) by their Alkemio
+  // CLASSIFICATIONS — what an editor selected on the Space, never their free-text tags
+  // (feature 020). When the GD ("include GemeenteDelers initiatives") checkbox is on, GD
+  // initiatives are additionally stacked into every chart; they are Callouts and carry no
+  // classifications, so they are matched by tag against the same vocabulary's labels and
+  // most still land in the "Overig" (no classification) bar.
   const request = useMemo(
     () => ({
       spaceIds: effectiveSpaceIds,
@@ -77,10 +78,17 @@ export function DashboardTab() {
   const [exporting, setExporting] = useState(false);
   const [busyChart, setBusyChart] = useState<string | null>(null);
 
-  const catLabel = (ns: string, key: string) =>
-    key === 'uncategorised'
-      ? t('dashboard.uncategorised', { defaultValue: 'No classification' })
-      : t(`${ns}.${key}`, { defaultValue: key });
+  // Category names are authored in Alkemio and exported verbatim (FR-024). Only the
+  // synthetic buckets (label === null) are localised.
+  const uncategorised = t('dashboard.uncategorised', { defaultValue: 'No classification' });
+  // Vocabulary drift, keyed by dimension so each chart renders only its own notice.
+  // Absent from the response whenever every vocabulary matched, so this is usually empty.
+  const driftFor = (dimension: 'nds' | 'vng2030' | 'phase') =>
+    data?.vocabularyDrift?.find((d) => d.dimension === dimension);
+  const catLabel = (label: string | null | undefined) => label ?? uncategorised;
+  /** Look a matrix cell's value id up on its axis, which carries the label. */
+  const axisLabel = (axis: { key: string; label: string | null }[], key: string) =>
+    axis.find((a) => a.key === key)?.label ?? uncategorised;
 
   // ---- Per-chart raw-data builders (each returns one sheet, or null when empty) ----
   const dimTable = (key: 'nds' | 'vng2030'): ChartTable | null => {
@@ -88,7 +96,7 @@ export function DashboardTab() {
     if (!dim) return null;
     return {
       columns: [t('export.category'), t('export.count'), t('export.initiatives')],
-      rows: dim.categories.map((c) => [catLabel(`categories.${key}`, c.key), c.count, c.items.join(', ')]),
+      rows: dim.categories.map((c) => [catLabel(c.label), c.count, c.items.join(', ')]),
     };
   };
   const phaseTable = (): ChartTable | null => {
@@ -96,7 +104,11 @@ export function DashboardTab() {
     if (!pd) return null;
     return {
       columns: [t('export.phase'), t('export.count'), t('export.initiatives')],
-      rows: pd.phases.map((p) => [catLabel('categories.phase', p.key), p.count, p.items.join(', ')]),
+      rows: pd.phases.map((p) => [
+        p.label ?? t('categories.phase.unknown', { defaultValue: 'No phase' }),
+        p.count,
+        p.items.join(', '),
+      ]),
     };
   };
   const distTable = (): ChartTable | null => {
@@ -132,8 +144,8 @@ export function DashboardTab() {
         t('export.initiatives'),
       ],
       rows: m.cells.map((c) => [
-        catLabel('categories.nds', c.nds),
-        catLabel('categories.vng2030', c.vng2030),
+        axisLabel(m.ndsCategories, c.nds),
+        axisLabel(m.vng2030Categories, c.vng2030),
         c.count,
         c.spacesItems.length,
         c.gdItems.length,
@@ -253,7 +265,8 @@ export function DashboardTab() {
             node: cityPopRef.current,
           },
         ],
-        labelOf: (ns, key) => t(`${ns}.${key}`, { defaultValue: key }),
+        uncategorisedLabel: uncategorised,
+        noPhaseLabel: t('categories.phase.unknown', { defaultValue: 'No phase' }),
         creator: exportCreator,
         filename: `${exportFilenameStem}-${new Date().toISOString().slice(0, 10)}.xlsx`,
         text: {
@@ -323,6 +336,12 @@ export function DashboardTab() {
             {t('dashboard.totalCounted', { count: data.totalCounted })}
             {data.uncategorisedCount > 0 &&
               ` · ${t('dashboard.uncategorisedCount', { count: data.uncategorisedCount })}`}
+            {/* The rollout gap: spaces the classification programme has not reached yet.
+                Reported separately from "uncategorised" because a classified space that
+                selected nothing is uncategorised but NOT unclassified. Disappears on its
+                own once every space is classified — no config switch (FR-016/FR-017). */}
+            {data.unclassifiedCount > 0 &&
+              ` · ${t('dashboard.unclassifiedCount', { count: data.unclassifiedCount })}`}
           </p>
         ) : (
           <span />
@@ -347,8 +366,8 @@ export function DashboardTab() {
       </div>
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-        {/* Growth-phase pipeline leads the dashboard; omitted entirely when the
-            selected spaces carry no phase tags (the server then sends no data). */}
+        {/* Growth-phase pipeline leads the dashboard; omitted entirely when no selected
+            space carries a phase selection (the server then sends no data). */}
         {data?.phaseDistribution &&
           frame(
             'phase',
@@ -359,6 +378,7 @@ export function DashboardTab() {
             <PhaseDistributionChart
               distribution={data.phaseDistribution}
               emptyLabel={t('dashboard.noData')}
+              drift={driftFor('phase')}
             />,
           )}
         {frame(
@@ -367,7 +387,7 @@ export function DashboardTab() {
           t('dashboard.nds'),
           () => dimTable('nds'),
           undefined,
-          <NdsChart dimension={ndsDimension} gdIncluded={gdIncluded} />,
+          <NdsChart dimension={ndsDimension} gdIncluded={gdIncluded} drift={driftFor('nds')} />,
         )}
         {frame(
           'vng2030',
@@ -375,7 +395,11 @@ export function DashboardTab() {
           t('dashboard.vng2030'),
           () => dimTable('vng2030'),
           undefined,
-          <Vng2030Chart dimension={vng2030Dimension} gdIncluded={gdIncluded} />,
+          <Vng2030Chart
+            dimension={vng2030Dimension}
+            gdIncluded={gdIncluded}
+            drift={driftFor('vng2030')}
+          />,
         )}
         {frame(
           'dist',

@@ -259,7 +259,7 @@ export function CityDetailsTab({ openCityId, openCitySeq }: CityDetailsTabProps 
                                 key={`v-${v}`}
                                 className="inline-flex items-center rounded-full border border-border bg-muted px-2 py-0.5 text-xs text-foreground"
                               >
-                                {t(`categories.vng2030.${v}`, { defaultValue: v })}
+                                {v}
                               </span>
                             ))}
                             {i.nds.map((v) => (
@@ -267,7 +267,7 @@ export function CityDetailsTab({ openCityId, openCitySeq }: CityDetailsTabProps 
                                 key={`n-${v}`}
                                 className="inline-flex items-center rounded-full border border-border bg-muted px-2 py-0.5 text-xs text-foreground"
                               >
-                                {t(`categories.nds.${v}`, { defaultValue: v })}
+                                {v}
                               </span>
                             ))}
                             {i.themes.map((v) => (

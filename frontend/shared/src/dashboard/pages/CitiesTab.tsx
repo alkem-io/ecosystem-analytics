@@ -95,7 +95,7 @@ export function CitiesTab() {
         labelKey: 'citiesTab.filterVng2030',
         options: distinct((r) => r.vng2030).map((v) => ({
           value: v,
-          label: t(`categories.vng2030.${v}`, { defaultValue: v }),
+          label: v,
         })),
         matches: (r: CityRow, v: string) => r.vng2030.includes(v),
       },
@@ -104,7 +104,7 @@ export function CitiesTab() {
         labelKey: 'citiesTab.filterNds',
         options: distinct((r) => r.nds).map((v) => ({
           value: v,
-          label: t(`categories.nds.${v}`, { defaultValue: v }),
+          label: v,
         })),
         matches: (r: CityRow, v: string) => r.nds.includes(v),
       },
@@ -453,12 +453,12 @@ export function CitiesTab() {
                     <td className="px-3 py-2.5 tabular-nums text-muted-foreground">{r.gdCount}</td>
                     <td className="border-l border-border px-3 py-2.5">
                       {wordCloud(r, r.vng2030, (i) => i.vng2030, (v) =>
-                        t(`categories.vng2030.${v}`, { defaultValue: v }),
+                        v,
                       )}
                     </td>
                     <td className="px-3 py-2.5">
                       {wordCloud(r, r.nds, (i) => i.nds, (v) =>
-                        t(`categories.nds.${v}`, { defaultValue: v }),
+                        v,
                       )}
                     </td>
                     <td className="px-3 py-2.5">{wordCloud(r, r.themes, (i) => i.themes)}</td>

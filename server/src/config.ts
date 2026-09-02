@@ -76,10 +76,19 @@ export interface DashboardAppConfig {
    * GD corpus at ~1 week.
    */
   geoCacheTtlHours: number;
-  /** Raw space/callout tag (lower-cased) → dashboard category key, per dimension. FR-025. */
-  tagCategoryMapping: {
-    nds: Record<string, string>;
-    vng2030: Record<string, string>;
+  /**
+   * Which Alkemio Classification drives which dashboard panel (feature 020, FR-010).
+   * Each value is a classification's `displayLabel`, matched case- and
+   * whitespace-insensitively — it NAMES a vocabulary, it never restates one: the
+   * categories themselves always come from Alkemio (FR-007/FR-011).
+   *
+   * An empty string means no classification is designated for that panel, which
+   * renders it with only the "no classification" bucket rather than hiding it.
+   */
+  classifications: {
+    nds: string;
+    vng2030: string;
+    phase: string;
   };
 }
 
@@ -253,7 +262,7 @@ interface DashboardYamlBlock {
   gemeentedelers_space_nameid?: string;
   gd_cache_ttl_hours?: number;
   geo_cache_ttl_hours?: number;
-  tag_category_mapping?: { nds?: Record<string, unknown>; vng2030?: Record<string, unknown> };
+  classifications?: { nds?: unknown; vng2030?: unknown; phase?: unknown };
 }
 
 /**
@@ -262,8 +271,10 @@ interface DashboardYamlBlock {
  * independent (feature 017: separate env vars, not shared).
  */
 function parseDashboardConfig(raw?: DashboardYamlBlock): DashboardAppConfig {
-  const stringMap = (m?: Record<string, unknown>): Record<string, string> =>
-    Object.fromEntries(Object.entries(m ?? {}).map(([k, v]) => [k.toLowerCase(), String(v)]));
+  // An ABSENT key falls back to the default label; a key present but empty is an
+  // explicit "no classification designated for this panel" and is honoured as such.
+  const designation = (value: unknown, fallback: string): string =>
+    value === undefined || value === null ? fallback : String(value).trim();
 
   return {
     // Trim so stray whitespace in the env value (e.g. "vih-test  ") can't break the
@@ -274,9 +285,12 @@ function parseDashboardConfig(raw?: DashboardYamlBlock): DashboardAppConfig {
       : 'gemeentedelers',
     gdCacheTtlHours: Number(raw?.gd_cache_ttl_hours) || 168,
     geoCacheTtlHours: Number(raw?.geo_cache_ttl_hours) || 168,
-    tagCategoryMapping: {
-      nds: stringMap(raw?.tag_category_mapping?.nds),
-      vng2030: stringMap(raw?.tag_category_mapping?.vng2030),
+    // Designations are stored verbatim so the config stays readable; normalisation
+    // happens at match time in transform/classifications.ts.
+    classifications: {
+      nds: designation(raw?.classifications?.nds, 'NDS-prioriteit'),
+      vng2030: designation(raw?.classifications?.vng2030, 'VNG 2030 thema'),
+      phase: designation(raw?.classifications?.phase, 'Fase'),
     },
   };
 }

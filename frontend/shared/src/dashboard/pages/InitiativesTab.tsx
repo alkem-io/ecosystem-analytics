@@ -244,7 +244,7 @@ export function InitiativesTab() {
         labelKey: 'initiativesTab.filterVng2030',
         options: distinct((r) => r.vng2030).map((v) => ({
           value: v,
-          label: t(`categories.vng2030.${v}`, { defaultValue: v }),
+          label: v,
         })),
         matches: (r: Row, v: string) => r.vng2030.includes(v),
       },
@@ -253,7 +253,7 @@ export function InitiativesTab() {
         labelKey: 'initiativesTab.filterNds',
         options: distinct((r) => r.nds).map((v) => ({
           value: v,
-          label: t(`categories.nds.${v}`, { defaultValue: v }),
+          label: v,
         })),
         matches: (r: Row, v: string) => r.nds.includes(v),
       },
@@ -592,10 +592,10 @@ export function InitiativesTab() {
                     {r.leads == null ? '—' : r.leads}
                   </td>
                   <td className="border-l border-border px-3 py-2.5">
-                    {chips(r.vng2030, (v) => t(`categories.vng2030.${v}`, { defaultValue: v }))}
+                    {chips(r.vng2030, (v) => v)}
                   </td>
                   <td className="px-3 py-2.5">
-                    {chips(r.nds, (v) => t(`categories.nds.${v}`, { defaultValue: v }))}
+                    {chips(r.nds, (v) => v)}
                   </td>
                   <td className="px-3 py-2.5">{chips(r.themes)}</td>
                   <td className="px-3 py-2.5">

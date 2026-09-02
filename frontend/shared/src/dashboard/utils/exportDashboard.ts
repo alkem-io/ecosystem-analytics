@@ -17,8 +17,12 @@ interface ExportArgs {
   data: VngDashboardResponse;
   /** Charts to embed as images (captured from the live DOM). */
   charts: ChartCapture[];
-  /** i18n category-label resolver, e.g. (ns, key) => localized label. */
-  labelOf: (namespace: string, key: string) => string;
+  /**
+   * Localise a synthetic bucket that has no Alkemio label (feature 020). Real category
+   * names come off the payload verbatim and are never passed through here (FR-024).
+   */
+  uncategorisedLabel: string;
+  noPhaseLabel: string;
   /** XLSX workbook creator/author (per-app, from AppConfig). */
   creator: string;
   filename: string;
@@ -71,7 +75,8 @@ async function capture(node: HTMLElement, toPng: typeof ToPng): Promise<string |
 export async function exportDashboardXlsx({
   data,
   charts,
-  labelOf,
+  uncategorisedLabel,
+  noPhaseLabel,
   creator,
   filename,
   text,
@@ -108,7 +113,7 @@ export async function exportDashboardXlsx({
     titleRow(label);
     headerRow([text.category, text.count, text.initiatives]);
     for (const c of dim.categories) {
-      ds.addRow([labelOf(`categories.${key}`, c.key), c.count, c.items.join(', ')]);
+      ds.addRow([c.label ?? uncategorisedLabel, c.count, c.items.join(', ')]);
     }
     ds.addRow([]);
     ds.addRow([]);
@@ -118,7 +123,7 @@ export async function exportDashboardXlsx({
     titleRow(text.phases);
     headerRow([text.phase, text.count, text.initiatives]);
     for (const p of data.phaseDistribution.phases) {
-      ds.addRow([labelOf('categories.phase', p.key), p.count, p.items.join(', ')]);
+      ds.addRow([p.label ?? noPhaseLabel, p.count, p.items.join(', ')]);
     }
     ds.addRow([]);
     ds.addRow([]);

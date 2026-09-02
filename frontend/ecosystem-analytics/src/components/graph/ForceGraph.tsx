@@ -14,6 +14,9 @@ import {
   isImageFailed,
   markImageFailed,
   withImageCacheBust,
+  renderNlBasemap,
+  MapAttribution,
+  type NlBasemap,
 } from '@ea/shared';
 import { getToken } from '../../services/auth.js';
 import styles from './ForceGraph.module.css';
@@ -357,6 +360,11 @@ export default function ForceGraph({
   nodeSizeScale = 1,
 }: Props) {
   const svgRef = useRef<SVGSVGElement>(null);
+  /** Positioning context for the basemap canvas + SVG stack (feature 021). */
+  const containerRef = useRef<HTMLDivElement>(null);
+  const mapLayerRef = useRef<HTMLDivElement>(null);
+  /** Teardown for the current basemap's WebGL context. */
+  const destroyBasemapRef = useRef<() => void>(() => {});
   /** Fallback timer for the initial fit-to-view (cleared on unmount/re-render). */
   const fitTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const simulationRef = useRef<d3.Simulation<SimNode, SimLink>>(null);
@@ -842,6 +850,7 @@ export default function ForceGraph({
 
     // Setup zoom
     let simulationLocal: d3.Simulation<SimNode, SimLink> | null = null;
+    let basemap: NlBasemap | null = null;
     const g = svg.append('g');
     const zoom = d3.zoom<SVGSVGElement, unknown>().scaleExtent([0.1, 20]).on('zoom', (event) => {
       g.attr('transform', event.transform);
@@ -852,7 +861,9 @@ export default function ForceGraph({
         simulationLocal.alpha(0.01).restart();
       }
     });
-    svg.call(zoom as any);
+    // MapLibre owns pan and zoom whenever a basemap is present (feature 021); attaching
+    // d3-zoom as well would give one camera two authorities.
+    if (!showMap) svg.call(zoom as any);
 
     // Background click: collapse any revealed cluster
     svg.on('click.reveal', () => {
@@ -948,9 +959,6 @@ export default function ForceGraph({
       cullOverlappingLabels();
 
       // Refresh map tiles at the new zoom level
-      if ((applyLOD as any)._renderTiles) {
-        (applyLOD as any)._renderTiles(k);
-      }
     }
 
     // Build projection for geo-pinning
@@ -961,153 +969,38 @@ export default function ForceGraph({
           .translate([width / 2, height / 2])
       : null;
 
-    // Render map tiles + GeoJSON boundary data inside the zoom group (behind everything)
+    // The basemap — imagery, region borders and the region mask — comes from the SHARED
+    // module (feature 021), the same one the VNG and GovTech maps use. This file used to
+    // carry a second, verbatim copy of the tile compositor pointed at CARTO; that is what
+    // left the Explorer on watermarked tiles after the migration, and why the module's
+    // "single implementation" claim was only half true.
     if (showMap && projection) {
-      const mapGroup = g.append('g').attr('class', 'map-layer');
-      const path = geoPath().projection(projection);
-
-      // Clip definition: tiles will be clipped to this path once GeoJSON loads
-      const clipId = 'map-region-clip';
-      const mapClipDef = svg.append('defs').append('clipPath').attr('id', clipId);
-
-      const tileGroup = mapGroup.append('g').attr('class', 'tile-layer');
-
-      // --- Tile rendering helpers ---
-      // Convert lon/lat to tile x/y at a given zoom level (Web Mercator)
-      function lon2tile(lon: number, z: number) { return ((lon + 180) / 360) * Math.pow(2, z); }
-      function lat2tile(lat: number, z: number) {
-        const latRad = (lat * Math.PI) / 180;
-        return ((1 - Math.log(Math.tan(latRad) + 1 / Math.cos(latRad)) / Math.PI) / 2) * Math.pow(2, z);
-      }
-      // Inverse: tile x/y → lon/lat
-      function tile2lon(x: number, z: number) { return (x / Math.pow(2, z)) * 360 - 180; }
-      function tile2lat(y: number, z: number) {
-        const n = Math.PI - (2 * Math.PI * y) / Math.pow(2, z);
-        return (180 / Math.PI) * Math.atan(0.5 * (Math.exp(n) - Math.exp(-n)));
-      }
-
-      // Choose tile zoom level based on the Mercator scale
-      const baseZoom = mapRegion === 'netherlands' ? 8 : mapRegion === 'europe' ? 4 : 2;
-
-      function renderTiles(zoomK: number) {
-        // The effective tile zoom considers both base projection scale and D3 zoom
-        const tileZ = Math.max(0, Math.min(18, Math.round(baseZoom + Math.log2(Math.max(zoomK, 0.1)))));
-        // Compute SVG-space bounds visible in the viewport.
-        // When zoomed, the g-transform is "translate(tx,ty) scale(k)".
-        // The inverse maps SVG viewport corners to coordinate space.
-        const currentTransform = d3.zoomTransform(svg.node()!);
-        const topLeft = currentTransform.invert([0, 0]);
-        const bottomRight = currentTransform.invert([width, height]);
-        // Convert SVG coordinates to lon/lat via the inverse projection
-        const inv = projection!.invert!;
-        const geoTL = inv(topLeft as [number, number]);
-        const geoBR = inv(bottomRight as [number, number]);
-        if (!geoTL || !geoBR) return;
-
-        // Tile range for the visible extent
-        const xMin = Math.max(0, Math.floor(lon2tile(geoTL[0], tileZ)));
-        const xMax = Math.min(Math.pow(2, tileZ) - 1, Math.floor(lon2tile(geoBR[0], tileZ)));
-        const yMin = Math.max(0, Math.floor(lat2tile(geoTL[1], tileZ)));
-        const yMax = Math.min(Math.pow(2, tileZ) - 1, Math.floor(lat2tile(geoBR[1], tileZ)));
-
-        // Build tile data array
-        const tiles: { tx: number; ty: number; z: number; key: string }[] = [];
-        for (let tx = xMin; tx <= xMax; tx++) {
-          for (let ty = yMin; ty <= yMax; ty++) {
-            tiles.push({ tx, ty, z: tileZ, key: `${tileZ}/${tx}/${ty}` });
-          }
-        }
-
-        // Cap tiles to prevent flooding the DOM
-        if (tiles.length > 200) return;
-
-        const subdomains = ['a', 'b', 'c', 'd'];
-
-        // Data join
-        const images = tileGroup.selectAll<SVGImageElement, typeof tiles[0]>('image')
-          .data(tiles, (d) => d.key);
-
-        images.exit().remove();
-
-        images.enter()
-          .append('image')
-          .attr('preserveAspectRatio', 'none')
-          .attr('pointer-events', 'none')
-          .merge(images as any)
-          .attr('href', (d) => {
-            const s = subdomains[(d.tx + d.ty) % subdomains.length];
-            return `https://${s}.basemaps.cartocdn.com/light_nolabels/${d.z}/${d.tx}/${d.ty}.png`;
-          })
-          .each(function (d) {
-            // Project tile corners from lon/lat to SVG coordinates
-            const topLeftLon = tile2lon(d.tx, d.z);
-            const topLeftLat = tile2lat(d.ty, d.z);
-            const bottomRightLon = tile2lon(d.tx + 1, d.z);
-            const bottomRightLat = tile2lat(d.ty + 1, d.z);
-            const pTL = projection!([topLeftLon, topLeftLat]);
-            const pBR = projection!([bottomRightLon, bottomRightLat]);
-            if (pTL && pBR) {
-              d3.select(this)
-                .attr('x', pTL[0])
-                .attr('y', pTL[1])
-                .attr('width', pBR[0] - pTL[0])
-                .attr('height', pBR[1] - pTL[1]);
-            }
-          });
-      }
-
-      // Initial tile render
-      renderTiles(1);
-      // Expose for zoom handler
-      (applyLOD as any)._renderTiles = renderTiles;
-
-      fetch(MAP_URLS[mapRegion])
-        .then((res) => {
-          if (!res.ok) throw new Error('Map not found');
-          return res.json();
-        })
-        .then((geojson) => {
-          // Cache GeoJSON for boundary checking (used by computePinnedNodeIds)
+      destroyBasemapRef.current();
+      basemap = renderNlBasemap({
+        group: g,
+        region: mapRegion,
+        width,
+        height,
+        container: mapLayerRef.current,
+        onBasemapFallback: (reason) => console.warn(`[Explorer] basemap unavailable: ${reason}`),
+        onCameraChange: (t) => {
+          currentZoomScale = t.k;
+          applyLOD(t.k);
+        },
+        onGeoJson: (geojson) => {
           mapGeoJSONCacheRef.current[mapRegion] = geojson as GeoPermissibleObjects;
-
-          // Build clip path from region boundary so tiles are masked to the region
-          const features = geojson.features || [geojson];
-          mapClipDef.selectAll('path')
-            .data(features)
-            .join('path')
-            .attr('d', path as any);
-          tileGroup.attr('clip-path', `url(#${clipId})`);
-
-          // Draw subtle country/region borders on top of tiles
-          const isWorldMap = mapRegion === 'world';
-          mapGroup
-            .selectAll('path.region-border')
-            .data(features)
-            .join('path')
-            .attr('class', 'region-border')
-            .attr('d', path as any)
-            .attr('fill', 'none')
-            .attr('stroke', isWorldMap ? 'rgba(150,150,150,0.3)' : 'rgba(100, 120, 140, 0.4)')
-            .attr('stroke-width', isWorldMap ? 0.5 : 0.8)
-            .style('pointer-events', 'none');
-
-          // After GeoJSON loads: re-apply boundary filtering to pin only in-region nodes
+          // Re-pin only the nodes inside the region now that its boundary is known.
           if (projection && simulationLocal) {
             const pinnedIds = computePinnedNodeIds(simNodes, geojson as GeoPermissibleObjects);
-            // Clear geoTargets and rebuild with only boundary-filtered nodes
             geoTargets.clear();
             for (const node of simNodes) {
               if (pinnedIds.has(node.data.id)) {
                 const loc = node.data.location!;
                 const projected = projection([loc.longitude!, loc.latitude!]);
-                if (projected) {
-                  geoTargets.set(node.data.id, { x: projected[0], y: projected[1] });
-                }
+                if (projected) geoTargets.set(node.data.id, { x: projected[0], y: projected[1] });
               }
             }
-            // Spread co-located nodes with organic jitter
             spreadColocatedNodes(geoTargets);
-            // Re-pin/unpin nodes based on boundary filtering
             for (const node of simNodes) {
               const target = geoTargets.get(node.data.id);
               if (target) {
@@ -1118,22 +1011,19 @@ export default function ForceGraph({
                 node.fy = null;
               }
             }
-            // Update repulsion force with new bounds and pinned set
-            const bounds = computeMapBounds(geojson as GeoPermissibleObjects, projection as (point: [number, number]) => [number, number] | null);
+            const bounds = computeMapBounds(
+              geojson as GeoPermissibleObjects,
+              projection as (point: [number, number]) => [number, number] | null,
+            );
             simulationLocal.force('map-repulsion', mapRepulsionForce(bounds, pinnedIds));
             simulationLocal.alpha(0.3).restart();
           }
-        })
-        .catch(() => {
-          mapGroup
-            .append('text')
-            .attr('x', width / 2)
-            .attr('y', height / 2)
-            .attr('text-anchor', 'middle')
-            .attr('fill', 'var(--text-muted)')
-            .attr('font-size', 14)
-            .text('Map unavailable');
-        });
+        },
+      });
+      destroyBasemapRef.current = basemap.destroy;
+    } else {
+      destroyBasemapRef.current();
+      destroyBasemapRef.current = () => {};
     }
 
     // Precompute geo target positions for nodes with location data.
@@ -2964,5 +2854,18 @@ export default function ForceGraph({
     return () => observer.disconnect();
   }, [renderGraph]);
 
-  return <svg ref={svgRef} className={styles.svg} role="img" aria-label="Ecosystem network graph" />;
+  return (
+    <div className={styles.stack}>
+      <div ref={containerRef} className={styles.container} data-testid="map-container">
+        <div ref={mapLayerRef} className={styles.canvas} aria-hidden="true" />
+        <svg
+          ref={svgRef}
+          className={showMap ? `${styles.svg} ${styles.mapMode}` : styles.svg}
+          role="img"
+          aria-label="Ecosystem network graph"
+        />
+      </div>
+      {showMap && <MapAttribution />}
+    </div>
+  );
 }

@@ -10,19 +10,26 @@ import {
   YAxis,
   type TooltipProps,
 } from 'recharts';
-import type { PhaseDistribution } from '@server/types/api.js';
+import type { PhaseDistribution, VocabularyDrift } from '@server/types/api.js';
+import { VocabularyDriftNotice } from './VocabularyDriftNotice.js';
 
 interface Props {
   distribution: PhaseDistribution | undefined;
   emptyLabel: string;
+  /** Phase-vocabulary mismatch, shown as a notice under the chart. */
+  drift?: VocabularyDrift;
 }
 
 const PHASE_COLOR = 'var(--primary)';
 
-/** Localised phase name; falls back to the raw tag key for an unmapped phase. */
+/**
+ * A phase's name. Real phases carry their Alkemio-authored label and are rendered
+ * verbatim (FR-024); only the synthetic trailing bucket (label === null) is localised.
+ */
 function usePhaseLabel() {
   const { t } = useTranslation();
-  return (key: string) => t(`categories.phase.${key}`, { defaultValue: key });
+  return (phase: { label: string | null }) =>
+    phase.label ?? t('categories.phase.unknown', { defaultValue: 'No phase' });
 }
 
 /** Tooltip showing the phase, its count, and the names of the initiatives in it. */
@@ -34,7 +41,7 @@ function PhaseTooltip({ active, payload }: TooltipProps<number, string>) {
 
   return (
     <div className="max-w-xs rounded-lg border border-border bg-card p-3 text-xs shadow-md">
-      <div className="font-semibold text-foreground">{phaseLabel(d.key)}</div>
+      <div className="font-semibold text-foreground">{phaseLabel(d)}</div>
       <div className="mt-0.5 text-muted-foreground">
         {t('dashboard.count', { defaultValue: 'Count' })}: {d.count}
       </div>
@@ -56,10 +63,12 @@ function PhaseTooltip({ active, payload }: TooltipProps<number, string>) {
  * chart: it shows where the pipeline is thin. GemeenteDelers initiatives are never
  * counted here — they are a separate, completed programme with no phase.
  */
-export function PhaseDistributionChart({ distribution, emptyLabel }: Props) {
+export function PhaseDistributionChart({ distribution, emptyLabel, drift }: Props) {
   const { t } = useTranslation();
   const phaseLabel = usePhaseLabel();
-  const data = distribution?.phases ?? [];
+  // Resolve each phase's axis name up front: the tick formatter only sees the scalar
+  // dataKey value, and the synthetic bucket's name is localised rather than authored.
+  const data = (distribution?.phases ?? []).map((p) => ({ ...p, name: phaseLabel(p) }));
 
   return (
     <section className="flex flex-col gap-1 rounded-lg border border-border bg-card p-4">
@@ -79,10 +88,9 @@ export function PhaseDistributionChart({ distribution, emptyLabel }: Props) {
             <BarChart data={data} margin={{ top: 20, right: 16, bottom: 8, left: 0 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
               <XAxis
-                dataKey="key"
+                dataKey="name"
                 interval={0}
                 tick={{ fontSize: 11, fill: 'var(--text-secondary)' }}
-                tickFormatter={phaseLabel}
               />
               <YAxis allowDecimals={false} tick={{ fontSize: 11, fill: 'var(--text-secondary)' }} />
               <Tooltip cursor={{ fill: 'var(--surface)' }} content={<PhaseTooltip />} />
@@ -99,6 +107,10 @@ export function PhaseDistributionChart({ distribution, emptyLabel }: Props) {
           </ResponsiveContainer>
         </div>
       )}
+      {/* Below the chart: the pipeline order and membership come from Alkemio's authored
+          vocabulary, so a drift here means the x-axis itself may not be the pipeline
+          this build was written against. */}
+      <VocabularyDriftNotice drift={drift} />
     </section>
   );
 }

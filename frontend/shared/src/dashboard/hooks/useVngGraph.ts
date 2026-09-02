@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { api } from '@ea/shared';
+import { api, useAppConfig } from '@ea/shared';
 import type { GraphDataset } from '@server/types/graph.js';
 
 /**
@@ -24,6 +24,7 @@ export function useVngGraph(
   options: { includeInitiatives?: boolean; refreshNonce?: number } = {},
 ): UseVngGraphResult {
   const { includeInitiatives = false, refreshNonce = 0 } = options;
+  const { appId } = useAppConfig();
   const [dataset, setDataset] = useState<GraphDataset | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -68,6 +69,9 @@ export function useVngGraph(
         spaceIds,
         includeInitiatives,
         forceRefresh,
+        // Which dashboard is asking, so the node-level category enrichment uses THIS
+        // app's classification designations rather than always VNG's (feature 020).
+        app: appId,
       })
       .then((result) => {
         if (cancelled || requestId !== requestRef.current) return;
@@ -92,7 +96,8 @@ export function useVngGraph(
       cancelled = true;
     };
     // `signature` captures spaceIds + includeInitiatives; `nonce` (internal) and
-    // `refreshNonce` (external, cache-bypassing) force reloads.
+    // `refreshNonce` (external, cache-bypassing) force reloads. `appId` is fixed for the
+    // lifetime of an SPA, so it is intentionally not a dependency.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [signature, nonce, refreshNonce]);
 

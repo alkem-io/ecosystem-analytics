@@ -54,13 +54,39 @@
     "5175": { "label": "GovTech SPA", "onAutoForward": "silent" }
   },
 
-  // Fixed volume names (NOT devcontainerId-scoped) so every ecosystem-analytics
+  // Two deliberately different naming schemes below.
+  //
+  // FIXED names (NOT devcontainerId-scoped) so every ecosystem-analytics
   // worktree container SHARES one Claude login, one pnpm store, and one shell
   // history — you log in / download packages once, not per worktree.
+  //
+  // devcontainerId-SCOPED names for node_modules, because the opposite is true
+  // there: each worktree is on its own branch with its own lockfile, so sharing
+  // one install across them would be wrong.
+  //
+  // Why node_modules is a volume at all: workspaceMount bind-mounts the host
+  // checkout, so without these the container and the macOS host would share one
+  // node_modules. `pnpm install` resolves platform-specific optional deps for
+  // whichever OS ran it (esbuild, rollup, better-sqlite3, and TypeScript 7 —
+  // now a native binary), so whichever side installed last broke the other with
+  // "Unable to resolve @typescript/typescript-<platform>". A volume per package
+  // gives each side its own tree; the host's install still sits untouched on
+  // disk underneath the mount.
+  //
+  // These arrive empty and root-owned (nothing in the image to seed from), so
+  // post-create.sh chowns them via claim-node-modules.sh before installing.
   "mounts": [
     "source=ea-claude,target=/home/node/.claude,type=volume",
     "source=ea-pnpm-store,target=/home/node/.local/share/pnpm/store,type=volume",
-    "source=ea-commandhistory,target=/commandhistory,type=volume"
+    "source=ea-commandhistory,target=/commandhistory,type=volume",
+
+    "source=ea-nm-root-${devcontainerId},target=${containerWorkspaceFolder}/node_modules,type=volume",
+    "source=ea-nm-server-${devcontainerId},target=${containerWorkspaceFolder}/server/node_modules,type=volume",
+    "source=ea-nm-frontend-${devcontainerId},target=${containerWorkspaceFolder}/frontend/node_modules,type=volume",
+    "source=ea-nm-shared-${devcontainerId},target=${containerWorkspaceFolder}/frontend/shared/node_modules,type=volume",
+    "source=ea-nm-explorer-${devcontainerId},target=${containerWorkspaceFolder}/frontend/ecosystem-analytics/node_modules,type=volume",
+    "source=ea-nm-vng-${devcontainerId},target=${containerWorkspaceFolder}/frontend/vng/node_modules,type=volume",
+    "source=ea-nm-govtech-${devcontainerId},target=${containerWorkspaceFolder}/frontend/govtech/node_modules,type=volume"
   ],
 
   // Install workspace + server deps (network still open), then lock down the

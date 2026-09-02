@@ -21,6 +21,12 @@ import { dirname, resolve } from 'node:path';
  *   • points INSIDE the Netherlands show the tile layer (RED here)
  * It is the regression guard for the bug we fought repeatedly (map bleeding across
  * Europe). If anything outside NL renders again, this fails.
+ *
+ * SCOPE (feature 021): this spec verifies the mask's GEOMETRY, not the shipped picture.
+ * It rebuilds the layering here and stands a red rectangle in for the map, and it samples
+ * by serialising `document.querySelector('svg')` — so it can only ever see the SVG layer.
+ * Imagery drawn in a layer BENEATH the SVG is invisible to it. For the composited result
+ * the user actually sees, see tests/nl-only-composited.spec.mjs.
  */
 
 const __dirname = dirname(fileURLToPath(import.meta.url));

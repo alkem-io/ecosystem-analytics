@@ -93,9 +93,31 @@ export async function resolveGemeenteOrgNode(
     return node;
   } catch (err) {
     logger.warn(
-      `Failed to resolve missing gemeente org '${gemeenteNameId}': ${(err as Error).message}`,
+      `Failed to resolve missing gemeente org '${gemeenteNameId}': ${conciseGraphqlError(err)}`,
       { context: 'GD' },
     );
     return null;
   }
+}
+
+/**
+ * A one-line description of a GraphQL failure.
+ *
+ * `graphql-request` puts the ENTIRE HTTP response into `Error.message` — every error in
+ * the payload, each carrying the Alkemio server's own Node stack trace. Logging that
+ * verbatim turned a single "organisation not found" into ~40 lines of unrelated frames
+ * and made the surrounding log unreadable. Prefer the GraphQL error's own message, name
+ * its `code` (ENTITY_NOT_FOUND is the common and benign one here), and cap the length so
+ * an unrecognised shape can never flood the log either.
+ */
+function conciseGraphqlError(err: unknown): string {
+  const response = (
+    err as { response?: { errors?: { message?: string; extensions?: { code?: string } }[] } }
+  )?.response;
+  const first = response?.errors?.[0];
+  const raw = first?.message ?? (err instanceof Error ? err.message : String(err));
+  const oneLine = raw.replace(/\s+/g, ' ').trim();
+  const capped = oneLine.length > 200 ? `${oneLine.slice(0, 200)}…` : oneLine;
+  const code = first?.extensions?.code;
+  return code ? `${code}: ${capped}` : capped;
 }
