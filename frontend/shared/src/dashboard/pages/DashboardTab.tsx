@@ -81,6 +81,10 @@ export function DashboardTab() {
   // Category names are authored in Alkemio and exported verbatim (FR-024). Only the
   // synthetic buckets (label === null) are localised.
   const uncategorised = t('dashboard.uncategorised', { defaultValue: 'No classification' });
+  // Vocabulary drift, keyed by dimension so each chart renders only its own notice.
+  // Absent from the response whenever every vocabulary matched, so this is usually empty.
+  const driftFor = (dimension: 'nds' | 'vng2030' | 'phase') =>
+    data?.vocabularyDrift?.find((d) => d.dimension === dimension);
   const catLabel = (label: string | null | undefined) => label ?? uncategorised;
   /** Look a matrix cell's value id up on its axis, which carries the label. */
   const axisLabel = (axis: { key: string; label: string | null }[], key: string) =>
@@ -374,6 +378,7 @@ export function DashboardTab() {
             <PhaseDistributionChart
               distribution={data.phaseDistribution}
               emptyLabel={t('dashboard.noData')}
+              drift={driftFor('phase')}
             />,
           )}
         {frame(
@@ -382,7 +387,7 @@ export function DashboardTab() {
           t('dashboard.nds'),
           () => dimTable('nds'),
           undefined,
-          <NdsChart dimension={ndsDimension} gdIncluded={gdIncluded} />,
+          <NdsChart dimension={ndsDimension} gdIncluded={gdIncluded} drift={driftFor('nds')} />,
         )}
         {frame(
           'vng2030',
@@ -390,7 +395,11 @@ export function DashboardTab() {
           t('dashboard.vng2030'),
           () => dimTable('vng2030'),
           undefined,
-          <Vng2030Chart dimension={vng2030Dimension} gdIncluded={gdIncluded} />,
+          <Vng2030Chart
+            dimension={vng2030Dimension}
+            gdIncluded={gdIncluded}
+            drift={driftFor('vng2030')}
+          />,
         )}
         {frame(
           'dist',

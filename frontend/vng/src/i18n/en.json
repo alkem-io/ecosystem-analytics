@@ -177,7 +177,9 @@
     "notShownCount": "{{count}} not shown",
     "cityNoneInRange": "No cities in this population range",
     "unclassifiedCount": "{{count}} not yet classified",
-    "classificationsHeading": "Classifications"
+    "classificationsHeading": "Classifications",
+    "driftUnexpected": "Unexpected in Alkemio and not reviewed for this dashboard: {{labels}}. They are still shown and still counted.",
+    "driftMissing": "Expected by this dashboard but no longer in Alkemio: {{labels}}. Possibly renamed."
   },
   "categories": {
     "phase": {

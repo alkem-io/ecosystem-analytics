@@ -41,6 +41,23 @@ export interface GdCalloutInput {
   sourceUrl?: string | null;
 }
 
+/**
+ * A mismatch between a dimension's live Alkemio vocabulary and the set this build
+ * expects (`server/src/transform/expected-vocabularies.ts`).
+ *
+ * Advisory only: the chart still renders every live value and every count is unaffected.
+ * This exists so an unreviewed vocabulary change is visible under the chart instead of
+ * showing up as unexplained extra bars.
+ */
+export interface VocabularyDrift {
+  /** Which chart this belongs under: `nds`, `vng2030` or `phase`. */
+  dimension: 'nds' | 'vng2030' | 'phase';
+  /** Labels Alkemio has that this build does not expect. Rendered and counted regardless. */
+  unexpected: string[];
+  /** Labels this build expects that Alkemio's vocabulary no longer has — usually a rename. */
+  missing: string[];
+}
+
 /** Dimension key → category counts for the VNG dashboard. */
 export interface DashboardDimension {
   key: string;
@@ -222,6 +239,12 @@ export interface VngDashboardResponse {
   phaseDistribution?: PhaseDistribution;
   /** Population × initiative-count scatter series (feature 018, US3). */
   cityPopulation?: CityPopulationSeries;
+  /**
+   * Vocabularies that differ from this build's hard-coded expectation, one entry per
+   * affected dimension. Absent or empty when every vocabulary matched. Purely advisory —
+   * it changes nothing about `dimensions`, `phaseDistribution` or any count.
+   */
+  vocabularyDrift?: VocabularyDrift[];
 }
 
 /**

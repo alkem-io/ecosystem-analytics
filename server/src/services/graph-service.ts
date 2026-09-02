@@ -3,7 +3,13 @@ import type { AuthContext } from '../auth/middleware.js';
 import { transformToGraph, computeActivityTiers } from '../transform/transformer.js';
 import { computeMetrics } from '../transform/metrics.js';
 import { computeInsights } from '../transform/insights.js';
-import { getCacheEntry, setCacheEntry, invalidateCache, GD_CACHE_SPACE_ID } from '../cache/cache-service.js';
+import {
+  getCacheEntry,
+  setCacheEntry,
+  invalidateCache,
+  GD_CACHE_SPACE_ID,
+  GEO_CACHE_SPACE_ID,
+} from '../cache/cache-service.js';
 import { loadConfig, type DashboardAppId } from '../config.js';
 import { createAlkemioSdk } from '../graphql/client.js';
 import { loadVngRegistry } from './vng-registry.js';
@@ -44,17 +50,29 @@ export async function generateGraph(
 
   logger.info(`Graph generation requested for spaces [${spaceIds.join(', ')}] by user ${userId}`, { context: 'Graph' });
 
-  // If force refresh, invalidate the listed space rows AND the long-TTL GD
-  // initiative subgraph. Gemeente ORGANIZATION nodes (and their avatar URLs)
-  // resolved only via the GemeenteDelers layer live in the __gd_initiatives__
-  // row, which invalidateCache(spaceIds) does NOT cover — so without this a
-  // Refresh leaves stale/missing gemeente images untouched for the full
-  // gdCacheTtlHours window. Deleting the row also forces a rebuild even when the
-  // includeInitiatives checkbox is off at refresh time (loadGdSubgraph isn't
-  // called in that case, so the bypass there is not enough on its own).
+  // If force refresh, invalidate the listed space rows AND BOTH long-TTL synthetic
+  // rows. Neither is covered by invalidateCache(spaceIds), and both outlive any
+  // plausible debugging session, so a row poisoned by a transient Alkemio fault stays
+  // poisoned for a week unless Refresh clears it:
+  //
+  //  • __gd_initiatives__ — the GemeenteDelers subgraph. Gemeente ORGANIZATION nodes
+  //    (and their avatar URLs) resolved ONLY via this layer live here, so a gemeente
+  //    whose org lookup failed while this row was written has no GD initiatives
+  //    attributed to it at all. Deleting it also forces a rebuild when the
+  //    includeInitiatives checkbox is off at refresh time (loadGdSubgraph isn't called
+  //    then, so the bypass inside it is not enough on its own).
+  //
+  //  • __gemeente_geo__ — the gemeente location set behind the Usage Explorer map. It
+  //    stores Alkemio's nameID per gemeente, and that nameID is editable: when one is
+  //    renamed, this row keeps the old value and every consumer joining on it silently
+  //    plots the gemeente as "no initiatives". Marker matching now prefers the stable
+  //    cbsCode, but a Refresh must still be able to re-fetch this.
   if (forceRefresh) {
-    logger.info(`Force refresh: invalidating cache for spaces [${spaceIds.join(', ')}] + GD layer`, { context: 'Graph' });
-    invalidateCache(userId, [...spaceIds, GD_CACHE_SPACE_ID]);
+    logger.info(
+      `Force refresh: invalidating cache for spaces [${spaceIds.join(', ')}] + GD layer + gemeente locations`,
+      { context: 'Graph' },
+    );
+    invalidateCache(userId, [...spaceIds, GD_CACHE_SPACE_ID, GEO_CACHE_SPACE_ID]);
   }
 
   // Check cache for each space
@@ -206,6 +224,7 @@ export async function generateGraph(
         node.provinceCode = info?.provinceCode ?? null;
         node.provinceName = info?.provinceName ?? null;
         node.population = info?.population ?? null;
+        node.cbsCode = info?.cbsCode ?? null;
       }
     } else if (
       node.type === NodeType.SPACE_L0 ||

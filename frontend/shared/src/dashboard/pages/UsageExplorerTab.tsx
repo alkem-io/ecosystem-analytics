@@ -34,6 +34,19 @@ const ALL_PROVINCES = '__all__';
  *  • COUNTS come from `buildCityRows` — the feature-018 rule the Cities view uses, so the
  *    two views can never disagree (FR-029). Nothing here recounts initiatives.
  */
+/**
+ * Map height for this tab, in CSS pixels — twice `UsageMap`'s 520px default.
+ *
+ * Scanning usage means reading the whole country at a glance, so the map is the tab
+ * rather than a panel on it; at the default height the controls, legend and focus panel
+ * crowded it into the upper third. Set here and not as a new default so the feature-021
+ * visual-guard harness keeps rendering at its baseline size.
+ *
+ * A fixed pixel value, because the height feeds d3's projection and MapLibre's camera —
+ * both need a concrete number, not a CSS percentage.
+ */
+const MAP_HEIGHT = 1560;
+
 export function UsageExplorerTab() {
   const { t } = useTranslation();
   const cfg = useAppConfig();
@@ -171,6 +184,7 @@ export function UsageExplorerTab() {
       {/* ── Map ──────────────────────────────────────────────────────────────── */}
       <div className="relative">
         <UsageMap
+          height={MAP_HEIGHT}
           locations={locations}
           cityRows={cityRows}
           province={province}

@@ -103,16 +103,25 @@ export function buildUsageMarkers(
   cityRows: CityRow[],
   project: ProjectFn,
 ): { markers: UsageMarker[]; unplaced: number } {
+  // Two keys, because the location set and the graph are cached INDEPENDENTLY — the
+  // locations for a week, the graph per selection. An Alkemio nameID rename between the
+  // two writes ('s-Gravenhage has been both `gemeente-den-haag` and `gemeente-gravenhage`)
+  // orphans the gemeente on a nameID-only join, and it silently plots as "no initiatives"
+  // rather than disappearing, which is far harder to spot. cbsCode never changes.
+  const rowByCbsCode = new Map<string, CityRow>();
   const rowByNameId = new Map<string, CityRow>();
   for (const r of cityRows) {
+    if (r.cbsCode) rowByCbsCode.set(r.cbsCode, r);
     if (r.nameId) rowByNameId.set(r.nameId, r);
   }
+  const rowFor = (loc: GemeenteLocation): CityRow | null =>
+    (loc.cbsCode ? rowByCbsCode.get(loc.cbsCode) : undefined) ?? rowByNameId.get(loc.nameId) ?? null;
 
   // The scale spans EVERY eligible gemeente in the selection, not just the placeable or
   // visible ones, so the legend means the same thing everywhere on the map.
   let maxCount = 0;
   for (const loc of locations) {
-    const c = rowByNameId.get(loc.nameId)?.initiativeCount ?? 0;
+    const c = rowFor(loc)?.initiativeCount ?? 0;
     if (c > maxCount) maxCount = c;
   }
 
@@ -129,7 +138,7 @@ export function buildUsageMarkers(
       unplaced += 1;
       continue;
     }
-    const row = rowByNameId.get(loc.nameId) ?? null;
+    const row = rowFor(loc);
     const count = row?.initiativeCount ?? 0;
     markers.push({
       nameId: loc.nameId,

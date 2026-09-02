@@ -26,6 +26,11 @@ import type {
 } from '../types/api.js';
 import type { RegistryMunicipalityEntry } from './vng-registry.js';
 import {
+  collectVocabularyDrift,
+  orderByExpectation,
+  stripNoClassificationValues,
+} from '../transform/expected-vocabularies.js';
+import {
   resolveByLabel,
   resolveDesignated,
   selectionOf,
@@ -362,9 +367,12 @@ export function countDashboard(
   /** Vocabulary of the designated growth-phase classification. Empty ⇒ no phase panel. */
   phaseVocabulary: Vocabulary = [],
 ): VngDashboardResponse {
+  // Presentation order, not Alkemio's authored order: the charts must read the same
+  // left-to-right in every environment, and acceptance authors VNG-2030 in a different
+  // order than production has always displayed it.
   const dimensionDefs: { key: string; vocabulary: Vocabulary }[] = [
-    { key: 'nds', vocabulary: vocabularies.nds },
-    { key: 'vng2030', vocabulary: vocabularies.vng2030 },
+    { key: 'nds', vocabulary: orderByExpectation('nds', vocabularies.nds) },
+    { key: 'vng2030', vocabulary: orderByExpectation('vng2030', vocabularies.vng2030) },
   ];
 
   // Per dimension: category key → { spaces names, gd names } plus the label to render.
@@ -587,11 +595,18 @@ export async function assembleDashboard(
 
   // Union the per-Space snapshots: a selection can straddle template versions, so a value
   // present in only some snapshots must still render (research R-003).
+  // An explicit "Geen classificatie" VALUE means the same as selecting nothing, so it is
+  // removed here — once, before anything reads these — and the Spaces that chose it fall
+  // into the uncategorised bucket the charts list underneath (see stripNoClassificationValues).
   const vocabularies: DashboardVocabularies = {
-    nds: unionVocabularies(perSpace.map((p) => p.vocabularies.nds)),
-    vng2030: unionVocabularies(perSpace.map((p) => p.vocabularies.vng2030)),
+    nds: stripNoClassificationValues(unionVocabularies(perSpace.map((p) => p.vocabularies.nds))),
+    vng2030: stripNoClassificationValues(
+      unionVocabularies(perSpace.map((p) => p.vocabularies.vng2030)),
+    ),
   };
-  const phaseVocabulary = unionVocabularies(perSpace.map((p) => p.phaseVocabulary));
+  const phaseVocabulary = stripNoClassificationValues(
+    unionVocabularies(perSpace.map((p) => p.phaseVocabulary)),
+  );
 
   warnOnUnmatchedDesignations(
     designations,
@@ -622,7 +637,30 @@ export async function assembleDashboard(
     );
   }
 
-  return countDashboard(entities, vocabularies, phaseVocabulary);
+  // Compare the live vocabularies against this build's expectation. Advisory only: the
+  // counts below are computed from the LIVE vocabulary exactly as before, so an
+  // unreviewed value still renders and still counts — the drift is reported alongside
+  // the result, never applied to it.
+  const vocabularyDrift = collectVocabularyDrift({
+    nds: vocabularies.nds,
+    vng2030: vocabularies.vng2030,
+    phase: phaseVocabulary,
+  });
+  for (const drift of vocabularyDrift) {
+    const parts: string[] = [];
+    if (drift.unexpected.length)
+      parts.push(`not expected by this build: ${drift.unexpected.map((l) => `'${l}'`).join(', ')}`);
+    if (drift.missing.length)
+      parts.push(`expected but absent: ${drift.missing.map((l) => `'${l}'`).join(', ')}`);
+    logger.warn(
+      `The '${drift.dimension}' vocabulary differs from EXPECTED_VOCABULARIES — ${parts.join('; ')}. ` +
+        `Counts are unaffected; reconcile transform/expected-vocabularies.ts with Alkemio.`,
+      { context: 'Dashboard' },
+    );
+  }
+
+  const response = countDashboard(entities, vocabularies, phaseVocabulary);
+  return vocabularyDrift.length ? { ...response, vocabularyDrift } : response;
 }
 
 /**

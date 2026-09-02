@@ -18,6 +18,12 @@ export default defineConfig(({ mode }) => {
       __APP_VERSION__: JSON.stringify(pkg.version),
     },
     build: {
+      // maplibre-gl (~1030 kB) is the only chunk above the default 500 kB limit,
+      // and it never hits initial page load — shared/src/map/basemap.ts reaches it
+      // through a dynamic import() when a surface actually draws a basemap
+      // (feature 021). Raise the limit past it so the warning still flags a real
+      // eager-bundle regression instead of crying wolf over the lazy basemap chunk.
+      chunkSizeWarningLimit: 1200,
       rollupOptions: {
         output: {
           // Split large third-party libs into their own cacheable chunks so no

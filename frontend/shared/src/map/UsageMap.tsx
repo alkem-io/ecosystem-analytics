@@ -1,9 +1,10 @@
 import { useEffect, useRef, useCallback, useState } from 'react';
 import * as d3 from 'd3';
 import { renderNlBasemap, type NlBasemap } from './nl-basemap.js';
+import type { OverlayTransform } from './overlay-transform.js';
 import { MapAttribution } from './MapAttribution.js';
 import { MapFallback } from './MapFallback.js';
-import { resolveMapConfig, type ProvinceRegion } from './mapConfig.js';
+import { fitScaleForViewport, resolveMapConfig, type ProvinceRegion } from './mapConfig.js';
 import { PROVINCE_BASEMAPS } from './province-basemaps.generated.js';
 import {
   buildUsageMarkers,
@@ -123,15 +124,29 @@ export function UsageMap({
   const cbRef = useRef({ onFocus, onVisibleAreaChange, onHover, onMarkersBuilt });
   cbRef.current = { onFocus, onVisibleAreaChange, onHover, onMarkersBuilt };
 
+  /**
+   * The live camera, mirrored from `onCameraChange`.
+   *
+   * MapLibre owns the camera since feature 021, so nothing writes d3-zoom's `__zoom`
+   * property on the SVG any more and `d3.zoomTransform(svg)` returns the IDENTITY on
+   * every call. Reading it made the visible-area report describe the whole country no
+   * matter where the map actually was, which is why framing a province moved the imagery
+   * but never filtered the ranking. This ref is the only truthful source.
+   */
+  const cameraRef = useRef<OverlayTransform>({ k: 1, tx: 0, ty: 0 });
+
   /** Recompute the visible set from the current transform and report it, debounced. */
   const scheduleVisibleAreaReport = useCallback((width: number, h: number) => {
     if (settleTimer.current) clearTimeout(settleTimer.current);
     settleTimer.current = setTimeout(() => {
       const svg = svgRef.current;
       if (!svg) return;
-      const t = d3.zoomTransform(svg);
-      const [x0, y0] = t.invert([0, 0]);
-      const [x1, y1] = t.invert([width, h]);
+      // Screen → base-projection, the inverse of `x' = x * k + tx` that the overlay
+      // transform applies. Same maths d3's `t.invert` did, against a transform that is
+      // actually current.
+      const { k, tx, ty } = cameraRef.current;
+      const [x0, y0] = [(0 - tx) / k, (0 - ty) / k];
+      const [x1, y1] = [(width - tx) / k, (h - ty) / k];
       cbRef.current.onVisibleAreaChange(
         computeVisibleArea(markersRef.current, { x0, y0, x1, y1 }),
       );
@@ -154,6 +169,9 @@ export function UsageMap({
 
     // Constitution §VII — always the whole-Netherlands basemap, never a masked province.
     const basemap = renderNlBasemap({
+      // Fill the viewport rather than sitting at the constant tuned for a ~520px map.
+      // Province framing is a ratio to the CONFIGURED scale, so it tracks this untouched.
+      scale: fitScaleForViewport(width, h),
       container: mapLayerRef.current,
       onBasemapFallback: (reason) => {
         console.warn(`[UsageMap] basemap unavailable: ${reason}`);
@@ -161,8 +179,9 @@ export function UsageMap({
       },
       // The notification d3-zoom used to give us. Marker counter-scaling and the
       // visible-area report were zoom-driven; they hang off the camera now instead.
-      onCameraChange: (k) => {
-        positionMarkers(k);
+      onCameraChange: (t) => {
+        cameraRef.current = t;
+        positionMarkers(t.k);
         scheduleVisibleAreaReport(width, h);
       },
       group: g as unknown as d3.Selection<SVGGElement, unknown, null, undefined>,
@@ -268,6 +287,7 @@ export function UsageMap({
     const zoom = d3.zoom<SVGSVGElement, unknown>().scaleExtent([0.8, 40]);
     zoomRef.current = zoom;
 
+    cameraRef.current = { k: 1, tx: 0, ty: 0 };
     positionMarkers(1);
     scheduleVisibleAreaReport(width, h);
 

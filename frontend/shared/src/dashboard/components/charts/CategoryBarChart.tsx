@@ -9,7 +9,8 @@ import {
   YAxis,
   type TooltipProps,
 } from 'recharts';
-import type { DashboardDimension } from '@server/types/api.js';
+import type { DashboardDimension, VocabularyDrift } from '@server/types/api.js';
+import { VocabularyDriftNotice } from './VocabularyDriftNotice.js';
 
 interface Datum {
   key: string;
@@ -29,6 +30,8 @@ interface CategoryBarChartProps {
   emptyLabel: string;
   /** Render the GD-initiatives segment as a second stacked bar + legend. */
   gdIncluded: boolean;
+  /** Vocabulary mismatch for this dimension, rendered as a notice under the chart. */
+  drift?: VocabularyDrift;
 }
 
 const SPACES_COLOR = 'var(--primary)';
@@ -88,20 +91,31 @@ export function CategoryBarChart({
   dimension,
   emptyLabel,
   gdIncluded,
+  drift,
 }: CategoryBarChartProps) {
   const { t } = useTranslation();
-  const data: Datum[] = (dimension?.categories ?? []).map((c) => ({
-    key: c.key,
-    // Category labels are authored in Alkemio and rendered verbatim (FR-024) — only the
-    // synthetic bucket (label === null) is localised here.
-    label: c.label ?? t('dashboard.uncategorised', { defaultValue: 'No classification' }),
-    count: c.count,
-    items: c.items ?? [],
-    spacesCount: c.spacesCount,
-    gdCount: c.gdCount,
-    spacesItems: c.spacesItems ?? [],
-    gdItems: c.gdItems ?? [],
-  }));
+  const categories = dimension?.categories ?? [];
+
+  // The synthetic no-classification bucket is identified by `label === null` — the server
+  // leaves it unlabelled precisely so the client can localise it. It is NOT charted: a bar
+  // for "no classification" competes with the real categories for the y-axis and, now that
+  // a value literally named "Geen classificatie" exists in Alkemio, produced two
+  // indistinguishable bars. The entities in it are listed under the chart instead, which
+  // is more useful anyway — you can see WHICH ones still need classifying.
+  const unclassified = categories.find((c) => c.label === null);
+  const data: Datum[] = categories
+    .filter((c) => c.label !== null)
+    .map((c) => ({
+      key: c.key,
+      // Category labels are authored in Alkemio and rendered verbatim (FR-024).
+      label: c.label as string,
+      count: c.count,
+      items: c.items ?? [],
+      spacesCount: c.spacesCount,
+      gdCount: c.gdCount,
+      spacesItems: c.spacesItems ?? [],
+      gdItems: c.gdItems ?? [],
+    }));
 
   return (
     <section className="flex flex-col gap-1 rounded-lg border border-border bg-card p-4">
@@ -152,6 +166,15 @@ export function CategoryBarChart({
           </ResponsiveContainer>
         </div>
       )}
+      {/* Covers all three ways an entity can be unclassified — it selected nothing, it
+          carries no classification entry at all, or it explicitly selected Alkemio's
+          "Geen classificatie" value — because the server folds them into this one bucket.
+          From a reader's point of view they are the same gap: nobody has classified these
+          yet, and the useful thing is WHICH ones. */}
+      {unclassified && unclassified.count > 0 && <UnclassifiedList items={unclassified.items} />}
+      {/* Below the chart, deliberately: it annotates the bars above it rather than
+          replacing them — every value shown is still counted. */}
+      <VocabularyDriftNotice drift={drift} />
     </section>
   );
 }
@@ -187,5 +210,35 @@ function WrappedTick(props: any) {
         ))}
       </text>
     </g>
+  );
+}
+
+/** Above this many names the list is collapsed — 182 GD initiatives is a wall of text. */
+const INLINE_LIMIT = 12;
+
+/**
+ * The entities with no classification, named.
+ *
+ * Short lists read inline; long ones collapse behind a disclosure so the count stays
+ * visible without the names pushing the next chart off the screen. Native `<details>`
+ * rather than component state: it is keyboard-accessible and searchable-in-page for free.
+ */
+function UnclassifiedList({ items }: { items: string[] }) {
+  const { t } = useTranslation();
+  const heading = `${t('dashboard.uncategorised', { defaultValue: 'No classification' })} (${items.length})`;
+
+  if (items.length <= INLINE_LIMIT) {
+    return (
+      <p className="mt-2 text-xs text-muted-foreground">
+        <span className="font-medium text-foreground">{heading}:</span> {items.join(', ')}
+      </p>
+    );
+  }
+
+  return (
+    <details className="mt-2 text-xs text-muted-foreground">
+      <summary className="cursor-pointer font-medium text-foreground">{heading}</summary>
+      <p className="mt-1 max-h-48 overflow-auto">{items.join(', ')}</p>
+    </details>
   );
 }

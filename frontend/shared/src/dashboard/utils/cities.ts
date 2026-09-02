@@ -36,6 +36,12 @@ export interface CityRow {
   /** Gemeente ORGANIZATION node id — the row key. */
   id: string;
   nameId: string | null;
+  /**
+   * Official CBS municipality code — the stable join key. Alkemio's `nameID` is editable
+   * and has changed under us, so anything matching a gemeente across two independently
+   * cached datasets should prefer this. Null for an org outside the registry.
+   */
+  cbsCode: string | null;
   name: string;
   provinceName: string | null;
   /** Inhabitants, or null when UNKNOWN. Never coerced to 0 (FR-005). */
@@ -110,6 +116,7 @@ export function buildCityRows(dataset: GraphDataset | null): CityRow[] {
     rows.push({
       id: node.id,
       nameId: node.nameId,
+      cbsCode: node.cbsCode ?? null,
       name: node.displayName,
       provinceName: node.provinceName ?? null,
       population: node.population ?? null,

@@ -33,8 +33,8 @@ describe('config — dashboard app registry (feature 017)', () => {
 
   it('seeds the GovTech classification designations as a working copy of VNG (FR-026)', () => {
     expect(config.dashboards.govtech.classifications).toEqual(config.dashboards.vng.classifications);
-    expect(config.dashboards.govtech.classifications.nds).toBe('NDS');
-    expect(config.dashboards.govtech.classifications.phase).toBe('Groeifase');
+    expect(config.dashboards.govtech.classifications.nds).toBe('NDS-prioriteit');
+    expect(config.dashboards.govtech.classifications.phase).toBe('Fase');
   });
 
   // FR-011: the per-dashboard tag→category keyword lists are retired outright — the

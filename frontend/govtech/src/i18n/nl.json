@@ -176,7 +176,9 @@
     "notShownCount": "{{count}} niet getoond",
     "cityNoneInRange": "Geen gemeenten in dit inwonersbereik",
     "unclassifiedCount": "{{count}} nog niet geclassificeerd",
-    "classificationsHeading": "Classificaties"
+    "classificationsHeading": "Classificaties",
+    "driftUnexpected": "Onverwacht in Alkemio en niet beoordeeld voor dit dashboard: {{labels}}. Ze worden wel getoond en meegeteld.",
+    "driftMissing": "Door dit dashboard verwacht, maar niet meer aanwezig in Alkemio: {{labels}}. Mogelijk hernoemd."
   },
   "categories": {
     "phase": {

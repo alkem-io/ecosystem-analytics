@@ -965,9 +965,9 @@ export default function ForceGraph({
         // The notification d3-zoom used to give us. Without it every zoom-driven
         // behaviour — node radii, avatar clip radii, edge and badge counter-scaling,
         // label culling — would stay frozen at the initial k for the whole session.
-        onCameraChange: (k) => {
-          currentZoomScale = k;
-          applyLOD(k);
+        onCameraChange: (t) => {
+          currentZoomScale = t.k;
+          applyLOD(t.k);
         },
         onBasemapFallback: (reason) => {
           // Constitution §V: no imagery, but the mask, the region outline and every

@@ -288,9 +288,9 @@ function parseDashboardConfig(raw?: DashboardYamlBlock): DashboardAppConfig {
     // Designations are stored verbatim so the config stays readable; normalisation
     // happens at match time in transform/classifications.ts.
     classifications: {
-      nds: designation(raw?.classifications?.nds, 'NDS'),
-      vng2030: designation(raw?.classifications?.vng2030, 'VNG 2030'),
-      phase: designation(raw?.classifications?.phase, 'Groeifase'),
+      nds: designation(raw?.classifications?.nds, 'NDS-prioriteit'),
+      vng2030: designation(raw?.classifications?.vng2030, 'VNG 2030 thema'),
+      phase: designation(raw?.classifications?.phase, 'Fase'),
     },
   };
 }

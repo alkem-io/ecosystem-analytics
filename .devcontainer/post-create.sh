@@ -3,9 +3,13 @@
 # Keep it idempotent — it may re-run on rebuilds.
 set -euo pipefail
 
-# Named volumes seed with node ownership because their mount points are
-# pre-created node-owned in the Dockerfile — no runtime chown needed (and
-# `node` can only sudo the firewall installer, so a chown here would fail).
+# The /home/node volumes seed with node ownership because their mount points are
+# pre-created node-owned in the Dockerfile. The node_modules volumes cannot use
+# that trick — they mount onto paths under /workspaces, which only exists at
+# runtime as a bind mount — so they arrive empty and root-owned and have to be
+# claimed here before pnpm can write to them.
+echo "==> Claiming node_modules volume mount points"
+sudo /usr/local/bin/claim-node-modules.sh
 
 echo "==> Installing workspace dependencies (frontends + root tooling)"
 pnpm install

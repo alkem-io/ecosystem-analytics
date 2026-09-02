@@ -154,6 +154,16 @@ export interface GraphNode {
   /** Municipality population (CBS) for a gemeente org node; null when unknown/non-NL. */
   population?: number | null;
   /**
+   * Official CBS municipality code (e.g. "GM0518") for a gemeente org node.
+   *
+   * Carried because it is the only STABLE identifier a gemeente has. Alkemio's `nameID`
+   * is editable and does get edited — 's-Gravenhage has been both `gemeente-den-haag`
+   * and `gemeente-gravenhage` — which silently orphans anything joined on it, most
+   * visibly the Usage Explorer's 7-day-cached location set against a freshly rebuilt
+   * graph. Null for a non-NL or unregistered org.
+   */
+  cbsCode?: string | null;
+  /**
    * Classification flag — true when the entity carries a "Common Ground" tag.
    * Set for both selected (Groei) space nodes and GemeenteDelers INITIATIVE nodes.
    */

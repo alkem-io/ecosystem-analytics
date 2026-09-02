@@ -983,9 +983,9 @@ export default function ForceGraph({
         height,
         container: mapLayerRef.current,
         onBasemapFallback: (reason) => console.warn(`[Explorer] basemap unavailable: ${reason}`),
-        onCameraChange: (k) => {
-          currentZoomScale = k;
-          applyLOD(k);
+        onCameraChange: (t) => {
+          currentZoomScale = t.k;
+          applyLOD(t.k);
         },
         onGeoJson: (geojson) => {
           mapGeoJSONCacheRef.current[mapRegion] = geojson as GeoPermissibleObjects;

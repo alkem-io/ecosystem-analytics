@@ -27,6 +27,20 @@ export const POSITRON_STYLE = 'https://tiles.openfreemap.org/styles/positron';
 /** MapLibre's world width at zoom 0, in CSS pixels. */
 const TILE_SIZE = 512;
 
+/**
+ * Opacity of the whole basemap canvas.
+ *
+ * The overlay above it is dense with contributor avatars and cluster bubbles, and at full
+ * strength positron's road network and place labels compete with them for attention. Fading
+ * the imagery keeps it doing its actual job — geographic context — while the markers stay
+ * the figure rather than the ground.
+ *
+ * Applied to the MapLibre container, not to individual style layers: it is one composite
+ * over the finished frame, so the basemap's internal layering is untouched and there is no
+ * per-layer paint property to keep in step with a style update.
+ */
+const BASEMAP_OPACITY = 0.55;
+
 
 export interface BasemapOptions {
   /** Positioned element the canvas mounts into, beneath the SVG. */
@@ -154,6 +168,10 @@ export async function createBasemap(options: BasemapOptions): Promise<BasemapHan
   } catch (err) {
     return fallback(`map construction failed: ${(err as Error).message}`);
   }
+
+  // Fade the imagery so the overlay markers read as the foreground. Set on the container
+  // rather than in the style so it survives a style swap and stays one composite.
+  container.style.opacity = String(BASEMAP_OPACITY);
 
   const handle: BasemapHandle = {
     destroy: () => {

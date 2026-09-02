@@ -65,10 +65,15 @@ RUN mkdir /commandhistory && \
 ENV DEVCONTAINER=true
 
 # --- Restricted sudo ----------------------------------------------------
-# The `node` user may run ONLY the firewall installer as root (via sudo).
-# Everything else runs unprivileged — the sandbox's second line of defence
-# after the outbound firewall.
-RUN echo "node ALL=(root) NOPASSWD: /usr/local/bin/init-firewall.sh" > /etc/sudoers.d/node-firewall && \
+# The `node` user may run ONLY two root helpers via sudo: the firewall
+# installer, and the node_modules mount-point chown. Everything else runs
+# unprivileged — the sandbox's second line of defence after the outbound
+# firewall. Both take no arguments, so neither widens into a general root
+# primitive.
+RUN printf '%s\n' \
+      "node ALL=(root) NOPASSWD: /usr/local/bin/init-firewall.sh" \
+      "node ALL=(root) NOPASSWD: /usr/local/bin/claim-node-modules.sh" \
+      > /etc/sudoers.d/node-firewall && \
   chmod 0440 /etc/sudoers.d/node-firewall
 
 # --- pnpm (pinned to the repo's packageManager version) via corepack ----
@@ -84,9 +89,10 @@ ENV PLAYWRIGHT_BROWSERS_PATH=/ms-playwright
 RUN npx --yes playwright@1.58.2 install --with-deps chromium \
   && chmod -R a+rx /ms-playwright
 
-# --- Firewall installer -------------------------------------------------
+# --- Root helper scripts ------------------------------------------------
 COPY init-firewall.sh /usr/local/bin/init-firewall.sh
-RUN chmod +x /usr/local/bin/init-firewall.sh
+COPY claim-node-modules.sh /usr/local/bin/claim-node-modules.sh
+RUN chmod +x /usr/local/bin/init-firewall.sh /usr/local/bin/claim-node-modules.sh
 
 # --- Node-owned mount points --------------------------------------------
 # Pre-create the dirs that named volumes mount onto, owned by `node`, so a

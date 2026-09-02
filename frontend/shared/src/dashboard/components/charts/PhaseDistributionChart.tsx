@@ -10,11 +10,14 @@ import {
   YAxis,
   type TooltipProps,
 } from 'recharts';
-import type { PhaseDistribution } from '@server/types/api.js';
+import type { PhaseDistribution, VocabularyDrift } from '@server/types/api.js';
+import { VocabularyDriftNotice } from './VocabularyDriftNotice.js';
 
 interface Props {
   distribution: PhaseDistribution | undefined;
   emptyLabel: string;
+  /** Phase-vocabulary mismatch, shown as a notice under the chart. */
+  drift?: VocabularyDrift;
 }
 
 const PHASE_COLOR = 'var(--primary)';
@@ -60,7 +63,7 @@ function PhaseTooltip({ active, payload }: TooltipProps<number, string>) {
  * chart: it shows where the pipeline is thin. GemeenteDelers initiatives are never
  * counted here — they are a separate, completed programme with no phase.
  */
-export function PhaseDistributionChart({ distribution, emptyLabel }: Props) {
+export function PhaseDistributionChart({ distribution, emptyLabel, drift }: Props) {
   const { t } = useTranslation();
   const phaseLabel = usePhaseLabel();
   // Resolve each phase's axis name up front: the tick formatter only sees the scalar
@@ -104,6 +107,10 @@ export function PhaseDistributionChart({ distribution, emptyLabel }: Props) {
           </ResponsiveContainer>
         </div>
       )}
+      {/* Below the chart: the pipeline order and membership come from Alkemio's authored
+          vocabulary, so a drift here means the x-axis itself may not be the pipeline
+          this build was written against. */}
+      <VocabularyDriftNotice drift={drift} />
     </section>
   );
 }

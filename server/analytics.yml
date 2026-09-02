@@ -91,9 +91,17 @@ vng:
   # value to a vocabulary shows up on the chart with no config change (FR-007/FR-010).
   # An empty string = no classification designated; that panel renders empty.
   classifications:
-    nds: "${VNG_CLASSIFICATION_NDS}:NDS"
-    vng2030: "${VNG_CLASSIFICATION_VNG2030}:VNG priorities 2030"
-    phase: "${VNG_CLASSIFICATION_PHASE}:Groeifase"
+    # Defaults are the displayLabels the classification programme actually authored
+    # in Alkemio — verified against the 22-space vnginnovationhub selection, which
+    # carries 'NDS-prioriteit', 'SDGs' and 'VNG 2030 thema'. Get one wrong and the
+    # panel is not broken, it just renders the "no classification" bucket alone and
+    # the BFF logs which labels it DID find.
+    nds: "${VNG_CLASSIFICATION_NDS}:NDS-prioriteit"
+    vng2030: "${VNG_CLASSIFICATION_VNG2030}:VNG 2030 thema"
+    # The phase classification is named 'Fase' in Alkemio (NOT 'Groeifase', which is what
+    # the programme calls the concept). Its values are the pipeline: Pre-intake, Intake,
+    # Initiatief, Formalisatie, Beheer — verified on all 22 spaces of the selection.
+    phase: "${VNG_CLASSIFICATION_PHASE}:Fase"
 
 # GovTech Netherlands frontend (feature 017-govtech-frontend). A separate dashboard
 # profile with its OWN GOVTECH_* env vars (independent of VNG). The Alkemio/OIDC/
@@ -111,6 +119,14 @@ govtech:
   # Same designation mechanism as VNG, with independent GOVTECH_* env vars so the two
   # dashboards can point at different classifications without a code change (FR-021).
   classifications:
-    nds: "${GOVTECH_CLASSIFICATION_NDS}:NDS"
-    vng2030: "${GOVTECH_CLASSIFICATION_VNG2030}:VNG priorities 2030"
-    phase: "${GOVTECH_CLASSIFICATION_PHASE}:Groeifase"
+    # Defaults are the displayLabels the classification programme actually authored
+    # in Alkemio — verified against the 22-space vnginnovationhub selection, which
+    # carries 'NDS-prioriteit', 'SDGs' and 'VNG 2030 thema'. Get one wrong and the
+    # panel is not broken, it just renders the "no classification" bucket alone and
+    # the BFF logs which labels it DID find.
+    nds: "${GOVTECH_CLASSIFICATION_NDS}:NDS-prioriteit"
+    vng2030: "${GOVTECH_CLASSIFICATION_VNG2030}:VNG 2030 thema"
+    # The phase classification is named 'Fase' in Alkemio (NOT 'Groeifase', which is what
+    # the programme calls the concept). Its values are the pipeline: Pre-intake, Intake,
+    # Initiatief, Formalisatie, Beheer — verified on all 22 spaces of the selection.
+    phase: "${GOVTECH_CLASSIFICATION_PHASE}:Fase"

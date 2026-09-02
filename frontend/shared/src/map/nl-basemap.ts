@@ -2,7 +2,7 @@ import * as d3 from 'd3';
 import { geoMercator, geoPath, type GeoPermissibleObjects } from 'd3-geo';
 import { resolveMapConfig, type GraphMapRegion } from './mapConfig.js';
 import { createBasemap, type BasemapHandle } from './basemap.js';
-import { toSvgTransform } from './overlay-transform.js';
+import { toSvgTransform, type OverlayTransform } from './overlay-transform.js';
 
 /**
  * The shared basemap layer: CARTO tiles, region boundary, and — for the Netherlands and
@@ -67,13 +67,27 @@ export interface NlBasemapOptions {
   /** Called when the basemap cannot draw, so the consumer can show the outline fallback. */
   onBasemapFallback?: (reason: string) => void;
   /**
-   * Called whenever the camera changes, with the current overlay scale.
+   * Called whenever the camera changes, with the FULL overlay transform.
    *
    * This is the notification d3-zoom used to provide. Everything that was zoom-driven —
    * level-of-detail, label culling, marker counter-scaling — hangs off this, so it keeps
    * working whichever camera is in charge.
+   *
+   * The translation is part of it, not just `k`, because MapLibre owns the camera and
+   * `d3.zoomTransform(svg)` therefore reports the identity forever: any consumer that
+   * needs to know WHERE the camera is (rather than only how far it is zoomed) has no
+   * other source for it.
    */
-  onCameraChange?: (k: number) => void;
+  onCameraChange?: (transform: OverlayTransform) => void;
+  /**
+   * Override the region's configured projection scale.
+   *
+   * The scales in `mapConfig` are fixed constants tuned for a map roughly 520px tall, so
+   * in a much taller viewport the region floats in empty space. A consumer that knows its
+   * own viewport can fit the region to it — see `fitScaleForViewport`. Province framing
+   * is unaffected: it is a RATIO to the configured scale, so it tracks any base.
+   */
+  scale?: number;
 }
 
 export interface NlBasemap {
@@ -127,11 +141,14 @@ export function renderNlBasemap({
   container,
   onBasemapFallback,
   onCameraChange,
+  scale,
 }: NlBasemapOptions): NlBasemap {
   const mapCfg = resolveMapConfig(region);
+  // The caller's fitted scale wins over the region's constant when supplied.
+  const effectiveScale = scale ?? mapCfg.scale;
   const projection = geoMercator()
     .center(mapCfg.center)
-    .scale(mapCfg.scale)
+    .scale(effectiveScale)
     .translate([width / 2, height / 2]);
 
   const mapGroup = group.append('g').attr('class', 'map-layer');
@@ -151,12 +168,12 @@ export function renderNlBasemap({
       container,
       projection,
       center: mapCfg.center,
-      scale: mapCfg.scale,
+      scale: effectiveScale,
       width,
       height,
       onSync: (t) => {
         group.attr('transform', toSvgTransform(t));
-        onCameraChange?.(t.k);
+        onCameraChange?.(t);
       },
       onFallback: (reason) => onBasemapFallback?.(reason),
     }).then((created) => {
