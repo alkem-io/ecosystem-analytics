@@ -30,16 +30,21 @@ const TILE_SIZE = 512;
 /**
  * Opacity of the whole basemap canvas.
  *
- * The overlay above it is dense with contributor avatars and cluster bubbles, and at full
- * strength positron's road network and place labels compete with them for attention. Fading
- * the imagery keeps it doing its actual job — geographic context — while the markers stay
- * the figure rather than the ground.
+ * The overlay above it is dense with contributor logos, avatars and marker dots, and at
+ * full strength positron's road network and place labels compete with them — the logos
+ * were getting lost against the imagery. The basemap's job is geographic context, so it
+ * is faded hard: enough coastline, water and city placement to orient by, not enough
+ * contrast to fight the overlay. The markers are the figure; this is the ground.
  *
  * Applied to the MapLibre container, not to individual style layers: it is one composite
  * over the finished frame, so the basemap's internal layering is untouched and there is no
- * per-layer paint property to keep in step with a style update.
+ * per-layer paint property to keep in step with a style update. It also leaves the SVG
+ * above completely unaffected — the §VII white complement and the region border are drawn
+ * there and stay fully opaque, so the mask cannot leak as a side effect of this value.
+ *
+ * The single knob for basemap/overlay balance across every map. Lower = fainter tiles.
  */
-const BASEMAP_OPACITY = 0.55;
+const BASEMAP_OPACITY = 0.35;
 
 
 export interface BasemapOptions {

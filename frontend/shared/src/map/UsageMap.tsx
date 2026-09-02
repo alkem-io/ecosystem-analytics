@@ -75,6 +75,17 @@ export function provinceViewTransform(
   return { k, tx: width / 2 - k * centre[0], ty: height / 2 - k * centre[1] };
 }
 
+/**
+ * White ring widths for a marker, in base-projection units.
+ *
+ * The ring is what separates a marker from whatever it sits on, so it carries most of the
+ * overlay's contrast against the (deliberately faded) basemap. Kept here rather than
+ * inline because it is set in two places — on creation and again by the focus effect —
+ * and the two silently drifting apart is exactly how a focused marker ends up with a
+ * different weight than it had a moment earlier.
+ */
+const OUTLINE_WIDTH = { dot: 1.75, square: 1.25, focused: 3 };
+
 /** Milliseconds of stillness before the ranking recomputes (SC-005 allows 1 s). */
 const SETTLE_MS = 150;
 
@@ -227,7 +238,7 @@ export function UsageMap({
           .attr('r', r)
           .attr('fill', 'none')
           .attr('stroke', '#ffffff')
-          .attr('stroke-width', 1)
+          .attr('stroke-width', OUTLINE_WIDTH.dot)
           .attr('class', 'marker-outline');
       } else {
         // Grey square for a gemeente taking part in nothing — distinguishable from the
@@ -241,7 +252,7 @@ export function UsageMap({
           .attr('fill', '#9ca3af')
           .attr('fill-opacity', 0.7)
           .attr('stroke', '#ffffff')
-          .attr('stroke-width', 0.75)
+          .attr('stroke-width', OUTLINE_WIDTH.square)
           .attr('class', 'marker-outline');
       }
     });
@@ -344,7 +355,14 @@ export function UsageMap({
         d3.select(this)
           .select('.marker-outline')
           .attr('stroke', isFocused ? '#111827' : '#ffffff')
-          .attr('stroke-width', isFocused ? 2.5 : d.shape === 'dot' ? 1 : 0.75);
+          .attr(
+            'stroke-width',
+            isFocused
+              ? OUTLINE_WIDTH.focused
+              : d.shape === 'dot'
+                ? OUTLINE_WIDTH.dot
+                : OUTLINE_WIDTH.square,
+          );
       });
   }, [focusedNameId]);
 
