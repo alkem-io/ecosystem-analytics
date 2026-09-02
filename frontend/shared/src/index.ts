@@ -42,6 +42,8 @@ export { default as MapOverlay } from './map/MapOverlay.js';
 export { renderNlBasemap, buildComplementPath, type NlBasemap } from './map/nl-basemap.js';
 export { MapAttribution } from './map/MapAttribution.js';
 export { MapFallback } from './map/MapFallback.js';
+export { UsageMap } from './map/UsageMap.js';
+export { buildCityRows, type CityRow } from './dashboard/utils/cities.js';
 export {
   type MapRegion,
   type GraphMapRegion,

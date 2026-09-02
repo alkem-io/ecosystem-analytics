@@ -59,8 +59,9 @@ const INSIDE = [
   { name: 'south-west', x: 540, y: 510 },
 ];
 
-async function grab(page, { region = 'netherlands', disableMask = false } = {}) {
-  const url = `${HARNESS}?region=${region}${disableMask ? '&disableMask=1' : ''}`;
+async function grab(page, { region = 'netherlands', disableMask = false, surface = 'forcegraph' } = {}) {
+  const url =
+    `${HARNESS}?surface=${surface}&region=${region}` + (disableMask ? '&disableMask=1' : '');
   // 'load', not 'networkidle': a map keeps fetching tiles as it settles, so networkidle
   // can never arrive. The explicit waits below are what actually gate the sample.
   await page.goto(url, { waitUntil: 'load' });
@@ -180,6 +181,24 @@ test.describe('§VII — the composited map renders only the Netherlands', () =>
           `the imagery are a frame apart`,
       ).toBe(true);
     }
+  });
+
+  /**
+   * The Usage Explorer is a SECOND consumer of the same basemap module, and the module's
+   * stated purpose is that the surfaces cannot drift apart. Asserting the identical points
+   * on both is what makes that claim checkable rather than aspirational — the two consumers
+   * answered camera ownership differently at one point in this feature's history, and only
+   * a test that samples both would have caught it.
+   */
+  test('holds on the Usage Explorer surface too', async ({ page }) => {
+    const png = await grab(page, { surface: 'usagemap' });
+    expect(png.width, 'container width').toBe(W);
+    expect(png.height, 'container height').toBe(H);
+    for (const p of OUTSIDE) {
+      expect(isBackground(pixel(png, p.x, p.y)), `${p.name} must be plain background`).toBe(true);
+    }
+    const anyImagery = INSIDE.some((p) => !isBackground(pixel(png, p.x, p.y)));
+    expect(anyImagery, 'the map must show detail inside the country').toBe(true);
   });
 
   /**

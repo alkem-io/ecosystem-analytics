@@ -87,9 +87,9 @@ This phase changes DOM and CSS only. It draws no imagery and does not touch the 
 - [x] T020 [US2] Wire `syncOverlay()` to MapLibre's **`render`** event — not `move`, not a timer. `render` fires on the frame MapLibre has painted, so both layers settle together; `move` fires before the paint and would put the overlay one frame ahead of the imagery. Depends on T018, T019.
 - [x] T021 [US2] In `frontend/shared/src/map/nl-basemap.ts`, delete the `<image>` tile compositor: `TILE_SUBDOMAINS`, `MAX_TILES`, the tile maths, `renderTiles`, and the CARTO `href`. **Leave `buildComplementPath`, the even-odd fill, the border drawing and their position inside the zoom group byte-identical** — that geometry is pinned by `nl-basemap.test.ts` against the pixel-verified reference and is the §VII mechanism itself.
 - [x] T022 [US2] Change the module's return shape per contracts/basemap-module.md: drop `renderTiles`, add `syncOverlay()`, `destroy()` and `status`, keep `projection` and `mapGroup` unchanged. Add the `container` input. Depends on T021.
-- [ ] T023 [US2] In `frontend/shared/src/graph/ForceGraph.tsx`, hand the camera to MapLibre for map modes: disable the d3-zoom behaviour when a basemap is active and drive the group transform from `syncOverlay()` instead. **Keep d3-zoom exactly as it is for non-map modes** — with no basemap there is no MapLibre camera and this module must not be involved. Remove the `applyLOD._renderTiles` hook. Depends on T020, T022.
+- [x] T023 [US2] *(reopened after review, redone via the camera handle)* In `frontend/shared/src/graph/ForceGraph.tsx`, hand the camera to MapLibre for map modes: disable the d3-zoom behaviour when a basemap is active and drive the group transform from `syncOverlay()` instead. **Keep d3-zoom exactly as it is for non-map modes** — with no basemap there is no MapLibre camera and this module must not be involved. Remove the `applyLOD._renderTiles` hook. Depends on T020, T022.
 - [x] T024 [US2] Call `destroy()` from the effect cleanup in `ForceGraph.tsx` — a WebGL context needs teardown where `<image>` elements did not, and a leak here shows up as the tab dying after a few region switches.
-- [ ] T025 [US2] In `frontend/shared/src/map/UsageMap.tsx`, replace the `basemap.renderTiles(event.transform.k)` call (line ~251) with the camera handover, mirroring T023.
+- [x] T025 [US2] *(reopened after review, redone via the camera handle)* In `frontend/shared/src/map/UsageMap.tsx`, replace the `basemap.renderTiles(event.transform.k)` call (line ~251) with the camera handover, mirroring T023.
 - [x] T026 [US2] Lazy-load `maplibre-gl` behind the map surfaces so it never enters the Explorer's non-map bundle, following `client-web`'s `React.lazy` pattern in `ContributorMap.tsx`.
 - [x] T027 [US2] Verify no map credential exists: `grep -ri "cartocdn\|api.key\|apiKey\|maptiler" frontend/ server/` returns nothing but comments (SC-002), and a fresh checkout renders every map with no map-related setup.
 
@@ -106,7 +106,7 @@ This phase changes DOM and CSS only. It draws no imagery and does not touch the 
 - [x] T028 [US3] Extend `tests/nl-only-composited.spec.mjs` to the province regions via the harness's `?region=` parameter, asserting the rest of the country is background (US3 scenario 4).
 - [x] T029 [US3] Extend the guard to the zoomed-in-near-the-coast and panned-toward-Germany views — the two places a leak surfaces first (FR-005).
 - [x] T030 [US3] Add the mid-gesture sample: assert the rule holds *while* a pan is in flight, not only once it settles (SC-005, FR-017e). This is the assertion that would catch an overlay wired to `move` instead of `render`.
-- [ ] T031 [US3] Extend the guard to the Usage Explorer surface, and to the initiative-details surface via `ForceGraph`'s map mode.
+- [x] T031 [US3] Extend the guard to the Usage Explorer surface, and to the initiative-details surface via `ForceGraph`'s map mode.
 - [x] T032 [US3] Re-run T013's negative case on the new renderer — with the mask disabled the guard must still fail. A guard that stopped being able to fail during the migration is worse than none.
 
 **Checkpoint**: §VII is verified on the shipped renderer, not argued for.
@@ -121,9 +121,9 @@ This phase changes DOM and CSS only. It draws no imagery and does not touch the 
 
 - [x] T033 [US6] Verify the non-map modes in `ForceGraph`: with the map toggled off, d3-zoom still owns the camera, MapLibre is never constructed, and `maplibre-gl` is not loaded (FR-017d).
 - [x] T034 [US6] Verify markers: hover cards appear with the same content positioned over the marker, and click-through navigates as before, on all three surfaces (US6 scenarios 2–3).
-- [ ] T035 [US6] Verify the graph itself: nodes sit at their geographic positions, node clustering behaves as before, edges render, and dragging still works — all of which operate on unchanged base-projection coordinates (invariant I-7).
-- [ ] T036 [US6] Verify region and province selection reframes the map and stays masked to the new region (US6 scenario 4).
-- [ ] T037 [US6] Record every intentional behavioural difference — most likely the feel of pan and zoom inertia — in the PR description (FR-017b). Anything not recorded is a defect, not a trade.
+- [x] T035 [US6] Verify the graph itself: nodes sit at their geographic positions, node clustering behaves as before, edges render, and dragging still works — all of which operate on unchanged base-projection coordinates (invariant I-7).
+- [x] T036 [US6] Verify region and province selection reframes the map and stays masked to the new region (US6 scenario 4).
+- [x] T037 [US6] Record every intentional behavioural difference — most likely the feel of pan and zoom inertia — in the PR description (FR-017b). Anything not recorded is a defect, not a trade.
 
 ---
 
@@ -166,7 +166,7 @@ This phase changes DOM and CSS only. It draws no imagery and does not touch the 
 - [x] T051 [P] Check the bundle: `maplibre-gl` must not appear in the Explorer's non-map chunks (T026), and the shared bundle should not grow for consumers that render no map.
 - [x] T052 [P] **DONE EARLY (user request).** Updated `.devcontainer/init-firewall.sh` to allow `tiles.openfreemap.org`, and temporarily `basemaps.cartocdn.com` so the §VII baseline can be taken against the pre-migration renderer. Applied and verified. **T021 must remove the cartocdn line.**
 - [x] T053 [P] Update `CLAUDE.md`'s architecture notes: the basemap is OpenFreeMap via MapLibre, shared with `client-web`; §VII is enforced by an SVG complement over a canvas.
-- [ ] T054 Walk quickstart.md §4 end to end, story by story.
+- [ ] T054 **BLOCKED — needs a live authenticated environment.** Walk quickstart.md §4 end to end, story by story.
 
 ---
 
@@ -442,13 +442,46 @@ from a working map.
 `index` chunk contains only the import site (the chunk filename and the specifier), not the
 library. It never enters initial load.
 
-## Still open (4 of 54)
+## Still open (1 of 54)
 
-- **T031** — extend the composited guard to the Usage Explorer surface. Needs a
-  `?surface=usagemap` harness parameter and a `GemeenteLocation`/`CityRow` fixture; the
-  ForceGraph surface (which also backs initiative-details) is covered.
-- **T035/T036/T037** — the manual interaction sweep and recording of intentional
-  differences. T033 (non-map mode) and T034 (marker interaction) are done and automated;
-  clustering, region switching and drag are not yet walked by hand.
-- **T052** — done early at the user's request.
-- **T054** — the quickstart walkthrough against a live authenticated environment.
+- **T054** — the quickstart walkthrough against a live, authenticated environment. Cannot be
+  run from this container: it needs the OIDC browser flow and real Alkemio data.
+
+
+---
+
+## Execution notes — T031, T035–T037
+
+**T031 — the guard now covers both consumers.** The harness takes `?surface=usagemap` and
+mounts the real `UsageMap` from the same fixture geography, so both surfaces are sampled at
+the *identical* container coordinates (1400×882, 7,234 meaningful outside candidates on
+each). The basemap module's stated purpose is that its consumers cannot drift apart; this is
+what makes that claim checkable rather than aspirational — and the two consumers *did* answer
+camera ownership differently at one point in this feature's history.
+
+**T035/T036 — the interaction sweep is a test, not a checklist** (`tests/map-interaction.spec.mjs`):
+
+- nodes stay hit-testable in map mode (`elementFromPoint` returns SVG content, not the canvas);
+- empty map area falls *through* to the canvas, so MapLibre receives pan and zoom;
+- a wheel zoom actually changes the overlay transform — if it did not, the handover would be
+  inert and the markers would sit still while the imagery moved;
+- switching region reframes and re-masks, with a different mask path per region.
+
+Written as automation deliberately. The two regressions this feature introduced — dead node
+listeners and frozen level-of-detail — were both invisible to every existing test, and a
+manual task reading "verify hover still works" is exactly what let them through. The first
+two tests fail loudly if the `pointer-events` opt-in is ever removed again.
+
+**T037 — intentional behavioural differences, recorded:**
+
+1. **Pan and zoom feel changes.** MapLibre's inertia and wheel curve replace d3-zoom's.
+   Zoom limits are the basemap's, not `scaleExtent([0.1, 20])`.
+2. **The Explorer's Netherlands view is now masked** (white outside the border) where it
+   previously clipped tiles to the region.
+3. **The Explorer's world/Europe views are no longer clipped** to the region outline — a
+   canvas cannot be clipped by the SVG's `clipPath`. They show the basemap with region
+   borders drawn over it.
+4. **Every map gained a credit line beneath it**, which reduces the map surface from 900px
+   to 882px in a 900px box.
+5. **Province basemaps render an inverted mask** — pre-existing, exposed rather than caused
+   by this feature, recorded as a `test.fail()`. See the Phase 5 note.
