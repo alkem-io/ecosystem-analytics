@@ -90,14 +90,19 @@ async function expectNoRawKeys(page, label) {
   expect(raw, `raw i18n keys visible on ${label}`).toEqual([]);
 }
 
-test('six tabs, initiative pair then city pair', async ({ page }) => {
+test('tab order: initiative pair, then city pair, optional tabs, Graph last', async ({ page }) => {
   await boot(page);
+  // Dashboard leads and Graph stays last; between them sit the initiative pair, the city
+  // pair, and whichever optional tabs this dashboard opts into via AppConfig — the Usage
+  // Explorer (feature 019) and the Funnel (feature 022) are both on for VNG.
   expect(await page.getByRole('tab').allTextContents()).toEqual([
     'Dashboard',
     'Initiatief informatie',
     'Initiatieven',
     'Gemeente informatie',
     'Gemeenten',
+    'Gebruiksverkenner',
+    'Trechter',
     'Graph',
   ]);
 });
@@ -170,8 +175,10 @@ test('population chart: both series plotted, app-locale numbers in the tooltip',
   await page.waitForTimeout(800);
 
   const { participating, nonParticipating, excludedUnknownPopulation } = F.dashboard.cityPopulation;
-  // FR-021: both series present, and every municipality is accounted for.
-  await expect(card).toContainText(`Neemt deel (${participating.length})`);
+  // FR-021: both series present, and every municipality is accounted for. Participating
+  // cities are legended by SOURCE (Groei / GemeenteDelers), because each of their dots is
+  // a per-source pie; only the non-participating series carries a single count.
+  await expect(card).toContainText('Groei');
   await expect(card).toContainText(`Neemt niet deel (${nonParticipating.length})`);
   // Each point renders a visible mark plus a transparent hit circle.
   expect(await card.locator('svg circle').count()).toBe(
@@ -181,7 +188,7 @@ test('population chart: both series plotted, app-locale numbers in the tooltip',
   if (excludedUnknownPopulation === 0) await expect(card).not.toContainText('weggelaten');
 
   // Tooltip must use the app's locale (Dutch: 569.468), not the browser's (569,468).
-  await card.locator('svg circle[r="5"]').first().hover({ force: true });
+  await card.locator('svg circle[fill="transparent"]').first().hover({ force: true });
   await page.waitForTimeout(300);
   const tip = await card.locator('text=/inwoners/').first().textContent();
   expect(tip).toMatch(/^\d{1,3}(\.\d{3})*\s+inwoners$/);
@@ -195,6 +202,8 @@ test('English locale translates every new string', async ({ page }) => {
     'Initiatives',
     'City information',
     'Cities',
+    'Usage explorer',
+    'Funnel',
     'Graph',
   ]);
   for (const name of ['Cities', 'City information']) {

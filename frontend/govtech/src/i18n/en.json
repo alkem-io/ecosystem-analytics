@@ -21,7 +21,8 @@
     "dashboard": "Dashboard",
     "initiatives": "Initiatives",
     "cities": "Cities",
-    "cityDetails": "City information"
+    "cityDetails": "City information",
+    "funnel": "Funnel"
   },
   "initiativesTab": {
     "search": "Search initiatives…",
@@ -304,5 +305,31 @@
     "noInitiatives": "This city does not take part in any selected initiative",
     "noCities": "No cities in the current selection",
     "loading": "Loading cities…"
+  },
+  "funnel": {
+    "title": "Innovation funnel",
+    "subtitle": "Where are the initiatives in the funnel?",
+    "gdStage": "GemeenteDelers",
+    "noPhaseArea": "No phase yet",
+    "noPhaseHint": "These initiatives have not selected a phase, so they sit outside the funnel.",
+    "money": "Investment",
+    "effort": "Effort",
+    "rampHint": "Each phase costs more money and more time than the one before it",
+    "legendGroei": "Groei",
+    "legendGd": "GemeenteDelers",
+    "legendSize": "Dot size = number of participating municipalities",
+    "count_one": "{{count}} initiative",
+    "count_other": "{{count}} initiatives",
+    "noVocabulary": "No phase classification configured",
+    "noVocabularyHint": "The funnel uses the phases authored in Alkemio. Designate a phase classification to show the funnel.",
+    "empty": "Select one or more initiatives to show the funnel.",
+    "loading": "Building the funnel…",
+    "hover": {
+      "gemeentes": "Participating municipalities",
+      "phase": "Phase",
+      "source": "Source",
+      "none": "None",
+      "noPhase": "No phase yet"
+    }
   }
 }

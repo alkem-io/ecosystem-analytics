@@ -21,6 +21,7 @@ import {
   unionVocabularies,
   vocabularyOf,
   type Vocabulary,
+  resolvePhase,
 } from '../transform/classifications.js';
 import { fetchGemeentedelersCallouts, resolveGemeenteOrgNode } from './gd-initiatives-service.js';
 import {
@@ -204,15 +205,22 @@ export async function generateGraph(
   // every value renderable (research R-003).
   const perSpaceNds: Vocabulary[] = [];
   const perSpaceVng: Vocabulary[] = [];
+  // The phase vocabulary is unioned the same way, and its ORDER is the pipeline order —
+  // which is what makes "furthest along" meaningful below (feature 022).
+  const perSpacePhase: Vocabulary[] = [];
   for (const node of allNodes) {
     if (!node.classificationEntries?.length) continue;
     perSpaceNds.push(vocabularyOf(resolveDesignated(node.classificationEntries, designations.nds)));
     perSpaceVng.push(
       vocabularyOf(resolveDesignated(node.classificationEntries, designations.vng2030)),
     );
+    perSpacePhase.push(
+      vocabularyOf(resolveDesignated(node.classificationEntries, designations.phase)),
+    );
   }
   const ndsVocabulary = unionVocabularies(perSpaceNds);
   const vngVocabulary = unionVocabularies(perSpaceVng);
+  const phaseVocabulary = unionVocabularies(perSpacePhase);
   const labelsFor = (vocabulary: Vocabulary, ids: string[]): string[] =>
     ids.map((id) => vocabulary.find((v) => v.key === id)?.label).filter((l): l is string => !!l);
 
@@ -245,6 +253,12 @@ export async function generateGraph(
         registry,
       );
       node.vngThemes = themes.length ? themes : undefined;
+      // Growth phase (feature 022). An initiative should select exactly one phase; if it
+      // somehow carries several, the FURTHEST-ALONG one wins — that is the state it has
+      // actually reached, and with the vocabulary in pipeline order that is simply the
+      // highest index. Identical rule to countGroeiPhases(), which is what makes the
+      // Funnel and the growth-phase chart agree (spec FR-023).
+      node.phase = resolvePhase(entries, designations.phase, phaseVocabulary);
       const presented = presentClassifications(entries);
       node.classifications = presented.length ? presented : undefined;
       // Internal-only: never sent to the browser. The cache row was written before this

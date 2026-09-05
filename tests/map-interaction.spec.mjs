@@ -27,6 +27,27 @@ async function mountMap(page, query = '') {
   await page.waitForTimeout(2000);
 }
 
+/**
+ * True when MapLibre actually produced a rendering surface.
+ *
+ * MapLibre GL is WebGL-only. A headless Chromium without a GPU (or with WebGL disabled)
+ * creates no canvas at all, and then there is no camera to hand a gesture to: the two
+ * tests below would fail for a reason that has nothing to do with the code they guard.
+ * The §VII mask is plain SVG drawn from local GeoJSON, so it renders either way — which
+ * is why the mask specs still run here, and why waiting on `path.nl-complement` is NOT
+ * sufficient evidence that the basemap came up.
+ *
+ * Deliberately a SKIP, not a relaxed assertion: these assertions caught two real
+ * regressions in feature 021's first cut (dead node listeners, frozen level-of-detail),
+ * so they must stay exact for every environment that can actually run them.
+ */
+async function hasBasemapCanvas(page) {
+  return page.evaluate(() => !!document.querySelector('canvas'));
+}
+
+const NO_WEBGL =
+  'MapLibre produced no canvas — this browser has no WebGL, so there is no camera to test';
+
 test.describe('map mode keeps every interaction it had', () => {
   test('gestures reach the basemap, but nodes are still hit-testable', async ({ page }) => {
     await mountMap(page);
@@ -53,6 +74,7 @@ test.describe('map mode keeps every interaction it had', () => {
 
   test('empty map area falls through to the basemap canvas', async ({ page }) => {
     await mountMap(page);
+    test.skip(!(await hasBasemapCanvas(page)), NO_WEBGL);
     // A corner is outside the country: no node there, so the gesture must reach MapLibre.
     const hit = await page.evaluate(() => {
       const el = document.elementFromPoint(40, 40);
@@ -65,6 +87,7 @@ test.describe('map mode keeps every interaction it had', () => {
     page,
   }) => {
     await mountMap(page);
+    test.skip(!(await hasBasemapCanvas(page)), NO_WEBGL);
     const read = () => page.evaluate(() => document.querySelector('svg > g')?.getAttribute('transform'));
 
     const before = await read();

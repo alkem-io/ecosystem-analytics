@@ -22,7 +22,8 @@
     "initiatives": "Initiatieven",
     "cities": "Gemeenten",
     "cityDetails": "Gemeente informatie",
-    "usage": "Gebruiksverkenner"
+    "usage": "Gebruiksverkenner",
+    "funnel": "Trechter"
   },
   "initiativesTab": {
     "search": "Zoek initiatieven…",
@@ -332,5 +333,31 @@
     "clearFocus": "Wissen",
     "focusNoInitiatives": "Deze gemeente doet in de huidige selectie aan geen enkel initiatief mee.",
     "moreInitiatives": "+{{count}} meer"
+  },
+  "funnel": {
+    "title": "Innovatietrechter",
+    "subtitle": "Waar bevinden de initiatieven zich in de trechter?",
+    "gdStage": "GemeenteDelers",
+    "noPhaseArea": "Nog geen fase",
+    "noPhaseHint": "Deze initiatieven hebben nog geen fase gekozen en staan daarom buiten de trechter.",
+    "money": "Investering",
+    "effort": "Doorlooptijd",
+    "rampHint": "Elke fase kost meer geld en meer tijd dan de vorige",
+    "legendGroei": "Groei",
+    "legendGd": "GemeenteDelers",
+    "legendSize": "Grootte van de stip = aantal deelnemende gemeenten",
+    "count_one": "{{count}} initiatief",
+    "count_other": "{{count}} initiatieven",
+    "noVocabulary": "Geen fase-classificatie ingesteld",
+    "noVocabularyHint": "De trechter gebruikt de fases uit Alkemio. Stel een fase-classificatie in om de trechter te tonen.",
+    "empty": "Selecteer een of meer initiatieven om de trechter te tonen.",
+    "loading": "Trechter wordt opgebouwd…",
+    "hover": {
+      "gemeentes": "Deelnemende gemeenten",
+      "phase": "Fase",
+      "source": "Bron",
+      "none": "Geen",
+      "noPhase": "Nog geen fase"
+    }
   }
 }

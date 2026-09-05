@@ -44,6 +44,24 @@ export { MapAttribution } from './map/MapAttribution.js';
 export { MapFallback } from './map/MapFallback.js';
 export { UsageMap } from './map/UsageMap.js';
 export { buildCityRows, type CityRow } from './dashboard/utils/cities.js';
+// One row per initiative (feature 022) — shared by the Initiatives table and the Funnel.
+export {
+  buildInitiativeRows,
+  type InitiativeRow,
+  type InitiativeKind,
+} from './dashboard/utils/initiatives.js';
+export {
+  layoutFunnel,
+  envelope,
+  radiusFor,
+  GD_STAGE_KEY,
+  MIN_R,
+  type FunnelLayout,
+  type FunnelStage,
+  type FunnelDot,
+  type FunnelInput,
+  type StageKind,
+} from './dashboard/utils/funnel.js';
 export {
   type MapRegion,
   type GraphMapRegion,

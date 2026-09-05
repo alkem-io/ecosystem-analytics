@@ -15,6 +15,7 @@ import { InitiativesTab } from './pages/InitiativesTab.js';
 import { CitiesTab } from './pages/CitiesTab.js';
 import { CityDetailsTab } from './pages/CityDetailsTab.js';
 import { UsageExplorerTab } from './pages/UsageExplorerTab.js';
+import { FunnelTab } from './pages/FunnelTab.js';
 
 type TabKey =
   | 'dashboard'
@@ -23,6 +24,7 @@ type TabKey =
   | 'cityDetails'
   | 'cities'
   | 'usage'
+  | 'funnel'
   | 'graph';
 const BASE_TABS: TabKey[] = ['dashboard', 'details', 'initiatives', 'cityDetails', 'cities'];
 
@@ -44,9 +46,14 @@ function AppShell() {
 
   // The Usage Explorer is VNG-only for now (feature 019, FR-003). Dashboards opt in via
   // their AppConfig rather than by forking this shell — Graph stays last either way.
-  const TABS: TabKey[] = cfg.usageExplorer
-    ? [...BASE_TABS, 'usage', 'graph']
-    : [...BASE_TABS, 'graph'];
+  // Optional tabs are opt-in per dashboard via AppConfig rather than by forking this
+  // shell; Graph stays last whatever is enabled.
+  const TABS: TabKey[] = [
+    ...BASE_TABS,
+    ...(cfg.usageExplorer ? (['usage'] as TabKey[]) : []),
+    ...(cfg.funnel ? (['funnel'] as TabKey[]) : []),
+    'graph',
+  ];
   const { effectiveSpaceIds, state, refreshNonce, setShowGemeentes } = useSelectionContext();
 
   // The space whose details should be shown when the Space details tab opens
@@ -146,6 +153,7 @@ function AppShell() {
               )}
               {active === 'cities' && <CitiesTab />}
               {active === 'usage' && <UsageExplorerTab />}
+              {active === 'funnel' && <FunnelTab />}
               {active === 'dashboard' && <DashboardTab />}
             </ErrorBoundary>
           </main>

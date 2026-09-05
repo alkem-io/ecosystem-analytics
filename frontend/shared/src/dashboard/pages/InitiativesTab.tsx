@@ -3,12 +3,11 @@ import { useTranslation } from 'react-i18next';
 import { ArrowDown, ArrowUp, Check, ChevronsUpDown, Loader2, Search } from 'lucide-react';
 import { cn, Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@ea/shared';
 import { ActivityTier } from '@server/types/graph.js';
+import { buildInitiativeRows, type InitiativeRow } from '../utils/initiatives.js';
 import { useSelectionContext } from '../hooks/SelectionContext.js';
 import { useVngGraph } from '../hooks/useVngGraph.js';
 import { useGraphProgress } from '../hooks/useGraphProgress.js';
 
-// Groei initiatives are top-level spaces only — subspaces (L1/L2) are not listed.
-const GROEI_TYPE = 'SPACE_L0';
 const ALL = '__all__';
 
 type Kind = 'groei' | 'gd';
@@ -28,26 +27,12 @@ type SortKey =
   | 'tier';
 type SortDir = 'asc' | 'desc';
 
-interface Row {
-  id: string;
-  name: string;
-  kind: Kind;
-  gemeentes: string[];
-  /** Distinct provinces of this initiative's gemeentes (feature: provinces). */
-  provinces: string[];
-  /** Distinct member / lead user counts (null for GD initiatives — no membership). */
-  members: number | null;
-  leads: number | null;
-  themes: string[];
-  nds: string[];
-  vng2030: string[];
-  sdg: string[];
-  awards: string[];
-  commonGround: boolean;
-  /** Activity counts per period — only meaningful for Groei (selected space) rows. */
-  activity: { day: number; week: number; month: number; total: number } | null;
-  tier: ActivityTier | null;
-}
+/**
+ * A table row IS an initiative row (feature 022): the derivation moved to
+ * `utils/initiatives.ts` so the Initiatives table and the Funnel cannot disagree about
+ * what an initiative is, or about how many gemeentes take part in it.
+ */
+type Row = InitiativeRow;
 
 const TIER_LABEL: Record<ActivityTier, string> = {
   [ActivityTier.INACTIVE]: 'initiativesTab.tierInactive',
@@ -121,87 +106,9 @@ export function InitiativesTab() {
   const [sortKey, setSortKey] = useState<SortKey>('name');
   const [sortDir, setSortDir] = useState<SortDir>('asc');
 
-  // Flatten the dataset into one row per initiative, reading the classification
-  // fields directly off the node and deriving connected gemeentes from edges.
-  const allRows = useMemo<Row[]>(() => {
-    if (!dataset) return [];
-    const gemeenteName = new Map<string, string>();
-    // Gemeente node id → its province name (set on gemeente ORG nodes server-side).
-    const gemeenteProvince = new Map<string, string>();
-    const userIds = new Set<string>();
-    for (const n of dataset.nodes) {
-      if (n.type === 'ORGANIZATION' && n.isGemeente === true) {
-        gemeenteName.set(n.id, n.displayName);
-        if (n.provinceName) gemeenteProvince.set(n.id, n.provinceName);
-      } else if (n.type === 'USER') userIds.add(n.id);
-    }
-    const adj = new Map<string, Set<string>>();
-    // Distinct member / lead users per space, keyed by space node id.
-    const memberUsers = new Map<string, Set<string>>();
-    const leadUsers = new Map<string, Set<string>>();
-    const link = (map: Map<string, Set<string>>, a: string, b: string) => {
-      let s = map.get(a);
-      if (!s) map.set(a, (s = new Set()));
-      s.add(b);
-    };
-    for (const e of dataset.edges) {
-      link(adj, e.sourceId, e.targetId);
-      link(adj, e.targetId, e.sourceId);
-      if (e.type === 'MEMBER' || e.type === 'LEAD') {
-        const userId = userIds.has(e.sourceId)
-          ? e.sourceId
-          : userIds.has(e.targetId)
-            ? e.targetId
-            : null;
-        if (userId) {
-          const spaceId = userId === e.sourceId ? e.targetId : e.sourceId;
-          link(e.type === 'MEMBER' ? memberUsers : leadUsers, spaceId, userId);
-        }
-      }
-    }
-
-    const rows: Row[] = [];
-    for (const n of dataset.nodes) {
-      const isSpace = n.type === GROEI_TYPE;
-      const isInitiative = n.type === 'INITIATIVE';
-      if (!isSpace && !isInitiative) continue;
-
-      const neighbours = adj.get(n.id);
-      const gemeenteIds = neighbours ? [...neighbours].filter((id) => gemeenteName.has(id)) : [];
-      const gemeentes = gemeenteIds
-        .map((id) => gemeenteName.get(id) as string)
-        .sort((a, b) => a.localeCompare(b));
-      const provinces = [
-        ...new Set(gemeenteIds.map((id) => gemeenteProvince.get(id)).filter(Boolean) as string[]),
-      ].sort((a, b) => a.localeCompare(b));
-
-      rows.push({
-        id: n.id,
-        name: n.displayName,
-        kind: isSpace ? 'groei' : 'gd',
-        gemeentes,
-        provinces,
-        members: isSpace ? (memberUsers.get(n.id)?.size ?? 0) : null,
-        leads: isSpace ? (leadUsers.get(n.id)?.size ?? 0) : null,
-        themes: n.vngThemes ?? [],
-        nds: n.ndsCategories ?? [],
-        vng2030: n.vng2030Categories ?? [],
-        sdg: n.globalGoals ?? [],
-        awards: n.initiativeClassifications ?? [],
-        commonGround: n.commonGround === true,
-        activity: isSpace
-          ? {
-              day: n.activityByPeriod?.day ?? 0,
-              week: n.activityByPeriod?.week ?? 0,
-              month: n.activityByPeriod?.month ?? 0,
-              total: n.totalActivityCount ?? n.activityByPeriod?.allTime ?? 0,
-            }
-          : null,
-        tier: isSpace ? (n.spaceActivityTier ?? ActivityTier.INACTIVE) : null,
-      });
-    }
-    return rows;
-  }, [dataset]);
+  // One row per initiative, from the shared builder (feature 022). Kept as a useMemo so
+  // the table's filter/sort work below is not redone on every render.
+  const allRows = useMemo<Row[]>(() => buildInitiativeRows(dataset), [dataset]);
 
   // Distinct values per categorical column, for the dropdown filters above the table.
   const distinct = (pick: (r: Row) => string[]): string[] => {
