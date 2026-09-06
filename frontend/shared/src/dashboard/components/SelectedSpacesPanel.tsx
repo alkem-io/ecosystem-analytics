@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Loader2, RefreshCw, Trash2, X } from 'lucide-react';
+import { Loader2, PanelLeftClose, RefreshCw, Trash2, X } from 'lucide-react';
 import { cn } from '@ea/shared';
 import { useSelectionContext } from '../hooks/SelectionContext.js';
 import { HubSelector } from './HubSelector.js';
@@ -16,8 +16,12 @@ import { GdInitiativesSection } from './GdInitiativesSection.js';
  * LOCAL selection-for-deletion (independent of the graph's effective set); the
  * "Remove selected" button bulk-removes them and "Clear all" empties the whole
  * selection.
+ *
+ * Below `lg` the app shell parks this panel in an off-canvas drawer and passes
+ * `onClose`, which is the only difference between the two presentations: the panel
+ * grows a dismiss button and fills the drawer's width instead of a fixed 18rem.
  */
-export function SelectedSpacesPanel() {
+export function SelectedSpacesPanel({ onClose }: { onClose?: () => void } = {}) {
   const { t } = useTranslation();
   const {
     selectedSpaces,
@@ -118,9 +122,20 @@ export function SelectedSpacesPanel() {
   );
 
   return (
-    <aside className="flex h-full w-72 shrink-0 flex-col gap-4 border-r border-border bg-card p-4">
+    <aside
+      className={cn(
+        'flex h-full w-full shrink-0 flex-col gap-4 border-r border-border bg-card p-4 lg:w-72',
+        // In the drawer the WHOLE panel scrolls rather than just the space list:
+        // a phone in landscape has ~300px of height, and squeezing the list into
+        // whatever the hub picker and toggles leave over yields a 0px list. It
+        // also has to clear the notch/home indicator it is painting under.
+        onClose &&
+          'overflow-y-auto overscroll-contain pt-[max(1rem,var(--safe-top))] pb-[max(1rem,var(--safe-bottom))]',
+      )}
+    >
       <div className="flex items-center justify-between gap-2">
         <h2 className="text-sm font-semibold text-foreground">{t('selection.title')}</h2>
+        <div className="flex items-center gap-1">
         <button
           type="button"
           onClick={onRefresh}
@@ -135,6 +150,23 @@ export function SelectedSpacesPanel() {
         >
           <RefreshCw className={cn('h-4 w-4', refreshing && 'animate-spin')} aria-hidden />
         </button>
+        {onClose && (
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label={t('panel.closeSelection', { defaultValue: 'Close' })}
+            title={t('panel.closeSelection', { defaultValue: 'Close' })}
+            data-touch-target
+            className={cn(
+              'inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-md border border-border bg-card text-foreground',
+              'transition-colors hover:bg-muted',
+              'focus:outline-none focus-visible:ring-2 focus-visible:ring-primary',
+            )}
+          >
+            <PanelLeftClose className="h-4 w-4" aria-hidden />
+          </button>
+        )}
+        </div>
       </div>
 
       {/* Data-selection controls: hub picker + hub actions + gemeente toggle. */}
@@ -200,7 +232,7 @@ export function SelectedSpacesPanel() {
         </div>
       )}
 
-      <div className="min-h-0 flex-1 overflow-auto">
+      <div className={cn(onClose ? 'shrink-0' : 'min-h-0 flex-1 overflow-auto')}>
         {selectedSpaces.length === 0 ? (
           <p className="py-4 text-sm text-muted-foreground">
             {resolvingHub ? t('states.loading') : t('selection.empty')}

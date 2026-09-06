@@ -16,4 +16,8 @@ export const appConfig: AppConfig = {
   exportFilenameStem: 'vng-dashboard',
   // Feature 019 — VNG-only for now (FR-003).
   usageExplorer: true,
+  // Feature 022 — the innovation funnel. VNG-only for now.
+  funnel: true,
+  // Intake — placeholder tab, VNG-only for now.
+  intake: true,
 };

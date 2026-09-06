@@ -200,12 +200,39 @@ export interface GraphNode {
    */
   classifications?: { id: string; label: string; values: { id: string; label: string }[] }[];
   /**
+   * SPACE: the growth phase ("groeifase") this initiative has reached, resolved from
+   * the dashboard's designated phase classification (feature 022).
+   *
+   * Set on SPACE nodes only. NEVER set on an INITIATIVE (GemeenteDelers) node — GD is a
+   * separate, completed programme that carries no phase. Absent (not a sentinel) when
+   * the space selects no phase value or the dashboard designates no phase
+   * classification; that absence is what routes an initiative to the funnel's "no phase"
+   * holding area rather than into a stage.
+   */
+  phase?: NodePhase;
+  /**
    * SPACE, INTERNAL: the raw Alkemio classification entries, carried so that the
    * post-cache enrichment in graph-service can resolve designations for CACHED spaces
    * too (the cache is written before enrichment runs). Stripped from the node before the
    * dataset is returned, so it never reaches the browser — read `classifications` there.
    */
   classificationEntries?: ClassificationEntryInput[];
+}
+
+/**
+ * The growth phase a Groei initiative has reached (feature 022).
+ *
+ * Resolved in graph-service's post-cache classification enrichment from the app's
+ * designated phase classification, using the same "furthest along wins" rule as
+ * `countGroeiPhases` — so the Funnel and the growth-phase chart cannot disagree.
+ */
+export interface NodePhase {
+  /** `ClassificationValue.id` — the stable key, comparable across Spaces. */
+  key: string;
+  /** The phase's label as authored in Alkemio; rendered verbatim. */
+  label: string;
+  /** Position in the phase vocabulary's AUTHORED order — an ordering hint, not an identity. */
+  nr: number;
 }
 
 /** Raw Alkemio classification entry as carried through the cache (feature 020). */

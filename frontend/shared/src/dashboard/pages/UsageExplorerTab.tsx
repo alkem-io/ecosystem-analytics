@@ -47,6 +47,21 @@ const ALL_PROVINCES = '__all__';
  */
 const MAP_HEIGHT = 1560;
 
+/**
+ * The Netherlands is about 1.25× taller than it is wide, so on a narrow viewport the
+ * fixed 1560px height is not "generous", it is a 366×1560 letterbox with the country
+ * stranded in a thin column down the middle. Below the desktop width the map instead
+ * takes a height proportional to the width it actually got, floored so it never becomes
+ * a strip. `MAP_HEIGHT` remains the height at full width, which is what the desktop and
+ * the feature-021 visual guard render at.
+ */
+const MAP_ASPECT = 1.25;
+const MIN_MAP_HEIGHT = 420;
+function mapHeightFor(width: number): number {
+  if (width <= 0) return MAP_HEIGHT;
+  return Math.round(Math.min(MAP_HEIGHT, Math.max(MIN_MAP_HEIGHT, width * MAP_ASPECT)));
+}
+
 export function UsageExplorerTab() {
   const { t } = useTranslation();
   const cfg = useAppConfig();
@@ -75,6 +90,24 @@ export function UsageExplorerTab() {
   const [unplaced, setUnplaced] = useState(0);
   const [allMarkers, setAllMarkers] = useState<UsageMarker[]>([]);
   const [hover, setHover] = useState<{ marker: UsageMarker; x: number; y: number } | null>(null);
+
+  // Measure the map's own box — `UsageMap` needs a concrete pixel height (it feeds d3's
+  // projection and MapLibre's camera), so the responsive height is computed here rather
+  // than expressed as a CSS aspect-ratio. A callback ref rather than an effect: this tab
+  // returns early for its loading/empty states, so the box only exists on some renders.
+  const [mapHeight, setMapHeight] = useState(MAP_HEIGHT);
+  const observerRef = useRef<ResizeObserver | null>(null);
+  const mapBoxRef = useCallback((el: HTMLDivElement | null) => {
+    observerRef.current?.disconnect();
+    observerRef.current = null;
+    if (!el) return;
+    const observer = new ResizeObserver(([entry]) => {
+      const next = mapHeightFor(Math.floor(entry.contentRect.width));
+      setMapHeight((prev) => (prev === next ? prev : next));
+    });
+    observer.observe(el);
+    observerRef.current = observer;
+  }, []);
 
   const ranking = useMemo(
     () => (visibleArea ? buildAreaRanking(visibleArea, focused) : null),
@@ -137,7 +170,7 @@ export function UsageExplorerTab() {
   const locations = locationSet?.locations ?? [];
 
   return (
-    <div className="flex flex-col gap-4 p-4">
+    <div className="flex h-full flex-col gap-4 overflow-y-auto p-3 pb-[max(0.75rem,var(--safe-bottom))] sm:p-4">
       {/* ── Controls ─────────────────────────────────────────────────────────── */}
       <div className="flex flex-wrap items-center gap-3">
         <label className="text-sm font-medium" htmlFor="usage-province">
@@ -182,9 +215,9 @@ export function UsageExplorerTab() {
       </div>
 
       {/* ── Map ──────────────────────────────────────────────────────────────── */}
-      <div className="relative">
+      <div className="relative" ref={mapBoxRef}>
         <UsageMap
-          height={MAP_HEIGHT}
+          height={mapHeight}
           locations={locations}
           cityRows={cityRows}
           province={province}

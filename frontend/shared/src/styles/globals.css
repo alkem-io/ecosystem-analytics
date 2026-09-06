@@ -40,3 +40,67 @@
   --radius-lg: 12px;
   --radius-xl: 16px;
 }
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   Mobile base layer.
+
+   The dashboards are laid out for a desk, but they are read on phones. These
+   rules are the parts of that which cannot be expressed as utility classes on
+   individual components: page-level scroll behaviour, iOS's font-size rules,
+   and the notch. Everything else is a `md:` / `lg:` prefix in the markup.
+   ───────────────────────────────────────────────────────────────────────────── */
+
+:root {
+  /* Safe-area insets, resolved once so components can use them without repeating
+     the env() fallback dance. Zero everywhere except on notched devices with a
+     `viewport-fit=cover` meta (which every SPA's index.html sets). */
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-right: env(safe-area-inset-right, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+  --safe-left: env(safe-area-inset-left, 0px);
+  /* The minimum comfortable touch target (WCAG 2.5.5 / iOS HIG). */
+  --tap-target: 44px;
+}
+
+html {
+  /* iOS Safari inflates text in landscape unless this is pinned. */
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
+body {
+  /* The app owns a fixed-height shell; a rubber-band on the page behind it just
+     detaches the header from the top of the screen. Inner scrollers still bounce. */
+  overscroll-behavior-y: none;
+}
+
+@media (max-width: 767px) {
+  /* iOS zooms the viewport when a focused control's text is under 16px, and then
+     never zooms back out — which is most of why typing in a filter box on a phone
+     leaves the layout stranded. Only the control's own text grows; `text-sm`
+     labels around it are untouched. */
+  input,
+  select,
+  textarea {
+    font-size: 16px;
+  }
+}
+
+/* Touch devices get real targets on the controls that navigate. Applied by
+   pointer type rather than width so a small touchscreen laptop is covered too. */
+@media (hover: none) and (pointer: coarse) {
+  [data-touch-target] {
+    min-height: var(--tap-target);
+    min-width: var(--tap-target);
+  }
+}
+
+/* Horizontal strips (the mobile tab bar) scroll with the finger but must not show
+   a scrollbar gutter, which would eat a third of their height on some platforms. */
+.no-scrollbar {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}

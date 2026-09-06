@@ -26,6 +26,17 @@ export interface AppConfig {
    * dashboards opt in by setting this rather than by forking the shared shell.
    */
   usageExplorer?: boolean;
+  /**
+   * Show the Funnel tab (feature 022). Opt-in per dashboard, exactly like
+   * `usageExplorer` — a dashboard whose spaces do not use growth phases would see an
+   * explanatory empty state, so it simply leaves this off.
+   */
+  funnel?: boolean;
+  /**
+   * Show the Intake tab. Opt-in like the two above; currently a placeholder, so a
+   * dashboard opts in only once it wants the step visible in its navigation.
+   */
+  intake?: boolean;
 }
 
 const AppConfigContext = createContext<AppConfig | null>(null);
