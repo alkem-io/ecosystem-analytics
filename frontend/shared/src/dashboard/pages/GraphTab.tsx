@@ -19,7 +19,11 @@ import { useGraphProgress } from '../hooks/useGraphProgress.js';
 import { MapToggle } from '../components/MapToggle.js';
 import { GemeenteToggle } from '../components/GemeenteToggle.js';
 import { GraphMetricsBar } from '../components/GraphMetricsBar.js';
-import { InitiativeGemeentesPanel } from '../components/InitiativeGemeentesPanel.js';
+import {
+  InitiativeGemeentesPanel,
+  GRAPH_PANEL_CLASS,
+  GRAPH_PANEL_CLOSE_CLASS,
+} from '../components/InitiativeGemeentesPanel.js';
 import { LoadingOverlay } from '../components/LoadingOverlay.js';
 
 /**
@@ -320,7 +324,7 @@ export function GraphTab({
   return (
     <div className="relative flex h-full min-h-0 flex-col">
       {warnings.length > 0 && (
-        <div className="border-b border-amber-300 bg-amber-50 px-6 py-2 text-xs text-amber-800">
+        <div className="border-b border-amber-300 bg-amber-50 px-3 py-2 text-xs text-amber-800 sm:px-6">
           {warnings.join(' · ')}
         </div>
       )}
@@ -329,7 +333,7 @@ export function GraphTab({
         {/* Floating graph controls (top-left), overlaid on the canvas. The
             "show gemeentes" toggle is graph-only, so it lives here rather than in
             the shared selection panel. */}
-        <div className="absolute left-4 top-4 z-10 flex flex-col gap-2 rounded-md border border-border bg-background/95 px-3 py-1.5 shadow-sm">
+        <div className="absolute left-2 top-2 z-10 flex max-w-[calc(100%-1rem)] flex-col gap-2 rounded-md border border-border bg-background/95 px-3 py-1.5 shadow-sm sm:left-4 sm:top-4">
           <MapToggle checked={showMap} onChange={setShowMap} />
           {showMap && (
             <label className="flex cursor-pointer items-center gap-2 text-sm text-foreground">
@@ -337,7 +341,7 @@ export function GraphTab({
               <select
                 value={mapRegion}
                 onChange={(e) => setMapRegion(e.target.value as GraphMapRegion)}
-                className="rounded border border-border bg-background px-1.5 py-0.5 text-sm"
+                className="min-w-0 rounded border border-border bg-background px-1.5 py-0.5 text-sm"
               >
                 <option value="netherlands">
                   {t('graph.regionNetherlands', { defaultValue: 'Heel Nederland' })}
@@ -404,12 +408,13 @@ export function GraphTab({
 
         {/* US7 — organisation → connected spaces panel */}
         {selectedNode && selectedNode.type === 'ORGANIZATION' && (
-          <aside className="absolute right-4 top-4 w-64 max-w-[80%] rounded-lg border border-border bg-background/95 p-3 shadow-md">
+          <aside className={GRAPH_PANEL_CLASS}>
             <header className="mb-2 flex items-start justify-between gap-2">
               <span className="text-sm font-semibold">{selectedNode.displayName}</span>
               <button
                 type="button"
-                className="text-xs text-muted-foreground hover:text-foreground"
+                className={GRAPH_PANEL_CLOSE_CLASS}
+                data-touch-target
                 onClick={() => setSelectedNodeId(null)}
                 aria-label="Close"
               >
@@ -459,7 +464,7 @@ export function GraphTab({
         {/* Off-map notice — only when the map is shown and some nodes can't be
             placed on it (no valid location or outside the Netherlands region). */}
         {showMap && offMapGroups.total > 0 && (
-          <div className="absolute inset-x-4 bottom-4 z-10 rounded-md border border-border bg-background/95 p-3 shadow-md">
+          <div className="absolute inset-x-2 bottom-2 z-10 rounded-md border border-border bg-background/95 p-3 shadow-md sm:inset-x-4 sm:bottom-4">
             <button
               type="button"
               onClick={() => setOffMapMinimized((v) => !v)}

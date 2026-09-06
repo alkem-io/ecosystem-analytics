@@ -55,14 +55,14 @@ function PieMark({
     <g>
       <circle cx={cx} cy={cy} r={12} fill="transparent" />
       {gdCount === 0 || total === 0 ? (
-        <circle cx={cx} cy={cy} r={r} fill={GROEI_COLOR} stroke="var(--card)" strokeWidth={1.25} />
+        <circle cx={cx} cy={cy} r={r} fill={GROEI_COLOR} stroke="var(--surface-raised)" strokeWidth={1.25} />
       ) : groeiCount === 0 ? (
-        <circle cx={cx} cy={cy} r={r} fill={GD_COLOR} stroke="var(--card)" strokeWidth={1.25} />
+        <circle cx={cx} cy={cy} r={r} fill={GD_COLOR} stroke="var(--surface-raised)" strokeWidth={1.25} />
       ) : (
         <>
           <path d={slicePath(cx, cy, r, 0, (groeiCount / total) * 360)} fill={GROEI_COLOR} />
           <path d={slicePath(cx, cy, r, (groeiCount / total) * 360, 360)} fill={GD_COLOR} />
-          <circle cx={cx} cy={cy} r={r} fill="none" stroke="var(--card)" strokeWidth={1.25} />
+          <circle cx={cx} cy={cy} r={r} fill="none" stroke="var(--surface-raised)" strokeWidth={1.25} />
         </>
       )}
     </g>

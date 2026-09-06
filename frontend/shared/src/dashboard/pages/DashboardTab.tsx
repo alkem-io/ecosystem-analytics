@@ -317,7 +317,7 @@ export function DashboardTab() {
 
   return (
     <div className="relative h-full">
-      <div className="h-full overflow-auto p-6">
+      <div className="h-full overflow-auto p-3 pb-[max(0.75rem,var(--safe-bottom))] sm:p-6">
       {state.includeInitiatives && (
         <div className="mb-4">
           <GdProvenanceNote />
@@ -330,7 +330,7 @@ export function DashboardTab() {
         </div>
       )}
 
-      <div className="mb-4 flex items-center justify-between gap-3">
+      <div className="mb-4 flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
         {data ? (
           <p className="text-xs text-muted-foreground">
             {t('dashboard.totalCounted', { count: data.totalCounted })}
@@ -365,7 +365,7 @@ export function DashboardTab() {
         </button>
       </div>
 
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+      <div className="grid grid-cols-1 gap-4 sm:gap-6 lg:grid-cols-2">
         {/* Growth-phase pipeline leads the dashboard; omitted entirely when no selected
             space carries a phase selection (the server then sends no data). */}
         {data?.phaseDistribution &&

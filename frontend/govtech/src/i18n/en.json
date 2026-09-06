@@ -21,7 +21,9 @@
     "dashboard": "Dashboard",
     "initiatives": "Initiatives",
     "cities": "Cities",
-    "cityDetails": "City information"
+    "cityDetails": "City information",
+    "funnel": "Funnel",
+    "intake": "Intake"
   },
   "initiativesTab": {
     "search": "Search initiatives…",
@@ -96,7 +98,9 @@
     "includeGdHint": "GemeenteDelers (2021–2025)",
     "showAllGd": "Show all initiatives",
     "gemeentesCount": "Gemeentes ({{count}})",
-    "themesCount": "Themes ({{count}})"
+    "themesCount": "Themes ({{count}})",
+    "openSelection": "Selection",
+    "closeSelection": "Close selection"
   },
   "picker": {
     "placeholder": "Add an initiative…",
@@ -211,7 +215,8 @@
     "loadingGraphHint": "This can take a moment",
     "graphTransforming": "Building network…",
     "graphAcquiring": "Fetching initiatives",
-    "graphBuilding": "Network"
+    "graphBuilding": "Network",
+    "networkError": "Could not reach the server. Check your connection and try again."
   },
   "graph": {
     "offMapTitle": "{{count}} nodes not displaying on the map",
@@ -304,5 +309,43 @@
     "noInitiatives": "This city does not take part in any selected initiative",
     "noCities": "No cities in the current selection",
     "loading": "Loading cities…"
+  },
+  "funnel": {
+    "title": "Innovation funnel",
+    "subtitle": "Where are the initiatives in the funnel?",
+    "formationStage": "Formation",
+    "noPhaseArea": "No phase yet",
+    "noPhaseHint": "These initiatives have not selected a phase, so they sit outside the funnel.",
+    "money": "Investment",
+    "effort": "Effort",
+    "rampHint": "Each phase costs more money and more time than the one before it",
+    "legendGroei": "Groei",
+    "legendGd": "GemeenteDelers",
+    "legendSize": "Dot size = number of participating municipalities",
+    "count_one": "{{count}} initiative",
+    "count_other": "{{count}} initiatives",
+    "noVocabulary": "No phase classification configured",
+    "noVocabularyHint": "The funnel uses the phases authored in Alkemio. Designate a phase classification to show the funnel.",
+    "empty": "Select one or more initiatives to show the funnel.",
+    "loading": "Building the funnel…",
+    "hover": {
+      "gemeentes": "Participating municipalities",
+      "phase": "Phase",
+      "source": "Source",
+      "none": "None",
+      "noPhase": "No phase yet"
+    },
+    "showNames": "Show names",
+    "inFunnel": "Initiatives in the funnel"
+  },
+  "table": {
+    "sortBy": "Sort",
+    "sortAsc": "Sorted ascending — tap to reverse",
+    "sortDesc": "Sorted descending — tap to reverse",
+    "filters": "Filters"
+  },
+  "intake": {
+    "notImplemented": "Not yet implemented — this view is still being built.",
+    "workInProgress": "Work in progress"
   }
 }

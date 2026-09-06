@@ -37,6 +37,12 @@ const NODE_COLORS: Record<string, string> = {
 const PROXIMITY_THRESHOLD = 10;   // only merge truly overlapping nodes
 const MAX_NODES_FOR_CLUSTERING = 500;
 const ZOOM_TRANSITION_MS = 600;
+
+/**
+ * Viewport width below which the settled free layout is zoomed to fit once (see the
+ * `simulation.on('end')` handler). Matches the shared `useIsMobile` breakpoint.
+ */
+const FIT_ON_SETTLE_MAX_WIDTH = 768;
 const LABEL_MAX_CHARS = 30;     // truncate long labels
 const FANOUT_RADIUS = 80;       // radius of the fan-out circle when revealing a cluster
 
@@ -1876,6 +1882,57 @@ export default function ForceGraph({
 
     simulationRef.current = simulation;
     simulationLocal = simulation;
+
+    // ── Fit the settled layout into a small viewport, once ────────────────────
+    // A phone shows roughly a fifth of the canvas area a desktop does, so at the
+    // default 1:1 camera the free layout opens on a handful of oversized nodes with
+    // none of the structure visible — and nothing on screen suggests the rest is
+    // there. Once the simulation settles, zoom out to the layout's bounding box.
+    //
+    // Deliberately narrow: only below the mobile breakpoint (desktop framing is
+    // unchanged), only in free-layout mode (with a basemap MapLibre owns the camera
+    // and writing d3-zoom's transform would be overwritten on its next frame), only
+    // ever zooming OUT, never past d3-zoom's own 0.1 floor, and only the first time
+    // — a user who has since panned or zoomed must not be yanked back.
+    if (!showMap && width < FIT_ON_SETTLE_MAX_WIDTH) {
+      let fitted = false;
+      simulation.on('end', () => {
+        if (fitted) return;
+        let minX = Infinity;
+        let minY = Infinity;
+        let maxX = -Infinity;
+        let maxY = -Infinity;
+        for (const n of simNodes) {
+          if (n.x == null || n.y == null) continue;
+          const r = (n as any)._effectiveRadius ?? effectiveRadius(n, isGeoMode, 1);
+          minX = Math.min(minX, n.x - r);
+          maxX = Math.max(maxX, n.x + r);
+          minY = Math.min(minY, n.y - r);
+          maxY = Math.max(maxY, n.y + r);
+        }
+        if (!Number.isFinite(minX) || maxX <= minX || maxY <= minY) return;
+        const pad = 24;
+        const k = Math.min(
+          1,
+          (width - pad * 2) / (maxX - minX),
+          (height - pad * 2) / (maxY - minY),
+        );
+        // Already effectively fits — leave the camera alone rather than nudging it.
+        if (k >= 0.98) return;
+        fitted = true;
+        const scale = Math.max(0.1, k);
+        const cx = (minX + maxX) / 2;
+        const cy = (minY + maxY) / 2;
+        svg
+          .transition()
+          .duration(ZOOM_TRANSITION_MS)
+          .ease(d3.easeCubicOut)
+          .call(
+            zoom.transform as any,
+            d3.zoomIdentity.translate(width / 2, height / 2).scale(scale).translate(-cx, -cy),
+          );
+      });
+    }
 
     /**
      * Label collision culling.

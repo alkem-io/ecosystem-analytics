@@ -228,3 +228,33 @@ export function presentClassifications(
     }))
     .filter((group) => group.values.length > 0);
 }
+
+/**
+ * The growth phase an entity has reached, for `GraphNode.phase` (feature 022).
+ *
+ * An initiative should select exactly one phase. If it somehow carries several, the
+ * FURTHEST-ALONG one wins — that is the state it has actually reached, and with the
+ * vocabulary in authored (pipeline) order that is simply the highest index. This is the
+ * SAME rule as `countGroeiPhases` in services/groei-phases.ts, which is what makes the
+ * Funnel's per-stage counts and the growth-phase chart agree (spec 022 FR-023).
+ *
+ * Returns `undefined` — never a sentinel — when the entity selects no phase value or the
+ * designation matched no classification. That absence is what routes an initiative to
+ * the Funnel's "no phase" holding area instead of into a stage.
+ *
+ * NEVER call this for a GemeenteDelers initiative: GD is a separate, completed programme
+ * whose entities are Callouts carrying tags, not classifications, and it has no phase.
+ */
+export function resolvePhase(
+  entries: readonly ClassificationEntryInput[] | undefined,
+  designation: string,
+  vocabulary: Vocabulary,
+): { key: string; label: string; nr: number } | undefined {
+  let best = -1;
+  for (const valueId of selectionOf(resolveDesignated(entries, designation))) {
+    const index = vocabulary.findIndex((v) => v.key === valueId);
+    if (index > best) best = index;
+  }
+  if (best < 0) return undefined;
+  return { key: vocabulary[best].key, label: vocabulary[best].label, nr: best };
+}

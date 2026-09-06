@@ -1,15 +1,23 @@
 import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { ArrowDown, ArrowUp, Check, ChevronsUpDown, Loader2, Search } from 'lucide-react';
-import { cn, Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@ea/shared';
+import { ArrowDown, ArrowUp, Check, ChevronsUpDown, Loader2 } from 'lucide-react';
+import {
+  cn,
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+  useIsCompact,
+} from '@ea/shared';
+import { RecordCard, RecordCardList, RecordSortControl } from '../components/RecordCards.js';
+import { TableFilterBar, FILTER_ALL } from '../components/TableFilterBar.js';
 import { ActivityTier } from '@server/types/graph.js';
+import { buildInitiativeRows, type InitiativeRow } from '../utils/initiatives.js';
 import { useSelectionContext } from '../hooks/SelectionContext.js';
 import { useVngGraph } from '../hooks/useVngGraph.js';
 import { useGraphProgress } from '../hooks/useGraphProgress.js';
 
-// Groei initiatives are top-level spaces only — subspaces (L1/L2) are not listed.
-const GROEI_TYPE = 'SPACE_L0';
-const ALL = '__all__';
+const ALL = FILTER_ALL;
 
 type Kind = 'groei' | 'gd';
 type SortKey =
@@ -28,26 +36,48 @@ type SortKey =
   | 'tier';
 type SortDir = 'asc' | 'desc';
 
-interface Row {
-  id: string;
-  name: string;
-  kind: Kind;
-  gemeentes: string[];
-  /** Distinct provinces of this initiative's gemeentes (feature: provinces). */
-  provinces: string[];
-  /** Distinct member / lead user counts (null for GD initiatives — no membership). */
-  members: number | null;
-  leads: number | null;
-  themes: string[];
-  nds: string[];
-  vng2030: string[];
-  sdg: string[];
-  awards: string[];
-  commonGround: boolean;
-  /** Activity counts per period — only meaningful for Groei (selected space) rows. */
-  activity: { day: number; week: number; month: number; total: number } | null;
-  tier: ActivityTier | null;
-}
+/**
+ * The same sort keys the column headers expose, in column order — used by the card
+ * view's sort control, which has no headers to hang them off. Kept as one list so a
+ * new sortable column cannot end up sortable on a desktop and not on a phone.
+ */
+const SORT_OPTIONS: SortKey[] = [
+  'name',
+  'type',
+  'gemeentes',
+  'members',
+  'leads',
+  'vng2030',
+  'nds',
+  'themes',
+  'commonGround',
+  'week',
+  'month',
+  'total',
+  'tier',
+];
+const SORT_LABEL_KEYS: Record<SortKey, string> = {
+  name: 'initiativesTab.colName',
+  type: 'initiativesTab.colType',
+  gemeentes: 'initiativesTab.colGemeenteCount',
+  members: 'initiativesTab.colMembers',
+  leads: 'initiativesTab.colLeads',
+  vng2030: 'initiativesTab.colVng2030',
+  nds: 'initiativesTab.colNds',
+  themes: 'initiativesTab.colThemes',
+  commonGround: 'initiativesTab.colCommonGround',
+  week: 'initiativesTab.colActivityWeek',
+  month: 'initiativesTab.colActivityMonth',
+  total: 'initiativesTab.colActivityTotal',
+  tier: 'initiativesTab.colActivityTier',
+};
+
+/**
+ * A table row IS an initiative row (feature 022): the derivation moved to
+ * `utils/initiatives.ts` so the Initiatives table and the Funnel cannot disagree about
+ * what an initiative is, or about how many gemeentes take part in it.
+ */
+type Row = InitiativeRow;
 
 const TIER_LABEL: Record<ActivityTier, string> = {
   [ActivityTier.INACTIVE]: 'initiativesTab.tierInactive',
@@ -102,6 +132,8 @@ const TIER_CELL_BG: Record<ActivityTier, string> = {
  */
 export function InitiativesTab() {
   const { t } = useTranslation();
+  // Below `lg` the thirteen-column table is re-laid as one card per initiative.
+  const compact = useIsCompact();
   const { effectiveSpaceIds, selectedSpaces, state, refreshNonce } = useSelectionContext();
   const { dataset, loading, error } = useVngGraph(effectiveSpaceIds, {
     includeInitiatives: state.includeInitiatives,
@@ -121,87 +153,9 @@ export function InitiativesTab() {
   const [sortKey, setSortKey] = useState<SortKey>('name');
   const [sortDir, setSortDir] = useState<SortDir>('asc');
 
-  // Flatten the dataset into one row per initiative, reading the classification
-  // fields directly off the node and deriving connected gemeentes from edges.
-  const allRows = useMemo<Row[]>(() => {
-    if (!dataset) return [];
-    const gemeenteName = new Map<string, string>();
-    // Gemeente node id → its province name (set on gemeente ORG nodes server-side).
-    const gemeenteProvince = new Map<string, string>();
-    const userIds = new Set<string>();
-    for (const n of dataset.nodes) {
-      if (n.type === 'ORGANIZATION' && n.isGemeente === true) {
-        gemeenteName.set(n.id, n.displayName);
-        if (n.provinceName) gemeenteProvince.set(n.id, n.provinceName);
-      } else if (n.type === 'USER') userIds.add(n.id);
-    }
-    const adj = new Map<string, Set<string>>();
-    // Distinct member / lead users per space, keyed by space node id.
-    const memberUsers = new Map<string, Set<string>>();
-    const leadUsers = new Map<string, Set<string>>();
-    const link = (map: Map<string, Set<string>>, a: string, b: string) => {
-      let s = map.get(a);
-      if (!s) map.set(a, (s = new Set()));
-      s.add(b);
-    };
-    for (const e of dataset.edges) {
-      link(adj, e.sourceId, e.targetId);
-      link(adj, e.targetId, e.sourceId);
-      if (e.type === 'MEMBER' || e.type === 'LEAD') {
-        const userId = userIds.has(e.sourceId)
-          ? e.sourceId
-          : userIds.has(e.targetId)
-            ? e.targetId
-            : null;
-        if (userId) {
-          const spaceId = userId === e.sourceId ? e.targetId : e.sourceId;
-          link(e.type === 'MEMBER' ? memberUsers : leadUsers, spaceId, userId);
-        }
-      }
-    }
-
-    const rows: Row[] = [];
-    for (const n of dataset.nodes) {
-      const isSpace = n.type === GROEI_TYPE;
-      const isInitiative = n.type === 'INITIATIVE';
-      if (!isSpace && !isInitiative) continue;
-
-      const neighbours = adj.get(n.id);
-      const gemeenteIds = neighbours ? [...neighbours].filter((id) => gemeenteName.has(id)) : [];
-      const gemeentes = gemeenteIds
-        .map((id) => gemeenteName.get(id) as string)
-        .sort((a, b) => a.localeCompare(b));
-      const provinces = [
-        ...new Set(gemeenteIds.map((id) => gemeenteProvince.get(id)).filter(Boolean) as string[]),
-      ].sort((a, b) => a.localeCompare(b));
-
-      rows.push({
-        id: n.id,
-        name: n.displayName,
-        kind: isSpace ? 'groei' : 'gd',
-        gemeentes,
-        provinces,
-        members: isSpace ? (memberUsers.get(n.id)?.size ?? 0) : null,
-        leads: isSpace ? (leadUsers.get(n.id)?.size ?? 0) : null,
-        themes: n.vngThemes ?? [],
-        nds: n.ndsCategories ?? [],
-        vng2030: n.vng2030Categories ?? [],
-        sdg: n.globalGoals ?? [],
-        awards: n.initiativeClassifications ?? [],
-        commonGround: n.commonGround === true,
-        activity: isSpace
-          ? {
-              day: n.activityByPeriod?.day ?? 0,
-              week: n.activityByPeriod?.week ?? 0,
-              month: n.activityByPeriod?.month ?? 0,
-              total: n.totalActivityCount ?? n.activityByPeriod?.allTime ?? 0,
-            }
-          : null,
-        tier: isSpace ? (n.spaceActivityTier ?? ActivityTier.INACTIVE) : null,
-      });
-    }
-    return rows;
-  }, [dataset]);
+  // One row per initiative, from the shared builder (feature 022). Kept as a useMemo so
+  // the table's filter/sort work below is not redone on every render.
+  const allRows = useMemo<Row[]>(() => buildInitiativeRows(dataset), [dataset]);
 
   // Distinct values per categorical column, for the dropdown filters above the table.
   const distinct = (pick: (r: Row) => string[]): string[] => {
@@ -362,12 +316,18 @@ export function InitiativesTab() {
 
   // Text columns default to A→Z; numeric/boolean columns default to high→low.
   const TEXT_KEYS = new Set<SortKey>(['name', 'type', 'vng2030', 'nds', 'themes']);
-  const toggleSort = (key: SortKey) => {
-    if (key === sortKey) setSortDir((d) => (d === 'asc' ? 'desc' : 'asc'));
-    else {
-      setSortKey(key);
-      setSortDir(TEXT_KEYS.has(key) ? 'asc' : 'desc');
+  /**
+   * Clicking a column header re-sorts by it, and clicking the ACTIVE header flips
+   * the direction. The card view's sort <select> must not flip: re-picking the
+   * option you are already on has to be a no-op, not a reversal — hence `pick`.
+   */
+  const toggleSort = (key: SortKey, pick = false) => {
+    if (key === sortKey) {
+      if (!pick) setSortDir((d) => (d === 'asc' ? 'desc' : 'asc'));
+      return;
     }
+    setSortKey(key);
+    setSortDir(TEXT_KEYS.has(key) ? 'asc' : 'desc');
   };
 
   const SortIcon = ({ column }: { column: SortKey }) => {
@@ -418,52 +378,27 @@ export function InitiativesTab() {
   return (
     <TooltipProvider delayDuration={120}>
     <div className="flex h-full min-h-0 flex-col">
-      {/* Filter bar — search + a dropdown per categorical column. */}
-      <div className="flex flex-wrap items-center gap-x-4 gap-y-2 border-b border-border px-6 py-3">
-        <div className="relative">
-          <Search
-            className="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground"
-            aria-hidden
+      {/* Filter bar — search + a dropdown per categorical column. Below `lg` the
+          dropdowns move behind a disclosure and the card view's sort joins them. */}
+      <TableFilterBar
+        query={query}
+        onQueryChange={setQuery}
+        searchPlaceholder={t('initiativesTab.search')}
+        filters={filterDefs}
+        values={filters}
+        onFilterChange={(key, value) => setFilters((prev) => ({ ...prev, [key]: value }))}
+        allLabel={t('initiativesTab.filterAll')}
+        countLabel={t('initiativesTab.count', { count: rows.length })}
+        sortControl={
+          <RecordSortControl
+            options={SORT_OPTIONS.map((k) => ({ key: k, label: t(SORT_LABEL_KEYS[k]) }))}
+            sortKey={sortKey}
+            sortDir={sortDir}
+            onSortKey={(k) => toggleSort(k, true)}
+            onToggleDir={() => setSortDir((d) => (d === 'asc' ? 'desc' : 'asc'))}
           />
-          <input
-            type="search"
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            placeholder={t('initiativesTab.search')}
-            className={cn(
-              'w-56 rounded-md border border-border bg-card py-1.5 pl-8 pr-3 text-sm text-foreground',
-              'placeholder:text-muted-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-primary',
-            )}
-          />
-        </div>
-
-        {filterDefs
-          .filter((f) => f.options.length > 0)
-          .map((f) => (
-            <label key={f.key} className="flex items-center gap-1.5 text-sm text-muted-foreground">
-              {t(f.labelKey)}
-              <select
-                value={filters[f.key] ?? ALL}
-                onChange={(e) => setFilters((prev) => ({ ...prev, [f.key]: e.target.value }))}
-                className={cn(
-                  'max-w-44 rounded-md border border-border bg-card px-2.5 py-1.5 text-sm text-foreground',
-                  'focus:outline-none focus-visible:ring-2 focus-visible:ring-primary',
-                )}
-              >
-                <option value={ALL}>{t('initiativesTab.filterAll')}</option>
-                {f.options.map((o) => (
-                  <option key={o.value} value={o.value}>
-                    {o.label} ({o.count})
-                  </option>
-                ))}
-              </select>
-            </label>
-          ))}
-
-        <span className="ml-auto text-xs text-muted-foreground">
-          {t('initiativesTab.count', { count: rows.length })}
-        </span>
-      </div>
+        }
+      />
 
       {/* Table */}
       <div className="min-h-0 flex-1 overflow-auto">
@@ -492,147 +427,231 @@ export function InitiativesTab() {
             {t('initiativesTab.noResults')}
           </div>
         ) : (
-          <table className="w-full border-collapse text-sm">
-            <thead className="sticky top-0 z-10 bg-card">
-              <tr className="border-b border-border">
-                <th className="px-6 py-1.5" rowSpan={2}>
-                  {headerBtn('name', t('initiativesTab.colName'))}
-                </th>
-                <th className="px-3 py-1.5 text-left" rowSpan={2}>
-                  {headerBtn('type', t('initiativesTab.colType'))}
-                </th>
-                <th className={groupTh} colSpan={3}>
-                  {t('initiativesTab.groupCommunity')}
-                </th>
-                <th className={groupTh} colSpan={4}>
-                  {t('initiativesTab.groupClassification')}
-                </th>
-                <th className={groupTh} colSpan={4}>
-                  {t('initiativesTab.groupActivity')}
-                </th>
-              </tr>
-              <tr className="border-b border-border text-left">
-                <th className="w-28 border-l border-border px-3 py-2.5">
-                  {headerBtn('gemeentes', t('initiativesTab.colGemeenteCount'))}
-                </th>
-                <th className="w-24 px-3 py-2.5">
-                  {headerBtn('members', t('initiativesTab.colMembers'))}
-                </th>
-                <th className="w-24 px-3 py-2.5">
-                  {headerBtn('leads', t('initiativesTab.colLeads'))}
-                </th>
-                <th className="border-l border-border px-3 py-2.5">
-                  {headerBtn('vng2030', t('initiativesTab.colVng2030'))}
-                </th>
-                <th className="px-3 py-2.5">
-                  {headerBtn('nds', t('initiativesTab.colNds'))}
-                </th>
-                <th className="px-3 py-2.5">
-                  {headerBtn('themes', t('initiativesTab.colThemes'))}
-                </th>
-                <th className="px-3 py-2.5">
-                  {headerBtn('commonGround', t('initiativesTab.colCommonGround'))}
-                </th>
-                <th className="w-20 border-l border-border px-3 py-2.5">
-                  {headerBtn('week', t('initiativesTab.colActivityWeek'))}
-                </th>
-                <th className="w-20 px-3 py-2.5">
-                  {headerBtn('month', t('initiativesTab.colActivityMonth'))}
-                </th>
-                <th className="w-20 px-3 py-2.5">
-                  {headerBtn('total', t('initiativesTab.colActivityTotal'))}
-                </th>
-                <th className="w-28 px-3 py-2.5">
-                  {headerBtn('tier', t('initiativesTab.colActivityTier'))}
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              {rows.map((r) => {
-                const tierBg = r.tier ? TIER_CELL_BG[r.tier] : '';
-                return (
-                <tr key={r.id} className="border-b border-border align-top hover:bg-muted/40">
-                  <td className="px-6 py-2.5 font-medium text-foreground">{r.name}</td>
-                  <td className="px-3 py-2.5">
-                    <span
-                      className={cn(
-                        'inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium',
-                        r.kind === 'groei'
-                          ? 'bg-primary/10 text-primary'
-                          : 'bg-muted text-muted-foreground',
-                      )}
-                    >
-                      {r.kind === 'groei'
-                        ? t('initiativesTab.typeGroei')
-                        : t('initiativesTab.typeGd')}
-                    </span>
-                  </td>
-                  <td className="border-l border-border px-3 py-2.5 tabular-nums text-muted-foreground">
-                    {r.gemeentes.length === 0 ? (
-                      <span>0</span>
-                    ) : (
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <span className="cursor-default underline decoration-dotted underline-offset-2">
-                            {r.gemeentes.length}
-                          </span>
-                        </TooltipTrigger>
-                        <TooltipContent side="right" className="max-w-xs">
-                          <div className="max-h-60 overflow-auto whitespace-normal">
-                            {r.gemeentes.join(', ')}
-                          </div>
-                        </TooltipContent>
-                      </Tooltip>
-                    )}
-                  </td>
-                  <td className="px-3 py-2.5 tabular-nums text-muted-foreground">
-                    {r.members == null ? '—' : r.members}
-                  </td>
-                  <td className="px-3 py-2.5 tabular-nums text-muted-foreground">
-                    {r.leads == null ? '—' : r.leads}
-                  </td>
-                  <td className="border-l border-border px-3 py-2.5">
-                    {chips(r.vng2030, (v) => v)}
-                  </td>
-                  <td className="px-3 py-2.5">
-                    {chips(r.nds, (v) => v)}
-                  </td>
-                  <td className="px-3 py-2.5">{chips(r.themes)}</td>
-                  <td className="px-3 py-2.5">
-                    {r.commonGround ? (
-                      <Check className="h-4 w-4 text-primary" aria-label={t('initiativesTab.cgYes')} />
-                    ) : (
-                      <span className="text-muted-foreground">—</span>
-                    )}
-                  </td>
-                  <td className={cn('border-l border-border px-3 py-2.5 tabular-nums text-muted-foreground', tierBg)}>
-                    {r.activity == null ? '—' : r.activity.week}
-                  </td>
-                  <td className={cn('px-3 py-2.5 tabular-nums text-muted-foreground', tierBg)}>
-                    {r.activity == null ? '—' : r.activity.month}
-                  </td>
-                  <td className={cn('px-3 py-2.5 tabular-nums text-muted-foreground', tierBg)}>
-                    {r.activity == null ? '—' : r.activity.total}
-                  </td>
-                  <td className={cn('px-3 py-2.5', tierBg)}>
-                    {r.tier == null ? (
-                      <span className="text-muted-foreground">—</span>
-                    ) : (
+          compact ? (
+            <RecordCardList>
+              {rows.map((r) => (
+                <RecordCard
+                  key={r.id}
+                  title={
+                    <span className="flex flex-wrap items-baseline gap-2">
+                      {r.name}
                       <span
                         className={cn(
                           'inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium',
-                          TIER_CLASS[r.tier],
+                          r.kind === 'groei'
+                            ? 'bg-primary/10 text-primary'
+                            : 'bg-muted text-muted-foreground',
                         )}
                       >
-                        {t(TIER_LABEL[r.tier])}
+                        {r.kind === 'groei'
+                          ? t('initiativesTab.typeGroei')
+                          : t('initiativesTab.typeGd')}
                       </span>
-                    )}
-                  </td>
+                    </span>
+                  }
+                  fields={[
+                    {
+                      label: t('initiativesTab.colGemeenteCount'),
+                      value: <span className="tabular-nums">{r.gemeentes.length}</span>,
+                    },
+                    {
+                      label: `${t('initiativesTab.colMembers')} / ${t('initiativesTab.colLeads')}`,
+                      value: (
+                        <span className="tabular-nums">
+                          {r.members ?? '—'} / {r.leads ?? '—'}
+                        </span>
+                      ),
+                    },
+                    {
+                      label: t('initiativesTab.colActivityTier'),
+                      value:
+                        r.tier == null ? (
+                          <span className="text-muted-foreground">—</span>
+                        ) : (
+                          <span
+                            className={cn(
+                              'inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium',
+                              TIER_CLASS[r.tier],
+                            )}
+                          >
+                            {t(TIER_LABEL[r.tier])}
+                          </span>
+                        ),
+                    },
+                    {
+                      label: t('initiativesTab.colCommonGround'),
+                      value: r.commonGround ? (
+                        <Check
+                          className="h-4 w-4 text-primary"
+                          aria-label={t('initiativesTab.cgYes')}
+                        />
+                      ) : (
+                        <span className="text-muted-foreground">—</span>
+                      ),
+                    },
+                    {
+                      // Week / month / total on one line: three separate cards' worth
+                      // of label for three small numbers is all chrome and no data.
+                      label: `${t('initiativesTab.colActivityWeek')} / ${t('initiativesTab.colActivityMonth')} / ${t('initiativesTab.colActivityTotal')}`,
+                      value: (
+                        <span className="tabular-nums">
+                          {r.activity == null
+                            ? '—'
+                            : `${r.activity.week} / ${r.activity.month} / ${r.activity.total}`}
+                        </span>
+                      ),
+                      full: true,
+                    },
+                    { label: t('initiativesTab.colVng2030'), value: chips(r.vng2030), full: true },
+                    { label: t('initiativesTab.colNds'), value: chips(r.nds), full: true },
+                    { label: t('initiativesTab.colThemes'), value: chips(r.themes), full: true },
+                  ]}
+                />
+              ))}
+            </RecordCardList>
+          ) : (
+            <table className="w-full border-collapse text-sm">
+              <thead className="sticky top-0 z-10 bg-card">
+                <tr className="border-b border-border">
+                  <th className="px-6 py-1.5" rowSpan={2}>
+                    {headerBtn('name', t('initiativesTab.colName'))}
+                  </th>
+                  <th className="px-3 py-1.5 text-left" rowSpan={2}>
+                    {headerBtn('type', t('initiativesTab.colType'))}
+                  </th>
+                  <th className={groupTh} colSpan={3}>
+                    {t('initiativesTab.groupCommunity')}
+                  </th>
+                  <th className={groupTh} colSpan={4}>
+                    {t('initiativesTab.groupClassification')}
+                  </th>
+                  <th className={groupTh} colSpan={4}>
+                    {t('initiativesTab.groupActivity')}
+                  </th>
                 </tr>
-                );
-              })}
-            </tbody>
-          </table>
+                <tr className="border-b border-border text-left">
+                  <th className="w-28 border-l border-border px-3 py-2.5">
+                    {headerBtn('gemeentes', t('initiativesTab.colGemeenteCount'))}
+                  </th>
+                  <th className="w-24 px-3 py-2.5">
+                    {headerBtn('members', t('initiativesTab.colMembers'))}
+                  </th>
+                  <th className="w-24 px-3 py-2.5">
+                    {headerBtn('leads', t('initiativesTab.colLeads'))}
+                  </th>
+                  <th className="border-l border-border px-3 py-2.5">
+                    {headerBtn('vng2030', t('initiativesTab.colVng2030'))}
+                  </th>
+                  <th className="px-3 py-2.5">
+                    {headerBtn('nds', t('initiativesTab.colNds'))}
+                  </th>
+                  <th className="px-3 py-2.5">
+                    {headerBtn('themes', t('initiativesTab.colThemes'))}
+                  </th>
+                  <th className="px-3 py-2.5">
+                    {headerBtn('commonGround', t('initiativesTab.colCommonGround'))}
+                  </th>
+                  <th className="w-20 border-l border-border px-3 py-2.5">
+                    {headerBtn('week', t('initiativesTab.colActivityWeek'))}
+                  </th>
+                  <th className="w-20 px-3 py-2.5">
+                    {headerBtn('month', t('initiativesTab.colActivityMonth'))}
+                  </th>
+                  <th className="w-20 px-3 py-2.5">
+                    {headerBtn('total', t('initiativesTab.colActivityTotal'))}
+                  </th>
+                  <th className="w-28 px-3 py-2.5">
+                    {headerBtn('tier', t('initiativesTab.colActivityTier'))}
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {rows.map((r) => {
+                  const tierBg = r.tier ? TIER_CELL_BG[r.tier] : '';
+                  return (
+                  <tr key={r.id} className="border-b border-border align-top hover:bg-muted/40">
+                    <td className="px-6 py-2.5 font-medium text-foreground">{r.name}</td>
+                    <td className="px-3 py-2.5">
+                      <span
+                        className={cn(
+                          'inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium',
+                          r.kind === 'groei'
+                            ? 'bg-primary/10 text-primary'
+                            : 'bg-muted text-muted-foreground',
+                        )}
+                      >
+                        {r.kind === 'groei'
+                          ? t('initiativesTab.typeGroei')
+                          : t('initiativesTab.typeGd')}
+                      </span>
+                    </td>
+                    <td className="border-l border-border px-3 py-2.5 tabular-nums text-muted-foreground">
+                      {r.gemeentes.length === 0 ? (
+                        <span>0</span>
+                      ) : (
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <span className="cursor-default underline decoration-dotted underline-offset-2">
+                              {r.gemeentes.length}
+                            </span>
+                          </TooltipTrigger>
+                          <TooltipContent side="right" className="max-w-xs">
+                            <div className="max-h-60 overflow-auto whitespace-normal">
+                              {r.gemeentes.join(', ')}
+                            </div>
+                          </TooltipContent>
+                        </Tooltip>
+                      )}
+                    </td>
+                    <td className="px-3 py-2.5 tabular-nums text-muted-foreground">
+                      {r.members == null ? '—' : r.members}
+                    </td>
+                    <td className="px-3 py-2.5 tabular-nums text-muted-foreground">
+                      {r.leads == null ? '—' : r.leads}
+                    </td>
+                    <td className="border-l border-border px-3 py-2.5">
+                      {chips(r.vng2030, (v) => v)}
+                    </td>
+                    <td className="px-3 py-2.5">
+                      {chips(r.nds, (v) => v)}
+                    </td>
+                    <td className="px-3 py-2.5">{chips(r.themes)}</td>
+                    <td className="px-3 py-2.5">
+                      {r.commonGround ? (
+                        <Check className="h-4 w-4 text-primary" aria-label={t('initiativesTab.cgYes')} />
+                      ) : (
+                        <span className="text-muted-foreground">—</span>
+                      )}
+                    </td>
+                    <td className={cn('border-l border-border px-3 py-2.5 tabular-nums text-muted-foreground', tierBg)}>
+                      {r.activity == null ? '—' : r.activity.week}
+                    </td>
+                    <td className={cn('px-3 py-2.5 tabular-nums text-muted-foreground', tierBg)}>
+                      {r.activity == null ? '—' : r.activity.month}
+                    </td>
+                    <td className={cn('px-3 py-2.5 tabular-nums text-muted-foreground', tierBg)}>
+                      {r.activity == null ? '—' : r.activity.total}
+                    </td>
+                    <td className={cn('px-3 py-2.5', tierBg)}>
+                      {r.tier == null ? (
+                        <span className="text-muted-foreground">—</span>
+                      ) : (
+                        <span
+                          className={cn(
+                            'inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium',
+                            TIER_CLASS[r.tier],
+                          )}
+                        >
+                          {t(TIER_LABEL[r.tier])}
+                        </span>
+                      )}
+                    </td>
+                  </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          )
         )}
       </div>
     </div>

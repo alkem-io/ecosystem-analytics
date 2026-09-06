@@ -10,6 +10,7 @@ import {
   YAxis,
   type TooltipProps,
 } from 'recharts';
+import { useIsMobile } from '@ea/shared';
 import type { PhaseDistribution, VocabularyDrift } from '@server/types/api.js';
 import { VocabularyDriftNotice } from './VocabularyDriftNotice.js';
 
@@ -66,6 +67,10 @@ function PhaseTooltip({ active, payload }: TooltipProps<number, string>) {
 export function PhaseDistributionChart({ distribution, emptyLabel, drift }: Props) {
   const { t } = useTranslation();
   const phaseLabel = usePhaseLabel();
+  // Five horizontal phase names need ~440px to sit side by side; under that they
+  // overlap into an unreadable smear, so they tilt instead (the same treatment
+  // CategoryBarChart already uses for its longer category names).
+  const mobile = useIsMobile();
   // Resolve each phase's axis name up front: the tick formatter only sees the scalar
   // dataKey value, and the synthetic bucket's name is localised rather than authored.
   const data = (distribution?.phases ?? []).map((p) => ({ ...p, name: phaseLabel(p) }));
@@ -85,11 +90,18 @@ export function PhaseDistributionChart({ distribution, emptyLabel, drift }: Prop
       ) : (
         <div className="h-72 w-full">
           <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={data} margin={{ top: 20, right: 16, bottom: 8, left: 0 }}>
+            <BarChart
+              data={data}
+              margin={{ top: 20, right: 16, bottom: mobile ? 40 : 8, left: 0 }}
+            >
               <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
               <XAxis
                 dataKey="name"
                 interval={0}
+                angle={mobile ? -35 : 0}
+                textAnchor={mobile ? 'end' : 'middle'}
+                height={mobile ? 70 : 30}
+                tickMargin={mobile ? 6 : 3}
                 tick={{ fontSize: 11, fill: 'var(--text-secondary)' }}
               />
               <YAxis allowDecimals={false} tick={{ fontSize: 11, fill: 'var(--text-secondary)' }} />

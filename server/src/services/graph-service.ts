@@ -21,6 +21,7 @@ import {
   unionVocabularies,
   vocabularyOf,
   type Vocabulary,
+  resolvePhase,
 } from '../transform/classifications.js';
 import { fetchGemeentedelersCallouts, resolveGemeenteOrgNode } from './gd-initiatives-service.js';
 import {
@@ -38,10 +39,13 @@ const logger = getLogger();
 const progressMap = new Map<string, GraphProgress>();
 
 /**
- * Generate a complete graph dataset for the requested spaces.
+ * Build a complete graph dataset for the requested spaces.
  * Orchestrates: cache check → acquire missing → transform → merge → compute metrics → cache → return.
+ *
+ * Private: every caller goes through {@link generateGraph}, which coalesces concurrent
+ * builds and memoises the assembled result.
  */
-export async function generateGraph(
+async function buildGraph(
   userId: string,
   auth: AuthContext,
   request: GraphGenerationRequest,
@@ -204,15 +208,22 @@ export async function generateGraph(
   // every value renderable (research R-003).
   const perSpaceNds: Vocabulary[] = [];
   const perSpaceVng: Vocabulary[] = [];
+  // The phase vocabulary is unioned the same way, and its ORDER is the pipeline order —
+  // which is what makes "furthest along" meaningful below (feature 022).
+  const perSpacePhase: Vocabulary[] = [];
   for (const node of allNodes) {
     if (!node.classificationEntries?.length) continue;
     perSpaceNds.push(vocabularyOf(resolveDesignated(node.classificationEntries, designations.nds)));
     perSpaceVng.push(
       vocabularyOf(resolveDesignated(node.classificationEntries, designations.vng2030)),
     );
+    perSpacePhase.push(
+      vocabularyOf(resolveDesignated(node.classificationEntries, designations.phase)),
+    );
   }
   const ndsVocabulary = unionVocabularies(perSpaceNds);
   const vngVocabulary = unionVocabularies(perSpaceVng);
+  const phaseVocabulary = unionVocabularies(perSpacePhase);
   const labelsFor = (vocabulary: Vocabulary, ids: string[]): string[] =>
     ids.map((id) => vocabulary.find((v) => v.key === id)?.label).filter((l): l is string => !!l);
 
@@ -245,6 +256,12 @@ export async function generateGraph(
         registry,
       );
       node.vngThemes = themes.length ? themes : undefined;
+      // Growth phase (feature 022). An initiative should select exactly one phase; if it
+      // somehow carries several, the FURTHEST-ALONG one wins — that is the state it has
+      // actually reached, and with the vocabulary in pipeline order that is simply the
+      // highest index. Identical rule to countGroeiPhases(), which is what makes the
+      // Funnel and the growth-phase chart agree (spec FR-023).
+      node.phase = resolvePhase(entries, designations.phase, phaseVocabulary);
       const presented = presentClassifications(entries);
       node.classifications = presented.length ? presented : undefined;
       // Internal-only: never sent to the browser. The cache row was written before this
@@ -334,6 +351,117 @@ export async function generateGraph(
     errors: errors.length > 0 ? errors : undefined,
     gdLayer,
   };
+}
+
+// ── Assembled-dataset memo ──────────────────────────────────────────────────────
+//
+// The per-space rows in SQLite already stop a repeat call from re-fetching Alkemio, but
+// they do NOT stop it from redoing the assembly: parsing every space's cached blob,
+// deduping nodes, resolving missing gemeente organisations, running the classification
+// and phase enrichment, folding in the GD layer and recomputing metrics and insights.
+//
+// One Funnel tab does that THREE times for the same data — the browser's own
+// `/api/graph/generate`, plus the two `generateGraph()` calls inside
+// `/api/vng/dashboard` (the gemeente distribution and the city-population series). The
+// Dashboard tab does the same, and every tab switch starts over. On a cold cache the
+// three run CONCURRENTLY, so they also each start their own Alkemio acquisition.
+//
+// So the assembled dataset is memoised per user + request shape, and callers arriving
+// while a build is in flight share that promise instead of starting another. The TTL is
+// a request-coalescing window, not a data cache: the SQLite rows remain the source of
+// truth and keep their own, much longer, TTL.
+const DATASET_MEMO_TTL_MS = 30_000;
+/** Cap on retained datasets, so a user cycling selections cannot grow this unbounded. */
+const DATASET_MEMO_MAX = 24;
+
+interface DatasetMemoEntry {
+  expiresAt: number;
+  promise: Promise<GraphDataset>;
+}
+
+const datasetMemo = new Map<string, DatasetMemoEntry>();
+
+/**
+ * Memo key. Includes the user id because the cache is scoped per user per Space
+ * (constitution §IV) — two users must never share an assembled dataset. `spaceIds` is
+ * sorted so the same set in a different order is one key, and `app` is included because
+ * it selects which classification designations the enrichment applies.
+ */
+function datasetMemoKey(userId: string, request: GraphGenerationRequest): string {
+  return [
+    userId,
+    [...request.spaceIds].sort().join(','),
+    request.includeInitiatives ? 1 : 0,
+    request.app ?? '',
+  ].join('|');
+}
+
+function pruneDatasetMemo(now: number): void {
+  for (const [key, entry] of datasetMemo) {
+    if (entry.expiresAt <= now) datasetMemo.delete(key);
+  }
+  // Still over the cap after pruning — drop oldest-inserted first (Map preserves
+  // insertion order), which is the least likely to be asked for again.
+  while (datasetMemo.size > DATASET_MEMO_MAX) {
+    const oldest = datasetMemo.keys().next();
+    if (oldest.done) break;
+    datasetMemo.delete(oldest.value);
+  }
+}
+
+/** Drop every memoised dataset for one user — used when they force a refresh. */
+function invalidateDatasetMemo(userId: string): void {
+  const prefix = `${userId}|`;
+  for (const key of datasetMemo.keys()) {
+    if (key.startsWith(prefix)) datasetMemo.delete(key);
+  }
+}
+
+/**
+ * Generate a complete graph dataset for the requested spaces.
+ *
+ * Concurrent callers with the same user, space set, GD toggle and app share one build;
+ * a caller arriving shortly after one completes gets the assembled result back without
+ * re-assembling it. `forceRefresh` always bypasses and clears the memo — that is the
+ * whole point of the Refresh button.
+ *
+ * CALLERS MUST TREAT THE RESULT AS READ-ONLY. It is a shared object for the life of the
+ * memo window; mutating it would corrupt what the next caller sees. Nothing in the
+ * server mutates it today — the routes serialise it and `vng-dashboard-service` only
+ * reads — and any new consumer that needs to change it must copy first.
+ */
+export async function generateGraph(
+  userId: string,
+  auth: AuthContext,
+  request: GraphGenerationRequest,
+): Promise<GraphDataset> {
+  if (request.forceRefresh) {
+    invalidateDatasetMemo(userId);
+    return buildGraph(userId, auth, request);
+  }
+
+  const now = Date.now();
+  pruneDatasetMemo(now);
+
+  const key = datasetMemoKey(userId, request);
+  const hit = datasetMemo.get(key);
+  if (hit) {
+    logger.info(`Graph memo hit for user ${userId} (${request.spaceIds.length} space(s))`, {
+      context: 'Graph',
+    });
+    return hit.promise;
+  }
+
+  const promise = buildGraph(userId, auth, request);
+  datasetMemo.set(key, { expiresAt: now + DATASET_MEMO_TTL_MS, promise });
+  // A failed build must not be served to the next caller for the rest of the window.
+  promise.catch(() => datasetMemo.delete(key));
+  return promise;
+}
+
+/** Test seam: forget every memoised dataset. */
+export function resetDatasetMemo(): void {
+  datasetMemo.clear();
 }
 
 interface GdSubgraph {

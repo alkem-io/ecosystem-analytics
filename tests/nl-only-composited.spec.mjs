@@ -31,7 +31,11 @@ const HARNESS = 'http://127.0.0.1:5199/harness/index.html';
 // below was derived by measuring an actual render at this size — see the note in
 // specs/021-openfreemap-basemap/tasks.md about why they cannot be assumed.
 const W = 1400;
-const H = 882;
+// 864, not the harness root's 900: the attribution line beneath the map now wraps to two
+// lines, so the map surface lost 18px. Re-baselined rather than loosened — the
+// "guard sensitivity" test at the bottom of this file still fails when the mask is
+// removed, which is the proof that these sample points remain meaningful at this size.
+const H = 864;
 
 /** The page background — what "outside the Netherlands" must be, exactly. */
 const BACKGROUND = { r: 255, g: 255, b: 255 };
