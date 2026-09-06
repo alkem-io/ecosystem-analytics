@@ -162,6 +162,8 @@ export interface FunnelLayout {
   holding: { label: string; box: { x0: number; y0: number; x1: number; y1: number }; dots: FunnelDot[] } | null;
   /** The fitted global scale factor s (R-003) — exposed for tests and the legend. */
   scale: number;
+  /** Vertical share held back for the holding area — 0 when nothing is held. */
+  holdingShare: number;
 }
 
 export function layoutFunnel(input: {
@@ -169,7 +171,6 @@ export function layoutFunnel(input: {
   phases: PhaseDistribution['phases'];   // authored order; may be empty
   width: number;
   height: number;
-  gdIncluded: boolean;
 }): FunnelLayout;
 ```
 
@@ -188,9 +189,12 @@ upper(x)    = midline(x) − aperture(x) / 2
 lower(x)    = midline(x) + aperture(x) / 2
 ```
 
-`ease` is a smooth monotone decreasing easing (the whiteboard's curves bow rather than run straight),
-and `midline(x)` drifts slightly so the two bars converge asymmetrically as drawn in the reference.
-`aperture` is **strictly non-increasing** — the property test behind FR-004.
+`ease` is an **ease-out** taper, `1 − (1 − t)^p`: the walls fall away steeply at the mouth and then
+flatten into a long near-parallel neck, which is the silhouette a funnel actually has ("widen the
+mouth, narrow the neck"). A symmetric S-curve draws a straight-sided wedge instead and was the
+first cut's mistake. `midline(x)` drifts slightly so the two bars converge asymmetrically as drawn
+in the reference. `aperture` is **strictly non-increasing** — the property test behind FR-004 — and
+opens roughly 8.5× wider than it closes.
 
 **Relationship to stages**: stage `k` occupies `[x0, x1]`; its usable area is
 `∫ aperture(x) dx` over that band, which is what feeds the scale fit in R-003 and what makes later

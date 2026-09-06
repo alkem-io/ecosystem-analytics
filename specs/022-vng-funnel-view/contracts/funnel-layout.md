@@ -14,7 +14,6 @@ layoutFunnel(input: {
   phases: PhaseDistribution['phases'];   // authored order; [] when no vocabulary
   width: number;                         // px, > 0
   height: number;                        // px, > 0
-  gdIncluded: boolean;                   // the GD toggle
 }): FunnelLayout
 ```
 
@@ -43,14 +42,14 @@ These are normative. Each maps to a spec requirement and is a test in `funnel.te
 | **I-6** | Radius is strictly increasing in `g`: `g₁ > g₂ ⇒ r₁ > r₂`. And `g === 0 ⇒ r ≥ MIN_R` — a zero-participation initiative is still drawn legibly. | FR-012, FR-013, SC-006 |
 | **I-7** | `aperture(x)` is non-increasing over `x ∈ [0, width]`; `stages[k].money` and `stages[k].effort` are non-decreasing in `k`. | FR-004, FR-009 |
 | **I-8** | Every dot in `holding` lies outside both curves — no part of a holding-area disc intersects the funnel envelope. | FR-024a |
-| **I-9** | `stages[0].kind === 'gd'` whenever a funnel is produced, regardless of `gdIncluded`; when `gdIncluded === false` it is present with `dots.length === 0`. | FR-022b |
+| **I-9** | `stages[0].kind === 'formation'` whenever a funnel is produced, and it is always empty — Formation precedes the authored vocabulary, so no initiative can carry it. Every `kind === 'gd'` row is placed in the FIRST authored phase (the entry stage), never in Formation and never in the holding area. | FR-022b |
 | **I-10** | `holding === null` when no unphased Groei row exists; otherwise `holding.dots.length > 0`. The holding area is never drawn empty, unlike stages. | FR-024c, FR-003 |
 
 ## Degenerate inputs
 
 | Input | Result |
 |---|---|
-| `phases: []` | `stages` contains the GD mouth only; the caller MUST render FR-025's empty state instead of drawing a one-stage funnel. Signalled by `stages.filter(s => s.kind === 'phase').length === 0`. |
+| `phases: []` | `stages` contains the Formation stage only; the caller MUST render FR-025's empty state instead of drawing a one-stage funnel. Signalled by `stages.filter(s => s.kind === 'phase').length === 0`. With no entry stage to place them in, `gd` rows fall to the holding area rather than being dropped. |
 | `rows: []` | Full frame, every stage drawn with `dots: []`, `holding: null`. FR-003 — the empty pipeline is the point. |
 | A row whose `phase.key` matches no stage | Placed in `holding`, never dropped. I-1 outranks tidiness. |
 | More dots than fit at `MIN_R` | `scale` clamps at `MIN_R`; I-4 is preserved, I-2 and I-3 are preserved, and dots may touch. Beyond the ceiling computed in R-003 (~600 in the mouth at 1200×620) the packing degrades visibly — a known limit, not a supported state. |

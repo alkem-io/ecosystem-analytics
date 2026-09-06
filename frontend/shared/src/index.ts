@@ -25,7 +25,23 @@ export {
 } from './lib/badImageCache.js';
 export { SafeImage } from './ui/SafeImage.js';
 export { BrokenVisualsPanel, useBrokenVisuals } from './ui/BrokenVisualsPanel.js';
-export { api } from './services/api.js';
+// Viewport-aware layout primitives. The dashboard shell and its pages branch on
+// these to swap a desktop layout for a mobile one (drawer nav, card lists).
+export {
+  useMediaQuery,
+  useIsMobile,
+  useIsCompact,
+  useIsTouch,
+  usePrefersReducedMotion,
+  BREAKPOINT_MOBILE,
+  BREAKPOINT_TABLET,
+  MOBILE_QUERY,
+  COMPACT_QUERY,
+  COARSE_POINTER_QUERY,
+  REDUCED_MOTION_QUERY,
+} from './hooks/useMediaQuery.js';
+
+export { api, NetworkError } from './services/api.js';
 export { login, logout, fetchMe, type MeResponse } from './services/auth.js';
 
 // Per-app configuration primitive + the shared dashboard application shell.
@@ -54,7 +70,7 @@ export {
   layoutFunnel,
   envelope,
   radiusFor,
-  GD_STAGE_KEY,
+  FORMATION_STAGE_KEY,
   MIN_R,
   type FunnelLayout,
   type FunnelStage,

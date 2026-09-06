@@ -13,7 +13,7 @@
  * specs/022-vng-funnel-view/contracts/funnel-layout.md, whose ten invariants are the
  * contract this module is tested against. Never assert a dot coordinate.
  */
-import { forceCollide, forceSimulation, type SimulationNodeDatum } from 'd3';
+import { forceCollide, forceSimulation, forceX, type SimulationNodeDatum } from 'd3';
 import type { PhaseDistribution } from '@server/types/api.js';
 import type { InitiativeRow } from './initiatives.js';
 
@@ -22,26 +22,68 @@ import type { InitiativeRow } from './initiatives.js';
 // without touching the layout logic.
 
 /**
- * Share of the funnel's horizontal extent given to the GemeenteDelers mouth. A fixed
- * design ratio, NOT data-derived: the shape must not change when the corpus does
- * (FR-012b forbids stretching the geometry to make room). The mouth gets more length
- * because it is where the global dot scale is decided (research R-002/R-003).
+ * Shares of the funnel's horizontal extent, as fixed design ratios — NOT data-derived:
+ * the shape must not change when the corpus does (FR-012b forbids stretching the
+ * geometry to make room).
+ *
+ * `FORMATION` is the leading stage that precedes the authored vocabulary. `ENTRY` is the
+ * FIRST authored phase, which gets the mouth's old generosity because it is where the
+ * volume structurally is: the whole GemeenteDelers programme lands there, so it is the
+ * container that decides the global dot scale (research R-002/R-003). Whatever is left
+ * is split evenly between the remaining phases.
  */
-const MOUTH_LENGTH_SHARE = 0.28;
+const FORMATION_LENGTH_SHARE = 0.13;
+const ENTRY_LENGTH_SHARE = 0.27;
 
-/** Aperture at the mouth and at the outlet, as a share of the available height. */
+/**
+ * Aperture at the mouth and at the outlet, as a share of the available height.
+ *
+ * The mouth is pinned near the top of whatever vertical room the tab has — it cannot
+ * grow further without the funnel scrolling, which FR-006 forbids — so the mouth:outlet
+ * RATIO is set by the outlet. At 0.94 : 0.11 the mouth is roughly 8.5× the neck, twice
+ * the ratio the first cut drew, which is what gives the silhouette a real neck rather
+ * than a tapering wedge.
+ */
 const APERTURE_START = 0.94;
-const APERTURE_END = 0.24;
+const APERTURE_END = 0.11;
 
-/** Vertical share reserved below the funnel for the "no phase" holding area. */
+/**
+ * How hard the walls bend, as the exponent of the ease-out taper below. Higher = more
+ * concave: the bend concentrates further toward the mouth and the neck runs longer.
+ */
+const TAPER_EXPONENT = 2.6;
+
+/**
+ * Vertical share reserved below the funnel for the "no phase" holding area — reserved
+ * ONLY when something is actually held. An empty holding band is a sixth of the height
+ * spent on nothing, and the mouth is the part of a funnel that wants that height.
+ */
 const HOLDING_HEIGHT_SHARE = 0.16;
 /** Gap between the funnel's lowest point and the holding area (keeps I-8 comfortable). */
 const HOLDING_GAP = 14;
 
 /** Packing efficiency assumed when fitting the global scale (research R-003). */
 const PACKING_EFFICIENCY = 0.6;
+/**
+ * Most of a container's narrowest aperture that its largest dot may occupy. Below 1 so a
+ * dot in the neck is visibly INSIDE the funnel rather than wedged between the two bars
+ * and touching both.
+ */
+const NECK_FILL = 0.78;
 /** Padding added to each dot's radius during collision relaxation. */
 const COLLIDE_PADDING = 1.2;
+/**
+ * Pull toward a dot's rank-derived target x during relaxation. Weak on purpose:
+ * collision still decides who sits where when a band is crowded, so the result is a
+ * left-to-right GRADIENT by participation rather than a rigid queue.
+ */
+const ORDER_STRENGTH = 0.22;
+/**
+ * Narrowest share of a mixed stage's band either source may be squeezed into. The
+ * GemeenteDelers block and the Groei block are laid out side by side and sized by how
+ * much dot area each needs, but neither is allowed to become a sliver.
+ */
+const MIN_GROUP_SHARE = 0.12;
 /** Fixed tick budget — the simulation is run synchronously to rest, never animated. */
 const TICKS = 260;
 
@@ -51,14 +93,21 @@ const MAX_SCALE = 11;
 /** Absolute floor on a drawn radius, whatever the fit produces (FR-013, SC-010). */
 export const MIN_R = 3.4;
 
-/** Synthetic key of the GemeenteDelers mouth stage. Never a ClassificationValue.id. */
-export const GD_STAGE_KEY = '__gd__';
+/**
+ * Synthetic key of the leading "Formation" stage. Never a ClassificationValue.id.
+ *
+ * Formation is not (yet) an authored phase in Alkemio — it is drawn by the funnel so the
+ * pipeline shows the step that precedes pre-intake, and it is therefore always empty: no
+ * initiative can carry a phase value that does not exist. When the vocabulary gains a
+ * real formation value, delete this stage and it will appear like any other phase.
+ */
+export const FORMATION_STAGE_KEY = '__formation__';
 /** The `unknown` bucket key emitted by the server's phase distribution. */
 const UNKNOWN_PHASE_KEY = 'unknown';
 
 // ── Types ───────────────────────────────────────────────────────────────────────
 
-export type StageKind = 'gd' | 'phase';
+export type StageKind = 'formation' | 'phase';
 
 export interface FunnelDot {
   /** GraphNode id. */
@@ -75,12 +124,12 @@ export interface FunnelDot {
 }
 
 export interface FunnelStage {
-  /** `GD_STAGE_KEY` for the mouth, else the phase's `ClassificationValue.id`. */
+  /** `FORMATION_STAGE_KEY` for the leading stage, else the phase's `ClassificationValue.id`. */
   key: string;
   kind: StageKind;
-  /** Authored phase label, rendered verbatim. Null for the GD mouth (caller localises). */
+  /** Authored phase label, rendered verbatim. Null for Formation (the caller localises). */
   label: string | null;
-  /** 0-based position, mouth first. */
+  /** 0-based position, Formation first. */
   index: number;
   /** Horizontal band, px. */
   x0: number;
@@ -107,6 +156,11 @@ export interface FunnelLayout {
   holding: HoldingArea | null;
   /** The fitted global scale factor `s` — exposed for tests and the legend. */
   scale: number;
+  /**
+   * Vertical share held back below the curves for the holding area — 0 when nothing is
+   * held. Pass it to {@link envelope} to reconstruct the geometry these dots sit in.
+   */
+  holdingShare: number;
   /** True when no phase stage could be derived; the caller renders FR-025's empty state. */
   noPhaseVocabulary: boolean;
 }
@@ -117,33 +171,54 @@ export interface FunnelInput {
   phases: PhaseDistribution['phases'];
   width: number;
   height: number;
-  /** The GemeenteDelers toggle. */
-  gdIncluded: boolean;
 }
 
 // ── Envelope geometry ───────────────────────────────────────────────────────────
 
-/** Smooth, monotone-decreasing easing — the bounding bars bow rather than run straight. */
-function ease(t: number): number {
+/**
+ * Wall taper: 0 at the mouth, 1 at the outlet, strictly increasing.
+ *
+ * This is what makes the silhouette read as a FUNNEL rather than a wedge. A funnel —
+ * kitchen or conceptual — has a broad head whose walls fall away steeply and then
+ * flatten into a long, near-parallel neck; the canonical innovation funnel is described
+ * in exactly those terms ("widen the mouth, narrow the neck"), and funnel charts draw
+ * those walls as inward-bowing bezier curves.
+ *
+ * The previous easing was smoothstep, `t²(3−2t)`. That is an S: flat at BOTH ends and
+ * steep in the middle, which draws a straight-sided cone with no pinch at all. An
+ * ease-out puts the entire bend at the mouth end, so the aperture collapses early and
+ * then holds — a concave wall and a real neck.
+ */
+function taper(t: number): number {
   const c = Math.min(1, Math.max(0, t));
-  return c * c * (3 - 2 * c);
+  return 1 - Math.pow(1 - c, TAPER_EXPONENT);
 }
 
-/** Geometry closure for one funnel size. `aperture` is strictly non-increasing (I-7). */
-export function envelope(width: number, height: number) {
-  const usable = height * (1 - HOLDING_HEIGHT_SHARE);
+/**
+ * Geometry closure for one funnel size. `aperture` is strictly non-increasing (I-7).
+ *
+ * `holdingShare` is the vertical fraction kept below the curves for unphased
+ * initiatives; pass 0 when there are none. Callers checking a laid-out funnel should
+ * pass `layout.holdingShare` rather than assuming the default, or their envelope will
+ * not be the one the dots were placed in.
+ */
+export function envelope(width: number, height: number, holdingShare = HOLDING_HEIGHT_SHARE) {
+  const usable = height * (1 - holdingShare);
   const a0 = usable * APERTURE_START;
   const a1 = usable * APERTURE_END;
-  const aperture = (x: number) => a0 + (a1 - a0) * ease(width > 0 ? x / width : 0);
+  const t = (x: number) => taper(width > 0 ? x / width : 0);
+  const aperture = (x: number) => a0 + (a1 - a0) * t(x);
   // The midline drifts down slightly so the two bars converge asymmetrically, as drawn
   // on the reference whiteboard: the upper curve falls faster than the lower one rises.
-  const midline = (x: number) => usable / 2 + usable * 0.06 * ease(width > 0 ? x / width : 0);
+  const midline = (x: number) => usable / 2 + usable * 0.06 * t(x);
   const upper = (x: number) => midline(x) - aperture(x) / 2;
   const lower = (x: number) => midline(x) + aperture(x) / 2;
   return { aperture, midline, upper, lower, usable };
 }
 
-function samplePolyline(f: (x: number) => number, width: number, steps = 64): [number, number][] {
+// 96 samples, not 64: the curvature is concentrated in the first fifth of the span, and
+// at 64 the bend visibly facets there.
+function samplePolyline(f: (x: number) => number, width: number, steps = 96): [number, number][] {
   const pts: [number, number][] = [];
   for (let i = 0; i <= steps; i++) {
     const x = (width * i) / steps;
@@ -195,6 +270,7 @@ function relax(
   dots: FunnelDot[],
   seed: (dot: FunnelDot, i: number, n: number) => { x: number; y: number },
   contain: (dot: FunnelDot) => void,
+  targetX?: (dot: FunnelDot) => number,
 ): void {
   if (dots.length === 0) return;
   const nodes: SimNode[] = dots.map((dot, i) => {
@@ -207,6 +283,11 @@ function relax(
   const sim = forceSimulation(nodes)
     .force('collide', forceCollide<SimNode>((n) => n.dot.r + COLLIDE_PADDING).iterations(3))
     .stop();
+  // The ordering force, when the caller asked for one. Collision alone would scatter the
+  // dots; this holds the left-to-right gradient while collision keeps them from overlapping.
+  if (targetX) {
+    sim.force('order', forceX<SimNode>((n) => targetX(n.dot)).strength(ORDER_STRENGTH));
+  }
 
   for (let i = 0; i < TICKS; i++) {
     sim.tick();
@@ -238,9 +319,35 @@ function seedIn(x0: number, x1: number, yAt: (x: number) => { top: number; botto
   };
 }
 
+/**
+ * Left-to-right reading order inside a band: fewest participating gemeentes on the left,
+ * most on the right, so a stage's own dots carry the same "further right = further on"
+ * grammar the funnel's stages do. Ties break on id so the order is deterministic.
+ */
+function byParticipation(a: FunnelDot, b: FunnelDot): number {
+  return a.g - b.g || a.id.localeCompare(b.id);
+}
+
+/**
+ * Place one group of dots into a sub-band, ordered by participation.
+ *
+ * Returns the target-x function; the caller hands it to `relax`. Rank is spread across
+ * the band inset by each dot's own radius so the first and last dots are not asked to
+ * sit half outside it.
+ */
+function targetXByRank(dots: FunnelDot[], x0: number, x1: number): (dot: FunnelDot) => number {
+  const order = [...dots].sort(byParticipation);
+  const targets = new Map<string, number>();
+  order.forEach((dot, i) => {
+    const u = order.length > 1 ? i / (order.length - 1) : 0.5;
+    targets.set(dot.id, x0 + dot.r + (x1 - x0 - 2 * dot.r) * u);
+  });
+  return (dot) => targets.get(dot.id) ?? (x0 + x1) / 2;
+}
+
 /** Build the funnel layout. See contracts/funnel-layout.md for the invariants. */
 export function layoutFunnel(input: FunnelInput): FunnelLayout {
-  const { rows, phases, width, height, gdIncluded } = input;
+  const { rows, phases, width, height } = input;
 
   const phaseValues = (phases ?? []).filter((p) => p.key !== UNKNOWN_PHASE_KEY);
   const empty: FunnelLayout = {
@@ -251,46 +358,56 @@ export function layoutFunnel(input: FunnelInput): FunnelLayout {
     stages: [],
     holding: null,
     scale: MIN_SCALE,
+    holdingShare: 0,
     noPhaseVocabulary: phaseValues.length === 0,
   };
   // React measures 0×0 on first paint — return an empty layout rather than throwing.
   if (!(width > 0) || !(height > 0)) return empty;
 
-  const { aperture, upper, lower } = envelope(width, height);
-
-  // ── Stages: the GD mouth, then the phase vocabulary in authored order ──
+  // ── Stages: Formation, then the phase vocabulary in authored order ──
   const phaseCount = phaseValues.length;
-  const mouthLength = phaseCount > 0 ? width * MOUTH_LENGTH_SHARE : width;
-  const phaseLength = phaseCount > 0 ? (width - mouthLength) / phaseCount : 0;
+  const formationLength = phaseCount > 0 ? width * FORMATION_LENGTH_SHARE : width;
+  // The first authored phase is the ENTRY band and gets its own generous share; the rest
+  // split what remains. With a single authored phase there is no "rest", so entry takes
+  // everything after Formation.
+  const entryLength =
+    phaseCount === 0 ? 0 : phaseCount === 1 ? width - formationLength : width * ENTRY_LENGTH_SHARE;
+  const restLength = phaseCount > 1 ? (width - formationLength - entryLength) / (phaseCount - 1) : 0;
   const stageCount = phaseCount + 1;
 
   const stages: FunnelStage[] = [];
   const ramp = (i: number) => (stageCount > 1 ? i / (stageCount - 1) : 0);
   stages.push({
-    key: GD_STAGE_KEY,
-    kind: 'gd',
+    key: FORMATION_STAGE_KEY,
+    kind: 'formation',
     label: null,
     index: 0,
     x0: 0,
-    x1: mouthLength,
+    x1: formationLength,
     money: ramp(0),
     effort: ramp(0),
     dots: [],
   });
+  let cursor = formationLength;
   phaseValues.forEach((p, i) => {
-    const x0 = mouthLength + phaseLength * i;
+    const length = i === 0 ? entryLength : restLength;
+    const x0 = cursor;
+    cursor += length;
     stages.push({
       key: p.key,
       kind: 'phase',
       label: p.label,
       index: i + 1,
       x0,
-      x1: x0 + phaseLength,
+      // Pin the last stage to the full width so float drift cannot leave a sliver.
+      x1: i === phaseCount - 1 ? width : cursor,
       money: ramp(i + 1),
       effort: ramp(i + 1),
       dots: [],
     });
   });
+  /** The first authored phase — pre-intake in the VNG vocabulary. Undefined if none. */
+  const entryStage = stages.find((s) => s.kind === 'phase');
 
   // ── Assign every row to a stage or to the holding area (I-1) ──
   const byKey = new Map(stages.map((s) => [s.key, s]));
@@ -298,9 +415,14 @@ export function layoutFunnel(input: FunnelInput): FunnelLayout {
   const assigned = new Map<FunnelStage, InitiativeRow[]>(stages.map((s) => [s, []]));
   for (const row of rows) {
     if (row.kind === 'gd') {
-      // With the toggle off the caller passes no GD rows; if any arrive anyway they
-      // still belong to the mouth rather than being dropped.
-      assigned.get(stages[0])!.push(row);
+      // GemeenteDelers initiatives are Callouts and carry no phase classification of
+      // their own, but they are all at the same point in the pipeline — the entry phase.
+      // Keyed on POSITION (the first authored value), not on a label or id: the
+      // vocabulary lives in Alkemio and this module never restates its values.
+      if (entryStage) assigned.get(entryStage)!.push(row);
+      // No phase vocabulary at all — the caller renders the FR-025 empty state, but the
+      // row is still held rather than dropped (I-1 outranks tidiness).
+      else holdingRows.push(row);
       continue;
     }
     const stage = row.phase ? byKey.get(row.phase.key) : undefined;
@@ -310,29 +432,51 @@ export function layoutFunnel(input: FunnelInput): FunnelLayout {
     else holdingRows.push(row);
   }
 
+  // ── Geometry, now that we know whether the holding band is needed ──
+  // Built here and not earlier: an unused holding band would otherwise cost the mouth a
+  // sixth of its height, and only the row assignment above can say whether it is used.
+  const holdingShare = holdingRows.length > 0 ? HOLDING_HEIGHT_SHARE : 0;
+  const { aperture, upper, lower } = envelope(width, height, holdingShare);
+
   // ── Fit ONE global scale to the binding container (FR-012a/FR-012b, R-003) ──
   const holdingBox = {
     x0: 0,
-    y0: height * (1 - HOLDING_HEIGHT_SHARE) + HOLDING_GAP,
+    y0: height * (1 - holdingShare) + HOLDING_GAP,
     x1: width,
     y1: height,
   };
-  const containers: { area: number; rows: InitiativeRow[] }[] = stages.map((s) => ({
-    area: bandArea(s.x0, s.x1, aperture),
-    rows: assigned.get(s)!,
-  }));
+  const containers: { area: number; rows: InitiativeRow[]; narrowest: number }[] = stages.map(
+    (s) => ({
+      area: bandArea(s.x0, s.x1, aperture),
+      rows: assigned.get(s)!,
+      // The aperture is non-increasing (I-7), so a stage's narrowest point is its right
+      // edge. A dot that fits there fits anywhere in the band.
+      narrowest: aperture(s.x1),
+    }),
+  );
   if (holdingRows.length > 0) {
     containers.push({
       area: Math.max(0, (holdingBox.x1 - holdingBox.x0) * (holdingBox.y1 - holdingBox.y0)),
       rows: holdingRows,
+      narrowest: holdingBox.y1 - holdingBox.y0,
     });
   }
   let scale = MAX_SCALE;
   for (const c of containers) {
     if (c.rows.length === 0) continue;
     const demand = c.rows.reduce((sum, r) => sum + areaUnit(r.gemeentes.length), 0);
-    if (demand <= 0) continue;
-    scale = Math.min(scale, Math.sqrt((PACKING_EFFICIENCY * c.area) / (Math.PI * demand)));
+    if (demand > 0) {
+      scale = Math.min(scale, Math.sqrt((PACKING_EFFICIENCY * c.area) / (Math.PI * demand)));
+    }
+    // The area fit above reasons about TOTALS, which says nothing about whether any one
+    // dot fits. A late stage holding a single well-connected initiative has area to spare
+    // and an aperture narrower than that initiative's disc — and the dot then draws
+    // straight through the bounding bar. Cap the scale so the largest dot in each
+    // container fits across that container's narrowest aperture.
+    const widest = Math.max(...c.rows.map((r) => areaUnit(r.gemeentes.length)));
+    if (widest > 0 && c.narrowest > 0) {
+      scale = Math.min(scale, (NECK_FILL * c.narrowest) / (2 * Math.sqrt(widest)));
+    }
   }
   scale = Math.min(MAX_SCALE, Math.max(MIN_SCALE, scale));
 
@@ -343,20 +487,48 @@ export function layoutFunnel(input: FunnelInput): FunnelLayout {
 
   // ── Place the dots ──
   for (const stage of stages) {
-    stage.dots = assigned.get(stage)!.map(toDot);
-    const clampX = (dot: FunnelDot) =>
-      Math.min(stage.x1 - dot.r, Math.max(stage.x0 + dot.r, dot.x));
-    relax(
-      stage.dots,
-      seedIn(stage.x0, stage.x1, (x) => ({ top: upper(x) + 1, bottom: lower(x) - 1 })),
-      (dot) => {
-        // Horizontal band first, then the curve evaluated at the dot's OWN x (FR-016c).
-        dot.x = clampX(dot);
-        const top = upper(dot.x) + dot.r;
-        const bottom = lower(dot.x) - dot.r;
-        dot.y = bottom < top ? (top + bottom) / 2 : Math.min(bottom, Math.max(top, dot.y));
-      },
-    );
+    const dots = assigned.get(stage)!.map(toDot);
+    stage.dots = dots;
+
+    // A stage that mixes the two sources splits its band: GemeenteDelers on the left,
+    // Groei on the right. Only the entry stage ever does, and there the split says
+    // something true — the GD programme entered the pipeline ahead of the Groei
+    // initiatives now sitting in the same phase. The split is a hard partition (each
+    // group is clamped to its own sub-band), not a preference, so no Groei dot can
+    // drift left of the GD block.
+    const gd = dots.filter((d) => d.row.kind === 'gd');
+    const groei = dots.filter((d) => d.row.kind !== 'gd');
+    const bands: { dots: FunnelDot[]; x0: number; x1: number }[] = [];
+    if (gd.length > 0 && groei.length > 0) {
+      // Sized by how much dot area each side needs, so 300 GD dots and 5 Groei dots do
+      // not each get half the band. Clamped so neither side becomes a sliver.
+      const demand = (ds: FunnelDot[]) => ds.reduce((sum, d) => sum + areaUnit(d.g), 0);
+      const gdDemand = demand(gd);
+      const share = Math.min(
+        1 - MIN_GROUP_SHARE,
+        Math.max(MIN_GROUP_SHARE, gdDemand / (gdDemand + demand(groei))),
+      );
+      const split = stage.x0 + (stage.x1 - stage.x0) * share;
+      bands.push({ dots: gd, x0: stage.x0, x1: split }, { dots: groei, x0: split, x1: stage.x1 });
+    } else {
+      bands.push({ dots, x0: stage.x0, x1: stage.x1 });
+    }
+
+    for (const band of bands) {
+      const clampX = (dot: FunnelDot) => Math.min(band.x1 - dot.r, Math.max(band.x0 + dot.r, dot.x));
+      relax(
+        band.dots,
+        seedIn(band.x0, band.x1, (x) => ({ top: upper(x) + 1, bottom: lower(x) - 1 })),
+        (dot) => {
+          // Horizontal band first, then the curve evaluated at the dot's OWN x (FR-016c).
+          dot.x = clampX(dot);
+          const top = upper(dot.x) + dot.r;
+          const bottom = lower(dot.x) - dot.r;
+          dot.y = bottom < top ? (top + bottom) / 2 : Math.min(bottom, Math.max(top, dot.y));
+        },
+        targetXByRank(band.dots, band.x0, band.x1),
+      );
+    }
   }
 
   let holding: HoldingArea | null = null;
@@ -371,6 +543,7 @@ export function layoutFunnel(input: FunnelInput): FunnelLayout {
         const bottom = holdingBox.y1 - dot.r;
         dot.y = bottom < top ? (top + bottom) / 2 : Math.min(bottom, Math.max(top, dot.y));
       },
+      targetXByRank(dots, holdingBox.x0, holdingBox.x1),
     );
     holding = { box: holdingBox, dots };
   }
@@ -383,6 +556,7 @@ export function layoutFunnel(input: FunnelInput): FunnelLayout {
     stages,
     holding,
     scale,
+    holdingShare,
     noPhaseVocabulary: phaseCount === 0,
   };
 }

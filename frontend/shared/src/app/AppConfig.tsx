@@ -32,6 +32,11 @@ export interface AppConfig {
    * explanatory empty state, so it simply leaves this off.
    */
   funnel?: boolean;
+  /**
+   * Show the Intake tab. Opt-in like the two above; currently a placeholder, so a
+   * dashboard opts in only once it wants the step visible in its navigation.
+   */
+  intake?: boolean;
 }
 
 const AppConfigContext = createContext<AppConfig | null>(null);

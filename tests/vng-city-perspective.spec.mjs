@@ -49,6 +49,13 @@ const json = (route, body) =>
   route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(body) });
 
 async function mockBff(page) {
+  // Registered FIRST, so every specific mock below still wins — Playwright matches the
+  // most recently added route. Anything this spec forgot is ABORTED rather than allowed
+  // out to a real BFF: a running backend answers an unauthenticated call with 401, and
+  // `api.ts` turns a 401 into a redirect to Alkemio's sign-in page. Every assertion below
+  // then fails against a page that is not the app at all. Aborting reproduces the
+  // no-backend behaviour this spec's header promises, whether or not one is running.
+  await page.route('**/api/**', (r) => r.abort());
   await page.route('**/api/auth/me', (r) => json(r, F.me));
   await page.route('**/api/hubs?*', (r) => json(r, F.hubs));
   await page.route('**/api/hubs/*/spaces', (r) => json(r, F.hubSpaces));
@@ -102,7 +109,8 @@ test('tab order: initiative pair, then city pair, optional tabs, Graph last', as
     'Gemeente informatie',
     'Gemeenten',
     'Gebruiksverkenner',
-    'Trechter',
+    'Funnel',
+    'Intake',
     'Graph',
   ]);
 });
@@ -204,6 +212,7 @@ test('English locale translates every new string', async ({ page }) => {
     'Cities',
     'Usage explorer',
     'Funnel',
+    'Intake',
     'Graph',
   ]);
   for (const name of ['Cities', 'City information']) {

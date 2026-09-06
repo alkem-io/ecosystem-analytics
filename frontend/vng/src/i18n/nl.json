@@ -23,7 +23,8 @@
     "cities": "Gemeenten",
     "cityDetails": "Gemeente informatie",
     "usage": "Gebruiksverkenner",
-    "funnel": "Trechter"
+    "funnel": "Funnel",
+    "intake": "Intake"
   },
   "initiativesTab": {
     "search": "Zoek initiatieven…",
@@ -98,7 +99,9 @@
     "includeGdHint": "GemeenteDelers (2021–2025)",
     "showAllGd": "Toon alle initiatieven",
     "gemeentesCount": "Gemeenten ({{count}})",
-    "themesCount": "Thema's ({{count}})"
+    "themesCount": "Thema's ({{count}})",
+    "openSelection": "Selectie",
+    "closeSelection": "Selectie sluiten"
   },
   "picker": {
     "placeholder": "Initiatief toevoegen…",
@@ -213,7 +216,8 @@
     "loadingGraphHint": "Dit kan even duren",
     "graphTransforming": "Netwerk opbouwen…",
     "graphAcquiring": "Initiatieven ophalen",
-    "graphBuilding": "Netwerk"
+    "graphBuilding": "Netwerk",
+    "networkError": "Kan de server niet bereiken. Controleer uw verbinding en probeer het opnieuw."
   },
   "graph": {
     "offMapTitle": "{{count}} knooppunten worden niet op de kaart weergegeven",
@@ -335,11 +339,11 @@
     "moreInitiatives": "+{{count}} meer"
   },
   "funnel": {
-    "title": "Innovatietrechter",
-    "subtitle": "Waar bevinden de initiatieven zich in de trechter?",
-    "gdStage": "GemeenteDelers",
+    "title": "Innovatiefunnel",
+    "subtitle": "Waar bevinden de initiatieven zich in de funnel?",
+    "formationStage": "Formation",
     "noPhaseArea": "Nog geen fase",
-    "noPhaseHint": "Deze initiatieven hebben nog geen fase gekozen en staan daarom buiten de trechter.",
+    "noPhaseHint": "Deze initiatieven hebben nog geen fase gekozen en staan daarom buiten de funnel.",
     "money": "Investering",
     "effort": "Doorlooptijd",
     "rampHint": "Elke fase kost meer geld en meer tijd dan de vorige",
@@ -349,15 +353,27 @@
     "count_one": "{{count}} initiatief",
     "count_other": "{{count}} initiatieven",
     "noVocabulary": "Geen fase-classificatie ingesteld",
-    "noVocabularyHint": "De trechter gebruikt de fases uit Alkemio. Stel een fase-classificatie in om de trechter te tonen.",
-    "empty": "Selecteer een of meer initiatieven om de trechter te tonen.",
-    "loading": "Trechter wordt opgebouwd…",
+    "noVocabularyHint": "De funnel gebruikt de fases uit Alkemio. Stel een fase-classificatie in om de funnel te tonen.",
+    "empty": "Selecteer een of meer initiatieven om de funnel te tonen.",
+    "loading": "Funnel wordt opgebouwd…",
     "hover": {
       "gemeentes": "Deelnemende gemeenten",
       "phase": "Fase",
       "source": "Bron",
       "none": "Geen",
       "noPhase": "Nog geen fase"
-    }
+    },
+    "showNames": "Namen tonen",
+    "inFunnel": "Initiatieven in de funnel"
+  },
+  "table": {
+    "sortBy": "Sorteer",
+    "sortAsc": "Oplopend gesorteerd — tik om om te keren",
+    "sortDesc": "Aflopend gesorteerd — tik om om te keren",
+    "filters": "Filters"
+  },
+  "intake": {
+    "notImplemented": "Nog niet geïmplementeerd — deze weergave wordt nog gebouwd.",
+    "workInProgress": "Werk in uitvoering"
   }
 }

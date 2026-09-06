@@ -266,8 +266,12 @@ export function CategoryMatrixChart({ matrix, gdIncluded, emptyLabel }: Props) {
               {ndsAxisTitle} ↑
             </span>
           </div>
-          <div className="flex-1">
-            <div className="h-[560px] w-full">
+          {/* The matrix is irreducibly wide — two label axes plus a cell grid — so
+              rather than compress it to illegibility on a phone it keeps its minimum
+              readable width and scrolls sideways inside its own card. The page itself
+              never scrolls horizontally. */}
+          <div className="min-w-0 flex-1 overflow-x-auto">
+            <div className="h-[560px] w-full min-w-[560px]">
               <ResponsiveContainer width="100%" height="100%">
                 <ScatterChart margin={{ top: 8, right: 24, bottom: 132, left: 148 }}>
                   <CartesianGrid stroke="var(--border)" />
@@ -296,7 +300,7 @@ export function CategoryMatrixChart({ matrix, gdIncluded, emptyLabel }: Props) {
                 </ScatterChart>
               </ResponsiveContainer>
             </div>
-            <div className="text-center text-xs font-medium text-muted-foreground">
+            <div className="min-w-[560px] text-center text-xs font-medium text-muted-foreground">
               {vngAxisTitle} →
             </div>
           </div>

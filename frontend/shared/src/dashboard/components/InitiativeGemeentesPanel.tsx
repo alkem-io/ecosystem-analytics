@@ -1,6 +1,30 @@
 import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
+import { cn } from '@ea/shared';
 import type { GraphDataset, GraphNode } from '@server/types/graph.js';
+
+/**
+ * Shared geometry for the panels that float over the graph canvas.
+ *
+ * On a desktop they are a 16rem card pinned to the top-right corner. On a phone
+ * that corner card would cover a quarter of an already-small canvas and sit under
+ * the thumb's dead zone, so below `sm` the same panel becomes a bottom sheet: full
+ * width, capped at 45% of the canvas height, and scrolling internally.
+ *
+ * Exported so GraphTab's own selected-organisation panel stays identical to this
+ * one — two panels that appear in the same place must not drift apart.
+ */
+export const GRAPH_PANEL_CLASS = cn(
+  'absolute z-20 rounded-lg border border-border bg-background/95 p-3 shadow-md',
+  'inset-x-2 bottom-2 max-h-[45%] overflow-auto',
+  'sm:inset-x-auto sm:bottom-auto sm:right-4 sm:top-4 sm:max-h-none sm:w-64 sm:max-w-[80%] sm:overflow-visible',
+);
+
+/** The panels' close button — a real 44px target on touch, not a bare glyph. */
+export const GRAPH_PANEL_CLOSE_CLASS = cn(
+  '-m-1 inline-flex shrink-0 items-center justify-center rounded p-1 text-xs text-muted-foreground',
+  'hover:text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-primary',
+);
 
 interface InitiativeGemeentesPanelProps {
   initiative: GraphNode;
@@ -40,12 +64,13 @@ export function InitiativeGemeentesPanel({
   }, [dataset, initiative.id]);
 
   return (
-    <aside className="absolute right-4 top-4 w-64 max-w-[80%] rounded-lg border border-border bg-background/95 p-3 shadow-md">
+    <aside className={GRAPH_PANEL_CLASS}>
       <header className="mb-2 flex items-start justify-between gap-2">
         <span className="text-sm font-semibold">{initiative.displayName}</span>
         <button
           type="button"
-          className="text-xs text-muted-foreground hover:text-foreground"
+          className={GRAPH_PANEL_CLOSE_CLASS}
+          data-touch-target
           onClick={onClose}
           aria-label="Close"
         >

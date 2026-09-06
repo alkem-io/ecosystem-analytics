@@ -43,7 +43,7 @@ export function GraphMetricsBar({ dataset }: GraphMetricsBarProps) {
   ];
 
   return (
-    <div className="flex shrink-0 items-center gap-x-5 gap-y-1 overflow-x-auto border-t border-border bg-background/95 px-6 py-1.5 text-xs text-muted-foreground">
+    <div className="no-scrollbar flex shrink-0 items-center gap-x-5 gap-y-1 overflow-x-auto border-t border-border bg-background/95 px-3 py-1.5 pb-[max(0.375rem,var(--safe-bottom))] text-xs text-muted-foreground sm:px-6">
       {items.map((item) => (
         <span key={item.label} className="flex items-center gap-1 whitespace-nowrap">
           <span>{item.label}</span>

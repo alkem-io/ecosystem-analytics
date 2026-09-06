@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { ArrowDown, ArrowUp, ChevronsUpDown, Loader2, Search } from 'lucide-react';
+import { ArrowDown, ArrowUp, ChevronsUpDown, Loader2 } from 'lucide-react';
 import {
   cn,
   Tooltip,
@@ -8,13 +8,16 @@ import {
   TooltipProvider,
   TooltipTrigger,
   useAppConfig,
+  useIsCompact,
 } from '@ea/shared';
+import { RecordCard, RecordCardList, RecordSortControl } from '../components/RecordCards.js';
+import { TableFilterBar, FILTER_ALL } from '../components/TableFilterBar.js';
 import { buildCityRows, type CityRow } from '../utils/cities.js';
 import { useSelectionContext } from '../hooks/SelectionContext.js';
 import { useVngGraph } from '../hooks/useVngGraph.js';
 import { useGraphProgress } from '../hooks/useGraphProgress.js';
 
-const ALL = '__all__';
+const ALL = FILTER_ALL;
 
 type SortKey =
   | 'name'
@@ -32,6 +35,34 @@ type SortDir = 'asc' | 'desc';
 const TEXT_KEYS = new Set<SortKey>(['name', 'province', 'vng2030', 'nds', 'themes']);
 
 /**
+ * The same sort keys the column headers expose, in column order — used by the card
+ * view's sort control, which has no headers to hang them off. Kept as one list so a
+ * new sortable column cannot end up sortable on a desktop and not on a phone.
+ */
+const SORT_OPTIONS: SortKey[] = [
+  'name',
+  'province',
+  'population',
+  'initiatives',
+  'groei',
+  'gd',
+  'vng2030',
+  'nds',
+  'themes',
+];
+const SORT_LABEL_KEYS: Record<SortKey, string> = {
+  name: 'citiesTab.colName',
+  province: 'citiesTab.colProvince',
+  population: 'citiesTab.colPopulation',
+  initiatives: 'citiesTab.colInitiatives',
+  groei: 'citiesTab.colGroei',
+  gd: 'citiesTab.colGd',
+  vng2030: 'citiesTab.colVng2030',
+  nds: 'citiesTab.colNds',
+  themes: 'citiesTab.colThemes',
+};
+
+/**
  * Cities tab (feature 018, US1) — the city-first counterpart of the Initiatives tab.
  * One row per gemeente, with the number of initiatives it takes part in, its province
  * and population, and the classification profile of those initiatives.
@@ -43,6 +74,8 @@ const TEXT_KEYS = new Set<SortKey>(['name', 'province', 'vng2030', 'nds', 'theme
 export function CitiesTab() {
   const { t, i18n } = useTranslation();
   const cfg = useAppConfig();
+  // Below `lg` the nine-column table is re-laid as one card per gemeente.
+  const compact = useIsCompact();
   const { effectiveSpaceIds, selectedSpaces, state, refreshNonce } = useSelectionContext();
 
   // Choosing a city opens its profile on the City information tab (FR-018).
@@ -170,12 +203,18 @@ export function CitiesTab() {
     return [...filtered].sort(cmp);
   }, [allRows, filterDefs, filters, query, sortKey, sortDir]);
 
-  const toggleSort = (key: SortKey) => {
-    if (key === sortKey) setSortDir((d) => (d === 'asc' ? 'desc' : 'asc'));
-    else {
-      setSortKey(key);
-      setSortDir(TEXT_KEYS.has(key) ? 'asc' : 'desc');
+  /**
+   * Clicking a column header re-sorts by it, and clicking the ACTIVE header flips
+   * the direction. The card view's sort <select> must not flip: re-picking the
+   * option you are already on has to be a no-op, not a reversal — hence `pick`.
+   */
+  const toggleSort = (key: SortKey, pick = false) => {
+    if (key === sortKey) {
+      if (!pick) setSortDir((d) => (d === 'asc' ? 'desc' : 'asc'));
+      return;
     }
+    setSortKey(key);
+    setSortDir(TEXT_KEYS.has(key) ? 'asc' : 'desc');
   };
 
   const SortIcon = ({ column }: { column: SortKey }) => {
@@ -288,52 +327,27 @@ export function CitiesTab() {
   return (
     <TooltipProvider delayDuration={120}>
       <div className="flex h-full min-h-0 flex-col">
-        {/* Filter bar — search + a dropdown per categorical column. */}
-        <div className="flex flex-wrap items-center gap-x-4 gap-y-2 border-b border-border px-6 py-3">
-          <div className="relative">
-            <Search
-              className="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground"
-              aria-hidden
+        {/* Filter bar — search + a dropdown per categorical column. Below `lg` the
+            dropdowns move behind a disclosure and the card view's sort joins them. */}
+        <TableFilterBar
+          query={query}
+          onQueryChange={setQuery}
+          searchPlaceholder={t('citiesTab.search')}
+          filters={filterDefs}
+          values={filters}
+          onFilterChange={(key, value) => setFilters((prev) => ({ ...prev, [key]: value }))}
+          allLabel={t('citiesTab.filterAll')}
+          countLabel={t('citiesTab.count', { count: rows.length })}
+          sortControl={
+            <RecordSortControl
+              options={SORT_OPTIONS.map((k) => ({ key: k, label: t(SORT_LABEL_KEYS[k]) }))}
+              sortKey={sortKey}
+              sortDir={sortDir}
+              onSortKey={(k) => toggleSort(k, true)}
+              onToggleDir={() => setSortDir((d) => (d === 'asc' ? 'desc' : 'asc'))}
             />
-            <input
-              type="search"
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              placeholder={t('citiesTab.search')}
-              className={cn(
-                'w-56 rounded-md border border-border bg-card py-1.5 pl-8 pr-3 text-sm text-foreground',
-                'placeholder:text-muted-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-primary',
-              )}
-            />
-          </div>
-
-          {filterDefs
-            .filter((f) => f.options.length > 0)
-            .map((f) => (
-              <label key={f.key} className="flex items-center gap-1.5 text-sm text-muted-foreground">
-                {t(f.labelKey)}
-                <select
-                  value={filters[f.key] ?? ALL}
-                  onChange={(e) => setFilters((prev) => ({ ...prev, [f.key]: e.target.value }))}
-                  className={cn(
-                    'max-w-44 rounded-md border border-border bg-card px-2.5 py-1.5 text-sm text-foreground',
-                    'focus:outline-none focus-visible:ring-2 focus-visible:ring-primary',
-                  )}
-                >
-                  <option value={ALL}>{t('citiesTab.filterAll')}</option>
-                  {f.options.map((o) => (
-                    <option key={o.value} value={o.value}>
-                      {o.label} ({o.count})
-                    </option>
-                  ))}
-                </select>
-              </label>
-            ))}
-
-          <span className="ml-auto text-xs text-muted-foreground">
-            {t('citiesTab.count', { count: rows.length })}
-          </span>
-        </div>
+          }
+        />
 
         {/* Table */}
         <div className="min-h-0 flex-1 overflow-auto">
@@ -362,110 +376,148 @@ export function CitiesTab() {
               {t('citiesTab.noResults')}
             </div>
           ) : (
-            <table className="w-full border-collapse text-sm">
-              <thead className="sticky top-0 z-10 bg-card">
-                <tr className="border-b border-border">
-                  <th className="px-6 py-1.5 text-left" rowSpan={2}>
-                    {headerBtn('name', t('citiesTab.colName'))}
-                  </th>
-                  <th className={groupTh} colSpan={2}>
-                    {t('citiesTab.groupCity')}
-                  </th>
-                  <th className={groupTh} colSpan={3}>
-                    {t('citiesTab.groupParticipation')}
-                  </th>
-                  <th className={groupTh} colSpan={3}>
-                    {t('citiesTab.groupClassification')}
-                  </th>
-                </tr>
-                <tr className="border-b border-border text-left">
-                  <th className="w-36 border-l border-border px-3 py-2.5">
-                    {headerBtn('province', t('citiesTab.colProvince'))}
-                  </th>
-                  <th className="w-28 px-3 py-2.5">
-                    {headerBtn('population', t('citiesTab.colPopulation'))}
-                  </th>
-                  <th className="w-28 border-l border-border px-3 py-2.5">
-                    {headerBtn('initiatives', t('citiesTab.colInitiatives'))}
-                  </th>
-                  <th className="w-20 px-3 py-2.5">
-                    {headerBtn('groei', t('citiesTab.colGroei'))}
-                  </th>
-                  <th className="w-20 px-3 py-2.5">{headerBtn('gd', t('citiesTab.colGd'))}</th>
-                  <th className="border-l border-border px-3 py-2.5">
-                    {headerBtn('vng2030', t('citiesTab.colVng2030'))}
-                  </th>
-                  <th className="px-3 py-2.5">{headerBtn('nds', t('citiesTab.colNds'))}</th>
-                  <th className="px-3 py-2.5">{headerBtn('themes', t('citiesTab.colThemes'))}</th>
-                </tr>
-              </thead>
-              <tbody>
-                {rows.map((r) => (
-                  <tr key={r.id} className="border-b border-border align-top hover:bg-muted/40">
-                    <td className="px-6 py-2.5 font-medium text-foreground">
-                      <button
-                        type="button"
-                        onClick={() => openCity(r.id)}
-                        className={cn(
-                          'text-left font-medium text-foreground underline-offset-2 hover:text-primary hover:underline',
-                          'focus:outline-none focus-visible:ring-2 focus-visible:ring-primary',
-                        )}
-                      >
-                        {r.name}
-                      </button>
-                    </td>
-                    <td className="border-l border-border px-3 py-2.5 text-muted-foreground">
-                      {r.provinceName ?? unknown}
-                    </td>
-                    <td className="px-3 py-2.5 tabular-nums text-muted-foreground">
-                      {r.population == null ? unknown : numberFormat.format(r.population)}
-                    </td>
-                    <td className="border-l border-border px-3 py-2.5 tabular-nums text-muted-foreground">
-                      {r.initiativeCount === 0 ? (
-                        <span>0</span>
-                      ) : (
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <span className="cursor-default underline decoration-dotted underline-offset-2">
-                              {r.initiativeCount}
-                            </span>
-                          </TooltipTrigger>
-                          <TooltipContent side="right" className="max-w-xs">
-                            <ul className="max-h-60 space-y-0.5 overflow-auto whitespace-normal">
-                              {r.initiatives.map((i) => (
-                                <li key={i.id}>
-                                  {i.name}
-                                  <span className="ml-1 text-muted-foreground">
-                                    (
-                                    {i.kind === 'groei'
-                                      ? t('initiativesTab.typeGroei')
-                                      : t('initiativesTab.typeGd')}
-                                    )
-                                  </span>
-                                </li>
-                              ))}
-                            </ul>
-                          </TooltipContent>
-                        </Tooltip>
-                      )}
-                    </td>
-                    <td className="px-3 py-2.5 tabular-nums text-muted-foreground">{r.groeiCount}</td>
-                    <td className="px-3 py-2.5 tabular-nums text-muted-foreground">{r.gdCount}</td>
-                    <td className="border-l border-border px-3 py-2.5">
-                      {wordCloud(r, r.vng2030, (i) => i.vng2030, (v) =>
-                        v,
-                      )}
-                    </td>
-                    <td className="px-3 py-2.5">
-                      {wordCloud(r, r.nds, (i) => i.nds, (v) =>
-                        v,
-                      )}
-                    </td>
-                    <td className="px-3 py-2.5">{wordCloud(r, r.themes, (i) => i.themes)}</td>
+            compact ? (
+            <RecordCardList>
+              {rows.map((r) => (
+                <RecordCard
+                  key={r.id}
+                  title={r.name}
+                  onTitleClick={() => openCity(r.id)}
+                  fields={[
+                    { label: t('citiesTab.colProvince'), value: r.provinceName ?? unknown },
+                    {
+                      label: t('citiesTab.colPopulation'),
+                      value:
+                        r.population == null ? unknown : numberFormat.format(r.population),
+                    },
+                    {
+                      label: t('citiesTab.colInitiatives'),
+                      value: <span className="tabular-nums">{r.initiativeCount}</span>,
+                    },
+                    {
+                      label: `${t('citiesTab.colGroei')} / ${t('citiesTab.colGd')}`,
+                      value: (
+                        <span className="tabular-nums">
+                          {r.groeiCount} / {r.gdCount}
+                        </span>
+                      ),
+                    },
+                    // The table shows these as centred word clouds sized by frequency;
+                    // at 390px a cloud is unreadable, so the card falls back to the
+                    // plain chip list the other classification columns already use.
+                    { label: t('citiesTab.colVng2030'), value: chips(r.vng2030), full: true },
+                    { label: t('citiesTab.colNds'), value: chips(r.nds), full: true },
+                    { label: t('citiesTab.colThemes'), value: chips(r.themes), full: true },
+                  ]}
+                />
+              ))}
+            </RecordCardList>
+            ) : (
+              <table className="w-full border-collapse text-sm">
+                <thead className="sticky top-0 z-10 bg-card">
+                  <tr className="border-b border-border">
+                    <th className="px-6 py-1.5 text-left" rowSpan={2}>
+                      {headerBtn('name', t('citiesTab.colName'))}
+                    </th>
+                    <th className={groupTh} colSpan={2}>
+                      {t('citiesTab.groupCity')}
+                    </th>
+                    <th className={groupTh} colSpan={3}>
+                      {t('citiesTab.groupParticipation')}
+                    </th>
+                    <th className={groupTh} colSpan={3}>
+                      {t('citiesTab.groupClassification')}
+                    </th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                  <tr className="border-b border-border text-left">
+                    <th className="w-36 border-l border-border px-3 py-2.5">
+                      {headerBtn('province', t('citiesTab.colProvince'))}
+                    </th>
+                    <th className="w-28 px-3 py-2.5">
+                      {headerBtn('population', t('citiesTab.colPopulation'))}
+                    </th>
+                    <th className="w-28 border-l border-border px-3 py-2.5">
+                      {headerBtn('initiatives', t('citiesTab.colInitiatives'))}
+                    </th>
+                    <th className="w-20 px-3 py-2.5">
+                      {headerBtn('groei', t('citiesTab.colGroei'))}
+                    </th>
+                    <th className="w-20 px-3 py-2.5">{headerBtn('gd', t('citiesTab.colGd'))}</th>
+                    <th className="border-l border-border px-3 py-2.5">
+                      {headerBtn('vng2030', t('citiesTab.colVng2030'))}
+                    </th>
+                    <th className="px-3 py-2.5">{headerBtn('nds', t('citiesTab.colNds'))}</th>
+                    <th className="px-3 py-2.5">{headerBtn('themes', t('citiesTab.colThemes'))}</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {rows.map((r) => (
+                    <tr key={r.id} className="border-b border-border align-top hover:bg-muted/40">
+                      <td className="px-6 py-2.5 font-medium text-foreground">
+                        <button
+                          type="button"
+                          onClick={() => openCity(r.id)}
+                          className={cn(
+                            'text-left font-medium text-foreground underline-offset-2 hover:text-primary hover:underline',
+                            'focus:outline-none focus-visible:ring-2 focus-visible:ring-primary',
+                          )}
+                        >
+                          {r.name}
+                        </button>
+                      </td>
+                      <td className="border-l border-border px-3 py-2.5 text-muted-foreground">
+                        {r.provinceName ?? unknown}
+                      </td>
+                      <td className="px-3 py-2.5 tabular-nums text-muted-foreground">
+                        {r.population == null ? unknown : numberFormat.format(r.population)}
+                      </td>
+                      <td className="border-l border-border px-3 py-2.5 tabular-nums text-muted-foreground">
+                        {r.initiativeCount === 0 ? (
+                          <span>0</span>
+                        ) : (
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <span className="cursor-default underline decoration-dotted underline-offset-2">
+                                {r.initiativeCount}
+                              </span>
+                            </TooltipTrigger>
+                            <TooltipContent side="right" className="max-w-xs">
+                              <ul className="max-h-60 space-y-0.5 overflow-auto whitespace-normal">
+                                {r.initiatives.map((i) => (
+                                  <li key={i.id}>
+                                    {i.name}
+                                    <span className="ml-1 text-muted-foreground">
+                                      (
+                                      {i.kind === 'groei'
+                                        ? t('initiativesTab.typeGroei')
+                                        : t('initiativesTab.typeGd')}
+                                      )
+                                    </span>
+                                  </li>
+                                ))}
+                              </ul>
+                            </TooltipContent>
+                          </Tooltip>
+                        )}
+                      </td>
+                      <td className="px-3 py-2.5 tabular-nums text-muted-foreground">{r.groeiCount}</td>
+                      <td className="px-3 py-2.5 tabular-nums text-muted-foreground">{r.gdCount}</td>
+                      <td className="border-l border-border px-3 py-2.5">
+                        {wordCloud(r, r.vng2030, (i) => i.vng2030, (v) =>
+                          v,
+                        )}
+                      </td>
+                      <td className="px-3 py-2.5">
+                        {wordCloud(r, r.nds, (i) => i.nds, (v) =>
+                          v,
+                        )}
+                      </td>
+                      <td className="px-3 py-2.5">{wordCloud(r, r.themes, (i) => i.themes)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )
           )}
         </div>
       </div>

@@ -82,7 +82,14 @@ test.beforeEach(() => {
 const json = (route, body) =>
   route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(body) });
 
-async function boot(page, { withPhases = true } = {}) {
+async function boot(page, { withPhases = true, dashboardDelayMs = 0 } = {}) {
+  // Registered FIRST, so every specific mock below still wins — Playwright matches the
+  // most recently added route. Anything this spec forgot is ABORTED rather than allowed
+  // out to a real BFF: a running backend answers an unauthenticated call with 401, and
+  // `api.ts` turns a 401 into a redirect to Alkemio's sign-in page. Every assertion below
+  // then fails against a page that is not the app at all. Aborting reproduces the
+  // no-backend behaviour this spec's header promises, whether or not one is running.
+  await page.route('**/api/**', (r) => r.abort());
   await page.route('**/api/auth/me', (r) => json(r, F.me));
   await page.route('**/api/hubs?*', (r) => json(r, F.hubs));
   await page.route('**/api/hubs/*/spaces', (r) => json(r, F.hubSpaces));
@@ -90,7 +97,12 @@ async function boot(page, { withPhases = true } = {}) {
   await page.route('**/api/graph/progress', (r) =>
     json(r, { step: 'ready', spacesTotal: 6, spacesCompleted: 6 }),
   );
-  await page.route('**/api/vng/dashboard', (r) => json(r, withPhases ? dashboard : F.dashboard));
+  await page.route('**/api/vng/dashboard', async (r) => {
+    // The funnel's two sources land in either order, and the graph is normally the
+    // cached one. Delaying the dashboard reproduces that ordering deterministically.
+    if (dashboardDelayMs) await new Promise((done) => setTimeout(done, dashboardDelayMs));
+    return json(r, withPhases ? dashboard : F.dashboard);
+  });
   await page.route('**/api/vng/initiatives', (r) => json(r, []));
   await page.route('**/api/features', (r) => json(r, {}));
   await page.route('**/api/meta', (r) => json(r, { environment: 'test' }));
@@ -98,7 +110,7 @@ async function boot(page, { withPhases = true } = {}) {
 
   await page.goto(VNG_URL, { waitUntil: 'domcontentloaded' });
   await page.getByRole('tablist').waitFor({ timeout: 20_000 });
-  await page.getByRole('tab', { name: 'Trechter' }).click();
+  await page.getByRole('tab', { name: 'Funnel', exact: true }).click();
   // With no phase vocabulary there is deliberately no funnel to wait for (FR-025).
   if (withPhases) await page.locator('main svg').first().waitFor({ timeout: 25_000 });
 }
@@ -106,21 +118,60 @@ async function boot(page, { withPhases = true } = {}) {
 test('the funnel tab is reachable and draws the whole frame', async ({ page }) => {
   await boot(page);
 
-  // FR-002: a GemeenteDelers mouth followed by one stage per authored phase.
-  for (const label of ['GemeenteDelers', ...PHASES.map((p) => p.label)]) {
+  // FR-002: the Formation stage leads, followed by one stage per authored phase. Each
+  // is drawn as a header box above the funnel.
+  for (const label of ['Formation', ...PHASES.map((p) => p.label)]) {
     await expect(page.locator('main svg text', { hasText: new RegExp(`^${label}$`) })).toHaveCount(1);
   }
+  await expect(page.locator('main svg rect[rx="5"]')).toHaveCount(PHASES.length + 1);
 
   // FR-005: two curved bounding bars enclose the sequence.
   await expect(page.locator('main svg path[stroke-width="2.5"]')).toHaveCount(2);
 
-  // FR-006: the whole funnel fits — the SVG is no taller than its container.
-  const fits = await page.evaluate(() => {
+  // The funnel is drawn taller than its box so the mouth can open properly
+  // (MOUTH_BOOST in FunnelTab), and its own panel scrolls for the remainder. What must
+  // still hold is that the funnel is fully drawn and that the PAGE never scrolls — a
+  // page-level scrollbar means the panel failed to contain it.
+  const geometry = await page.evaluate(() => {
     const svg = document.querySelector('main svg');
     const box = svg.getBoundingClientRect();
-    return box.width > 0 && box.height > 0 && box.bottom <= window.innerHeight + 1;
+    const panel = svg.closest('[class*="overflow-y-auto"]');
+    return {
+      drawn: box.width > 0 && box.height > 0,
+      scrollablePanel: !!panel && panel.scrollHeight > panel.clientHeight,
+      pageScrolls: document.documentElement.scrollHeight > document.documentElement.clientHeight + 1,
+    };
   });
-  expect(fits).toBe(true);
+  expect(geometry.drawn).toBe(true);
+  expect(geometry.scrollablePanel).toBe(true);
+  expect(geometry.pageScrolls).toBe(false);
+});
+
+test('the NDS and VNG-2030 filters narrow the funnel to one classification', async ({ page }) => {
+  await boot(page);
+
+  const countsNow = () =>
+    page.evaluate(() =>
+      [...document.querySelectorAll('main svg g > text:nth-child(3)')].map((t) => Number(t.textContent)),
+    );
+  const before = await countsNow();
+  const total = before.reduce((a, b) => a + b, 0);
+  expect(total).toBeGreaterThan(0);
+
+  // Both filters default to "all" — the funnel starts unfiltered.
+  const nds = page.getByRole('combobox', { name: 'NDS' });
+  await expect(nds).toHaveValue('__all__');
+
+  // Selecting a single value can only ever remove initiatives, never add any.
+  await nds.selectOption({ index: 1 });
+  await page.waitForTimeout(400);
+  const after = await countsNow();
+  expect(after.reduce((a, b) => a + b, 0)).toBeLessThan(total);
+
+  // Back to "all" restores the full pipeline.
+  await nds.selectOption('__all__');
+  await page.waitForTimeout(400);
+  expect(await countsNow()).toEqual(before);
 });
 
 test('one dot per initiative, and the unphased one is held outside the funnel', async ({ page }) => {
@@ -150,6 +201,28 @@ test('hovering a dot reveals the initiative, including its classifications', asy
   // FR-020: the detail clears when the pointer leaves.
   await page.locator('main h2').first().hover();
   await expect(card).toHaveCount(0);
+});
+
+test('says it is loading — not "no phase classification" — while the payload is in flight', async ({
+  page,
+}) => {
+  // The regression: the funnel guarded its loading state on the GRAPH alone, but the
+  // phase vocabulary arrives with the DASHBOARD payload. With the graph cached (the
+  // normal case) it landed first, and for the gap between the two responses the funnel
+  // told the user their phase classification was not configured.
+  const booted = boot(page, { dashboardDelayMs: 2500 });
+
+  await page.getByRole('tablist').waitFor({ timeout: 20_000 });
+  await page.getByRole('tab', { name: 'Funnel', exact: true }).click();
+
+  // While only the graph has answered: the loading message, and NOT the empty state.
+  await expect(page.getByText('Funnel wordt opgebouwd…')).toBeVisible({ timeout: 10_000 });
+  await expect(page.getByText('Geen fase-classificatie ingesteld')).toHaveCount(0);
+
+  // …and once the payload lands, the funnel draws.
+  await booted;
+  await expect(page.locator('main svg').first()).toBeVisible({ timeout: 25_000 });
+  await expect(page.getByText('Geen fase-classificatie ingesteld')).toHaveCount(0);
 });
 
 test('explains itself when no phase classification is configured', async ({ page }) => {

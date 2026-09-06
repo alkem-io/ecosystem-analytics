@@ -111,7 +111,7 @@ export function CityDetailsTab({ openCityId, openCitySeq }: CityDetailsTabProps 
 
   return (
     <div className="h-full overflow-auto">
-      <div className="mx-auto max-w-5xl space-y-8 p-6">
+      <div className="mx-auto max-w-5xl space-y-6 p-3 pb-[max(0.75rem,var(--safe-bottom))] sm:space-y-8 sm:p-6">
         {/* Picker */}
         <div className="flex flex-wrap items-center gap-3">
           <span className="text-sm font-medium text-muted-foreground">
@@ -120,7 +120,7 @@ export function CityDetailsTab({ openCityId, openCitySeq }: CityDetailsTabProps 
           <Select.Root value={selected ?? ''} onValueChange={setSelected}>
             <Select.Trigger
               className={cn(
-                'inline-flex min-w-72 items-center justify-between gap-2 rounded-md border border-border bg-card px-3 py-2 text-sm text-foreground',
+                'inline-flex w-full items-center justify-between gap-2 rounded-md border border-border bg-card px-3 py-2 text-sm text-foreground sm:w-auto sm:min-w-72',
                 'focus:outline-none focus:ring-2 focus:ring-ring',
               )}
               aria-label={t('cityDetailsTab.pickCity')}
