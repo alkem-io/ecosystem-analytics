@@ -78,8 +78,10 @@ export function transformToGraph(data: AcquiredData): TransformResult {
   for (const { space, nameId } of data.spacesL0) {
     const l0ScopeGroup = space.id;
 
-    // Add L0 Space node
-    addSpaceNode(space, NodeType.SPACE_L0, [l0ScopeGroup], null, nodes, nodeIds);
+    // Add L0 Space node. A null community means the caller could READ_ABOUT the Space
+    // but not READ it (about-only acquisition) — mark it restricted, as for subspaces.
+    const restricted = !space.community;
+    addSpaceNode(space, NodeType.SPACE_L0, [l0ScopeGroup], null, nodes, nodeIds, restricted);
 
     // Process subspaces recursively
     if (space.subspaces) {
