@@ -2,7 +2,12 @@ import { getLogger } from '../logging/logger.js';
 import { loadConfig } from '../config.js';
 import { createAlkemioSdk } from '../graphql/client.js';
 import type { AuthContext } from '../auth/middleware.js';
-import { fetchSpaceByName, fetchSubspaceDetails, type RawSpace } from './space-service.js';
+import {
+  fetchSpaceByName,
+  fetchSpaceAboutOnlyByName,
+  fetchSubspaceDetails,
+  type RawSpace,
+} from './space-service.js';
 import type { UsersByIDsQuery, OrganizationByIdQuery } from '../graphql/generated/alkemio-schema.js';
 import type { Sdk } from '../graphql/generated/graphql.js';
 
@@ -56,6 +61,7 @@ export async function acquireSpaces(
   const userIds = new Set<string>();
   const orgIds = new Set<string>();
   const errors: string[] = [];
+  let aboutOnlyCount = 0;
 
   for (const nameId of spaceNameIds) {
     logger.info(`Acquiring space data: ${nameId}`, { context: 'Acquire' });
@@ -69,7 +75,25 @@ export async function acquireSpaces(
       errors.push(msg);
       continue;
     }
-    const space = result.lookupByName?.space;
+    let space = result.data.lookupByName?.space;
+    if (!space && result.forbidden) {
+      // The caller may READ_ABOUT this Space but not READ it (a private Space they are
+      // not a member of). Degrade to the about-only shape so the Space still counts and
+      // places on every dashboard panel — members and subspaces are simply not visible
+      // to this caller, and the transformer marks the node `restricted`.
+      const aboutOnly = await fetchSpaceAboutOnlyByName(sdk, nameId);
+      if (aboutOnly) {
+        logger.info(
+          `Space "${nameId}" is read-about only for this user — acquired without community/subspaces`,
+          { context: 'Acquire' },
+        );
+        // `community`/`account` are non-nullable in the generated type but the transformer
+        // already reads them null-safely (`space.community?.roleSet`), as it does for
+        // restricted subspaces.
+        space = { ...aboutOnly, community: null, subspaces: [], account: null } as unknown as RawSpace;
+        aboutOnlyCount += 1;
+      }
+    }
     if (!space) {
       const msg = `Space not found or fully restricted: ${nameId}`;
       logger.error(msg, { context: 'Acquire' });
@@ -77,15 +101,22 @@ export async function acquireSpaces(
       continue;
     }
 
-    // Phase 2: Check privileges on subspaces and selectively fetch community data
-    await enrichSubspacesWithCommunityData(sdk, space, errors, logger);
+    // Phase 2: Check privileges on subspaces and selectively fetch community data.
+    // An about-only Space has no subspaces for this caller — nothing to check.
+    if (space.community) {
+      await enrichSubspacesWithCommunityData(sdk, space, errors, logger);
+    }
 
     spacesL0.push({ space, nameId });
     collectContributorIds(space as SpaceWithCommunity, userIds, orgIds);
     onSpaceAcquired?.(nameId);
   }
 
-  logger.info(`Acquired ${spacesL0.length} space(s), found ${userIds.size} users and ${orgIds.size} organizations`, { context: 'Acquire' });
+  logger.info(
+    `Acquired ${spacesL0.length} space(s), found ${userIds.size} users and ${orgIds.size} organizations` +
+      (aboutOnlyCount > 0 ? ` (${aboutOnlyCount} read-about only: no members/subspaces visible)` : ''),
+    { context: 'Acquire' },
+  );
 
   // Activity event types to track — contributions only (excludes MEMBER_JOINED, SUBSPACE_CREATED, CALLOUT_PUBLISHED)
   const CONTRIBUTION_EVENT_TYPES: string[] = [

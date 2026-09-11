@@ -65,7 +65,14 @@ hubsRouter.get('/:nameId/spaces', async (req: Request, res: Response) => {
     // `spaceListFilter` (the dropdown's spaceCount comes from it). Only fall back to
     // by-nameID lookup for hubs that aren't store-listed (e.g. some VNG hubs), where
     // the lookup path is the only way to reach them.
-    const listed = await fetchInnovationHubs(req.auth!);
+    // A failing store-list must not block the by-nameID path — that lookup is the one
+    // that matters for the requested hub, and it raises the same error if auth is gone.
+    const listed = await fetchInnovationHubs(req.auth!).catch((err: unknown) => {
+      logger.warn(`Store-listed hubs unavailable while resolving '${nameId}': ${(err as Error).message}`, {
+        context: 'Hubs',
+      });
+      return [];
+    });
     const hub = listed.find((h) => h.nameId === nameId) ?? (await resolveHubByNameId(req.auth!, nameId));
     if (!hub) {
       logger.warn(`Hub '${req.params.nameId}' not found (nameID unresolvable)`, { context: 'Hubs' });

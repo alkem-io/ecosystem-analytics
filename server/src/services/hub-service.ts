@@ -58,8 +58,36 @@ export function mapInnovationHubs(query: InnovationHubsQuery): VngHub[] {
  */
 export async function fetchInnovationHubs(auth: AuthContext): Promise<VngHub[]> {
   const sdk = await createAlkemioSdk(auth);
-  const res = await sdk.InnovationHubs();
-  return mapInnovationHubs(res.data);
+  try {
+    const res = await sdk.InnovationHubs();
+    return mapInnovationHubs(res.data);
+  } catch (err) {
+    // One space the caller may not READ_ABOUT (e.g. an ARCHIVED space listed in ANY
+    // store-listed hub) nulls that hub's `spaceListFilter` and puts an entry in
+    // `errors`, which graphql-request turns into a throw even though every other hub
+    // came back intact. Keep the partial list — a hub with a nulled filter maps to
+    // zero spaces — rather than failing the whole hub UI for non-admin users.
+    const partial = partialData<InnovationHubsQuery>(err);
+    if (!partial?.platform?.library?.innovationHubs) throw err;
+    logPartialErrors(err, 'Innovation hub list');
+    return mapInnovationHubs(partial);
+  }
+}
+
+/** The partial `data` graphql-request attaches to a thrown ClientError, if any. */
+function partialData<T>(err: unknown): T | undefined {
+  return (err as { response?: { data?: T } })?.response?.data;
+}
+
+function logPartialErrors(err: unknown, what: string): void {
+  const errors =
+    (err as { response?: { errors?: Array<{ message: string; path?: Array<string | number> }> } })
+      ?.response?.errors ?? [];
+  for (const e of errors) {
+    getLogger().warn(`${what}: partial error ${e.message} (path: ${e.path?.join('.')})`, {
+      context: 'Hubs',
+    });
+  }
 }
 
 /**
@@ -90,8 +118,17 @@ export async function resolveHubByNameId(
       getLogger().warn(`Hub '${nameId}': nameID did not resolve to an ID`, { context: 'Hubs' });
       return null;
     }
-    const hubRes = await sdk.InnovationHubById({ id });
-    const hub: InnovationHubByIdQuery['lookup']['innovationHub'] = hubRes.data.lookup.innovationHub;
+    let hub: InnovationHubByIdQuery['lookup']['innovationHub'];
+    try {
+      hub = (await sdk.InnovationHubById({ id })).data.lookup.innovationHub;
+    } catch (err) {
+      // Same partial-result tolerance as the list: keep the hub even if one of its
+      // listed spaces refused READ_ABOUT (the filter then maps to zero spaces).
+      const partial = partialData<InnovationHubByIdQuery>(err);
+      if (!partial?.lookup?.innovationHub) throw err;
+      logPartialErrors(err, `Hub '${nameId}'`);
+      hub = partial.lookup.innovationHub;
+    }
     getLogger().info(
       `Hub '${nameId}' (id ${id}): lookup ${hub ? 'OK' : 'NULL'}, ` +
         `raw spaceListFilter length = ${hub?.spaceListFilter?.length ?? 0}`,

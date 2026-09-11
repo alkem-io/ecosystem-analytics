@@ -39,6 +39,7 @@ export function SelectedSpacesPanel({ onClose }: { onClose?: () => void } = {}) 
     loadHubSpaces,
     refresh,
     hubResolveError,
+    hubsError,
   } = useSelectionContext();
 
   // Brief spinner on the Refresh button while the cache-bypassing reload runs.
@@ -177,6 +178,11 @@ export function SelectedSpacesPanel({ onClose }: { onClose?: () => void } = {}) 
           onChange={setActiveHub}
           loading={hubsLoading}
         />
+        {!hubsLoading && hubsError && (
+          <span className="text-xs text-destructive" role="alert">
+            {t('hub.loadError')}
+          </span>
+        )}
         {state.activeHubNameId && (
           <button
             type="button"
