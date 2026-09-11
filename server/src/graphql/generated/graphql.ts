@@ -99,6 +99,31 @@ export type AccountAuthorizationResetInput = {
   accountID: Scalars['UUID']['input'];
 };
 
+/** One item blocking a user from deleting their own account — a space, virtual contributor, innovation pack, innovation hub, or an organization the user is the sole owner of. */
+export type AccountDeletionBlocker = {
+  displayName: Scalars['String']['output'];
+  kind: AccountDeletionBlockerKind;
+  resourceID: Scalars['UUID']['output'];
+  /** True when the user can resolve the blocker alone, via the existing account-resources page. False for a sole-owned organization — ownership must be handed over, or support contacted. */
+  selfResolvable: Scalars['Boolean']['output'];
+  /** Client-navigable URL of the blocking resource, when one exists. */
+  url?: Maybe<Scalars['String']['output']>;
+};
+
+/** The kind of resource blocking a user from deleting their own account. */
+export type AccountDeletionBlockerKind =
+  | 'ACCOUNT_INNOVATION_HUB'
+  | 'ACCOUNT_INNOVATION_PACK'
+  | 'ACCOUNT_SPACE'
+  | 'ACCOUNT_VIRTUAL_CONTRIBUTOR'
+  | 'SOLE_ORGANIZATION_OWNER';
+
+/** Accurate per-kind total, independent of whether the itemized blocker list was truncated. */
+export type AccountDeletionBlockerTotal = {
+  kind: AccountDeletionBlockerKind;
+  total: Scalars['Int']['output'];
+};
+
 export type AccountLicensePlan = {
   /** The number of Innovation Packs allowed. */
   innovationPacks: Scalars['Int']['output'];
@@ -2402,7 +2427,7 @@ export type CreateInnovationFlowStateSettingsData = {
   descriptionDisplayMode?: Maybe<CalloutDescriptionDisplayMode>;
   /** Optional. Whether Posts in this State show publish details in the feed. Defaults to true when omitted. */
   showPublishDetails?: Maybe<Scalars['Boolean']['output']>;
-  /** Optional. Ordered sidebar widgets; defaults to [INTENT, CREATE_POST, APPLICATION_BUTTON, INDEX] when omitted. */
+  /** Optional. Ordered sidebar widgets; defaults to [INTENT, CREATE_POST, APPLICATION_BUTTON, SEARCH, INDEX] when omitted. */
   sidebar?: Maybe<Array<SidebarWidget>>;
   /** Optional. Whether the phase is shown in member-facing navigation. Defaults to true when omitted. */
   visible?: Maybe<Scalars['Boolean']['output']>;
@@ -2415,7 +2440,7 @@ export type CreateInnovationFlowStateSettingsInput = {
   descriptionDisplayMode?: InputMaybe<CalloutDescriptionDisplayMode>;
   /** Optional. Whether Posts in this State show publish details in the feed. Defaults to true when omitted. */
   showPublishDetails?: InputMaybe<Scalars['Boolean']['input']>;
-  /** Optional. Ordered sidebar widgets; defaults to [INTENT, CREATE_POST, APPLICATION_BUTTON, INDEX] when omitted. */
+  /** Optional. Ordered sidebar widgets; defaults to [INTENT, CREATE_POST, APPLICATION_BUTTON, SEARCH, INDEX] when omitted. */
   sidebar?: InputMaybe<Array<SidebarWidget>>;
   /** Optional. Whether the phase is shown in member-facing navigation. Defaults to true when omitted. */
   visible?: InputMaybe<Scalars['Boolean']['input']>;
@@ -2944,6 +2969,7 @@ export type CredentialType =
   | 'PLATFORM_OPERATIONS_ADMIN'
   | 'SPACE_ADMIN'
   | 'SPACE_FEATURE_MEMO_MULTI_USER'
+  | 'SPACE_FEATURE_MEMO_SIGNING'
   | 'SPACE_FEATURE_OFFICE_DOCUMENTS'
   | 'SPACE_FEATURE_SAVE_AS_TEMPLATE'
   | 'SPACE_FEATURE_VIRTUAL_CONTRIBUTORS'
@@ -3479,10 +3505,6 @@ export type InAppNotificationPayloadPlatformUserMessageRoom = InAppNotificationP
 export type InAppNotificationPayloadPlatformUserProfileRemoved = InAppNotificationPayload & {
   /** The payload type. */
   type: NotificationEventPayload;
-  /** The display name of the User that was removed. */
-  userDisplayName: Scalars['String']['output'];
-  /** The email of the User that was removed. */
-  userEmail: Scalars['String']['output'];
 };
 
 export type InAppNotificationPayloadSpace = InAppNotificationPayload & {
@@ -4021,6 +4043,7 @@ export type LicenseEntitlementType =
   | 'ACCOUNT_SPACE_PREMIUM'
   | 'ACCOUNT_VIRTUAL_CONTRIBUTOR'
   | 'SPACE_FLAG_MEMO_MULTI_USER'
+  | 'SPACE_FLAG_MEMO_SIGNING'
   | 'SPACE_FLAG_OFFICE_DOCUMENTS'
   | 'SPACE_FLAG_SAVE_AS_TEMPLATE'
   | 'SPACE_FLAG_VIRTUAL_CONTRIBUTOR_ACCESS'
@@ -4101,6 +4124,7 @@ export type Licensing = {
 export type LicensingCredentialBasedCredentialType =
   | 'ACCOUNT_LICENSE_PLUS'
   | 'SPACE_FEATURE_MEMO_MULTI_USER'
+  | 'SPACE_FEATURE_MEMO_SIGNING'
   | 'SPACE_FEATURE_OFFICE_DOCUMENTS'
   | 'SPACE_FEATURE_SAVE_AS_TEMPLATE'
   | 'SPACE_FEATURE_VIRTUAL_CONTRIBUTORS'
@@ -4737,12 +4761,30 @@ export type McpApiKeyStatus =
   | 'EXPIRED'
   | 'REVOKED';
 
+/** Self-scoped pre-flight read for account deletion: whether the calling user can delete their own account right now, and if not, exactly what blocks them. Computed by the same predicate the deleteUser mutation's self-branch guard uses, so the two can never drift. Not gated on session freshness — see sessionFresh. */
+export type MeAccountDeletionStatus = {
+  /** Itemized blockers, capped at 25. */
+  blockers: Array<AccountDeletionBlocker>;
+  /** True iff no blockers exist for the self branch. */
+  canDelete: Scalars['Boolean']['output'];
+  /** True when the account carries a stored external billing linkage. Surfaced for transparency and captured in the audit record on deletion — never a blocker. */
+  externalSubscriptionLinked: Scalars['Boolean']['output'];
+  /** True iff the calling session currently satisfies the privileged freshness window. Advisory for client routing; the deleteUser mutation re-enforces this authoritatively at mutation time. */
+  sessionFresh: Scalars['Boolean']['output'];
+  /** Accurate per-kind totals, independent of truncation. */
+  totals: Array<AccountDeletionBlockerTotal>;
+  /** True when the blocker list above was truncated at the cap. */
+  truncated: Scalars['Boolean']['output'];
+};
+
 export type MeConversationsResult = {
   /** All conversations (direct and group) for the current authenticated user. Client handles categorization by room type and member actor types. */
   conversations: Array<Conversation>;
 };
 
 export type MeQueryResults = {
+  /** Self-scoped pre-flight read for account deletion: whether the calling user can delete their own account right now, and if not, exactly what blocks them. */
+  accountDeletion: MeAccountDeletionStatus;
   /** The community applications current authenticated user can act on. */
   communityApplications: Array<CommunityApplicationResult>;
   /** The invitations the current authenticated user can act on. */
@@ -4838,8 +4880,54 @@ export type Memo = {
   nameID: Scalars['NameID']['output'];
   /** The Profile for this Memo. */
   profile: Profile;
+  /** Signed copies of this Memo visible to readers of the Memo. */
+  signatures: Array<MemoSignature>;
   /** The date at which the entity was last updated. */
   updatedDate: Scalars['DateTime']['output'];
+};
+
+export type MemoSignature = {
+  /** The Alkemio user who initiated this signed copy. */
+  actor?: Maybe<User>;
+  /** The date at which the entity was created. */
+  createdDate: Scalars['DateTime']['output'];
+  /** The immutable PDF produced for this signed copy. */
+  document?: Maybe<Document>;
+  /** The ID of the entity */
+  id: Scalars['UUID']['output'];
+  /** The terminal outcome of this Memo signing attempt. */
+  status: SigningAttemptStatus;
+  /** The date at which the entity was last updated. */
+  updatedDate: Scalars['DateTime']['output'];
+};
+
+export type MemoSignatureVerificationStatus =
+  | 'INVALID'
+  | 'UNAVAILABLE'
+  | 'VERIFIED';
+
+export type MemoSignatureVerifyInput = {
+  /** The signed Memo attempt to verify. */
+  attemptID: Scalars['UUID']['input'];
+};
+
+export type MemoSigningContinueInput = {
+  /** The prepared signing attempt to start. */
+  attemptID: Scalars['UUID']['input'];
+};
+
+export type MemoSigningContinueResult = {
+  authorizeUrl: Scalars['String']['output'];
+};
+
+export type MemoSigningPrepareInput = {
+  /** The Memo to prepare for signing. */
+  memoID: Scalars['UUID']['input'];
+};
+
+export type MemoSigningPrepareResult = {
+  attemptId: Scalars['UUID']['output'];
+  previewUrl: Scalars['String']['output'];
 };
 
 /** A message that was sent in a chat room */
@@ -5115,6 +5203,8 @@ export type Mutation = {
   castPollVote: Poll;
   /** Deletes collections nameID-... */
   cleanupCollections: MigrateEmbeddings;
+  /** Starts signing the prepared Memo copy. */
+  continueMemoSigning: MemoSigningContinueResult;
   /** Move an L1 Space up in the hierarchy, to be a L0 Space. */
   convertSpaceL1ToSpaceL0: Space;
   /** Move an L1 Space down in the hierarchy within the same L0 Space, to be a L2 Space.       Restrictions: the Space L1 must remain within the same L0 Space.       Roles: all user, organization and virtual contributor role assignments are removed, with       the exception of Admin role assignments for Users. */
@@ -5281,6 +5371,8 @@ export type Mutation = {
   moveSpaceL2ToSpaceL1: Space;
   /** Moves a task to another column on its Tasks board. Authorized as MOVE_TASK on the parent Callout, so a board member can move any task. */
   moveTaskToColumn: CalloutContribution;
+  /** Prepares an exact PDF preview for signing the specified Memo. */
+  prepareMemoSigning: MemoSigningPrepareResult;
   /** Refresh the Bodies of Knowledge on All VCs */
   refreshAllBodiesOfKnowledge: Scalars['Boolean']['output'];
   /** Triggers a request to the backing AI Service to refresh the knowledge that is available to it. */
@@ -5690,6 +5782,11 @@ export type MutationCastPollVoteArgs = {
 };
 
 
+export type MutationContinueMemoSigningArgs = {
+  signingData: MemoSigningContinueInput;
+};
+
+
 export type MutationConvertSpaceL1ToSpaceL0Args = {
   convertData: ConvertSpaceL1ToSpaceL0Input;
 };
@@ -6096,6 +6193,11 @@ export type MutationMoveSpaceL2ToSpaceL1Args = {
 
 export type MutationMoveTaskToColumnArgs = {
   moveData: MoveTaskToColumnInput;
+};
+
+
+export type MutationPrepareMemoSigningArgs = {
+  signingData: MemoSigningPrepareInput;
 };
 
 
@@ -7679,6 +7781,8 @@ export type Query = {
   rolesVirtualContributor: ActorRoles;
   /** Search the platform for terms supplied */
   search: ISearchResults;
+  /** A Memo signing attempt belonging to the current actor. */
+  signingAttempt: MemoSignature;
   /** The Spaces on this platform; If accessed through an Innovation Hub will return ONLY the Spaces defined in it. */
   spaces: Array<Space>;
   /** The Spaces on this platform */
@@ -7699,6 +7803,8 @@ export type Query = {
   usersWithAuthorizationCredential: Array<User>;
   /** Returns the VAPID public key needed by clients to subscribe to push notifications. Returns null if push notifications are not enabled on this server. */
   vapidPublicKey?: Maybe<Scalars['String']['output']>;
+  /** Checks the stored integrity of a signed Memo copy. */
+  verifyMemoSignature: MemoSignatureVerificationStatus;
   /** A particular VirtualContributor */
   virtualContributor: VirtualContributor;
   /** The VirtualContributors on this platform; only accessible to platform admins */
@@ -7798,6 +7904,11 @@ export type QuerySearchArgs = {
 };
 
 
+export type QuerySigningAttemptArgs = {
+  ID: Scalars['UUID']['input'];
+};
+
+
 export type QuerySpacesArgs = {
   IDs?: InputMaybe<Array<Scalars['UUID']['input']>>;
   filter?: InputMaybe<SpaceFilterInput>;
@@ -7853,6 +7964,11 @@ export type QueryUsersPaginatedArgs = {
 
 export type QueryUsersWithAuthorizationCredentialArgs = {
   credentialsCriteriaData: UsersWithAuthorizationCredentialInput;
+};
+
+
+export type QueryVerifyMemoSignatureArgs = {
+  verificationData: MemoSignatureVerifyInput;
 };
 
 
@@ -8763,9 +8879,17 @@ export type SidebarWidget =
   | 'GUIDELINES'
   | 'INDEX'
   | 'INTENT'
+  | 'SEARCH'
   | 'SUBSPACE_LINKS'
   | 'UPDATES'
   | 'VIRTUAL_CONTRIBUTORS';
+
+export type SigningAttemptStatus =
+  | 'CANCELLED'
+  | 'EXPIRED'
+  | 'FAILED'
+  | 'PENDING'
+  | 'SIGNED';
 
 export type Space = ActorFull & {
   /** About this space. */
@@ -11338,6 +11462,9 @@ export type ResolversTypes = {
   APM: ResolverTypeWrapper<SchemaTypes.Apm>;
   Account: ResolverTypeWrapper<Omit<SchemaTypes.Account, 'actor' | 'baselineLicensePlan' | 'credentials' | 'host' | 'innovationHubs' | 'innovationPacks' | 'profile' | 'spaces'> & { actor: ResolversTypes['Actor'], baselineLicensePlan: ResolversTypes['AccountLicensePlan'], credentials?: SchemaTypes.Maybe<Array<ResolversTypes['Credential']>>, host?: SchemaTypes.Maybe<ResolversTypes['Actor']>, innovationHubs: Array<ResolversTypes['InnovationHub']>, innovationPacks: Array<ResolversTypes['InnovationPack']>, profile?: SchemaTypes.Maybe<ResolversTypes['Profile']>, spaces: Array<ResolversTypes['Space']> }>;
   AccountAuthorizationResetInput: SchemaTypes.AccountAuthorizationResetInput;
+  AccountDeletionBlocker: ResolverTypeWrapper<SchemaTypes.AccountDeletionBlocker>;
+  AccountDeletionBlockerKind: SchemaTypes.AccountDeletionBlockerKind;
+  AccountDeletionBlockerTotal: ResolverTypeWrapper<SchemaTypes.AccountDeletionBlockerTotal>;
   AccountLicensePlan: ResolverTypeWrapper<SchemaTypes.AccountLicensePlan>;
   AccountLicenseResetInput: SchemaTypes.AccountLicenseResetInput;
   AccountSubscription: ResolverTypeWrapper<SchemaTypes.AccountSubscription>;
@@ -11724,10 +11851,18 @@ export type ResolversTypes = {
   McpApiKeyMintResult: ResolverTypeWrapper<SchemaTypes.McpApiKeyMintResult>;
   McpApiKeyOperation: SchemaTypes.McpApiKeyOperation;
   McpApiKeyStatus: SchemaTypes.McpApiKeyStatus;
+  MeAccountDeletionStatus: ResolverTypeWrapper<SchemaTypes.MeAccountDeletionStatus>;
   MeConversationsResult: ResolverTypeWrapper<Omit<SchemaTypes.MeConversationsResult, 'conversations'> & { conversations: Array<ResolversTypes['Conversation']> }>;
   MeQueryResults: ResolverTypeWrapper<Omit<SchemaTypes.MeQueryResults, 'communityApplications' | 'communityInvitations' | 'conversations' | 'mySpaces' | 'notifications' | 'spaceMembershipsFlat' | 'spaceMembershipsHierarchical' | 'user'> & { communityApplications: Array<ResolversTypes['CommunityApplicationResult']>, communityInvitations: Array<ResolversTypes['CommunityInvitationResult']>, conversations: ResolversTypes['MeConversationsResult'], mySpaces: Array<ResolversTypes['MySpaceResults']>, notifications: ResolversTypes['PaginatedInAppNotifications'], spaceMembershipsFlat: Array<ResolversTypes['CommunityMembershipResult']>, spaceMembershipsHierarchical: Array<ResolversTypes['CommunityMembershipResult']>, user?: SchemaTypes.Maybe<ResolversTypes['User']> }>;
   MediaGallery: ResolverTypeWrapper<Omit<SchemaTypes.MediaGallery, 'storageBucket'> & { storageBucket?: SchemaTypes.Maybe<ResolversTypes['StorageBucket']> }>;
   Memo: ResolverTypeWrapper<Omit<SchemaTypes.Memo, 'createdBy' | 'profile'> & { createdBy?: SchemaTypes.Maybe<ResolversTypes['User']>, profile: ResolversTypes['Profile'] }>;
+  MemoSignature: ResolverTypeWrapper<Omit<SchemaTypes.MemoSignature, 'actor' | 'document'> & { actor?: SchemaTypes.Maybe<ResolversTypes['User']>, document?: SchemaTypes.Maybe<ResolversTypes['Document']> }>;
+  MemoSignatureVerificationStatus: SchemaTypes.MemoSignatureVerificationStatus;
+  MemoSignatureVerifyInput: SchemaTypes.MemoSignatureVerifyInput;
+  MemoSigningContinueInput: SchemaTypes.MemoSigningContinueInput;
+  MemoSigningContinueResult: ResolverTypeWrapper<SchemaTypes.MemoSigningContinueResult>;
+  MemoSigningPrepareInput: SchemaTypes.MemoSigningPrepareInput;
+  MemoSigningPrepareResult: ResolverTypeWrapper<SchemaTypes.MemoSigningPrepareResult>;
   Message: ResolverTypeWrapper<Omit<SchemaTypes.Message, 'sender'> & { sender?: SchemaTypes.Maybe<ResolversTypes['Actor']> }>;
   MessageDetails: ResolverTypeWrapper<SchemaTypes.MessageDetails>;
   MessageID: ResolverTypeWrapper<SchemaTypes.Scalars['MessageID']['output']>;
@@ -11897,6 +12032,7 @@ export type ResolversTypes = {
   SetDefaultCalloutTemplateOnInnovationFlowStateInput: SchemaTypes.SetDefaultCalloutTemplateOnInnovationFlowStateInput;
   SetPlatformWellKnownVirtualContributorInput: SchemaTypes.SetPlatformWellKnownVirtualContributorInput;
   SidebarWidget: SchemaTypes.SidebarWidget;
+  SigningAttemptStatus: SchemaTypes.SigningAttemptStatus;
   Space: ResolverTypeWrapper<Omit<SchemaTypes.Space, 'about' | 'account' | 'actor' | 'collaboration' | 'community' | 'credentials' | 'mentionableContributors' | 'profile' | 'subspaceByNameID' | 'subspaces'> & { about: ResolversTypes['SpaceAbout'], account: ResolversTypes['Account'], actor: ResolversTypes['Actor'], collaboration: ResolversTypes['Collaboration'], community: ResolversTypes['Community'], credentials?: SchemaTypes.Maybe<Array<ResolversTypes['Credential']>>, mentionableContributors: Array<ResolversTypes['ActorFull']>, profile?: SchemaTypes.Maybe<ResolversTypes['Profile']>, subspaceByNameID: ResolversTypes['Space'], subspaces: Array<ResolversTypes['Space']> }>;
   SpaceAbout: ResolverTypeWrapper<Omit<SchemaTypes.SpaceAbout, 'guidelines' | 'membership' | 'profile' | 'provider'> & { guidelines: ResolversTypes['CommunityGuidelines'], membership: ResolversTypes['SpaceAboutMembership'], profile: ResolversTypes['Profile'], provider?: SchemaTypes.Maybe<ResolversTypes['Actor']> }>;
   SpaceAboutMembership: ResolverTypeWrapper<Omit<SchemaTypes.SpaceAboutMembership, 'leadOrganizations' | 'leadUsers'> & { leadOrganizations: Array<ResolversTypes['Organization']>, leadUsers: Array<ResolversTypes['User']> }>;
@@ -12135,6 +12271,8 @@ export type ResolversParentTypes = {
   APM: SchemaTypes.Apm;
   Account: Omit<SchemaTypes.Account, 'actor' | 'baselineLicensePlan' | 'credentials' | 'host' | 'innovationHubs' | 'innovationPacks' | 'profile' | 'spaces'> & { actor: ResolversParentTypes['Actor'], baselineLicensePlan: ResolversParentTypes['AccountLicensePlan'], credentials?: SchemaTypes.Maybe<Array<ResolversParentTypes['Credential']>>, host?: SchemaTypes.Maybe<ResolversParentTypes['Actor']>, innovationHubs: Array<ResolversParentTypes['InnovationHub']>, innovationPacks: Array<ResolversParentTypes['InnovationPack']>, profile?: SchemaTypes.Maybe<ResolversParentTypes['Profile']>, spaces: Array<ResolversParentTypes['Space']> };
   AccountAuthorizationResetInput: SchemaTypes.AccountAuthorizationResetInput;
+  AccountDeletionBlocker: SchemaTypes.AccountDeletionBlocker;
+  AccountDeletionBlockerTotal: SchemaTypes.AccountDeletionBlockerTotal;
   AccountLicensePlan: SchemaTypes.AccountLicensePlan;
   AccountLicenseResetInput: SchemaTypes.AccountLicenseResetInput;
   AccountSubscription: SchemaTypes.AccountSubscription;
@@ -12480,10 +12618,17 @@ export type ResolversParentTypes = {
   Markdown: SchemaTypes.Scalars['Markdown']['output'];
   McpApiKey: SchemaTypes.McpApiKey;
   McpApiKeyMintResult: SchemaTypes.McpApiKeyMintResult;
+  MeAccountDeletionStatus: SchemaTypes.MeAccountDeletionStatus;
   MeConversationsResult: Omit<SchemaTypes.MeConversationsResult, 'conversations'> & { conversations: Array<ResolversParentTypes['Conversation']> };
   MeQueryResults: Omit<SchemaTypes.MeQueryResults, 'communityApplications' | 'communityInvitations' | 'conversations' | 'mySpaces' | 'notifications' | 'spaceMembershipsFlat' | 'spaceMembershipsHierarchical' | 'user'> & { communityApplications: Array<ResolversParentTypes['CommunityApplicationResult']>, communityInvitations: Array<ResolversParentTypes['CommunityInvitationResult']>, conversations: ResolversParentTypes['MeConversationsResult'], mySpaces: Array<ResolversParentTypes['MySpaceResults']>, notifications: ResolversParentTypes['PaginatedInAppNotifications'], spaceMembershipsFlat: Array<ResolversParentTypes['CommunityMembershipResult']>, spaceMembershipsHierarchical: Array<ResolversParentTypes['CommunityMembershipResult']>, user?: SchemaTypes.Maybe<ResolversParentTypes['User']> };
   MediaGallery: Omit<SchemaTypes.MediaGallery, 'storageBucket'> & { storageBucket?: SchemaTypes.Maybe<ResolversParentTypes['StorageBucket']> };
   Memo: Omit<SchemaTypes.Memo, 'createdBy' | 'profile'> & { createdBy?: SchemaTypes.Maybe<ResolversParentTypes['User']>, profile: ResolversParentTypes['Profile'] };
+  MemoSignature: Omit<SchemaTypes.MemoSignature, 'actor' | 'document'> & { actor?: SchemaTypes.Maybe<ResolversParentTypes['User']>, document?: SchemaTypes.Maybe<ResolversParentTypes['Document']> };
+  MemoSignatureVerifyInput: SchemaTypes.MemoSignatureVerifyInput;
+  MemoSigningContinueInput: SchemaTypes.MemoSigningContinueInput;
+  MemoSigningContinueResult: SchemaTypes.MemoSigningContinueResult;
+  MemoSigningPrepareInput: SchemaTypes.MemoSigningPrepareInput;
+  MemoSigningPrepareResult: SchemaTypes.MemoSigningPrepareResult;
   Message: Omit<SchemaTypes.Message, 'sender'> & { sender?: SchemaTypes.Maybe<ResolversParentTypes['Actor']> };
   MessageDetails: SchemaTypes.MessageDetails;
   MessageID: SchemaTypes.Scalars['MessageID']['output'];
@@ -12865,6 +13010,19 @@ export type AccountResolvers<ContextType = any, ParentType extends ResolversPare
   updatedDate?: Resolver<ResolversTypes['DateTime'], ParentType, ContextType>;
   virtualContributors?: Resolver<Array<ResolversTypes['VirtualContributor']>, ParentType, ContextType>;
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
+};
+
+export type AccountDeletionBlockerResolvers<ContextType = any, ParentType extends ResolversParentTypes['AccountDeletionBlocker'] = ResolversParentTypes['AccountDeletionBlocker']> = {
+  displayName?: Resolver<ResolversTypes['String'], ParentType, ContextType>;
+  kind?: Resolver<ResolversTypes['AccountDeletionBlockerKind'], ParentType, ContextType>;
+  resourceID?: Resolver<ResolversTypes['UUID'], ParentType, ContextType>;
+  selfResolvable?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
+  url?: Resolver<SchemaTypes.Maybe<ResolversTypes['String']>, ParentType, ContextType>;
+};
+
+export type AccountDeletionBlockerTotalResolvers<ContextType = any, ParentType extends ResolversParentTypes['AccountDeletionBlockerTotal'] = ResolversParentTypes['AccountDeletionBlockerTotal']> = {
+  kind?: Resolver<ResolversTypes['AccountDeletionBlockerKind'], ParentType, ContextType>;
+  total?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
 };
 
 export type AccountLicensePlanResolvers<ContextType = any, ParentType extends ResolversParentTypes['AccountLicensePlan'] = ResolversParentTypes['AccountLicensePlan']> = {
@@ -14030,8 +14188,6 @@ export type InAppNotificationPayloadPlatformUserMessageRoomResolvers<ContextType
 
 export type InAppNotificationPayloadPlatformUserProfileRemovedResolvers<ContextType = any, ParentType extends ResolversParentTypes['InAppNotificationPayloadPlatformUserProfileRemoved'] = ResolversParentTypes['InAppNotificationPayloadPlatformUserProfileRemoved']> = {
   type?: Resolver<ResolversTypes['NotificationEventPayload'], ParentType, ContextType>;
-  userDisplayName?: Resolver<ResolversTypes['String'], ParentType, ContextType>;
-  userEmail?: Resolver<ResolversTypes['String'], ParentType, ContextType>;
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
 };
 
@@ -14489,11 +14645,21 @@ export type McpApiKeyMintResultResolvers<ContextType = any, ParentType extends R
   key?: Resolver<ResolversTypes['McpApiKey'], ParentType, ContextType>;
 };
 
+export type MeAccountDeletionStatusResolvers<ContextType = any, ParentType extends ResolversParentTypes['MeAccountDeletionStatus'] = ResolversParentTypes['MeAccountDeletionStatus']> = {
+  blockers?: Resolver<Array<ResolversTypes['AccountDeletionBlocker']>, ParentType, ContextType>;
+  canDelete?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
+  externalSubscriptionLinked?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
+  sessionFresh?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
+  totals?: Resolver<Array<ResolversTypes['AccountDeletionBlockerTotal']>, ParentType, ContextType>;
+  truncated?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
+};
+
 export type MeConversationsResultResolvers<ContextType = any, ParentType extends ResolversParentTypes['MeConversationsResult'] = ResolversParentTypes['MeConversationsResult']> = {
   conversations?: Resolver<Array<ResolversTypes['Conversation']>, ParentType, ContextType>;
 };
 
 export type MeQueryResultsResolvers<ContextType = any, ParentType extends ResolversParentTypes['MeQueryResults'] = ResolversParentTypes['MeQueryResults']> = {
+  accountDeletion?: Resolver<ResolversTypes['MeAccountDeletionStatus'], ParentType, ContextType>;
   communityApplications?: Resolver<Array<ResolversTypes['CommunityApplicationResult']>, ParentType, ContextType, Partial<SchemaTypes.MeQueryResultsCommunityApplicationsArgs>>;
   communityInvitations?: Resolver<Array<ResolversTypes['CommunityInvitationResult']>, ParentType, ContextType, Partial<SchemaTypes.MeQueryResultsCommunityInvitationsArgs>>;
   communityInvitationsCount?: Resolver<ResolversTypes['Float'], ParentType, ContextType, Partial<SchemaTypes.MeQueryResultsCommunityInvitationsCountArgs>>;
@@ -14528,7 +14694,26 @@ export type MemoResolvers<ContextType = any, ParentType extends ResolversParentT
   markdown?: Resolver<SchemaTypes.Maybe<ResolversTypes['Markdown']>, ParentType, ContextType>;
   nameID?: Resolver<ResolversTypes['NameID'], ParentType, ContextType>;
   profile?: Resolver<ResolversTypes['Profile'], ParentType, ContextType>;
+  signatures?: Resolver<Array<ResolversTypes['MemoSignature']>, ParentType, ContextType>;
   updatedDate?: Resolver<ResolversTypes['DateTime'], ParentType, ContextType>;
+};
+
+export type MemoSignatureResolvers<ContextType = any, ParentType extends ResolversParentTypes['MemoSignature'] = ResolversParentTypes['MemoSignature']> = {
+  actor?: Resolver<SchemaTypes.Maybe<ResolversTypes['User']>, ParentType, ContextType>;
+  createdDate?: Resolver<ResolversTypes['DateTime'], ParentType, ContextType>;
+  document?: Resolver<SchemaTypes.Maybe<ResolversTypes['Document']>, ParentType, ContextType>;
+  id?: Resolver<ResolversTypes['UUID'], ParentType, ContextType>;
+  status?: Resolver<ResolversTypes['SigningAttemptStatus'], ParentType, ContextType>;
+  updatedDate?: Resolver<ResolversTypes['DateTime'], ParentType, ContextType>;
+};
+
+export type MemoSigningContinueResultResolvers<ContextType = any, ParentType extends ResolversParentTypes['MemoSigningContinueResult'] = ResolversParentTypes['MemoSigningContinueResult']> = {
+  authorizeUrl?: Resolver<ResolversTypes['String'], ParentType, ContextType>;
+};
+
+export type MemoSigningPrepareResultResolvers<ContextType = any, ParentType extends ResolversParentTypes['MemoSigningPrepareResult'] = ResolversParentTypes['MemoSigningPrepareResult']> = {
+  attemptId?: Resolver<ResolversTypes['UUID'], ParentType, ContextType>;
+  previewUrl?: Resolver<ResolversTypes['String'], ParentType, ContextType>;
 };
 
 export type MessageResolvers<ContextType = any, ParentType extends ResolversParentTypes['Message'] = ResolversParentTypes['Message']> = {
@@ -14640,6 +14825,7 @@ export type MutationResolvers<ContextType = any, ParentType extends ResolversPar
   authorizationPolicyResetToGlobalAdminsAccess?: Resolver<ResolversTypes['Authorization'], ParentType, ContextType, RequireFields<SchemaTypes.MutationAuthorizationPolicyResetToGlobalAdminsAccessArgs, 'authorizationID'>>;
   castPollVote?: Resolver<ResolversTypes['Poll'], ParentType, ContextType, RequireFields<SchemaTypes.MutationCastPollVoteArgs, 'voteData'>>;
   cleanupCollections?: Resolver<ResolversTypes['MigrateEmbeddings'], ParentType, ContextType>;
+  continueMemoSigning?: Resolver<ResolversTypes['MemoSigningContinueResult'], ParentType, ContextType, RequireFields<SchemaTypes.MutationContinueMemoSigningArgs, 'signingData'>>;
   convertSpaceL1ToSpaceL0?: Resolver<ResolversTypes['Space'], ParentType, ContextType, RequireFields<SchemaTypes.MutationConvertSpaceL1ToSpaceL0Args, 'convertData'>>;
   convertSpaceL1ToSpaceL2?: Resolver<ResolversTypes['Space'], ParentType, ContextType, RequireFields<SchemaTypes.MutationConvertSpaceL1ToSpaceL2Args, 'convertData'>>;
   convertSpaceL2ToSpaceL1?: Resolver<ResolversTypes['Space'], ParentType, ContextType, RequireFields<SchemaTypes.MutationConvertSpaceL2ToSpaceL1Args, 'convertData'>>;
@@ -14723,6 +14909,7 @@ export type MutationResolvers<ContextType = any, ParentType extends ResolversPar
   moveSpaceL1ToSpaceL2?: Resolver<ResolversTypes['Space'], ParentType, ContextType, RequireFields<SchemaTypes.MutationMoveSpaceL1ToSpaceL2Args, 'moveData'>>;
   moveSpaceL2ToSpaceL1?: Resolver<ResolversTypes['Space'], ParentType, ContextType, RequireFields<SchemaTypes.MutationMoveSpaceL2ToSpaceL1Args, 'moveData'>>;
   moveTaskToColumn?: Resolver<ResolversTypes['CalloutContribution'], ParentType, ContextType, RequireFields<SchemaTypes.MutationMoveTaskToColumnArgs, 'moveData'>>;
+  prepareMemoSigning?: Resolver<ResolversTypes['MemoSigningPrepareResult'], ParentType, ContextType, RequireFields<SchemaTypes.MutationPrepareMemoSigningArgs, 'signingData'>>;
   refreshAllBodiesOfKnowledge?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   refreshVirtualContributorBodyOfKnowledge?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType, RequireFields<SchemaTypes.MutationRefreshVirtualContributorBodyOfKnowledgeArgs, 'refreshData'>>;
   removeCommunityGuidelinesContent?: Resolver<ResolversTypes['CommunityGuidelines'], ParentType, ContextType, RequireFields<SchemaTypes.MutationRemoveCommunityGuidelinesContentArgs, 'communityGuidelinesData'>>;
@@ -15290,6 +15477,7 @@ export type QueryResolvers<ContextType = any, ParentType extends ResolversParent
   rolesUser?: Resolver<ResolversTypes['ActorRoles'], ParentType, ContextType, RequireFields<SchemaTypes.QueryRolesUserArgs, 'rolesData'>>;
   rolesVirtualContributor?: Resolver<ResolversTypes['ActorRoles'], ParentType, ContextType, RequireFields<SchemaTypes.QueryRolesVirtualContributorArgs, 'rolesData'>>;
   search?: Resolver<ResolversTypes['ISearchResults'], ParentType, ContextType, RequireFields<SchemaTypes.QuerySearchArgs, 'searchData'>>;
+  signingAttempt?: Resolver<ResolversTypes['MemoSignature'], ParentType, ContextType, RequireFields<SchemaTypes.QuerySigningAttemptArgs, 'ID'>>;
   spaces?: Resolver<Array<ResolversTypes['Space']>, ParentType, ContextType, Partial<SchemaTypes.QuerySpacesArgs>>;
   spacesPaginated?: Resolver<ResolversTypes['PaginatedSpaces'], ParentType, ContextType, Partial<SchemaTypes.QuerySpacesPaginatedArgs>>;
   task?: Resolver<ResolversTypes['Task'], ParentType, ContextType, RequireFields<SchemaTypes.QueryTaskArgs, 'id'>>;
@@ -15300,6 +15488,7 @@ export type QueryResolvers<ContextType = any, ParentType extends ResolversParent
   usersPaginated?: Resolver<ResolversTypes['PaginatedUsers'], ParentType, ContextType, Partial<SchemaTypes.QueryUsersPaginatedArgs>>;
   usersWithAuthorizationCredential?: Resolver<Array<ResolversTypes['User']>, ParentType, ContextType, RequireFields<SchemaTypes.QueryUsersWithAuthorizationCredentialArgs, 'credentialsCriteriaData'>>;
   vapidPublicKey?: Resolver<SchemaTypes.Maybe<ResolversTypes['String']>, ParentType, ContextType>;
+  verifyMemoSignature?: Resolver<ResolversTypes['MemoSignatureVerificationStatus'], ParentType, ContextType, RequireFields<SchemaTypes.QueryVerifyMemoSignatureArgs, 'verificationData'>>;
   virtualContributor?: Resolver<ResolversTypes['VirtualContributor'], ParentType, ContextType, RequireFields<SchemaTypes.QueryVirtualContributorArgs, 'ID'>>;
   virtualContributors?: Resolver<Array<ResolversTypes['VirtualContributor']>, ParentType, ContextType, Partial<SchemaTypes.QueryVirtualContributorsArgs>>;
 };
@@ -16334,6 +16523,8 @@ export type WhiteboardPreviewSettingsResolvers<ContextType = any, ParentType ext
 export type Resolvers<ContextType = any> = {
   APM?: ApmResolvers<ContextType>;
   Account?: AccountResolvers<ContextType>;
+  AccountDeletionBlocker?: AccountDeletionBlockerResolvers<ContextType>;
+  AccountDeletionBlockerTotal?: AccountDeletionBlockerTotalResolvers<ContextType>;
   AccountLicensePlan?: AccountLicensePlanResolvers<ContextType>;
   AccountSubscription?: AccountSubscriptionResolvers<ContextType>;
   ActivityCreatedSubscriptionResult?: ActivityCreatedSubscriptionResultResolvers<ContextType>;
@@ -16523,10 +16714,14 @@ export type Resolvers<ContextType = any> = {
   Markdown?: GraphQLScalarType;
   McpApiKey?: McpApiKeyResolvers<ContextType>;
   McpApiKeyMintResult?: McpApiKeyMintResultResolvers<ContextType>;
+  MeAccountDeletionStatus?: MeAccountDeletionStatusResolvers<ContextType>;
   MeConversationsResult?: MeConversationsResultResolvers<ContextType>;
   MeQueryResults?: MeQueryResultsResolvers<ContextType>;
   MediaGallery?: MediaGalleryResolvers<ContextType>;
   Memo?: MemoResolvers<ContextType>;
+  MemoSignature?: MemoSignatureResolvers<ContextType>;
+  MemoSigningContinueResult?: MemoSigningContinueResultResolvers<ContextType>;
+  MemoSigningPrepareResult?: MemoSigningPrepareResultResolvers<ContextType>;
   Message?: MessageResolvers<ContextType>;
   MessageDetails?: MessageDetailsResolvers<ContextType>;
   MessageID?: GraphQLScalarType;
@@ -16797,6 +16992,13 @@ export type OrganizationByNameIdQueryVariables = SchemaTypes.Exact<{
 
 
 export type OrganizationByNameIdQuery = { lookupByName: { organization?: string | undefined } };
+
+export type SpaceAboutOnlyByNameQueryVariables = SchemaTypes.Exact<{
+  nameId: SchemaTypes.Scalars['NameID']['input'];
+}>;
+
+
+export type SpaceAboutOnlyByNameQuery = { lookupByName: { space?: { id: string, nameID: string, createdDate: Date, visibility: SchemaTypes.SpaceVisibility, about: { id: string, isContentPublic: boolean, membership: { myPrivileges?: Array<SchemaTypes.AuthorizationPrivilege> | undefined }, classifications: Array<{ id: string, displayLabel: string, cardinality: SchemaTypes.ClassificationCardinality, display: boolean, sortOrder: number, values: Array<{ id: string, label: string }>, selectedValues: Array<{ id: string, label: string }> }>, profile: { id: string, displayName: string, tagline?: string | undefined, url: string, location?: { country?: string | undefined, city?: string | undefined, geoLocation: { latitude?: number | undefined, longitude?: number | undefined } } | undefined, avatar?: { uri: string } | undefined, banner?: { uri: string } | undefined, bannerWide?: { uri: string } | undefined, tagsets?: Array<{ name: string, tags: Array<string>, type: SchemaTypes.TagsetType, allowedValues: Array<string> }> | undefined } } } | undefined } };
 
 export type SpaceByNameQueryVariables = SchemaTypes.Exact<{
   nameId: SchemaTypes.Scalars['NameID']['input'];
@@ -17182,6 +17384,15 @@ export const OrganizationByNameIdDocument = gql`
   }
 }
     `;
+export const SpaceAboutOnlyByNameDocument = gql`
+    query SpaceAboutOnlyByName($nameId: NameID!) {
+  lookupByName {
+    space(NAMEID: $nameId) {
+      ...SpaceAboutOnlyFragment
+    }
+  }
+}
+    ${SpaceAboutOnlyFragmentFragmentDoc}`;
 export const SpaceByNameDocument = gql`
     query spaceByName($nameId: NameID!) {
   lookupByName {
@@ -17312,6 +17523,7 @@ const MeDocumentString = print(MeDocument);
 const MySpacesHierarchicalDocumentString = print(MySpacesHierarchicalDocument);
 const OrganizationByIdDocumentString = print(OrganizationByIdDocument);
 const OrganizationByNameIdDocumentString = print(OrganizationByNameIdDocument);
+const SpaceAboutOnlyByNameDocumentString = print(SpaceAboutOnlyByNameDocument);
 const SpaceByNameDocumentString = print(SpaceByNameDocument);
 const SpaceClassificationsDocumentString = print(SpaceClassificationsDocument);
 const SpacesForSelectorDocumentString = print(SpacesForSelectorDocument);
@@ -17348,6 +17560,9 @@ export function getSdk(client: GraphQLClient, withWrapper: SdkFunctionWrapper = 
     },
     OrganizationByNameId(variables: SchemaTypes.OrganizationByNameIdQueryVariables, requestHeaders?: GraphQLClientRequestHeaders): Promise<{ data: SchemaTypes.OrganizationByNameIdQuery; errors?: GraphQLError[]; extensions?: any; headers: Headers; status: number; }> {
         return withWrapper((wrappedRequestHeaders) => client.rawRequest<SchemaTypes.OrganizationByNameIdQuery>(OrganizationByNameIdDocumentString, variables, {...requestHeaders, ...wrappedRequestHeaders}), 'OrganizationByNameId', 'query', variables);
+    },
+    SpaceAboutOnlyByName(variables: SchemaTypes.SpaceAboutOnlyByNameQueryVariables, requestHeaders?: GraphQLClientRequestHeaders): Promise<{ data: SchemaTypes.SpaceAboutOnlyByNameQuery; errors?: GraphQLError[]; extensions?: any; headers: Headers; status: number; }> {
+        return withWrapper((wrappedRequestHeaders) => client.rawRequest<SchemaTypes.SpaceAboutOnlyByNameQuery>(SpaceAboutOnlyByNameDocumentString, variables, {...requestHeaders, ...wrappedRequestHeaders}), 'SpaceAboutOnlyByName', 'query', variables);
     },
     spaceByName(variables: SchemaTypes.SpaceByNameQueryVariables, requestHeaders?: GraphQLClientRequestHeaders): Promise<{ data: SchemaTypes.SpaceByNameQuery; errors?: GraphQLError[]; extensions?: any; headers: Headers; status: number; }> {
         return withWrapper((wrappedRequestHeaders) => client.rawRequest<SchemaTypes.SpaceByNameQuery>(SpaceByNameDocumentString, variables, {...requestHeaders, ...wrappedRequestHeaders}), 'spaceByName', 'query', variables);

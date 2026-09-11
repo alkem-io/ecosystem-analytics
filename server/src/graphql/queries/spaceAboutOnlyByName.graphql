@@ -1,0 +1,12 @@
+# Degraded fetch for a Space the caller can READ_ABOUT but not READ (a private Space
+# the user is not a member of). `spaceByName` selects `community` and `account`, both
+# READ-guarded and non-nullable, so for such a Space Alkemio nulls the whole `space`.
+# Everything the dashboards need to COUNT and PLACE a Space (name, classifications,
+# tags, location, visuals) lives under `about`, which READ_ABOUT grants.
+query SpaceAboutOnlyByName($nameId: NameID!) {
+  lookupByName {
+    space(NAMEID: $nameId) {
+      ...SpaceAboutOnlyFragment
+    }
+  }
+}

@@ -78,7 +78,8 @@
   "hub": {
     "label": "Innovation hub",
     "placeholder": "Kies een innovation hub",
-    "spacesFromHub": "Initiatieven uit hub"
+    "spacesFromHub": "Initiatieven uit hub",
+    "loadError": "De innovation hubs konden niet worden geladen."
   },
   "selection": {
     "title": "Geselecteerde initiatieven",

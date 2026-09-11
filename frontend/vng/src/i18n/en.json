@@ -78,7 +78,8 @@
   "hub": {
     "label": "Innovation hub",
     "placeholder": "Choose an innovation hub",
-    "spacesFromHub": "Initiatives from hub"
+    "spacesFromHub": "Initiatives from hub",
+    "loadError": "Could not load the innovation hubs."
   },
   "selection": {
     "title": "Selected initiatives",
