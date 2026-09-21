@@ -32,7 +32,7 @@ describe('runDeploymentCacheMaintenance', () => {
 
     const first = runDeploymentCacheMaintenance();
     expect(first.gdRowsCleared).toBe(1);
-    expect(getDatabase().pragma('user_version', { simple: true })).toBe(2);
+    expect(getDatabase().pragma('user_version', { simple: true })).toBe(3);
 
     // A GD row written after maintenance must survive a second run — the marker
     // guarantees the one-time purge does not fire again on the next restart.

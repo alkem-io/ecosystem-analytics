@@ -42,7 +42,7 @@ export {
 } from './hooks/useMediaQuery.js';
 
 export { api, NetworkError } from './services/api.js';
-export { login, logout, fetchMe, type MeResponse } from './services/auth.js';
+export { login, logout, fetchMe, redirectToLogin, type MeResponse } from './services/auth.js';
 
 // Per-app configuration primitive + the shared dashboard application shell.
 // Each wrapper app (VNG, GovTech) supplies an AppConfig and renders DashboardApp.

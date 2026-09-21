@@ -23,7 +23,10 @@ oidc:
   redirect_uri: ${OIDC_REDIRECT_URI}:http://localhost:5173/api/auth/oidc/callback # hosted overrides
   scopes: ${OIDC_SCOPES}:openid profile email offline_access alkemio
   audience: "${OIDC_AUDIENCE}:ecosystem-analytics" # aud accepted by Alkemio's Bearer validator
-  preauth_ttl_minutes: ${OIDC_PREAUTH_TTL_MINUTES}:10
+  # How long a started sign-in may take to come back. Hydra keeps its login/consent
+  # request alive for 30 min, so a shorter value strands a visitor who leaves the
+  # Alkemio login page open before submitting.
+  preauth_ttl_minutes: ${OIDC_PREAUTH_TTL_MINUTES}:30
 
 # EA's own server-side session. Browser holds only an opaque httpOnly cookie;
 # access/refresh tokens are encrypted at rest in SQLite (FR-018/FR-018a).
@@ -105,6 +108,9 @@ vng:
     # the programme calls the concept). Its values are the pipeline: Pre-intake, Intake,
     # Initiatief, Formalisatie, Beheer — verified on all 22 spaces of the selection.
     phase: "${VNG_CLASSIFICATION_PHASE}:Fase"
+    # Technology Readiness Level. Its values are authored in level order (TRL 1 → 9),
+    # so it is read exactly like `phase`: the highest selected level wins.
+    trl: "${VNG_CLASSIFICATION_TRL}:TRL"
 
 # GovTech Netherlands frontend (feature 017-govtech-frontend). A separate dashboard
 # profile with its OWN GOVTECH_* env vars (independent of VNG). The Alkemio/OIDC/
@@ -133,3 +139,5 @@ govtech:
     # the programme calls the concept). Its values are the pipeline: Pre-intake, Intake,
     # Initiatief, Formalisatie, Beheer — verified on all 22 spaces of the selection.
     phase: "${GOVTECH_CLASSIFICATION_PHASE}:Fase"
+    # Technology Readiness Level — same ordered-vocabulary reading as `phase`.
+    trl: "${GOVTECH_CLASSIFICATION_TRL}:TRL"

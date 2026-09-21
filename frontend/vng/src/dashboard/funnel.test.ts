@@ -55,6 +55,7 @@ function row(
     activity: null,
     tier: null,
     phase: kind === 'gd' ? null : phase,
+    trl: null,
     classifications: [],
   };
 }

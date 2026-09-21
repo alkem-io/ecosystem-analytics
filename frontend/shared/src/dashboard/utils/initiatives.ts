@@ -49,6 +49,12 @@ export interface InitiativeRow {
    * GemeenteDelers is a completed programme and carries no phase (spec A-005).
    */
   phase: NodePhase | null;
+  /**
+   * Technology Readiness Level reached, from `GraphNode.trl` — same shape and same
+   * "highest selected level wins" reading as `phase`. Null for GD rows and for Groei
+   * rows that select no level.
+   */
+  trl: NodePhase | null;
   /** Authored classification groups, for the funnel's hover card (FR-018). */
   classifications: { id: string; label: string; values: { id: string; label: string }[] }[];
 }
@@ -136,6 +142,7 @@ export function buildInitiativeRows(dataset: GraphDataset | null | undefined): I
       tier: isSpace ? (n.spaceActivityTier ?? ActivityTier.INACTIVE) : null,
       // GD initiatives never carry a phase, whatever the node happens to hold.
       phase: isSpace ? (n.phase ?? null) : null,
+      trl: isSpace ? (n.trl ?? null) : null,
       classifications: n.classifications ?? [],
     });
   }

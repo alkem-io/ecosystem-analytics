@@ -1,4 +1,5 @@
 import { api } from './api.js';
+import { redirectToLogin } from './auth.js';
 import type { StreamEvent, SessionResponse } from '../types/query.js';
 
 const API_BASE = import.meta.env.VITE_API_URL || '';
@@ -26,8 +27,7 @@ export async function* askQuery(
   });
 
   if (response.status === 401) {
-    const returnTo = window.location.pathname + window.location.search;
-    window.location.href = `/api/auth/login?returnTo=${encodeURIComponent(returnTo)}`;
+    redirectToLogin(window.location.pathname + window.location.search);
     throw new Error('Session expired');
   }
 

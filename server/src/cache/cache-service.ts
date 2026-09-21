@@ -139,7 +139,7 @@ export function invalidateGdCacheForAllUsers(): number {
  * Bump this and add a numbered step below whenever a deployment needs a one-time,
  * cache-wide action to run exactly once per environment DB.
  */
-const CACHE_MAINTENANCE_VERSION = 2;
+const CACHE_MAINTENANCE_VERSION = 3;
 
 /**
  * Deployment-scoped, run-once cache maintenance. SQLite's `user_version` is used
@@ -174,7 +174,10 @@ export function runDeploymentCacheMaintenance(): {
     // The gemeente GEO row (feature 019) is deliberately KEPT — it holds no
     // classification data, and rebuilding it costs a ~342-gemeente Alkemio sweep per
     // user that this deployment has no reason to trigger.
-    if (current < 2) {
+    // v3: the classification set on the Groei spaces changed in Alkemio (entries removed,
+    // TRL added) and cached datasets served from BEFORE that change failed the dashboard
+    // until a manual refresh. Same sweep as v2: every dataset row goes, the GEO row stays.
+    if (current < 3) {
       classificationRowsCleared = db
         .prepare('DELETE FROM cache_entries WHERE space_id != ?')
         .run(GEO_CACHE_SPACE_ID).changes;

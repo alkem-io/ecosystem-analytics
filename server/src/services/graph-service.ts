@@ -211,6 +211,8 @@ async function buildGraph(
   // The phase vocabulary is unioned the same way, and its ORDER is the pipeline order —
   // which is what makes "furthest along" meaningful below (feature 022).
   const perSpacePhase: Vocabulary[] = [];
+  // TRL is an ordered vocabulary too (TRL 1 → 9) and is read with the same rule.
+  const perSpaceTrl: Vocabulary[] = [];
   for (const node of allNodes) {
     if (!node.classificationEntries?.length) continue;
     perSpaceNds.push(vocabularyOf(resolveDesignated(node.classificationEntries, designations.nds)));
@@ -220,10 +222,14 @@ async function buildGraph(
     perSpacePhase.push(
       vocabularyOf(resolveDesignated(node.classificationEntries, designations.phase)),
     );
+    perSpaceTrl.push(
+      vocabularyOf(resolveDesignated(node.classificationEntries, designations.trl)),
+    );
   }
   const ndsVocabulary = unionVocabularies(perSpaceNds);
   const vngVocabulary = unionVocabularies(perSpaceVng);
   const phaseVocabulary = unionVocabularies(perSpacePhase);
+  const trlVocabulary = unionVocabularies(perSpaceTrl);
   const labelsFor = (vocabulary: Vocabulary, ids: string[]): string[] =>
     ids.map((id) => vocabulary.find((v) => v.key === id)?.label).filter((l): l is string => !!l);
 
@@ -262,6 +268,7 @@ async function buildGraph(
       // highest index. Identical rule to countGroeiPhases(), which is what makes the
       // Funnel and the growth-phase chart agree (spec FR-023).
       node.phase = resolvePhase(entries, designations.phase, phaseVocabulary);
+      node.trl = resolvePhase(entries, designations.trl, trlVocabulary);
       const presented = presentClassifications(entries);
       node.classifications = presented.length ? presented : undefined;
       // Internal-only: never sent to the browser. The cache row was written before this

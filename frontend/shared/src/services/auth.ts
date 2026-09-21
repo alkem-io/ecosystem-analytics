@@ -14,10 +14,28 @@ export interface MeResponse {
   alkemioServerUrl: string;
 }
 
+let loginRedirectStarted = false;
+
+/**
+ * Navigate to the BFF's sign-in start — at most ONCE per page.
+ *
+ * A page that has lost its session (every deploy invalidates all sessions) fires
+ * several requests in parallel and gets several 401s; if each one navigated, the
+ * browser would start several OIDC flows a few milliseconds apart, and only the
+ * last would survive — with the earlier ones' callback responses still landing
+ * and interfering with the cookie the survivor needs. One redirect is all that
+ * is ever needed: the first `returnTo` is as good as any (they all describe this
+ * page). The flag lives for the life of the document, which ends on navigation.
+ */
+export function redirectToLogin(returnTo: string): void {
+  if (loginRedirectStarted) return;
+  loginRedirectStarted = true;
+  window.location.href = `/api/auth/login?returnTo=${encodeURIComponent(returnTo)}`;
+}
+
 /** Begin sign-in by redirecting to the BFF (which 302s to Alkemio). */
 export function login(returnTo?: string): void {
-  const target = returnTo ?? window.location.pathname + window.location.search;
-  window.location.href = `/api/auth/login?returnTo=${encodeURIComponent(target)}`;
+  redirectToLogin(returnTo ?? window.location.pathname + window.location.search);
 }
 
 /** Fetch the current signed-in identity; resolves to null when unauthenticated. */

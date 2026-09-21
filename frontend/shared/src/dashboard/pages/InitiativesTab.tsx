@@ -12,7 +12,7 @@ import {
 } from '@ea/shared';
 import { RecordCard, RecordCardList, RecordSortControl } from '../components/RecordCards.js';
 import { TableFilterBar, FILTER_ALL } from '../components/TableFilterBar.js';
-import { ActivityTier } from '@server/types/graph.js';
+import { ActivityTier, type NodePhase } from '@server/types/graph.js';
 import { buildInitiativeRows, type InitiativeRow } from '../utils/initiatives.js';
 import { exportTableXlsx, type ChartTable } from '../utils/exportDashboard.js';
 import { useSelectionContext } from '../hooks/SelectionContext.js';
@@ -31,6 +31,8 @@ type SortKey =
   | 'vng2030'
   | 'nds'
   | 'themes'
+  | 'phase'
+  | 'trl'
   | 'commonGround'
   | 'week'
   | 'month'
@@ -52,6 +54,8 @@ const SORT_OPTIONS: SortKey[] = [
   'vng2030',
   'nds',
   'themes',
+  'phase',
+  'trl',
   'commonGround',
   'week',
   'month',
@@ -67,6 +71,8 @@ const SORT_LABEL_KEYS: Record<SortKey, string> = {
   vng2030: 'initiativesTab.colVng2030',
   nds: 'initiativesTab.colNds',
   themes: 'initiativesTab.colThemes',
+  phase: 'initiativesTab.colPhase',
+  trl: 'initiativesTab.colTrl',
   commonGround: 'initiativesTab.colCommonGround',
   week: 'initiativesTab.colActivityWeek',
   month: 'initiativesTab.colActivityMonth',
@@ -113,6 +119,18 @@ const TIER_CLASS: Record<ActivityTier, string> = {
   [ActivityTier.HIGH]: 'bg-emerald-600 text-white',
 };
 
+/**
+ * Filter options for an ordered vocabulary (growth phase, TRL): one option per level
+ * present on the rows, in the vocabulary's own order (`nr`) rather than alphabetical.
+ */
+function orderedLevels(levels: (NodePhase | null)[]): { value: string; label: string }[] {
+  const byKey = new Map<string, NodePhase>();
+  for (const l of levels) if (l && !byKey.has(l.key)) byKey.set(l.key, l);
+  return [...byKey.values()]
+    .sort((a, b) => a.nr - b.nr)
+    .map((l) => ({ value: l.key, label: l.label }));
+}
+
 // Subtle background tint applied across the whole activity cell group, scaled by
 // the tier so an initiative's activity level reads at a glance.
 const TIER_CELL_BG: Record<ActivityTier, string> = {
@@ -134,7 +152,7 @@ const TIER_CELL_BG: Record<ActivityTier, string> = {
  */
 export function InitiativesTab() {
   const { t } = useTranslation();
-  // Below `lg` the thirteen-column table is re-laid as one card per initiative.
+  // Below `lg` the fifteen-column table is re-laid as one card per initiative.
   const compact = useIsCompact();
   const { effectiveSpaceIds, selectedSpaces, state, refreshNonce } = useSelectionContext();
   const { dataset, loading, error } = useVngGraph(effectiveSpaceIds, {
@@ -220,6 +238,20 @@ export function InitiativesTab() {
         matches: (r: Row, v: string) => r.themes.includes(v),
       },
       {
+        // Phase and TRL options are listed in VOCABULARY order (pipeline / level
+        // order), not alphabetically — "Intake" before "Beheer", TRL 2 before TRL 10.
+        key: 'phase',
+        labelKey: 'initiativesTab.filterPhase',
+        options: orderedLevels(allRows.map((r) => r.phase)),
+        matches: (r: Row, v: string) => r.phase?.key === v,
+      },
+      {
+        key: 'trl',
+        labelKey: 'initiativesTab.filterTrl',
+        options: orderedLevels(allRows.map((r) => r.trl)),
+        matches: (r: Row, v: string) => r.trl?.key === v,
+      },
+      {
         key: 'sdg',
         labelKey: 'initiativesTab.filterSdg',
         options: distinct((r) => r.sdg).map((v) => ({ value: v, label: v.toUpperCase() })),
@@ -287,6 +319,11 @@ export function InitiativesTab() {
           return r.nds.join(', ');
         case 'themes':
           return r.themes.join(', ');
+        // Ordered vocabularies sort by position, not label, so TRL 9 follows TRL 2.
+        case 'phase':
+          return r.phase?.nr ?? null;
+        case 'trl':
+          return r.trl?.nr ?? null;
         case 'commonGround':
           return r.commonGround ? 1 : 0;
         case 'week':
@@ -348,6 +385,8 @@ export function InitiativesTab() {
       t('initiativesTab.colVng2030'),
       t('initiativesTab.colNds'),
       t('initiativesTab.colThemes'),
+      t('initiativesTab.colPhase'),
+      t('initiativesTab.colTrl'),
       t('initiativesTab.colSdg'),
       t('initiativesTab.filterAward'),
       t('initiativesTab.colCommonGround'),
@@ -369,6 +408,8 @@ export function InitiativesTab() {
       r.vng2030.join(', '),
       r.nds.join(', '),
       r.themes.join(', '),
+      r.phase?.label ?? '',
+      r.trl?.label ?? '',
       r.sdg.map((v) => v.toUpperCase()).join(', '),
       r.awards.join(', '),
       r.commonGround ? t('initiativesTab.cgYes') : t('initiativesTab.cgNo'),
@@ -451,6 +492,16 @@ export function InitiativesTab() {
           </span>
         ))}
       </div>
+    );
+
+  // One level of an ordered vocabulary (phase / TRL) as a single chip, or a dash.
+  const level = (value: NodePhase | null) =>
+    value == null ? (
+      <span className="text-muted-foreground">—</span>
+    ) : (
+      <span className="inline-flex items-center rounded-full border border-border bg-muted px-2 py-0.5 text-xs text-foreground">
+        {value.label}
+      </span>
     );
 
   const empty = !loading && !error && effectiveSpaceIds.length === 0;
@@ -606,6 +657,8 @@ export function InitiativesTab() {
                     { label: t('initiativesTab.colVng2030'), value: chips(r.vng2030), full: true },
                     { label: t('initiativesTab.colNds'), value: chips(r.nds), full: true },
                     { label: t('initiativesTab.colThemes'), value: chips(r.themes), full: true },
+                    { label: t('initiativesTab.colPhase'), value: level(r.phase) },
+                    { label: t('initiativesTab.colTrl'), value: level(r.trl) },
                   ]}
                 />
               ))}
@@ -623,7 +676,7 @@ export function InitiativesTab() {
                   <th className={groupTh} colSpan={3}>
                     {t('initiativesTab.groupCommunity')}
                   </th>
-                  <th className={groupTh} colSpan={4}>
+                  <th className={groupTh} colSpan={6}>
                     {t('initiativesTab.groupClassification')}
                   </th>
                   <th className={groupTh} colSpan={4}>
@@ -648,6 +701,12 @@ export function InitiativesTab() {
                   </th>
                   <th className="px-3 py-2.5">
                     {headerBtn('themes', t('initiativesTab.colThemes'))}
+                  </th>
+                  <th className="w-28 px-3 py-2.5">
+                    {headerBtn('phase', t('initiativesTab.colPhase'))}
+                  </th>
+                  <th className="w-20 px-3 py-2.5">
+                    {headerBtn('trl', t('initiativesTab.colTrl'))}
                   </th>
                   <th className="px-3 py-2.5">
                     {headerBtn('commonGround', t('initiativesTab.colCommonGround'))}
@@ -717,6 +776,8 @@ export function InitiativesTab() {
                       {chips(r.nds, (v) => v)}
                     </td>
                     <td className="px-3 py-2.5">{chips(r.themes)}</td>
+                    <td className="px-3 py-2.5">{level(r.phase)}</td>
+                    <td className="px-3 py-2.5">{level(r.trl)}</td>
                     <td className="px-3 py-2.5">
                       {r.commonGround ? (
                         <Check className="h-4 w-4 text-primary" aria-label={t('initiativesTab.cgYes')} />
