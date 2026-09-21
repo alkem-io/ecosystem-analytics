@@ -60,7 +60,13 @@ export function LoginScreen() {
       ? t('login.errorCancelled', {
           defaultValue: 'Your sign-in was cancelled before it completed. You can try again below.',
         })
-      : t('login.errorFailed', {
+      : authError === 'expired'
+        ? t('login.errorExpired', {
+            defaultValue:
+              'That sign-in request is no longer valid — it took too long, or it was already ' +
+              'completed in another tab. Please sign in again.',
+          })
+        : t('login.errorFailed', {
           defaultValue:
             "We couldn't complete sign-in with Alkemio. This is usually a temporary problem " +
             'with the sign-in service rather than your account. Please try again — if it keeps ' +

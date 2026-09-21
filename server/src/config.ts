@@ -89,6 +89,8 @@ export interface DashboardAppConfig {
     nds: string;
     vng2030: string;
     phase: string;
+    /** Technology Readiness Level — an ordered vocabulary (TRL 1 → 9), read like `phase`. */
+    trl: string;
   };
 }
 
@@ -262,7 +264,7 @@ interface DashboardYamlBlock {
   gemeentedelers_space_nameid?: string;
   gd_cache_ttl_hours?: number;
   geo_cache_ttl_hours?: number;
-  classifications?: { nds?: unknown; vng2030?: unknown; phase?: unknown };
+  classifications?: { nds?: unknown; vng2030?: unknown; phase?: unknown; trl?: unknown };
 }
 
 /**
@@ -291,6 +293,7 @@ function parseDashboardConfig(raw?: DashboardYamlBlock): DashboardAppConfig {
       nds: designation(raw?.classifications?.nds, 'NDS-prioriteit'),
       vng2030: designation(raw?.classifications?.vng2030, 'VNG 2030 thema'),
       phase: designation(raw?.classifications?.phase, 'Fase'),
+      trl: designation(raw?.classifications?.trl, 'TRL'),
     },
   };
 }
@@ -339,7 +342,7 @@ function parseOidcConfig(raw: {
     redirectUri,
     scopes: String(raw.scopes || 'openid profile email offline_access alkemio'),
     audience: raw.audience ? String(raw.audience) : '',
-    preauthTtlMinutes: Number(raw.preauth_ttl_minutes) || 10,
+    preauthTtlMinutes: Number(raw.preauth_ttl_minutes) || 30,
   };
 }
 

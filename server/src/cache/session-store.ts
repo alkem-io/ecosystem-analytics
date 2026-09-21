@@ -15,6 +15,8 @@ export interface AuthTxRecord {
   nonce: string;
   codeVerifier: string;
   returnTo: string;
+  /** Opaque value of the `ea_preauth` cookie in the browser that started this flow. */
+  browserKey: string;
   createdAt: number;
   expiresAt: number;
 }
@@ -25,15 +27,30 @@ interface AuthTxRow {
   nonce: string;
   code_verifier: string;
   return_to: string;
+  browser_key: string;
   created_at: number;
   expires_at: number;
+}
+
+function toAuthTxRecord(row: AuthTxRow): AuthTxRecord {
+  return {
+    txId: row.tx_id,
+    state: row.state,
+    nonce: row.nonce,
+    codeVerifier: row.code_verifier,
+    returnTo: row.return_to,
+    browserKey: row.browser_key,
+    createdAt: row.created_at,
+    expiresAt: row.expires_at,
+  };
 }
 
 export function insertAuthTx(rec: AuthTxRecord): void {
   getDatabase()
     .prepare(
-      `INSERT INTO oidc_auth_tx (tx_id, state, nonce, code_verifier, return_to, created_at, expires_at)
-       VALUES (@txId, @state, @nonce, @codeVerifier, @returnTo, @createdAt, @expiresAt)`,
+      `INSERT INTO oidc_auth_tx
+         (tx_id, state, nonce, code_verifier, return_to, browser_key, created_at, expires_at)
+       VALUES (@txId, @state, @nonce, @codeVerifier, @returnTo, @browserKey, @createdAt, @expiresAt)`,
     )
     .run(rec);
 }
@@ -42,31 +59,37 @@ export function getAuthTx(txId: string): AuthTxRecord | null {
   const row = getDatabase()
     .prepare('SELECT * FROM oidc_auth_tx WHERE tx_id = ?')
     .get(txId) as AuthTxRow | undefined;
-  if (!row) return null;
-  return {
-    txId: row.tx_id,
-    state: row.state,
-    nonce: row.nonce,
-    codeVerifier: row.code_verifier,
-    returnTo: row.return_to,
-    createdAt: row.created_at,
-    expiresAt: row.expires_at,
-  };
+  return row ? toAuthTxRecord(row) : null;
+}
+
+/** The pending sign-ins one browser has started, newest first (all are still unconsumed). */
+export function listAuthTxByBrowserKey(browserKey: string): AuthTxRecord[] {
+  const rows = getDatabase()
+    .prepare('SELECT * FROM oidc_auth_tx WHERE browser_key = ? ORDER BY created_at DESC')
+    .all(browserKey) as AuthTxRow[];
+  return rows.map(toAuthTxRecord);
 }
 
 export function deleteAuthTx(txId: string): void {
   getDatabase().prepare('DELETE FROM oidc_auth_tx WHERE tx_id = ?').run(txId);
 }
 
-/** Atomic single-use consume: returns the row and deletes it in one transaction (replay defense). */
-export function consumeAuthTx(txId: string): AuthTxRecord | null {
+/**
+ * Atomic single-use consume by the `state` the provider echoes back: returns the
+ * row and deletes it in one transaction (replay defense). Keyed on `state` rather
+ * than the cookie so concurrent flows from one browser never consume each other.
+ */
+export function consumeAuthTxByState(state: string): AuthTxRecord | null {
   const db = getDatabase();
-  const consume = db.transaction((id: string) => {
-    const rec = getAuthTx(id);
-    if (rec) deleteAuthTx(id);
-    return rec;
+  const consume = db.transaction((s: string) => {
+    const row = db.prepare('SELECT * FROM oidc_auth_tx WHERE state = ?').get(s) as
+      | AuthTxRow
+      | undefined;
+    if (!row) return null;
+    deleteAuthTx(row.tx_id);
+    return toAuthTxRecord(row);
   });
-  return consume(txId);
+  return consume(state);
 }
 
 // --- EA session (encrypted tokens + identity) ------------------------------

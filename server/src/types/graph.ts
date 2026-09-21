@@ -211,6 +211,12 @@ export interface GraphNode {
    */
   phase?: NodePhase;
   /**
+   * SPACE: the Technology Readiness Level selected in the designated TRL classification.
+   * Same shape and same "highest selected level wins" rule as `phase` — TRL is an ordered
+   * vocabulary too. Absent when the Space selects no level.
+   */
+  trl?: NodePhase;
+  /**
    * SPACE, INTERNAL: the raw Alkemio classification entries, carried so that the
    * post-cache enrichment in graph-service can resolve designations for CACHED spaces
    * too (the cache is written before enrichment runs). Stripped from the node before the

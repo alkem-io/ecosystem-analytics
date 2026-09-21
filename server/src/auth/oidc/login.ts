@@ -102,16 +102,34 @@ export function resolveReturnToOrigin(
   return rawReturnTo;
 }
 
+/** Shape of an id from `generateOpaqueId()` (32 random bytes, base64url). */
+const OPAQUE_ID_RE = /^[A-Za-z0-9_-]{43}$/;
+
+/**
+ * The `ea_preauth` cookie identifies the BROWSER, not one sign-in attempt: a
+ * browser that still carries a well-formed key keeps it, so every flow it starts
+ * while the key lives is bound to the same value and they can all complete —
+ * without this, tabs re-authenticating at the same time overwrite each other's
+ * cookie and the later callback fails the binding check. The cookie's lifetime
+ * is refreshed on each sign-in start. Anything malformed is replaced.
+ */
+export function resolveBrowserKey(cookieValue: unknown): string {
+  return typeof cookieValue === 'string' && OPAQUE_ID_RE.test(cookieValue)
+    ? cookieValue
+    : generateOpaqueId();
+}
+
 /**
  * GET /api/auth/login — begin the Authorization Code + PKCE flow.
- * Generates anti-forgery material, stashes it in a one-time pre-auth record,
- * sets the `ea_preauth` cookie, and 302-redirects to Hydra's authorization
- * endpoint. No secret/PKCE values are ever logged (FR-014).
+ * Generates anti-forgery material, stashes it in a one-time pre-auth record
+ * bound to the browser's `ea_preauth` cookie, and 302-redirects to Hydra's
+ * authorization endpoint. No secret/PKCE values are ever logged (FR-014).
  */
 export async function loginHandler(req: Request, res: Response): Promise<void> {
   try {
     const config = loadConfig();
     const oidcConfig = await getOidcConfiguration();
+    const browserKey = resolveBrowserKey(req.cookies?.[PREAUTH_COOKIE]);
 
     // Return the user to the frontend they STARTED from (VNG/GovTech/Explorer),
     // not the fixed redirect_uri origin: upgrade a relative returnTo to the
@@ -127,19 +145,19 @@ export async function loginHandler(req: Request, res: Response): Promise<void> {
     const codeVerifier = oidc.randomPKCECodeVerifier();
     const codeChallenge = await oidc.calculatePKCECodeChallenge(codeVerifier);
 
-    const txId = generateOpaqueId();
     const now = Date.now();
     insertAuthTx({
-      txId,
+      txId: generateOpaqueId(),
       state,
       nonce,
       codeVerifier,
       returnTo,
+      browserKey,
       createdAt: now,
       expiresAt: now + config.oidc.preauthTtlMinutes * 60 * 1000,
     });
 
-    res.cookie(PREAUTH_COOKIE, txId, preauthCookieOptions());
+    res.cookie(PREAUTH_COOKIE, browserKey, preauthCookieOptions());
 
     const parameters: Record<string, string> = {
       redirect_uri: config.oidc.redirectUri,

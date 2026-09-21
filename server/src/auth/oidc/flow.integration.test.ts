@@ -38,7 +38,7 @@ vi.mock('openid-client', () => {
 
 import * as oidc from 'openid-client';
 import { initDatabase } from '../../cache/db.js';
-import { getAuthTx, getSessionRecord } from '../../cache/session-store.js';
+import { getAuthTx, listAuthTxByBrowserKey, getSessionRecord } from '../../cache/session-store.js';
 import { loadConfig } from '../../config.js';
 import { decrypt } from './crypto.js';
 import { resetOidcConfiguration } from './client.js';
@@ -86,11 +86,62 @@ describe('full redirect → callback → session loop', () => {
     );
 
     expect(r.redirectUrl).toContain('https://identity.example.test/oauth2/auth');
-    const txId = r.cookies[PREAUTH_COOKIE];
-    expect(txId).toBeTruthy();
-    const tx = getAuthTx(txId)!;
+    const browserKey = r.cookies[PREAUTH_COOKIE];
+    expect(browserKey).toBeTruthy();
+    const [tx] = listAuthTxByBrowserKey(browserKey);
     expect(tx.returnTo).toBe('/explorer');
     expect(tx.state).toMatch(/^state-/);
+  });
+
+  it('a browser that already carries a pre-auth cookie keeps it, so concurrent sign-ins share one binding', async () => {
+    const first = res();
+    await loginHandler({ query: {} } as unknown as Request, first as unknown as Response);
+    const browserKey = first.cookies[PREAUTH_COOKIE];
+
+    const second = res();
+    await loginHandler(
+      { query: {}, cookies: { [PREAUTH_COOKIE]: browserKey } } as unknown as Request,
+      second as unknown as Response,
+    );
+    expect(second.cookies[PREAUTH_COOKIE]).toBe(browserKey);
+    expect(listAuthTxByBrowserKey(browserKey)).toHaveLength(2);
+
+    // a malformed cookie is replaced, never trusted
+    const third = res();
+    await loginHandler(
+      { query: {}, cookies: { [PREAUTH_COOKIE]: 'garbage' } } as unknown as Request,
+      third as unknown as Response,
+    );
+    expect(third.cookies[PREAUTH_COOKIE]).not.toBe('garbage');
+  });
+
+  it('two flows started by one browser both complete (a reload racing several 401s)', async () => {
+    const loginA = res();
+    await loginHandler({ query: { returnTo: '/a' } } as unknown as Request, loginA as unknown as Response);
+    const browserKey = loginA.cookies[PREAUTH_COOKIE];
+    const loginB = res();
+    await loginHandler(
+      { query: { returnTo: '/b' }, cookies: { [PREAUTH_COOKIE]: browserKey } } as unknown as Request,
+      loginB as unknown as Response,
+    );
+    const both = listAuthTxByBrowserKey(browserKey);
+    expect(both).toHaveLength(2);
+
+    for (const tx of both) {
+      const landing = tx.returnTo;
+      const cbRes = res();
+      await callbackHandler(
+        {
+          query: { code: 'auth-code', state: tx.state },
+          cookies: { [PREAUTH_COOKIE]: browserKey },
+          originalUrl: `/api/auth/oidc/callback?code=auth-code&state=${tx.state}`,
+        } as unknown as Request,
+        cbRes as unknown as Response,
+      );
+      expect(cbRes.redirectUrl).toBe(landing);
+      expect(cbRes.cookies[SESSION_COOKIE]).toBeTruthy();
+      expect(cbRes.cleared).not.toContain(PREAUTH_COOKIE);
+    }
   });
 
   it('completes the callback: exchanges code, creates an encrypted session, lands on returnTo', async () => {
@@ -100,22 +151,21 @@ describe('full redirect → callback → session loop', () => {
       { query: { returnTo: '/explorer' } } as unknown as Request,
       loginRes as unknown as Response,
     );
-    const txId = loginRes.cookies[PREAUTH_COOKIE];
-    const tx = getAuthTx(txId)!;
+    const browserKey = loginRes.cookies[PREAUTH_COOKIE];
+    const [tx] = listAuthTxByBrowserKey(browserKey);
 
     // 2. callback with matching state
     const cbRes = res();
     await callbackHandler(
       {
         query: { code: 'auth-code', state: tx.state },
-        cookies: { [PREAUTH_COOKIE]: txId },
+        cookies: { [PREAUTH_COOKIE]: browserKey },
         originalUrl: `/api/auth/oidc/callback?code=auth-code&state=${tx.state}`,
       } as unknown as Request,
       cbRes as unknown as Response,
     );
 
     expect(cbRes.redirectUrl).toBe('/explorer');
-    expect(cbRes.cleared).toContain(PREAUTH_COOKIE);
 
     const sessionId = cbRes.cookies[SESSION_COOKIE];
     expect(sessionId).toBeTruthy();
@@ -128,7 +178,7 @@ describe('full redirect → callback → session loop', () => {
     expect(decrypt(row.refreshTokenEnc, key)).toBe('refresh-tok');
 
     // tx is single-use
-    expect(getAuthTx(txId)).toBeNull();
+    expect(getAuthTx(tx.txId)).toBeNull();
   });
 
   it('routes to /not-authorized when the identity lacks alkemio_actor_id (FR-015)', async () => {
@@ -142,14 +192,14 @@ describe('full redirect → callback → session loop', () => {
 
     const loginRes = res();
     await loginHandler({ query: {} } as unknown as Request, loginRes as unknown as Response);
-    const txId = loginRes.cookies[PREAUTH_COOKIE];
-    const tx = getAuthTx(txId)!;
+    const browserKey = loginRes.cookies[PREAUTH_COOKIE];
+    const [tx] = listAuthTxByBrowserKey(browserKey);
 
     const cbRes = res();
     await callbackHandler(
       {
         query: { code: 'auth-code', state: tx.state },
-        cookies: { [PREAUTH_COOKIE]: txId },
+        cookies: { [PREAUTH_COOKIE]: browserKey },
         originalUrl: `/api/auth/oidc/callback?code=auth-code&state=${tx.state}`,
       } as unknown as Request,
       cbRes as unknown as Response,
@@ -169,14 +219,14 @@ describe('full redirect → callback → session loop', () => {
 
     const loginRes = res();
     await loginHandler({ query: {} } as unknown as Request, loginRes as unknown as Response);
-    const txId = loginRes.cookies[PREAUTH_COOKIE];
-    const tx = getAuthTx(txId)!;
+    const browserKey = loginRes.cookies[PREAUTH_COOKIE];
+    const [tx] = listAuthTxByBrowserKey(browserKey);
 
     const cbRes = res();
     await callbackHandler(
       {
         query: { code: 'auth-code', state: tx.state },
-        cookies: { [PREAUTH_COOKIE]: txId },
+        cookies: { [PREAUTH_COOKIE]: browserKey },
         originalUrl: `/api/auth/oidc/callback?code=auth-code&state=${tx.state}`,
       } as unknown as Request,
       cbRes as unknown as Response,
@@ -201,14 +251,14 @@ describe('full redirect → callback → session loop', () => {
     try {
       const loginRes = res();
       await loginHandler({ query: {} } as unknown as Request, loginRes as unknown as Response);
-      const txId = loginRes.cookies[PREAUTH_COOKIE];
-      const tx = getAuthTx(txId)!;
+      const browserKey = loginRes.cookies[PREAUTH_COOKIE];
+      const [tx] = listAuthTxByBrowserKey(browserKey);
 
       const cbRes = res();
       await callbackHandler(
         {
           query: { code: 'auth-code', state: tx.state },
-          cookies: { [PREAUTH_COOKIE]: txId },
+          cookies: { [PREAUTH_COOKIE]: browserKey },
           originalUrl: `/api/auth/oidc/callback?code=auth-code&state=${tx.state}`,
         } as unknown as Request,
         cbRes as unknown as Response,
@@ -219,7 +269,7 @@ describe('full redirect → callback → session loop', () => {
       expect(blob).not.toContain('refresh-tok');
       expect(blob).not.toContain(tx.state);
       expect(blob).not.toContain(tx.codeVerifier);
-      expect(blob).not.toContain(txId);
+      expect(blob).not.toContain(browserKey);
     } finally {
       spies.forEach((s) => s.mockRestore());
     }

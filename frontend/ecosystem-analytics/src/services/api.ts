@@ -1,4 +1,5 @@
 import type { ApiError } from '@server/types/api.js';
+import { redirectToLogin } from './auth.js';
 
 const API_BASE = import.meta.env.VITE_ECOSYSTEM_ANALYTICS_BACKEND_URL || '';
 
@@ -30,8 +31,7 @@ async function apiFetch<T>(path: string, options: RequestInit = {}): Promise<T> 
   });
 
   if (response.status === 401) {
-    const returnTo = window.location.pathname + window.location.search;
-    window.location.href = `/api/auth/login?returnTo=${encodeURIComponent(returnTo)}`;
+    redirectToLogin(window.location.pathname + window.location.search);
     throw new Error('Session expired');
   }
 

@@ -107,7 +107,12 @@ dashboardRouter.post('/dashboard', async (req: Request, res: Response) => {
     res.json(result);
   } catch (err) {
     if (isAlkemioAuthError(err)) return invalidateAndReject(req, res);
-    logger.error(`Dashboard failed: ${(err as Error).message}`, { context: 'Dashboard' });
+    // The stack names WHICH stage failed (classification read, graph generation, the
+    // distribution/population panels) — the message alone has proven not to.
+    logger.error(`Dashboard failed: ${(err as Error).message}`, {
+      context: 'Dashboard',
+      stack: (err as Error).stack,
+    });
     res.status(502).json({ error: 'DASHBOARD_FAILED', message: 'Failed to compute dashboard' });
   }
 });
