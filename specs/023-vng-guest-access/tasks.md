@@ -278,3 +278,16 @@ Task: "T021 VNG i18n login.guest* keys"
 - No automatic retries anywhere (FR-018); Retry is always a visitor action.
 - `frontend/govtech/` receives only the `failure.*` i18n keys (T045) — no guest keys, no config flag.
 - Commit `server/src/graphql/generated/` with T004.
+
+---
+
+## Added by feature 024 (VNG Ecosystem Map), 2026-09-21
+
+Feature 024 shipped `/api/ecosystem/orchestrator/:hubNameId` (GET/PUT/DELETE) behind
+`authMiddleware` + `resolveUser`. Its contract already specifies guest behaviour; these two tasks
+implement it when the guest principal lands. Until then the frontend hook treats a refusal as
+"the server will not remember this" and keeps the choice in `sessionStorage` for the visit, so
+nothing breaks in the meantime.
+
+- [ ] T066 [US2] Admit the guest principal to `GET /api/ecosystem/orchestrator/:hubNameId` in `server/src/routes/ecosystem.ts`: answer `own: null` (a guest has no stored choice), `builtIn` as usual, and `community` still filtered through `canReadSpace` with the guest's own (anonymous) access — a guest must never see a Space nameID they could not otherwise read.
+- [ ] T067 [US2] Refuse guest writes: `PUT` and `DELETE` on that route answer `403 GUEST_FORBIDDEN` for a guest principal. Guest choices MUST NOT reach `orchestrator_choices` — guests are anonymous and cannot be de-duplicated, so counting them would let one visitor's repeat visits swing the community preset. Verify `frontend/shared/src/dashboard/hooks/useOrchestratorChoice.ts` still falls back to `sessionStorage` on that 403 (`isRefusal`).

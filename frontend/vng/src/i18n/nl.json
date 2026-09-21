@@ -24,7 +24,8 @@
     "cityDetails": "Gemeente informatie",
     "usage": "Gebruiksverkenner",
     "funnel": "Funnel",
-    "intake": "Intake"
+    "intake": "Intake",
+    "ecosystem": "Ecosysteem"
   },
   "initiativesTab": {
     "search": "Zoek initiatieven…",
@@ -376,5 +377,47 @@
   "intake": {
     "notImplemented": "Nog niet geïmplementeerd — deze weergave wordt nog gebouwd.",
     "workInProgress": "Werk in uitvoering"
+  },
+  "ecosystem": {
+    "title": "Ecosysteemkaart",
+    "orchestrator": "Orkestrator",
+    "source": {
+      "own": "jouw keuze",
+      "community": "gekozen door andere bezoekers",
+      "builtIn": "standaardwaarde",
+      "guess": "beste gok"
+    },
+    "reset": "Standaard gebruiken",
+    "notice": {
+      "builtInMissing": "De ingestelde orkestrator is niet gevonden; de eerstvolgende match wordt getoond."
+    },
+    "hint": {
+      "addSpace": "Staat de gewenste ruimte er niet bij? Voeg die eerst toe aan je selectie."
+    },
+    "filter": {
+      "orchestrator": "Verbonden met orkestrator",
+      "multi": "Meerdere deelnames",
+      "hidden": "{{count}} organisaties verborgen",
+      "clear": "Filters wissen"
+    },
+    "fit": "Passend maken",
+    "legend": {
+      "lead": "Trekker",
+      "member": "Deelnemer",
+      "direct": "Directe rol",
+      "viaSubspace": "Via subruimte",
+      "partOf": "Onderdeel van ecosysteem",
+      "connector": "Verbinder"
+    },
+    "empty": {
+      "noSpaces": "Deze hub bevat geen initiatieven.",
+      "noOrgs": "Geen organisaties voldoen aan de filters.",
+      "noOrchestrator": "Er kon geen orkestrator worden bepaald. Kies er hierboven een.",
+      "noHub": "Kies een innovatiehub om het ecosysteem te tekenen."
+    },
+    "orgCount_one": "{{count}} organisatie",
+    "orgCount_other": "{{count}} organisaties",
+    "error": "De ecosysteemkaart kon niet worden geladen.",
+    "retry": "Opnieuw proberen"
   }
 }

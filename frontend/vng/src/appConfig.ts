@@ -20,4 +20,6 @@ export const appConfig: AppConfig = {
   funnel: true,
   // Intake — placeholder tab, VNG-only for now.
   intake: true,
+  // Feature 024 — the ecosystem map. VNG-only for now.
+  ecosystem: true,
 };

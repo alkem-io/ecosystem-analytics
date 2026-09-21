@@ -1,18 +1,20 @@
 import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { ArrowDown, ArrowUp, Check, ChevronsUpDown, Loader2 } from 'lucide-react';
+import { ArrowDown, ArrowUp, Check, ChevronsUpDown, Download, Loader2 } from 'lucide-react';
 import {
   cn,
   Tooltip,
   TooltipContent,
   TooltipProvider,
   TooltipTrigger,
+  useAppConfig,
   useIsCompact,
 } from '@ea/shared';
 import { RecordCard, RecordCardList, RecordSortControl } from '../components/RecordCards.js';
 import { TableFilterBar, FILTER_ALL } from '../components/TableFilterBar.js';
 import { ActivityTier } from '@server/types/graph.js';
 import { buildInitiativeRows, type InitiativeRow } from '../utils/initiatives.js';
+import { exportTableXlsx, type ChartTable } from '../utils/exportDashboard.js';
 import { useSelectionContext } from '../hooks/SelectionContext.js';
 import { useVngGraph } from '../hooks/useVngGraph.js';
 import { useGraphProgress } from '../hooks/useGraphProgress.js';
@@ -261,14 +263,12 @@ export function InitiativesTab() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [allRows, t]);
 
-  const rows = useMemo(() => {
-    const q = query.trim().toLowerCase();
-    const active = filterDefs.filter((f) => filters[f.key] && filters[f.key] !== ALL);
-    const filtered = allRows.filter((r) => {
-      for (const f of active) if (!f.matches(r, filters[f.key])) return false;
-      if (!q) return true;
-      return [r.name, ...r.gemeentes, ...r.themes].join(' ').toLowerCase().includes(q);
-    });
+  /**
+   * The active sort as a comparator, separate from the filtering below because the
+   * export applies it to the UNFILTERED set: the spreadsheet is every initiative, but
+   * still in the order the user put the table in.
+   */
+  const sortRows = useMemo(() => {
     // Per-column sort value. Returns null where the column doesn't apply (e.g. GD
     // rows have no activity) so those rows always sink to the bottom.
     const value = (r: Row): string | number | null => {
@@ -311,8 +311,88 @@ export function InitiativesTab() {
       if (typeof av === 'number' && typeof bv === 'number') return (av - bv) * dir;
       return String(av).localeCompare(String(bv)) * dir;
     };
-    return [...filtered].sort(cmp);
-  }, [allRows, filterDefs, filters, query, sortKey, sortDir]);
+    return (list: Row[]) => [...list].sort(cmp);
+  }, [sortKey, sortDir]);
+
+  const rows = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    const active = filterDefs.filter((f) => filters[f.key] && filters[f.key] !== ALL);
+    const filtered = allRows.filter((r) => {
+      for (const f of active) if (!f.matches(r, filters[f.key])) return false;
+      if (!q) return true;
+      return [r.name, ...r.gemeentes, ...r.themes].join(' ').toLowerCase().includes(q);
+    });
+    return sortRows(filtered);
+  }, [allRows, filterDefs, filters, query, sortRows]);
+
+  const { exportCreator, exportFilenameStem } = useAppConfig();
+  const [exporting, setExporting] = useState(false);
+
+  /**
+   * The spreadsheet is EVERY initiative, not the filtered view: the filters are a way to
+   * read the table on screen, and an export that silently dropped whatever was filtered
+   * out would be a partial dataset that looks like a complete one. The current sort is
+   * still applied, so the file opens in the order the user left the table in. The columns
+   * the screen abbreviates are written out in full — the gemeente list the table only
+   * shows in a tooltip, and the SDG/award columns that exist as filters but not as columns.
+   */
+  const buildExportTable = (): ChartTable => ({
+    columns: [
+      t('initiativesTab.colName'),
+      t('initiativesTab.colType'),
+      t('initiativesTab.colGemeenteCount'),
+      t('initiativesTab.colGemeentes'),
+      t('export.province'),
+      t('initiativesTab.colMembers'),
+      t('initiativesTab.colLeads'),
+      t('initiativesTab.colVng2030'),
+      t('initiativesTab.colNds'),
+      t('initiativesTab.colThemes'),
+      t('initiativesTab.colSdg'),
+      t('initiativesTab.filterAward'),
+      t('initiativesTab.colCommonGround'),
+      t('initiativesTab.colActivityWeek'),
+      t('initiativesTab.colActivityMonth'),
+      t('initiativesTab.colActivityTotal'),
+      t('initiativesTab.colActivityTier'),
+    ],
+    rows: sortRows(allRows).map((r) => [
+      r.name,
+      r.kind === 'groei' ? t('initiativesTab.typeGroei') : t('initiativesTab.typeGd'),
+      r.gemeentes.length,
+      r.gemeentes.join(', '),
+      r.provinces.join(', '),
+      // GD initiatives have no membership — leave the cell empty rather than writing a
+      // 0 that would sum into a total and read as "nobody", which is a different claim.
+      r.members ?? '',
+      r.leads ?? '',
+      r.vng2030.join(', '),
+      r.nds.join(', '),
+      r.themes.join(', '),
+      r.sdg.map((v) => v.toUpperCase()).join(', '),
+      r.awards.join(', '),
+      r.commonGround ? t('initiativesTab.cgYes') : t('initiativesTab.cgNo'),
+      r.activity?.week ?? '',
+      r.activity?.month ?? '',
+      r.activity?.total ?? '',
+      r.tier ? t(TIER_LABEL[r.tier]) : '',
+    ]),
+  });
+
+  const onExport = async () => {
+    setExporting(true);
+    try {
+      await exportTableXlsx({
+        title: t('tabs.initiatives'),
+        table: buildExportTable(),
+        creator: exportCreator,
+        filename: `${exportFilenameStem}-initiatives-${new Date().toISOString().slice(0, 10)}.xlsx`,
+        sheetName: t('export.sheetData', { defaultValue: 'Data' }),
+      });
+    } finally {
+      setExporting(false);
+    }
+  };
 
   // Text columns default to A→Z; numeric/boolean columns default to high→low.
   const TEXT_KEYS = new Set<SortKey>(['name', 'type', 'vng2030', 'nds', 'themes']);
@@ -397,6 +477,27 @@ export function InitiativesTab() {
             onSortKey={(k) => toggleSort(k, true)}
             onToggleDir={() => setSortDir((d) => (d === 'asc' ? 'desc' : 'asc'))}
           />
+        }
+        actions={
+          <button
+            type="button"
+            onClick={onExport}
+            disabled={exporting || allRows.length === 0}
+            data-touch-target
+            title={t('export.downloadXlsx')}
+            className={cn(
+              'inline-flex shrink-0 items-center gap-1.5 rounded-md border border-border bg-card px-2.5 py-1.5 text-xs font-medium text-foreground',
+              'transition-colors hover:bg-muted disabled:opacity-60',
+              'focus:outline-none focus-visible:ring-2 focus-visible:ring-primary',
+            )}
+          >
+            {exporting ? (
+              <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden />
+            ) : (
+              <Download className="h-3.5 w-3.5" aria-hidden />
+            )}
+            {t('export.downloadXlsx')}
+          </button>
         }
       />
 

@@ -39,6 +39,7 @@ export function TableFilterBar({
   allLabel,
   countLabel,
   sortControl,
+  actions,
 }: {
   query: string;
   onQueryChange: (value: string) => void;
@@ -52,6 +53,8 @@ export function TableFilterBar({
   countLabel: string;
   /** The card view's sort control; only rendered on a compact viewport. */
   sortControl?: ReactNode;
+  /** Table-level actions (e.g. an export button), rendered trailing in both layouts. */
+  actions?: ReactNode;
 }) {
   const { t } = useTranslation();
   const compact = useIsCompact();
@@ -113,7 +116,13 @@ export function TableFilterBar({
             {select(f, 'max-w-44')}
           </label>
         ))}
-        <span className="ml-auto text-xs text-muted-foreground">{countLabel}</span>
+        {/* Count and actions travel together as one right-aligned group — separately
+            they wrap onto different lines once the filter row is full, and the button
+            ends up orphaned under the dropdowns. */}
+        <div className="ml-auto flex items-center gap-3">
+          <span className="text-xs text-muted-foreground">{countLabel}</span>
+          {actions}
+        </div>
       </div>
     );
   }
@@ -149,6 +158,7 @@ export function TableFilterBar({
           </button>
         )}
         {sortControl}
+        {actions && <span className="ml-auto">{actions}</span>}
       </div>
 
       {open && shown.length > 0 && (
