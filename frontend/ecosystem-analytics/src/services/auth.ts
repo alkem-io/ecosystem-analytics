@@ -13,7 +13,9 @@
  * 3. `fetchMe()` reads the current identity; `logout()` ends the session.
  */
 
-import { scopeImageCacheBustToUser } from '@ea/shared';
+import { scopeImageCacheBustToUser, redirectToLogin } from '@ea/shared';
+
+export { redirectToLogin };
 
 export interface MeResponse {
   userId: string;
@@ -25,8 +27,7 @@ export interface MeResponse {
 
 /** Begin sign-in by redirecting to the BFF (which 302s to Alkemio). */
 export function login(returnTo?: string): void {
-  const target = returnTo ?? window.location.pathname + window.location.search;
-  window.location.href = `/api/auth/login?returnTo=${encodeURIComponent(target)}`;
+  redirectToLogin(returnTo ?? window.location.pathname + window.location.search);
 }
 
 /** Fetch the current signed-in identity; resolves to null when unauthenticated. */

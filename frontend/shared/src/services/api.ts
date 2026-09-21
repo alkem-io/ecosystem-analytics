@@ -1,5 +1,6 @@
 import i18next from 'i18next';
 import type { ApiError } from '@server/types/api.js';
+import { redirectToLogin } from './auth.js';
 
 const API_BASE = import.meta.env.VITE_ECOSYSTEM_ANALYTICS_BACKEND_URL || '';
 
@@ -57,7 +58,7 @@ async function apiFetch<T>(path: string, options: RequestInit = {}): Promise<T> 
     // runs on a single registered origin; an allow-listed absolute returnTo
     // bounces the user back here — Explorer or VNG). See server validateReturnTo.
     const returnTo = window.location.origin + window.location.pathname + window.location.search;
-    window.location.href = `/api/auth/login?returnTo=${encodeURIComponent(returnTo)}`;
+    redirectToLogin(returnTo);
     throw new Error('Session expired');
   }
 

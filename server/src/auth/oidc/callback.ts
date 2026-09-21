@@ -3,15 +3,9 @@ import * as oidc from 'openid-client';
 import { loadConfig } from '../../config.js';
 import { getLogger } from '../../logging/logger.js';
 import { getOidcConfiguration } from './client.js';
-import { consumeAuthTx } from '../../cache/session-store.js';
+import { consumeAuthTxByState } from '../../cache/session-store.js';
 import { timingSafeEqualStr } from './crypto.js';
-import {
-  createSession,
-  SESSION_COOKIE,
-  PREAUTH_COOKIE,
-  sessionCookieOptions,
-  clearCookieOptions,
-} from '../session.js';
+import { createSession, SESSION_COOKIE, PREAUTH_COOKIE, sessionCookieOptions } from '../session.js';
 
 const DEFAULT_ACCESS_TTL_MS = 10 * 60 * 1000; // Hydra access token ~10 min
 
@@ -28,21 +22,39 @@ function reject(res: Response, message: string): void {
 }
 
 /**
+ * A sign-in response we cannot complete but that a legitimate visitor plausibly
+ * produced (the browser went back/reloaded onto an already-used callback, the
+ * pre-auth record or cookie timed out): no session, no raw error — a clean login
+ * state that never re-prompts on its own (FR-009), so there is no loop.
+ */
+function expired(res: Response, reason: string): void {
+  getLogger().info(`OIDC callback could not be completed: ${reason}`, { context: 'OIDC' });
+  res.redirect('/login?error=expired');
+}
+
+/**
  * GET /api/auth/oidc/callback — complete sign-in.
  *
  * Order matters: a Hydra `error` is a clean "sign in to continue" (no loop);
- * a missing/forged/replayed pre-auth or `state` is a hard `400` with no session
- * (FR-013); a successful exchange whose identity lacks `alkemio_actor_id` routes
- * to `/not-authorized` (FR-015); otherwise an EA session is created and the
- * visitor is sent to their validated `returnTo`.
+ * an unknown, replayed or timed-out sign-in request lands on `/login?error=expired`
+ * with no session; a pre-auth record that exists but is NOT bound to this browser
+ * is a forged response and a hard `400` (FR-013); a successful exchange whose
+ * identity lacks `alkemio_actor_id` routes to `/not-authorized` (FR-015);
+ * otherwise an EA session is created and the visitor is sent to their validated
+ * `returnTo`.
+ *
+ * The record is looked up by the `state` Hydra echoes back, and the `ea_preauth`
+ * cookie is only COMPARED against it — never cleared. The cookie is domain-wide
+ * and shared by every tab, so clearing it here (or looking the record up through
+ * it) made concurrent sign-ins from one browser fail each other: when a deploy
+ * invalidates every session, one page reload fires several 401s, each starting
+ * its own flow.
  */
 export async function callbackHandler(req: Request, res: Response): Promise<void> {
   const config = loadConfig();
-  const clearOpts = clearCookieOptions();
 
   // 1. Provider returned an error (user cancelled / consent denied). No loop.
   if (typeof req.query.error === 'string') {
-    res.clearCookie(PREAUTH_COOKIE, clearOpts);
     getLogger().info(`OIDC callback returned provider error: ${req.query.error}`, {
       context: 'OIDC',
     });
@@ -50,27 +62,31 @@ export async function callbackHandler(req: Request, res: Response): Promise<void
     return;
   }
 
-  // 2. Pre-auth cookie → single-use transaction lookup (replay defense).
-  const txId = req.cookies?.[PREAUTH_COOKIE];
-  res.clearCookie(PREAUTH_COOKIE, clearOpts);
-  if (!txId || typeof txId !== 'string') {
-    reject(res, 'Missing pre-auth context');
+  // 2. `state` → single-use transaction lookup (replay defense).
+  const returnedState = typeof req.query.state === 'string' ? req.query.state : '';
+  if (!returnedState) {
+    reject(res, 'Missing state');
     return;
   }
-  const tx = consumeAuthTx(txId);
+  const tx = consumeAuthTxByState(returnedState);
   if (!tx) {
-    reject(res, 'Unknown or already-used sign-in request');
+    expired(res, 'unknown or already-used sign-in request');
     return;
   }
   if (tx.expiresAt < Date.now()) {
-    reject(res, 'Sign-in request expired');
+    expired(res, 'sign-in request expired');
     return;
   }
 
-  // 3. Timing-safe anti-forgery state comparison (FR-013).
-  const returnedState = typeof req.query.state === 'string' ? req.query.state : '';
-  if (!timingSafeEqualStr(returnedState, tx.state)) {
-    reject(res, 'State mismatch');
+  // 3. The response must come from the browser that started this flow (FR-013).
+  // A missing cookie means it outlived its own TTL; a different one is a forgery.
+  const browserKey = req.cookies?.[PREAUTH_COOKIE];
+  if (!browserKey || typeof browserKey !== 'string') {
+    expired(res, 'pre-auth cookie absent');
+    return;
+  }
+  if (!timingSafeEqualStr(browserKey, tx.browserKey)) {
+    reject(res, 'Sign-in request is not bound to this browser');
     return;
   }
 

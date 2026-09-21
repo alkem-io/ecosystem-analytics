@@ -47,43 +47,66 @@ function req(opts: { query?: Record<string, string>; cookies?: Record<string, st
 
 beforeEach(() => initDatabase());
 
+const KEY = 'browser-key-1';
+
+function pending(overrides: Partial<Parameters<typeof insertAuthTx>[0]> = {}) {
+  const now = Date.now();
+  insertAuthTx({
+    txId: 'tx1',
+    state: 'REAL_STATE',
+    nonce: 'n',
+    codeVerifier: 'v',
+    returnTo: '/spaces',
+    browserKey: KEY,
+    createdAt: now,
+    expiresAt: now + 600_000,
+    ...overrides,
+  });
+}
+
 describe('GET /api/auth/oidc/callback — rejection & cancel paths (no Hydra)', () => {
   it('provider error → 302 to a clean sign-in state, no loop', async () => {
     const res = mockRes();
     await callbackHandler(req({ query: { error: 'access_denied' } }), res as unknown as Response);
     expect(res.redirectUrl).toBe('/login?error=cancelled');
-    expect(res.cleared).toContain(PREAUTH_COOKIE);
   });
 
-  it('missing pre-auth cookie → 400, no session', async () => {
-    const res = mockRes();
-    await callbackHandler(req({ query: { code: 'c', state: 's' } }), res as unknown as Response);
-    expect(res.statusCode).toBe(400);
-  });
-
-  it('unknown / already-used tx → 400', async () => {
+  it('missing state → 400, no session', async () => {
     const res = mockRes();
     await callbackHandler(
-      req({ query: { code: 'c', state: 's' }, cookies: { [PREAUTH_COOKIE]: 'nope' } }),
+      req({ query: { code: 'c' }, cookies: { [PREAUTH_COOKIE]: KEY } }),
       res as unknown as Response,
     );
     expect(res.statusCode).toBe(400);
   });
 
-  it('state mismatch → 400 and the tx is single-use (consumed)', async () => {
-    const now = Date.now();
-    insertAuthTx({
-      txId: 'tx1',
-      state: 'REAL_STATE',
-      nonce: 'n',
-      codeVerifier: 'v',
-      returnTo: '/spaces',
-      createdAt: now,
-      expiresAt: now + 600_000,
-    });
+  it('unknown / already-used state → clean expired login state, no session', async () => {
     const res = mockRes();
     await callbackHandler(
-      req({ query: { code: 'c', state: 'WRONG_STATE' }, cookies: { [PREAUTH_COOKIE]: 'tx1' } }),
+      req({ query: { code: 'c', state: 'nope' }, cookies: { [PREAUTH_COOKIE]: KEY } }),
+      res as unknown as Response,
+    );
+    expect(res.statusCode).toBe(200);
+    expect(res.redirectUrl).toBe('/login?error=expired');
+    expect(res.cookie).not.toHaveBeenCalled();
+  });
+
+  it('pre-auth cookie absent (outlived its TTL) → expired login state; the tx is consumed', async () => {
+    pending();
+    const res = mockRes();
+    await callbackHandler(
+      req({ query: { code: 'c', state: 'REAL_STATE' } }),
+      res as unknown as Response,
+    );
+    expect(res.redirectUrl).toBe('/login?error=expired');
+    expect(getAuthTx('tx1')).toBeNull();
+  });
+
+  it('tx bound to another browser → 400 and the tx is single-use (consumed)', async () => {
+    pending();
+    const res = mockRes();
+    await callbackHandler(
+      req({ query: { code: 'c', state: 'REAL_STATE' }, cookies: { [PREAUTH_COOKIE]: 'other' } }),
       res as unknown as Response,
     );
     expect(res.statusCode).toBe(400);
@@ -91,22 +114,26 @@ describe('GET /api/auth/oidc/callback — rejection & cancel paths (no Hydra)', 
     expect(getAuthTx('tx1')).toBeNull();
   });
 
-  it('expired tx → 400', async () => {
+  it('expired tx → expired login state', async () => {
     const now = Date.now();
-    insertAuthTx({
-      txId: 'tx2',
-      state: 'S',
-      nonce: 'n',
-      codeVerifier: 'v',
-      returnTo: '/spaces',
-      createdAt: now - 1_000_000,
-      expiresAt: now - 1,
-    });
+    pending({ txId: 'tx2', state: 'S', createdAt: now - 1_000_000, expiresAt: now - 1 });
     const res = mockRes();
     await callbackHandler(
-      req({ query: { code: 'c', state: 'S' }, cookies: { [PREAUTH_COOKIE]: 'tx2' } }),
+      req({ query: { code: 'c', state: 'S' }, cookies: { [PREAUTH_COOKIE]: KEY } }),
       res as unknown as Response,
     );
-    expect(res.statusCode).toBe(400);
+    expect(res.redirectUrl).toBe('/login?error=expired');
+  });
+
+  it('a failed callback never clears the shared pre-auth cookie (other tabs may be mid-flow)', async () => {
+    pending();
+    const res = mockRes();
+    await callbackHandler(
+      req({ query: { code: 'c', state: 'WRONG' }, cookies: { [PREAUTH_COOKIE]: KEY } }),
+      res as unknown as Response,
+    );
+    expect(res.cleared).not.toContain(PREAUTH_COOKIE);
+    // and the pending tx of the other flow is untouched
+    expect(getAuthTx('tx1')).not.toBeNull();
   });
 });

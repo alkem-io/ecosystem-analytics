@@ -107,6 +107,10 @@ export function initDatabase(envDiscriminator?: string): void {
   // --- OIDC auth (feature 015) -------------------------------------------
   // Pre-auth (CSRF/replay defense) records — created at /login, consumed once
   // at callback, then deleted. Isolated from session state on purpose.
+  // The callback finds the record by the `state` Hydra echoes back and checks
+  // `browser_key` against the `ea_preauth` cookie, so several sign-ins started
+  // by the same browser (tabs racing after a session loss) can all complete —
+  // one flow never consumes or clears another's record.
   db.exec(`
     CREATE TABLE IF NOT EXISTS oidc_auth_tx (
       tx_id          TEXT PRIMARY KEY,
@@ -114,11 +118,18 @@ export function initDatabase(envDiscriminator?: string): void {
       nonce          TEXT NOT NULL,
       code_verifier  TEXT NOT NULL,
       return_to      TEXT NOT NULL,
+      browser_key    TEXT NOT NULL DEFAULT '',
       created_at     INTEGER NOT NULL,
       expires_at     INTEGER NOT NULL
     )
   `);
+  // Records live minutes, so a pre-`browser_key` table is simply upgraded in place.
+  const authTxColumns = db.pragma('table_info(oidc_auth_tx)') as Array<{ name: string }>;
+  if (!authTxColumns.some((c) => c.name === 'browser_key')) {
+    db.exec(`ALTER TABLE oidc_auth_tx ADD COLUMN browser_key TEXT NOT NULL DEFAULT ''`);
+  }
   db.exec(`CREATE INDEX IF NOT EXISTS idx_oidc_auth_tx_expires ON oidc_auth_tx (expires_at)`);
+  db.exec(`CREATE UNIQUE INDEX IF NOT EXISTS idx_oidc_auth_tx_state ON oidc_auth_tx (state)`);
 
   // EA's own server-side sessions. Tokens are encrypted at rest (AES-256-GCM);
   // the browser only ever holds the opaque session_id cookie (FR-018a).

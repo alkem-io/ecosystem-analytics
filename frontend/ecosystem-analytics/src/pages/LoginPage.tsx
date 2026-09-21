@@ -35,6 +35,13 @@ function describeAuthError(error: string | null): { heading: string; message: st
         heading: 'Sign-in cancelled',
         message: 'Your sign-in was cancelled before it completed. You can try again below.',
       };
+    case 'expired':
+      return {
+        heading: 'Sign-in request expired',
+        message:
+          'That sign-in request is no longer valid — it took too long, or it was already ' +
+          'completed in another tab. Please sign in again.',
+      };
     case 'failed':
       return {
         heading: 'Sign-in could not be completed',
