@@ -285,3 +285,53 @@ export async function exportSingleChartXlsx(opts: {
 
   await downloadWorkbook(wb, filename);
 }
+
+/**
+ * Export ONE data table as its own .xlsx — no chart sheet, no images, so it needs
+ * only `exceljs` and not `html-to-image`. Used by the Initiatives tab's download
+ * button, which exports exactly the rows the filters and sort currently produce.
+ */
+export async function exportTableXlsx(opts: {
+  title: string;
+  table: ChartTable;
+  creator: string;
+  filename: string;
+  sheetName: string;
+}): Promise<void> {
+  const { title, table, creator, filename, sheetName } = opts;
+  const { default: ExcelJS } = await import('exceljs');
+
+  const wb = new ExcelJS.Workbook();
+  wb.creator = creator;
+  wb.created = new Date();
+
+  const ds = wb.addWorksheet(sheetName);
+  const tr = ds.addRow([title]);
+  tr.font = { bold: true, size: 13 };
+  ds.addRow([]);
+
+  const hr = ds.addRow(table.columns);
+  hr.font = { bold: true };
+  hr.eachCell((c) => {
+    c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE8EDF1' } };
+    c.border = { bottom: { style: 'thin', color: { argb: 'FFCBD5E1' } } };
+  });
+  for (const r of table.rows) ds.addRow(r);
+
+  // Freeze the header so a long table stays readable while scrolling, and let the
+  // column headers drive Excel's own filtering once the file is open.
+  ds.views = [{ state: 'frozen', ySplit: 3 }];
+  if (table.rows.length > 0) {
+    ds.autoFilter = { from: { row: 3, column: 1 }, to: { row: 3, column: table.columns.length } };
+  }
+
+  // Width from the widest cell in each column, clamped: narrow enough that counts
+  // don't get a 40-character column, wide enough that names aren't truncated.
+  ds.columns.forEach((col, i) => {
+    let widest = table.columns[i]?.length ?? 10;
+    for (const r of table.rows) widest = Math.max(widest, String(r[i] ?? '').length);
+    col.width = Math.min(60, Math.max(10, widest + 2));
+  });
+
+  await downloadWorkbook(wb, filename);
+}

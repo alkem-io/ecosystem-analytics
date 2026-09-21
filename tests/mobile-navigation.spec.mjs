@@ -36,7 +36,7 @@ const HERE = dirname(fileURLToPath(import.meta.url));
 const F = JSON.parse(readFileSync(resolve(HERE, 'fixtures', 'vng-city-fixtures.json'), 'utf8'));
 const VNG_URL = process.env.VNG_URL ?? 'http://localhost:5174';
 
-/** The eight tabs the VNG dashboard opts into, in shell order. */
+/** The nine tabs the VNG dashboard opts into, in shell order. */
 const TAB_NAMES = [
   'Dashboard',
   'Initiatief informatie',
@@ -46,6 +46,7 @@ const TAB_NAMES = [
   'Gebruiksverkenner',
   'Funnel',
   'Intake',
+  'Ecosysteem',
   'Graph',
 ];
 

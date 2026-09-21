@@ -24,6 +24,7 @@ import { CityDetailsTab } from './pages/CityDetailsTab.js';
 import { UsageExplorerTab } from './pages/UsageExplorerTab.js';
 import { FunnelTab } from './pages/FunnelTab.js';
 import { IntakeTab } from './pages/IntakeTab.js';
+import { EcosystemTab } from './pages/EcosystemTab.js';
 
 type TabKey =
   | 'dashboard'
@@ -34,6 +35,7 @@ type TabKey =
   | 'usage'
   | 'funnel'
   | 'intake'
+  | 'ecosystem'
   | 'graph';
 const BASE_TABS: TabKey[] = ['dashboard', 'details', 'initiatives', 'cityDetails', 'cities'];
 
@@ -78,6 +80,7 @@ function AppShell() {
     ...(cfg.usageExplorer ? (['usage'] as TabKey[]) : []),
     ...(cfg.funnel ? (['funnel'] as TabKey[]) : []),
     ...(cfg.intake ? (['intake'] as TabKey[]) : []),
+    ...(cfg.ecosystem ? (['ecosystem'] as TabKey[]) : []),
     'graph',
   ];
   const { effectiveSpaceIds, state, refreshNonce, setShowGemeentes } = useSelectionContext();
@@ -221,6 +224,7 @@ function AppShell() {
               {active === 'usage' && <UsageExplorerTab />}
               {active === 'funnel' && <FunnelTab />}
               {active === 'intake' && <IntakeTab />}
+              {active === 'ecosystem' && <EcosystemTab />}
               {active === 'dashboard' && <DashboardTab />}
             </ErrorBoundary>
           </main>
