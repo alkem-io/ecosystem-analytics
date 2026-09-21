@@ -40,7 +40,12 @@ graphRouter.post('/generate', async (req: Request, res: Response) => {
       invalidateAndReject(req, res);
       return;
     }
-    logger.error(`Graph generation failed: ${(err as Error).message}`, { context: 'Graph' });
+    // The stack names WHICH stage failed (acquisition, snapshot/registry load, transform)
+    // — the message alone has proven not to (see the dashboard route).
+    logger.error(`Graph generation failed: ${(err as Error).message}`, {
+      context: 'Graph',
+      stack: (err as Error).stack,
+    });
     res.status(502).json({ error: 'GENERATION_FAILED', message: 'Failed to generate graph dataset' });
   }
 });
@@ -74,7 +79,10 @@ graphRouter.post('/expand', async (req: Request, res: Response) => {
       invalidateAndReject(req, res);
       return;
     }
-    logger.error(`Graph expansion failed: ${(err as Error).message}`, { context: 'Graph' });
+    logger.error(`Graph expansion failed: ${(err as Error).message}`, {
+      context: 'Graph',
+      stack: (err as Error).stack,
+    });
     res.status(502).json({ error: 'EXPANSION_FAILED', message: 'Failed to expand graph' });
   }
 });
@@ -102,7 +110,10 @@ graphRouter.post('/export', async (req: Request, res: Response) => {
       invalidateAndReject(req, res);
       return;
     }
-    logger.error(`Graph export failed: ${(err as Error).message}`, { context: 'Graph' });
+    logger.error(`Graph export failed: ${(err as Error).message}`, {
+      context: 'Graph',
+      stack: (err as Error).stack,
+    });
     res.status(502).json({ error: 'EXPORT_FAILED', message: 'Failed to export graph dataset' });
   }
 });
