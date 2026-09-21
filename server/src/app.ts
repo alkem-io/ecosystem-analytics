@@ -10,6 +10,7 @@ import { queryRouter } from './routes/query.js';
 import { hubsRouter } from './routes/hubs.js';
 import { dashboardRouter } from './routes/dashboard.js';
 import { metaRouter } from './routes/meta.js';
+import { ecosystemRouter } from './routes/ecosystem.js';
 import { loadConfig } from './config.js';
 import { getLogger } from './logging/logger.js';
 import type { ApiError } from './types/api.js';
@@ -61,6 +62,8 @@ export function createApp(staticDirRelative = '../frontend/dist') {
   app.use('/api/vng', dashboardRouter);
   app.use('/api/govtech', dashboardRouter);
   app.use('/api/meta', metaRouter);
+  // Feature 024 — orchestrator choice. App-agnostic: hub nameIDs are platform-global.
+  app.use('/api/ecosystem', ecosystemRouter);
 
   // Feature flags + environment info (public, no auth required).
   // `alkemioServerUrl` lets the login screens display which environment they

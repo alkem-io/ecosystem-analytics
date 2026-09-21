@@ -101,7 +101,8 @@ test('tab order: initiative pair, then city pair, optional tabs, Graph last', as
   await boot(page);
   // Dashboard leads and Graph stays last; between them sit the initiative pair, the city
   // pair, and whichever optional tabs this dashboard opts into via AppConfig — the Usage
-  // Explorer (feature 019) and the Funnel (feature 022) are both on for VNG.
+  // Explorer (feature 019), the Funnel (feature 022) and the Ecosystem map (feature 024)
+  // are all on for VNG.
   expect(await page.getByRole('tab').allTextContents()).toEqual([
     'Dashboard',
     'Initiatief informatie',
@@ -111,6 +112,7 @@ test('tab order: initiative pair, then city pair, optional tabs, Graph last', as
     'Gebruiksverkenner',
     'Funnel',
     'Intake',
+    'Ecosysteem',
     'Graph',
   ]);
 });
@@ -213,9 +215,10 @@ test('English locale translates every new string', async ({ page }) => {
     'Usage explorer',
     'Funnel',
     'Intake',
+    'Ecosystem',
     'Graph',
   ]);
-  for (const name of ['Cities', 'City information']) {
+  for (const name of ['Cities', 'City information', 'Ecosystem']) {
     await page.getByRole('tab', { name }).click();
     await page.waitForTimeout(600);
     await expectNoRawKeys(page, `EN ${name}`);

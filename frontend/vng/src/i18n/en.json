@@ -24,7 +24,8 @@
     "cityDetails": "City information",
     "usage": "Usage explorer",
     "funnel": "Funnel",
-    "intake": "Intake"
+    "intake": "Intake",
+    "ecosystem": "Ecosystem"
   },
   "initiativesTab": {
     "search": "Search initiatives…",
@@ -376,5 +377,47 @@
   "intake": {
     "notImplemented": "Not yet implemented — this view is still being built.",
     "workInProgress": "Work in progress"
+  },
+  "ecosystem": {
+    "title": "Ecosystem map",
+    "orchestrator": "Orchestrator",
+    "source": {
+      "own": "your choice",
+      "community": "chosen by other viewers",
+      "builtIn": "built-in default",
+      "guess": "best guess"
+    },
+    "reset": "Use default",
+    "notice": {
+      "builtInMissing": "The configured orchestrator was not found; showing the next best match."
+    },
+    "hint": {
+      "addSpace": "To choose a space that is not listed here, add it to your selection first."
+    },
+    "filter": {
+      "orchestrator": "Linked to orchestrator",
+      "multi": "Multiple memberships",
+      "hidden": "{{count}} organisations hidden",
+      "clear": "Clear filters"
+    },
+    "fit": "Fit to view",
+    "legend": {
+      "lead": "Lead",
+      "member": "Member",
+      "direct": "Direct role",
+      "viaSubspace": "Via subspace",
+      "partOf": "Part of ecosystem",
+      "connector": "Connector"
+    },
+    "empty": {
+      "noSpaces": "This hub lists no initiatives.",
+      "noOrgs": "No organisations match the active filters.",
+      "noOrchestrator": "No orchestrator could be determined for this ecosystem. Choose one above.",
+      "noHub": "Select an innovation hub to draw its ecosystem."
+    },
+    "orgCount_one": "{{count}} organisation",
+    "orgCount_other": "{{count}} organisations",
+    "error": "The ecosystem map could not be loaded.",
+    "retry": "Try again"
   }
 }

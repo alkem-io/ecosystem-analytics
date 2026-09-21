@@ -71,6 +71,24 @@ export function initDatabase(envDiscriminator?: string): void {
     )
   `);
 
+  // Feature 024 — the orchestrator a viewer chose for an ecosystem. NOT a cache: it has
+  // no TTL, is never invalidated by a force-refresh, and survives a maintenance-version
+  // bump. Scoped per user (Constitution IV); the community preset reads across rows but
+  // never exposes who chose what.
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS orchestrator_choices (
+      user_id       TEXT    NOT NULL,
+      hub_name_id   TEXT    NOT NULL,
+      space_name_id TEXT    NOT NULL,
+      updated_at    INTEGER NOT NULL,
+      PRIMARY KEY (user_id, hub_name_id)
+    )
+  `);
+  db.exec(`
+    CREATE INDEX IF NOT EXISTS idx_orchestrator_choices_hub
+      ON orchestrator_choices (hub_name_id)
+  `);
+
   db.exec(`
     CREATE TABLE IF NOT EXISTS query_feedback (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
