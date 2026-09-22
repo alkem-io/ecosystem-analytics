@@ -13,12 +13,11 @@ import {
   type UsageMarker,
   type VisibleArea,
 } from '../utils/usage.js';
-import { buildCityRows, type CityRow } from '../utils/cities.js';
+import type { CityRow } from '../utils/cities.js';
 import { GROEI_COLOR, GD_COLOR } from '../utils/pie.js';
 import { useSelectionContext } from '../hooks/SelectionContext.js';
-import { useVngGraph } from '../hooks/useVngGraph.js';
-import { useGraphProgress } from '../hooks/useGraphProgress.js';
-import { useGemeenteLocations } from '../hooks/useGemeenteLocations.js';
+import { useCityRows, useCoreLoadState, useGraphDataset } from '../data/derive/index.js';
+import { useExtraItem } from '../data/hooks.js';
 
 const ALL_PROVINCES = '__all__';
 
@@ -65,23 +64,25 @@ function mapHeightFor(width: number): number {
 export function UsageExplorerTab() {
   const { t } = useTranslation();
   const cfg = useAppConfig();
-  const { effectiveSpaceIds, selectedSpaces, state, refreshNonce } = useSelectionContext();
+  const { effectiveSpaceIds, selectedSpaces, state } = useSelectionContext();
 
-  const { dataset, loading, error } = useVngGraph(effectiveSpaceIds, {
-    includeInitiatives: state.includeInitiatives,
-    refreshNonce,
-  });
-  const { data: locationSet, loading: locationsLoading, error: locationsError } =
-    useGemeenteLocations();
+  // Feature 025: the dataset is loaded once by the shared provider; this tab derives.
+  const dataset = useGraphDataset();
+  const { loading, error, progress } = useCoreLoadState();
+  // Feature 025: the location set is an extra item declared here, loaded once per page
+  // by the provider and announced in the strip under this tab's name.
+  const locationsItem = useExtraItem('gemeente-locations', 'tab:usage');
+  const locationSet = locationsItem.value;
+  const locationsLoading = locationsItem.loading;
+  const locationsError = locationsItem.failed ? (locationsItem.item?.error?.detail ?? t('load.failed.gemeente-locations')) : null;
 
-  const progress = useGraphProgress(loading && !dataset);
   const currentSpaceLabel = (() => {
     const nameId = progress?.currentSpace;
     if (!nameId) return null;
     return selectedSpaces.find((s) => s.nameId === nameId)?.displayName ?? nameId;
   })();
 
-  const cityRows = useMemo<CityRow[]>(() => buildCityRows(dataset), [dataset]);
+  const cityRows: CityRow[] = useCityRows();
 
   const [province, setProvince] = useState<ProvinceRegion | null>(null);
   const [resetNonce, setResetNonce] = useState(0);

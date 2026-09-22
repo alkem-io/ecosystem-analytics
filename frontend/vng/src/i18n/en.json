@@ -423,5 +423,43 @@
     "orgCount_other": "{{count}} organisations",
     "error": "The ecosystem map could not be loaded.",
     "retry": "Try again"
+  },
+  "load": {
+    "item": {
+      "spaces": "Initiatives",
+      "gd-initiatives": "GemeenteDelers initiatives",
+      "activity": "Activity",
+      "organizations": "Organisation profiles",
+      "gemeente-locations": "Gemeente locations"
+    },
+    "stage": {
+      "queued": "Queued",
+      "loading": "Loading",
+      "processing": "Processing",
+      "done": "Done",
+      "failed": "Failed"
+    },
+    "by": {
+      "core": "",
+      "option:gd": "for the GemeenteDelers option",
+      "tab:initiatives": "requested by Initiatives",
+      "tab:usage": "requested by Usage Explorer",
+      "tab:details": "requested by Details",
+      "tab:explorer": "requested by Explorer"
+    },
+    "progress": "{{done}} of {{total}}",
+    "current": "now {{name}}",
+    "retry": "Retry",
+    "title": "Loading data",
+    "failed": {
+      "spaces": "The initiatives could not be loaded.",
+      "gd-initiatives": "The GemeenteDelers layer could not be loaded.",
+      "activity": "Activity is unavailable.",
+      "organizations": "Organisation profiles are unavailable.",
+      "gemeente-locations": "Gemeente locations are unavailable.",
+      "generic": "Something went wrong while loading."
+    },
+    "waitingFor": "Waiting for {{item}}…",
+    "unavailable": "unavailable"
   }
 }

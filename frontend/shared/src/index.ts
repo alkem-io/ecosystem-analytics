@@ -41,7 +41,13 @@ export {
   REDUCED_MOTION_QUERY,
 } from './hooks/useMediaQuery.js';
 
-export { api, NetworkError } from './services/api.js';
+export { api, apiStream, NetworkError, StreamNotSupportedError } from './services/api.js';
+// Feature 025 — the dashboard data layer: ONE loaded dataset per selection, derivations
+// on top, tabs only display. See frontend/shared/src/dashboard/data/README.md.
+export { DashboardDataProvider, useDashboardData } from './dashboard/data/DashboardDataProvider.js';
+export { useLoadedData, useLoadPlan, useExtraItem } from './dashboard/data/hooks.js';
+export type { LoadItem, LoadPlan, LoadRequester, LoadedData, Selection } from './dashboard/data/store.js';
+export { memoiseByDataset } from './dashboard/data/derive/memo.js';
 export { login, logout, fetchMe, redirectToLogin, type MeResponse } from './services/auth.js';
 
 // Per-app configuration primitive + the shared dashboard application shell.

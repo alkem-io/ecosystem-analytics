@@ -1,3 +1,5 @@
+import type { ActivityTier, GraphDataset } from './graph.js';
+
 /** A selectable L0 Space returned by the BFF */
 export interface SpaceSelectionItem {
   id: string;
@@ -24,6 +26,126 @@ export interface GraphGenerationRequest {
   app?: string;
   /** Fold in the GemeenteDelers initiative layer (feature 016, US10/FR-039). */
   includeInitiatives?: boolean;
+  /**
+   * Fold activity-derived fields in (edges' `activityTier`, node activity counts, the
+   * activity timeline, activity-based metrics/insights). Feature 025: DEFAULT TRUE on
+   * the JSON path so the Explorer's output is unchanged; the dashboards' stream sends
+   * `false` and fetch activity on demand via `POST /api/graph/activity`.
+   */
+  includeActivity?: boolean;
+  /**
+   * Merge the extended organisation profile (description, tagline, website, contact
+   * email, references, associate count) into ORGANIZATION nodes. Feature 025: DEFAULT
+   * TRUE on the JSON path (Explorer unchanged); the dashboards send `false` and load
+   * the extended profile on demand via `POST /api/graph/organizations`.
+   */
+  includeExtendedProfiles?: boolean;
+}
+
+// --- Feature 025 — unified data loading -------------------------------------
+
+/** The items a dashboard load plan can contain (data-model §2). */
+export type LoadItemKey =
+  | 'spaces'
+  | 'gd-initiatives'
+  | 'activity'
+  | 'organizations'
+  | 'gemeente-locations';
+
+/** Lifecycle of one load item. Items never move backwards. */
+export type LoadStage = 'queued' | 'loading' | 'processing' | 'done' | 'failed';
+
+/** User-safe failure description; `key` is an i18n key, never a raw error string. */
+export interface LoadError {
+  key: string;
+  detail?: string;
+}
+
+/**
+ * One progress event on the streamed `POST /api/graph/generate` response
+ * (contracts/api-graph-generate-stream.md). `stage` reports work in progress,
+ * `item` reports an item finishing, `result`/`error` are terminal.
+ */
+export type LoadEvent =
+  | {
+      type: 'stage';
+      item: LoadItemKey;
+      stage: 'loading' | 'processing';
+      done?: number;
+      total?: number;
+      /** nameId of the Space currently being fetched (loading stage only). */
+      current?: string;
+    }
+  | { type: 'item'; item: LoadItemKey; stage: 'done' | 'failed'; error?: LoadError }
+  | { type: 'result'; dataset: GraphDataset; dashboard?: DashboardCountsBundle }
+  | { type: 'error'; error: LoadError };
+
+/**
+ * The dashboard counts computed by the BFF from the SAME dataset it returns, in both
+ * GD variants where the GD layer is loaded, so the Dashboard/Funnel toggles become a
+ * browser-side choice rather than a request (FR-015, research R4).
+ */
+export interface DashboardCountsBundle {
+  categories: { base: VngDashboardResponse; withGd?: VngDashboardResponse };
+  distribution: {
+    base: Pick<VngDashboardResponse, 'gemeenteDistribution' | 'cityPopulation'>;
+    withGd?: Pick<VngDashboardResponse, 'gemeenteDistribution' | 'cityPopulation'>;
+  };
+}
+
+/** `POST /api/graph/generate` response when the caller asks for the bundle. */
+export interface GraphGenerationBundle {
+  dataset: GraphDataset;
+  dashboard?: DashboardCountsBundle;
+}
+
+/** `POST /api/graph/activity` request (contracts/api-graph-activity.md). */
+export interface ActivityRequest {
+  spaceIds: string[];
+  forceRefresh?: boolean;
+}
+
+/** Per-period contribution counts for one Space, plus the tier those counts place it in. */
+export interface ActivityPeriodCountsItem {
+  day: number;
+  week: number;
+  month: number;
+  total: number;
+  tier: ActivityTier;
+}
+
+/** The on-demand activity item — the counts the Initiatives table shows. */
+export interface ActivityItem {
+  /** Keyed by Space id (L0/L1/L2). */
+  bySpace: Record<string, ActivityPeriodCountsItem>;
+  fetchedAt: string;
+  /** Spaces whose activity feed could not be read (rendered as "unavailable"). */
+  unavailable: string[];
+}
+
+/** `POST /api/graph/organizations` request (contracts/api-graph-organizations.md). */
+export interface OrganizationsRequest {
+  ids: string[];
+}
+
+/** Extended organisation profile — fetched on demand, cached per organisation. */
+export interface ExtendedOrganizationProfile {
+  id: string;
+  description: string | null;
+  tagline: string | null;
+  website: string | null;
+  contactEmail: string | null;
+  references?: { name: string; uri: string }[];
+  associateCount?: number;
+  /** Display name of the first owner, when readable. */
+  owner?: string | null;
+}
+
+/** `POST /api/graph/organizations` response. */
+export interface OrganizationsResponse {
+  organizations: Record<string, ExtendedOrganizationProfile>;
+  /** Ids the viewer cannot read (or that do not exist). */
+  missing: string[];
 }
 
 /** A GemeenteDelers initiative as fetched from a Knowledge Base callout. */

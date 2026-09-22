@@ -19,12 +19,59 @@ export async function createAlkemioSdk(auth: AuthContext): Promise<Sdk> {
   const config = loadConfig();
   const session = await ensureFreshAccessToken(auth.session);
   const accessToken = decrypt(session.accessTokenEnc, config.session.encKey);
+  const stats = statsFor(auth);
   const client = new GraphQLClient(config.alkemioGraphqlEndpoint, {
     headers: {
       Authorization: `Bearer ${accessToken}`,
     },
+    // Count every request and its response size for THIS auth context (feature 025,
+    // research R9): the acquisition summary prints `requests=<n> bytes=<n>` so the
+    // platform cost of one load can be read from the log (SC-004 / SC-002a).
+    fetch: async (input: RequestInfo | URL, init?: RequestInit) => {
+      stats.requests += 1;
+      const res = await fetch(input, init);
+      const len = Number(res.headers.get('content-length'));
+      if (Number.isFinite(len) && len > 0) {
+        stats.bytes += len;
+        return res;
+      }
+      // No content-length (chunked): measure the body once and hand back a fresh
+      // Response so graphql-request can still consume it.
+      const buf = await res.arrayBuffer();
+      stats.bytes += buf.byteLength;
+      return new Response(buf, { status: res.status, statusText: res.statusText, headers: res.headers });
+    },
   });
   return getSdk(client);
+}
+
+/** Per-auth-context request counters (feature 025). Reset with {@link resetRequestStats}. */
+export interface RequestStats {
+  requests: number;
+  bytes: number;
+}
+
+const requestStats = new WeakMap<object, RequestStats>();
+
+function statsFor(auth: AuthContext): RequestStats {
+  let stats = requestStats.get(auth);
+  if (!stats) {
+    stats = { requests: 0, bytes: 0 };
+    requestStats.set(auth, stats);
+  }
+  return stats;
+}
+
+/** Read the Alkemio request/byte counters accumulated for this auth context. */
+export function getRequestStats(auth: AuthContext): RequestStats {
+  return { ...statsFor(auth) };
+}
+
+/** Zero the counters — call at the start of a load so the summary is per load. */
+export function resetRequestStats(auth: AuthContext): void {
+  const stats = statsFor(auth);
+  stats.requests = 0;
+  stats.bytes = 0;
 }
 
 /**

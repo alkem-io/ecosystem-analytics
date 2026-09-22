@@ -1,5 +1,10 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { api } from '../../services/api.js';
+import {
+  fetchOrchestratorChoice,
+  forgetOrchestratorChoice,
+  rememberOrchestratorChoice,
+} from '../data/orchestrator-candidates.js';
 
 /**
  * The orchestrator choice for one hub (feature 024, FR-009/011/012).
@@ -76,8 +81,9 @@ export function useOrchestratorChoice(
     setLoading(true);
     setError(null);
 
-    api
-      .get<OrchestratorChoiceResponse>(path)
+    // Feature 025: one round trip per hub per page, shared with the data provider that
+    // widens the graph load to every candidate — so opening this tab adds no request.
+    (nonce > 0 ? (forgetOrchestratorChoice(hubNameId!), fetchOrchestratorChoice(hubNameId!)) : fetchOrchestratorChoice(hubNameId!))
       .then((res) => {
         if (cancelled || requestId !== requestRef.current) return;
         setData(res);
@@ -103,6 +109,7 @@ export function useOrchestratorChoice(
       setData((prev) => (prev ? { ...prev, own: spaceNameId } : prev));
       try {
         const res = await api.put<OrchestratorChoiceResponse>(path, { spaceNameId });
+        rememberOrchestratorChoice(res);
         setData(res);
         onLocalChoice?.(null);
       } catch (err) {
@@ -122,7 +129,9 @@ export function useOrchestratorChoice(
     setData((prev) => (prev ? { ...prev, own: null } : prev));
     onLocalChoice?.(null);
     try {
-      setData(await api.delete<OrchestratorChoiceResponse>(path));
+      const res = await api.delete<OrchestratorChoiceResponse>(path);
+      rememberOrchestratorChoice(res);
+      setData(res);
     } catch (err) {
       if (isRefusal(err)) return;
       setError(err instanceof Error ? err.message : String(err));

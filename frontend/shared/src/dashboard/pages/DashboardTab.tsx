@@ -3,8 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { Download, Loader2 } from 'lucide-react';
 import { cn, useAppConfig } from '@ea/shared';
 import { useSelectionContext } from '../hooks/SelectionContext.js';
-import { useDashboard } from '../hooks/useDashboard.js';
-import { useGraphProgress } from '../hooks/useGraphProgress.js';
+import { useCoreLoadState, useCounts, useCityRows } from '../data/derive/index.js';
 import { NdsChart } from '../components/charts/NdsChart.js';
 import { Vng2030Chart } from '../components/charts/Vng2030Chart.js';
 import { GemeenteDistributionChart } from '../components/charts/GemeenteDistributionChart.js';
@@ -14,8 +13,6 @@ import { PhaseDistributionChart } from '../components/charts/PhaseDistributionCh
 import { GdProvenanceNote } from '../components/GdProvenanceNote.js';
 import { LoadingOverlay } from '../components/LoadingOverlay.js';
 import { exportDashboardXlsx, exportSingleChartXlsx, type ChartTable } from '../utils/exportDashboard.js';
-import { buildCityRows } from '../utils/cities.js';
-import { useVngGraph } from '../hooks/useVngGraph.js';
 
 /**
  * Dashboard tab — NDS and VNG-2030 bar charts derived from the effective space
@@ -25,39 +22,15 @@ import { useVngGraph } from '../hooks/useVngGraph.js';
 export function DashboardTab() {
   const { t } = useTranslation();
   const { exportCreator, exportFilenameStem } = useAppConfig();
-  const { effectiveSpaceIds, selectedSpaces, state, refreshNonce } = useSelectionContext();
+  const { effectiveSpaceIds, selectedSpaces, state } = useSelectionContext();
 
-  // The dashboard counts the selected spaces (VNG Groei initiatives) by their Alkemio
-  // CLASSIFICATIONS — what an editor selected on the Space, never their free-text tags
-  // (feature 020). When the GD ("include GemeenteDelers initiatives") checkbox is on, GD
-  // initiatives are additionally stacked into every chart; they are Callouts and carry no
-  // classifications, so they are matched by tag against the same vocabulary's labels and
-  // most still land in the "Overig" (no classification) bar.
-  const request = useMemo(
-    () => ({
-      spaceIds: effectiveSpaceIds,
-      includeGemeentes: state.showGemeentes,
-      // Stack GD initiatives into the NDS / VNG-2030 category charts…
-      includeInitiatives: state.includeInitiatives,
-      // …and into the gemeente-distribution chart.
-      includeGemeenteDelers: state.includeInitiatives,
-    }),
-    [effectiveSpaceIds, state.showGemeentes, state.includeInitiatives],
-  );
-
-  const { data, loading, error } = useDashboard(request, { refreshNonce });
-
-  // Same cached graph the Cities/Graph tabs use — only needed to build the city
-  // chart's per-initiative export (one row per initiative with its connected cities).
-  const { dataset } = useVngGraph(effectiveSpaceIds, {
-    includeInitiatives: state.includeInitiatives,
-    refreshNonce,
-  });
-
-  // Live server-side generation progress (the dashboard fetch runs the same graph
-  // acquisition under the hood), so the loading card can show which space is being
-  // fetched and a real progress bar instead of empty charts.
-  const progress = useGraphProgress(loading);
+  // Feature 025: the counts arrive WITH the dataset (FR-015) — both GD variants — so
+  // the GD checkbox picks a variant here and never sends a request. Spaces are counted
+  // by their Alkemio CLASSIFICATIONS (feature 020); GD initiatives, when included, are
+  // matched by tag against the same vocabulary's labels.
+  const { data } = useCounts();
+  const cityRows = useCityRows();
+  const { loading, error, progress } = useCoreLoadState();
   const currentSpaceLabel = useMemo(() => {
     const nameId = progress?.currentSpace;
     if (!nameId) return null;
@@ -156,7 +129,7 @@ export function DashboardTab() {
   // City chart export: one row per INITIATIVE with the cities it connects (FR-025),
   // inverted client-side from the same graph the Cities tab uses.
   const cityTable = (): ChartTable | null => {
-    const rows = buildCityRows(dataset);
+    const rows = cityRows;
     if (rows.length === 0) return null;
     const byInit = new Map<string, { name: string; kind: 'groei' | 'gd'; cities: Set<string> }>();
     for (const c of rows)

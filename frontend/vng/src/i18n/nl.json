@@ -423,5 +423,43 @@
     "orgCount_other": "{{count}} organisaties",
     "error": "De ecosysteemkaart kon niet worden geladen.",
     "retry": "Opnieuw proberen"
+  },
+  "load": {
+    "item": {
+      "spaces": "Initiatieven",
+      "gd-initiatives": "GemeenteDelers-initiatieven",
+      "activity": "Activiteit",
+      "organizations": "Organisatieprofielen",
+      "gemeente-locations": "Gemeentelocaties"
+    },
+    "stage": {
+      "queued": "In wachtrij",
+      "loading": "Laden",
+      "processing": "Verwerken",
+      "done": "Klaar",
+      "failed": "Mislukt"
+    },
+    "by": {
+      "core": "",
+      "option:gd": "voor de GemeenteDelers-optie",
+      "tab:initiatives": "gevraagd door Initiatieven",
+      "tab:usage": "gevraagd door Gebruiksverkenner",
+      "tab:details": "gevraagd door Details",
+      "tab:explorer": "gevraagd door Explorer"
+    },
+    "progress": "{{done}} van {{total}}",
+    "current": "nu {{name}}",
+    "retry": "Opnieuw",
+    "title": "Gegevens laden",
+    "failed": {
+      "spaces": "De initiatieven konden niet worden geladen.",
+      "gd-initiatives": "De GemeenteDelers-laag kon niet worden geladen.",
+      "activity": "Activiteit is niet beschikbaar.",
+      "organizations": "Organisatieprofielen zijn niet beschikbaar.",
+      "gemeente-locations": "Gemeentelocaties zijn niet beschikbaar.",
+      "generic": "Er ging iets mis bij het laden."
+    },
+    "waitingFor": "Wachten op {{item}}…",
+    "unavailable": "niet beschikbaar"
   }
 }

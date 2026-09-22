@@ -1,3 +1,7 @@
+# Feature 025: the EXTENDED organisation profile — fetched ON DEMAND only (a details
+# view opening one organisation, or the Explorer's JSON path), cached per organisation
+# for a day. Never issued on the dashboards' core load; the core fields ride inline on
+# the roles fragment instead.
 query organizationByID($id: UUID!) {
   lookup {
     organization(ID: $id) {
