@@ -23,6 +23,7 @@
  * browser's locale rather than the app's.
  */
 import { test, expect } from '@playwright/test';
+import { generateJson, activityJson } from './fixtures/bff-mock.mjs';
 import { readFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -59,11 +60,11 @@ async function mockBff(page) {
   await page.route('**/api/auth/me', (r) => json(r, F.me));
   await page.route('**/api/hubs?*', (r) => json(r, F.hubs));
   await page.route('**/api/hubs/*/spaces', (r) => json(r, F.hubSpaces));
-  await page.route('**/api/graph/generate', (r) => json(r, F.dataset));
+  await page.route('**/api/graph/generate', (r) => generateJson(r, F.dataset, F.dashboard));
+  await page.route('**/api/graph/activity', (r) => activityJson(r, F.dataset));
   await page.route('**/api/graph/progress', (r) =>
     json(r, { step: 'ready', spacesTotal: 6, spacesCompleted: 6 }),
   );
-  await page.route('**/api/vng/dashboard', (r) => json(r, F.dashboard));
   await page.route('**/api/vng/initiatives', (r) => json(r, []));
   await page.route('**/api/features', (r) => json(r, {}));
   await page.route('**/api/meta', (r) => json(r, { environment: 'test' }));

@@ -8,7 +8,8 @@ import { OrchestratorControl } from '../components/OrchestratorControl.js';
 import { useSelectionContext } from '../hooks/SelectionContext.js';
 import { useEcosystemViewState } from '../hooks/useEcosystemViewState.js';
 import { useOrchestratorChoice } from '../hooks/useOrchestratorChoice.js';
-import { useVngGraph } from '../hooks/useVngGraph.js';
+import { useCoreLoadState, useWidenedDataset } from '../data/derive/index.js';
+import { useDashboardData } from '../data/DashboardDataProvider.js';
 import {
   applyFilters,
   buildEcosystemModel,
@@ -32,7 +33,7 @@ const MIN_HEIGHT = 480;
 export function EcosystemTab() {
   const { t } = useTranslation();
   const { eventPrefix } = useAppConfig();
-  const { state, hubs, effectiveSpaceIds, refreshNonce } = useSelectionContext();
+  const { state, hubs, effectiveSpaceIds } = useSelectionContext();
   const hubNameId = state.activeHubNameId;
 
   const { filters, transform, guestChoice, setFilters, setTransform, setGuestChoice } =
@@ -42,15 +43,20 @@ export function EcosystemTab() {
     onLocalChoice: setGuestChoice,
   });
 
-  // Every explicit candidate joins the graph request, so the resolution order can be
-  // applied against "what the dataset actually holds" without a second round trip.
+  // Every explicit candidate is part of the ONE dataset the provider loads (feature 025,
+  // research R7): it widens the selection with the same candidates, so the resolution
+  // order can be applied against "what the dataset actually holds" without a second
+  // load, and choosing an orchestrator never re-fetches.
   const spaceIds = useMemo(() => {
     const ids = new Set(effectiveSpaceIds);
     for (const candidate of [own, community, builtIn]) if (candidate) ids.add(candidate);
     return [...ids];
   }, [effectiveSpaceIds, own, community, builtIn]);
 
-  const { dataset, loading, error, reload } = useVngGraph(spaceIds, { refreshNonce });
+  const dataset = useWidenedDataset();
+  const { loading, error } = useCoreLoadState();
+  const { retry } = useDashboardData();
+  const reload = useCallback(() => retry('spaces'), [retry]);
 
   const resolution = useMemo(() => {
     if (!dataset) return { nameId: null, source: null, builtInMissing: false };
@@ -91,20 +97,22 @@ export function EcosystemTab() {
     [model, filters],
   );
 
-  // Measure the host so the layout is computed against real pixels.
-  const hostRef = useRef<HTMLDivElement | null>(null);
+  // Measure the host so the layout is computed against real pixels. A callback ref,
+  // not a mount effect: the host div appears only once data is there (the spinner
+  // renders first), so the observer must attach whenever the element does.
   const [size, setSize] = useState({ width: 0, height: 0 });
-  useEffect(() => {
-    const el = hostRef.current;
+  const observerRef = useRef<ResizeObserver | null>(null);
+  const hostRef = useCallback((el: HTMLDivElement | null) => {
+    observerRef.current?.disconnect();
+    observerRef.current = null;
     if (!el) return;
-    const observer = new ResizeObserver(([entry]) => {
+    observerRef.current = new ResizeObserver(([entry]) => {
       setSize({
         width: Math.max(1, Math.floor(entry.contentRect.width)),
         height: Math.max(MIN_HEIGHT, Math.floor(entry.contentRect.height)),
       });
     });
-    observer.observe(el);
-    return () => observer.disconnect();
+    observerRef.current.observe(el);
   }, []);
 
   const layout = useMemo(

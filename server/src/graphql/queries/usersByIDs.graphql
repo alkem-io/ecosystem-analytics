@@ -1,3 +1,5 @@
+# Feature 025: only the fields the graph renders for a user (name, avatar, url,
+# location, tags) plus `createdDate`, which the Explorer's temporal view places nodes by.
 query usersByIDs($ids: [UUID!]!) {
   users(IDs: $ids) {
     id

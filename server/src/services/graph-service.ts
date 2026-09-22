@@ -1,12 +1,13 @@
 import { acquireSpaces } from './acquire-service.js';
 import type { AuthContext } from '../auth/middleware.js';
-import { transformToGraph, computeActivityTiers } from '../transform/transformer.js';
+import { transformToGraph, applyActivity } from '../transform/transformer.js';
 import { computeMetrics } from '../transform/metrics.js';
 import { computeInsights } from '../transform/insights.js';
 import {
   getCacheEntry,
   setCacheEntry,
   invalidateCache,
+  invalidateItemRows,
   GD_CACHE_SPACE_ID,
   GEO_CACHE_SPACE_ID,
 } from '../cache/cache-service.js';
@@ -30,8 +31,12 @@ import {
   resolveThemeTitles,
 } from '../transform/initiatives.js';
 import { getLogger } from '../logging/logger.js';
-import { type GraphDataset, type GraphNode, type GraphEdge, type SpaceCacheInfo, type SpaceTimeSeries, type ActivityPeriodCounts, NodeType, EdgeType, ActivityTier } from '../types/graph.js';
-import type { GraphGenerationRequest, GraphProgress } from '../types/api.js';
+import { type GraphDataset, type GraphNode, type GraphEdge, type SpaceCacheInfo, type SpaceTimeSeries, NodeType } from '../types/graph.js';
+import type { GraphGenerationBundle, GraphGenerationRequest, GraphProgress } from '../types/api.js';
+import type { GdCountableCallout, SpaceClassificationSnapshot } from './dashboard-bundle.js';
+import { LoadReporter } from './progress/load-reporter.js';
+import { loadActivityEntries } from './activity-service.js';
+import { loadExtendedProfiles } from './organization-service.js';
 
 const logger = getLogger();
 
@@ -49,8 +54,15 @@ async function buildGraph(
   userId: string,
   auth: AuthContext,
   request: GraphGenerationRequest,
-): Promise<GraphDataset> {
+  reporter: LoadReporter = new LoadReporter(),
+): Promise<GraphGenerationBundle> {
   const { spaceIds, forceRefresh } = request;
+  // Every stage goes to the request's reporter (the stream) AND to the per-user map the
+  // Explorer's poller reads — one code path feeds both (feature 025).
+  const report = (fn: (r: LoadReporter) => void) => {
+    fn(reporter);
+    setProgress(userId, reporter.toGraphProgress());
+  };
 
   logger.info(`Graph generation requested for spaces [${spaceIds.join(', ')}] by user ${userId}`, { context: 'Graph' });
 
@@ -77,6 +89,7 @@ async function buildGraph(
       { context: 'Graph' },
     );
     invalidateCache(userId, [...spaceIds, GD_CACHE_SPACE_ID, GEO_CACHE_SPACE_ID]);
+    invalidateItemRows(userId);
   }
 
   // Check cache for each space
@@ -103,12 +116,11 @@ async function buildGraph(
     }
   }
 
-  // Update progress
-  setProgress(userId, {
-    step: 'acquiring',
-    spacesTotal: spaceIds.length,
-    spacesCompleted: spaceIds.length - spacesToFetch.length,
-  });
+  // Cached Spaces count as done at once; a fully cached load never reports `loading`
+  // (that is what makes a zero-platform-request reload visible, SC-002a).
+  if (spacesToFetch.length > 0) {
+    report((r) => r.loading(spaceIds.length - spacesToFetch.length, spaceIds.length));
+  }
 
   if (cachedNodes.length > 0) {
     logger.info(`Loaded ${cachedNodes.length} nodes from cache for ${spaceIds.length - spacesToFetch.length} space(s)`, { context: 'Graph' });
@@ -119,8 +131,6 @@ async function buildGraph(
   let freshEdges: GraphEdge[] = [];
   let timeSeries: SpaceTimeSeries[] | undefined;
   const errors: string[] = [];
-  // Detect activity data from cached edges (if any edge has activityTier, cache had activity)
-  let hasActivity = cachedEdges.some((e) => e.activityTier !== undefined);
 
   if (spacesToFetch.length > 0) {
     logger.info(`Fetching ${spacesToFetch.length} space(s) from Alkemio: [${spacesToFetch.join(', ')}]`, { context: 'Graph' });
@@ -131,29 +141,17 @@ async function buildGraph(
       spacesToFetch,
       () => {
         acquiredCount++;
-        setProgress(userId, {
-          step: 'acquiring',
-          spacesTotal: spaceIds.length,
-          spacesCompleted: cachedCount + acquiredCount,
-        });
+        report((r) => r.loading(cachedCount + acquiredCount, spaceIds.length));
       },
       // Name the space we're about to fetch so the loading UI can say
       // "Loading data… <space>" instead of a bare spinner.
       (nameId) => {
-        setProgress(userId, {
-          step: 'acquiring',
-          spacesTotal: spaceIds.length,
-          spacesCompleted: cachedCount + acquiredCount,
-          currentSpace: nameId,
-        });
+        report((r) => r.loading(cachedCount + acquiredCount, spaceIds.length, nameId));
       },
+      // Feature 025: the per-Space rows are RELATIONAL only; activity is applied below,
+      // from its own rows, only when the caller asked for it.
+      { includeActivity: false },
     );
-
-    setProgress(userId, {
-      step: 'transforming',
-      spacesTotal: spaceIds.length,
-      spacesCompleted: spaceIds.length,
-    });
 
     // Collect non-fatal errors from acquisition
     errors.push(...acquired.errors);
@@ -161,10 +159,6 @@ async function buildGraph(
     const transformed = transformToGraph(acquired);
     freshNodes = transformed.nodes;
     freshEdges = transformed.edges;
-    timeSeries = transformed.timeSeries;
-
-    // Track whether activity data was successfully fetched
-    hasActivity = acquired.activityEntries !== undefined;
 
     // Cache each space's partial dataset (keyed by nameId to match frontend request keys)
     for (const { space, nameId } of acquired.spacesL0) {
@@ -180,14 +174,39 @@ async function buildGraph(
     }
   }
 
+  // Everything from here on is assembling/augmenting — the stream says "processing".
+  report((r) => r.processing());
+
   // Merge all nodes and edges (deduplicate by ID)
   const allNodes = deduplicateNodes([...cachedNodes, ...freshNodes]);
   const allEdges = [...cachedEdges, ...freshEdges];
 
-  // Recompute space activity totals from merged edge data.
-  // This ensures cached spaces also get correct totalActivityCount / spaceActivityTier
-  // without requiring a force-refresh.
-  recomputeSpaceActivity(allNodes, allEdges);
+  // Feature 025: activity and the extended organisation profiles are separate items.
+  // The Explorer's JSON path asks for both (defaults), so its output is what it was;
+  // the dashboards' stream asks for neither and fetches them on demand.
+  let hasActivity = false;
+  if (request.includeActivity !== false) {
+    const l0 = allNodes.filter((n) => n.type === NodeType.SPACE_L0 && n.nameId);
+    const spaceIdToL0 = new Map<string, string>();
+    for (const n of allNodes) for (const g of n.scopeGroups) spaceIdToL0.set(n.id, g);
+    const { entries } = await loadActivityEntries(
+      userId,
+      auth,
+      l0.map((n) => ({ nameId: n.nameId as string, id: n.id })),
+      spaceIdToL0,
+      forceRefresh,
+    );
+    hasActivity = entries.length > 0;
+    timeSeries = applyActivity(allNodes, allEdges, entries);
+  }
+  if (request.includeExtendedProfiles !== false) {
+    const orgIds = allNodes.filter((n) => n.type === NodeType.ORGANIZATION).map((n) => n.id);
+    const { organizations } = await loadExtendedProfiles(userId, auth, orgIds);
+    for (const node of allNodes) {
+      const ext = organizations[node.id];
+      if (ext) Object.assign(node, { ...ext, id: node.id });
+    }
+  }
 
   // Tag gemeente organisations from the snapshot registry (FR-032/035) and resolve the
   // classification dimensions (NDS / VNG-2030 / themes) onto SPACE nodes from their
@@ -213,6 +232,7 @@ async function buildGraph(
   const perSpacePhase: Vocabulary[] = [];
   // TRL is an ordered vocabulary too (TRL 1 → 9) and is read with the same rule.
   const perSpaceTrl: Vocabulary[] = [];
+  const snapshots: SpaceClassificationSnapshot[] = [];
   for (const node of allNodes) {
     if (!node.classificationEntries?.length) continue;
     perSpaceNds.push(vocabularyOf(resolveDesignated(node.classificationEntries, designations.nds)));
@@ -271,6 +291,16 @@ async function buildGraph(
       node.trl = resolvePhase(entries, designations.trl, trlVocabulary);
       const presented = presentClassifications(entries);
       node.classifications = presented.length ? presented : undefined;
+      // Feature 025: the dashboard counts are computed from THESE entries (FR-015) — take
+      // the snapshot now, while they are still on the node.
+      if (node.type === NodeType.SPACE_L0) {
+        snapshots.push({
+          id: node.id,
+          label: node.displayName,
+          tags: [...(node.tags?.keywords ?? []), ...(node.tags?.skills ?? []), ...(node.tags?.default ?? [])],
+          entries,
+        });
+      }
       // Internal-only: never sent to the browser. The cache row was written before this
       // loop ran, so the cached copy keeps the raw entries for the next enrichment pass.
       delete node.classificationEntries;
@@ -279,6 +309,7 @@ async function buildGraph(
 
   // Optionally fold in the GemeenteDelers initiative layer (US10). Non-fatal.
   let gdLayer: GraphDataset['gdLayer'];
+  let gdCallouts: GdCountableCallout[] | null = null;
   if (request.includeInitiatives) {
     const meta = registry.meta();
     const source = {
@@ -287,6 +318,7 @@ async function buildGraph(
       url: meta.programme.sourceUrl,
     };
     try {
+      report((r) => r.itemLoading('gd-initiatives'));
       const subgraph = await loadGdSubgraph(userId, auth, registry, forceRefresh);
 
       // Dedupe ORGANIZATION nodes by nameId so initiatives attach to existing
@@ -303,9 +335,12 @@ async function buildGraph(
       }
       allEdges.push(...subgraph.edges);
       gdLayer = { available: true, initiativeCount: subgraph.initiativeCount, source };
+      gdCallouts = subgraph.callouts ?? [];
+      report((r) => r.itemDone('gd-initiatives'));
     } catch (err) {
       logger.warn(`GD initiative layer unavailable: ${(err as Error).message}`, { context: 'Graph' });
       gdLayer = { available: false, initiativeCount: 0, source, error: 'GD_LAYER_UNAVAILABLE' };
+      report((r) => r.itemFailed('gd-initiatives', { key: 'load.failed.gd-initiatives' }));
     }
   }
 
@@ -336,15 +371,11 @@ async function buildGraph(
   const metrics = computeMetrics(allNodes, allEdges);
   const insights = computeInsights(allNodes, allEdges);
 
-  setProgress(userId, {
-    step: 'ready',
-    spacesTotal: spaceIds.length,
-    spacesCompleted: spaceIds.length,
-  });
+  report((r) => r.itemDone('spaces'));
 
   logger.info(`Graph generation complete: ${allNodes.length} nodes, ${allEdges.length} edges for user ${userId}`, { context: 'Graph' });
 
-  return {
+  const dataset: GraphDataset = {
     version: '1.0.0',
     generatedAt: new Date().toISOString(),
     spaces: spaceIds,
@@ -358,6 +389,24 @@ async function buildGraph(
     errors: errors.length > 0 ? errors : undefined,
     gdLayer,
   };
+
+  // Feature 025: for a dashboard app, the counts travel WITH the dataset (FR-015) —
+  // computed from the classification entries collected above, never re-queried.
+  const profile = request.app ? cfg.dashboards[request.app as DashboardAppId] : undefined;
+  if (!profile) return { dataset };
+  const { buildDashboardBundle } = await import('./dashboard-bundle.js');
+  const presentL0 = new Set(
+    allNodes.filter((n) => n.type === NodeType.SPACE_L0 && n.nameId).map((n) => n.nameId as string),
+  );
+  const dashboard = buildDashboardBundle({
+    dataset,
+    snapshots,
+    unresolvedCount: spaceIds.filter((id) => !presentL0.has(id)).length,
+    gdCallouts,
+    municipalities: registry.municipalities(),
+    profile,
+  });
+  return { dataset, dashboard };
 }
 
 // ── Assembled-dataset memo ──────────────────────────────────────────────────────
@@ -383,7 +432,7 @@ const DATASET_MEMO_MAX = 24;
 
 interface DatasetMemoEntry {
   expiresAt: number;
-  promise: Promise<GraphDataset>;
+  promise: Promise<GraphGenerationBundle>;
 }
 
 const datasetMemo = new Map<string, DatasetMemoEntry>();
@@ -400,6 +449,9 @@ function datasetMemoKey(userId: string, request: GraphGenerationRequest): string
     [...request.spaceIds].sort().join(','),
     request.includeInitiatives ? 1 : 0,
     request.app ?? '',
+    // Feature 025: the relational-only variant and the full variant are different objects.
+    request.includeActivity === false ? 0 : 1,
+    request.includeExtendedProfiles === false ? 0 : 1,
   ].join('|');
 }
 
@@ -442,9 +494,23 @@ export async function generateGraph(
   auth: AuthContext,
   request: GraphGenerationRequest,
 ): Promise<GraphDataset> {
+  return (await generateGraphBundle(userId, auth, request)).dataset;
+}
+
+/**
+ * Feature 025: the dataset PLUS, for a dashboard app, the counts bundle computed from
+ * the same data (FR-015). Same memo as {@link generateGraph} — one build serves both.
+ */
+export async function generateGraphBundle(
+  userId: string,
+  auth: AuthContext,
+  request: GraphGenerationRequest,
+  /** Where the build reports its stages; a memo hit reports nothing (it is instant). */
+  reporter?: LoadReporter,
+): Promise<GraphGenerationBundle> {
   if (request.forceRefresh) {
     invalidateDatasetMemo(userId);
-    return buildGraph(userId, auth, request);
+    return buildGraph(userId, auth, request, reporter);
   }
 
   const now = Date.now();
@@ -459,7 +525,7 @@ export async function generateGraph(
     return hit.promise;
   }
 
-  const promise = buildGraph(userId, auth, request);
+  const promise = buildGraph(userId, auth, request, reporter);
   datasetMemo.set(key, { expiresAt: now + DATASET_MEMO_TTL_MS, promise });
   // A failed build must not be served to the next caller for the rest of the window.
   promise.catch(() => datasetMemo.delete(key));
@@ -475,6 +541,12 @@ interface GdSubgraph {
   nodes: GraphNode[];
   edges: GraphEdge[];
   initiativeCount: number;
+  /**
+   * Feature 025: what the dashboard counts need from each callout, so the GD variant of
+   * the counts is computed from this cached row instead of re-fetching the callouts.
+   * Absent on rows written before the split (cleared by cache maintenance v4).
+   */
+  callouts?: GdCountableCallout[];
 }
 
 /**
@@ -535,6 +607,13 @@ async function loadGdSubgraph(
     nodes: [...finalLayer.nodes, ...extraOrgNodes],
     edges: finalLayer.edges,
     initiativeCount: callouts.length,
+    callouts: callouts.map((c) => ({
+      id: c.id,
+      displayName: c.displayName,
+      tags: c.tags,
+      // GD initiatives mention their gemeentes in the DESCRIPTION (not the tags).
+      gemeenteCount: registry.findGemeentesInText(c.description).length,
+    })),
   };
 
   // Cache under the reserved space_id with the long archival TTL (FR-046).
@@ -571,46 +650,3 @@ function deduplicateNodes(nodes: GraphNode[]): GraphNode[] {
   return Array.from(map.values());
 }
 
-/**
- * Recompute totalActivityCount and spaceActivityTier on space nodes
- * from the merged edge data. This ensures cached datasets (which may
- * predate the space-activity feature) get correct values without
- * requiring a force-refresh.
- */
-function recomputeSpaceActivity(nodes: GraphNode[], edges: GraphEdge[]): void {
-  // Sum activityCount and per-period counts from user→space edges, grouped by target spaceId
-  const spaceCountMap = new Map<string, number>();
-  const spacePeriodMap = new Map<string, ActivityPeriodCounts>();
-
-  for (const edge of edges) {
-    if (edge.type !== EdgeType.MEMBER && edge.type !== EdgeType.LEAD && edge.type !== EdgeType.ADMIN) continue;
-    if (edge.activityCount === undefined || edge.activityCount === 0) continue;
-    const prev = spaceCountMap.get(edge.targetId) ?? 0;
-    spaceCountMap.set(edge.targetId, prev + edge.activityCount);
-
-    // Accumulate per-period counts if available
-    if (edge.activityByPeriod) {
-      let rec = spacePeriodMap.get(edge.targetId);
-      if (!rec) {
-        rec = { day: 0, week: 0, month: 0, allTime: 0 };
-        spacePeriodMap.set(edge.targetId, rec);
-      }
-      rec.day += edge.activityByPeriod.day;
-      rec.week += edge.activityByPeriod.week;
-      rec.month += edge.activityByPeriod.month;
-      rec.allTime += edge.activityByPeriod.allTime;
-    }
-  }
-
-  if (spaceCountMap.size === 0) return;
-
-  const spaceTierMap = computeActivityTiers(spaceCountMap);
-
-  for (const node of nodes) {
-    if (node.type !== NodeType.SPACE_L0 && node.type !== NodeType.SPACE_L1 && node.type !== NodeType.SPACE_L2) continue;
-    const total = spaceCountMap.get(node.id);
-    node.totalActivityCount = total ?? 0;
-    node.spaceActivityTier = spaceTierMap.get(node.id) ?? ActivityTier.INACTIVE;
-    node.activityByPeriod = spacePeriodMap.get(node.id) ?? { day: 0, week: 0, month: 0, allTime: 0 };
-  }
-}

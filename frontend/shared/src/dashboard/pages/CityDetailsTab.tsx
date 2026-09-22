@@ -3,10 +3,9 @@ import { useTranslation } from 'react-i18next';
 import * as Select from '@radix-ui/react-select';
 import { Check, ChevronDown } from 'lucide-react';
 import { cn, proxyImageUrl, SafeImage } from '@ea/shared';
-import { buildCityRows, type CityRow } from '../utils/cities.js';
+import type { CityRow } from '../utils/cities.js';
 import { useSelectionContext } from '../hooks/SelectionContext.js';
-import { useVngGraph } from '../hooks/useVngGraph.js';
-import { useGraphProgress } from '../hooks/useGraphProgress.js';
+import { useCityRows, useCoreLoadState, useGraphDataset } from '../data/derive/index.js';
 import { InitiativeMap } from '../components/InitiativeMap.js';
 import { LoadingOverlay } from '../components/LoadingOverlay.js';
 
@@ -40,17 +39,15 @@ function initials(name: string): string {
 export function CityDetailsTab({ openCityId, openCitySeq }: CityDetailsTabProps = {}) {
   const { t, i18n } = useTranslation();
   const { effectiveSpaceIds, selectedSpaces, state } = useSelectionContext();
-  const { dataset, loading, error } = useVngGraph(effectiveSpaceIds, {
-    includeInitiatives: state.includeInitiatives,
-  });
-
-  const cities = useMemo<CityRow[]>(() => buildCityRows(dataset), [dataset]);
+  // Feature 025: the dataset is loaded once by the shared provider; this tab derives.
+  const dataset = useGraphDataset();
+  const { loading, error, progress } = useCoreLoadState();
+  const cities: CityRow[] = useCityRows();
   const [selected, setSelected] = useState<string | null>(null);
 
   // Live server-side progress while the (heavy) first generation is in flight, so the
   // tab names what it is waiting on instead of looking stuck. Matches the other tabs.
   const firstLoading = loading && !dataset;
-  const progress = useGraphProgress(firstLoading);
   const currentSpaceLabel = useMemo(() => {
     const nameId = progress?.currentSpace;
     if (!nameId) return null;

@@ -92,11 +92,27 @@ export function transformToGraph(data: AcquiredData): TransformResult {
     addContributorEdges(space, l0ScopeGroup, data, nodes, edges, nodeIds);
   }
 
-  // Attach activity data to user→space edges if available
-  if (data.activityEntries && data.activityEntries.length > 0) {
-    const countMap = aggregateActivityCounts(data.activityEntries);
+  // Feature 025: activity is a separate item. The Explorer's JSON path still gets it
+  // applied here (unchanged output); the dashboards' relational load never carries it.
+  const timeSeries = data.activityEntries ? applyActivity(nodes, edges, data.activityEntries) : undefined;
+  return { nodes, edges, timeSeries };
+}
+
+/**
+ * Apply activity-feed entries to an assembled graph: user→space edge counts/tiers/periods,
+ * per-Space totals and tiers, estimated edge dates, and the per-Space time series.
+ * Pure — runs the same over freshly transformed or cache-assembled nodes/edges.
+ */
+export function applyActivity(
+  nodes: GraphNode[],
+  edges: GraphEdge[],
+  activityEntries: RawActivityEntry[],
+): SpaceTimeSeries[] | undefined {
+  if (activityEntries.length === 0) return undefined;
+  {
+    const countMap = aggregateActivityCounts(activityEntries);
     const tierMap = computeActivityTiers(countMap);
-    const periodMap = aggregateActivityCountsByPeriod(data.activityEntries);
+    const periodMap = aggregateActivityCountsByPeriod(activityEntries);
 
     for (const edge of edges) {
       // Only user→space edges (MEMBER, LEAD, or ADMIN where source is a user)
@@ -137,13 +153,10 @@ export function transformToGraph(data: AcquiredData): TransformResult {
   }
 
   // Build time series for Timeline view (T012/T014)
-  let timeSeries: SpaceTimeSeries[] | undefined;
-  if (data.activityEntries && data.activityEntries.length > 0) {
-    timeSeries = buildTimeSeries(data.activityEntries, nodes);
-  }
+  const timeSeries = buildTimeSeries(activityEntries, nodes);
 
   // Estimate edge creation dates for Temporal Force view (T013/T014)
-  if (data.activityEntries && data.activityEntries.length > 0) {
+  {
     const spaceNodeMap = new Map<string, GraphNode>();
     for (const n of nodes) {
       if (n.type === NodeType.SPACE_L0 || n.type === NodeType.SPACE_L1 || n.type === NodeType.SPACE_L2) {
@@ -169,12 +182,12 @@ export function transformToGraph(data: AcquiredData): TransformResult {
     for (const edge of edges) {
       // Only estimate for user→space relationship edges
       if (edge.type !== EdgeType.MEMBER && edge.type !== EdgeType.LEAD && edge.type !== EdgeType.ADMIN) continue;
-      const estimated = estimateEdgeCreatedDate(edge, data.activityEntries, spaceNodeMap, descendantMap);
+      const estimated = estimateEdgeCreatedDate(edge, activityEntries, spaceNodeMap, descendantMap);
       if (estimated) edge.createdDate = estimated;
     }
   }
 
-  return { nodes, edges, timeSeries };
+  return timeSeries;
 }
 
 function addSpaceNode(
