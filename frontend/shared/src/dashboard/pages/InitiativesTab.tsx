@@ -13,11 +13,11 @@ import {
 import { RecordCard, RecordCardList, RecordSortControl } from '../components/RecordCards.js';
 import { TableFilterBar, FILTER_ALL } from '../components/TableFilterBar.js';
 import { ActivityTier, type NodePhase } from '@server/types/graph.js';
-import { buildInitiativeRows, type InitiativeRow } from '../utils/initiatives.js';
+import type { InitiativeRow } from '../utils/initiatives.js';
 import { exportTableXlsx, type ChartTable } from '../utils/exportDashboard.js';
 import { useSelectionContext } from '../hooks/SelectionContext.js';
-import { useVngGraph } from '../hooks/useVngGraph.js';
-import { useGraphProgress } from '../hooks/useGraphProgress.js';
+import { useCoreLoadState, useGraphDataset, useInitiativeRows } from '../data/derive/index.js';
+import { useExtraItem } from '../data/hooks.js';
 
 const ALL = FILTER_ALL;
 
@@ -154,14 +154,15 @@ export function InitiativesTab() {
   const { t } = useTranslation();
   // Below `lg` the fifteen-column table is re-laid as one card per initiative.
   const compact = useIsCompact();
-  const { effectiveSpaceIds, selectedSpaces, state, refreshNonce } = useSelectionContext();
-  const { dataset, loading, error } = useVngGraph(effectiveSpaceIds, {
-    includeInitiatives: state.includeInitiatives,
-    refreshNonce,
-  });
+  const { effectiveSpaceIds, selectedSpaces, state } = useSelectionContext();
+  // Feature 025: the dataset is loaded once by the shared provider; this tab derives.
+  // Activity is a separate on-demand item (FR-012a): declaring it here is what makes the
+  // provider fetch it — once per selection, announced in the strip under this tab's name.
+  const dataset = useGraphDataset();
+  const { loading, error, progress } = useCoreLoadState();
+  const activity = useExtraItem('activity', 'tab:initiatives');
 
   // Name the space currently being fetched (mirrors the dashboard/graph loading feedback).
-  const progress = useGraphProgress(loading && !dataset);
   const currentSpaceLabel = (() => {
     const nameId = progress?.currentSpace;
     if (!nameId) return null;
@@ -173,9 +174,10 @@ export function InitiativesTab() {
   const [sortKey, setSortKey] = useState<SortKey>('name');
   const [sortDir, setSortDir] = useState<SortDir>('asc');
 
-  // One row per initiative, from the shared builder (feature 022). Kept as a useMemo so
-  // the table's filter/sort work below is not redone on every render.
-  const allRows = useMemo<Row[]>(() => buildInitiativeRows(dataset), [dataset]);
+  // One row per initiative, from the shared, memoised derivation (feature 022 / 025) —
+  // the same rows object the Funnel reads, so the filter/sort work below is the only
+  // per-tab computation.
+  const allRows: Row[] = useInitiativeRows();
 
   // Distinct values per categorical column, for the dropdown filters above the table.
   const distinct = (pick: (r: Row) => string[]): string[] => {
@@ -551,6 +553,16 @@ export function InitiativesTab() {
           </button>
         }
       />
+
+      {/* Activity columns fill in once the on-demand item lands; say so meanwhile. */}
+      {dataset && (activity.loading || activity.failed) && (
+        <div data-testid="activity-status" className="flex items-center gap-2 border-b border-[var(--border)] px-3 py-1 text-xs text-[var(--text-secondary)]">
+          {activity.loading && <Loader2 className="h-3 w-3 animate-spin" aria-hidden />}
+          {activity.failed
+            ? t('load.failed.activity')
+            : t('load.waitingFor', { item: t('load.item.activity').toLowerCase() })}
+        </div>
+      )}
 
       {/* Table */}
       <div className="min-h-0 flex-1 overflow-auto">

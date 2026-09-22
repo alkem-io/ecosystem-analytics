@@ -25,6 +25,32 @@ export const GD_CACHE_SPACE_ID = '__gd_initiatives__';
  */
 export const GEO_CACHE_SPACE_ID = '__gemeente_geo__';
 
+// --- Feature 025 — split cache rows ---------------------------------------
+// The per-Space rows hold RELATIONAL data only. Activity and extended organisation
+// profiles are separate items with their own rows, so the dashboards' core load never
+// carries (or triggers) them while the Explorer can still compose everything.
+
+/** Prefix of every synthetic (non-Space) row id. */
+const SYNTHETIC_PREFIX = '__';
+
+/** Cache row id for the activity item of one Space (24 h, per viewer). */
+export function activityCacheId(nameId: string): string {
+  return `__activity__:${nameId}`;
+}
+
+/** Cache row id for one organisation's extended profile (24 h, per viewer). */
+export function orgCacheId(orgId: string): string {
+  return `__org__:${orgId}`;
+}
+
+/**
+ * True for a plain per-Space relational row (a real nameId), false for every synthetic
+ * row (`__gd_initiatives__`, `__gemeente_geo__`, `__activity__:…`, `__org__:…`).
+ */
+export function isRelationalSpaceRow(spaceId: string): boolean {
+  return !spaceId.startsWith(SYNTHETIC_PREFIX);
+}
+
 /**
  * Get a cached dataset for a specific user + space combination.
  * Returns null if no cache exists or if the entry has expired.
@@ -116,6 +142,18 @@ export function invalidateCache(userId: string, spaceIds: string[]): void {
 }
 
 /**
+ * Drop a user's on-demand item rows (feature 025) — every `__activity__:*` and
+ * `__org__:*` row — so a force refresh re-fetches those too (FR-014).
+ */
+export function invalidateItemRows(userId: string): void {
+  getDatabase()
+    .prepare(
+      `DELETE FROM cache_entries WHERE user_id = ? AND (space_id LIKE '__activity__:%' OR space_id LIKE '__org__:%')`,
+    )
+    .run(userId);
+}
+
+/**
  * Clear all cache entries for a specific user.
  */
 export function clearUserCache(userId: string): number {
@@ -139,7 +177,7 @@ export function invalidateGdCacheForAllUsers(): number {
  * Bump this and add a numbered step below whenever a deployment needs a one-time,
  * cache-wide action to run exactly once per environment DB.
  */
-const CACHE_MAINTENANCE_VERSION = 3;
+const CACHE_MAINTENANCE_VERSION = 4;
 
 /**
  * Deployment-scoped, run-once cache maintenance. SQLite's `user_version` is used
@@ -177,7 +215,13 @@ export function runDeploymentCacheMaintenance(): {
     // v3: the classification set on the Groei spaces changed in Alkemio (entries removed,
     // TRL added) and cached datasets served from BEFORE that change failed the dashboard
     // until a manual refresh. Same sweep as v2: every dataset row goes, the GEO row stays.
-    if (current < 3) {
+    // v4 (feature 025): the per-Space rows became RELATIONAL only — activity-derived
+    // fields moved to their own `__activity__:<nameId>` rows and the GD row gained the
+    // callouts the counts bundle needs. A pre-split row served as relational-only would
+    // still carry activity and lack nothing visible, but the reverse — an old GD row
+    // without callouts — would drop the GD segment from the counts. Same sweep: every
+    // dataset row goes, the GEO row stays.
+    if (current < 4) {
       classificationRowsCleared = db
         .prepare('DELETE FROM cache_entries WHERE space_id != ?')
         .run(GEO_CACHE_SPACE_ID).changes;

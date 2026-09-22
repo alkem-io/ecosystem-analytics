@@ -12,10 +12,9 @@ import {
 } from '@ea/shared';
 import { RecordCard, RecordCardList, RecordSortControl } from '../components/RecordCards.js';
 import { TableFilterBar, FILTER_ALL } from '../components/TableFilterBar.js';
-import { buildCityRows, type CityRow } from '../utils/cities.js';
+import type { CityRow } from '../utils/cities.js';
 import { useSelectionContext } from '../hooks/SelectionContext.js';
-import { useVngGraph } from '../hooks/useVngGraph.js';
-import { useGraphProgress } from '../hooks/useGraphProgress.js';
+import { useCityRows, useCoreLoadState, useGraphDataset } from '../data/derive/index.js';
 
 const ALL = FILTER_ALL;
 
@@ -76,18 +75,16 @@ export function CitiesTab() {
   const cfg = useAppConfig();
   // Below `lg` the nine-column table is re-laid as one card per gemeente.
   const compact = useIsCompact();
-  const { effectiveSpaceIds, selectedSpaces, state, refreshNonce } = useSelectionContext();
+  const { effectiveSpaceIds, selectedSpaces, state } = useSelectionContext();
 
   // Choosing a city opens its profile on the City information tab (FR-018).
   const openCity = (cityId: string) =>
     window.dispatchEvent(new CustomEvent(`${cfg.eventPrefix}:openCity`, { detail: { cityId } }));
-  const { dataset, loading, error } = useVngGraph(effectiveSpaceIds, {
-    includeInitiatives: state.includeInitiatives,
-    refreshNonce,
-  });
+  // Feature 025: the dataset is loaded once by the shared provider; this tab derives.
+  const dataset = useGraphDataset();
+  const { loading, error, progress } = useCoreLoadState();
 
   // Name the space currently being fetched (mirrors the other tabs' loading feedback).
-  const progress = useGraphProgress(loading && !dataset);
   const currentSpaceLabel = (() => {
     const nameId = progress?.currentSpace;
     if (!nameId) return null;
@@ -99,7 +96,7 @@ export function CitiesTab() {
   const [sortKey, setSortKey] = useState<SortKey>('initiatives');
   const [sortDir, setSortDir] = useState<SortDir>('desc');
 
-  const allRows = useMemo<CityRow[]>(() => buildCityRows(dataset), [dataset]);
+  const allRows: CityRow[] = useCityRows();
 
   const numberFormat = useMemo(() => new Intl.NumberFormat(i18n.language), [i18n.language]);
 

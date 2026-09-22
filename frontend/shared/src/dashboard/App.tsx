@@ -15,6 +15,8 @@ import { AuthorizationWarning } from './components/AuthorizationWarning.js';
 import { SelectedSpacesPanel } from './components/SelectedSpacesPanel.js';
 import { ErrorBoundary } from './components/ErrorBoundary.js';
 import { SelectionProvider, useSelectionContext } from './hooks/SelectionContext.js';
+import { DashboardDataProvider } from './data/DashboardDataProvider.js';
+import { LoadStrip } from './components/LoadStrip.js';
 import { GraphTab } from './pages/GraphTab.js';
 import { SpaceDetailsTab } from './pages/SpaceDetailsTab.js';
 import { DashboardTab } from './pages/DashboardTab.js';
@@ -202,6 +204,10 @@ function AppShell() {
             }}
           />
 
+          {/* Feature 025: the one progress strip, outside the tab switch so it is the
+              same on every tab and never restarts when the viewer moves (FR-007/009). */}
+          <LoadStrip />
+
           <main className="min-h-0 min-w-0 flex-1">
             <ErrorBoundary key={active} label={t(`tabs.${active}`)}>
               {active === 'graph' && (
@@ -347,8 +353,12 @@ export default function App() {
 
   return (
     <SelectionProvider>
-      <AppShell />
-      <BrokenVisualsPanel />
+      {/* Feature 025: ONE loaded dataset per selection for every tab, mounted above the
+          tab switch so tab (un)mounting never touches it. */}
+      <DashboardDataProvider>
+        <AppShell />
+        <BrokenVisualsPanel />
+      </DashboardDataProvider>
     </SelectionProvider>
   );
 }

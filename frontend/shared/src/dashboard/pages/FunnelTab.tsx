@@ -5,9 +5,7 @@ import { cn } from '@ea/shared';
 import { FunnelChart, FUNNEL_CHROME } from '../components/FunnelChart.js';
 import { VocabularyDriftNotice } from '../components/charts/VocabularyDriftNotice.js';
 import { useSelectionContext } from '../hooks/SelectionContext.js';
-import { useDashboard } from '../hooks/useDashboard.js';
-import { useVngGraph } from '../hooks/useVngGraph.js';
-import { buildInitiativeRows } from '../utils/initiatives.js';
+import { useCoreLoadState, useCounts, useGraphDataset, useInitiativeRows } from '../data/derive/index.js';
 import { layoutFunnel } from '../utils/funnel.js';
 import { FILTER_ALL } from '../components/TableFilterBar.js';
 
@@ -51,21 +49,14 @@ const MIN_FUNNEL_WIDTH = 640;
  */
 export function FunnelTab() {
   const { t } = useTranslation();
-  const { effectiveSpaceIds, state, refreshNonce } = useSelectionContext();
+  const { effectiveSpaceIds, state } = useSelectionContext();
 
-  const { data, error: dashboardError } = useDashboard(
-    {
-      spaceIds: effectiveSpaceIds,
-      includeGemeentes: state.showGemeentes,
-      includeInitiatives: state.includeInitiatives,
-      includeGemeenteDelers: state.includeInitiatives,
-    },
-    { refreshNonce },
-  );
-  const { dataset, error: graphError } = useVngGraph(effectiveSpaceIds, {
-    includeInitiatives: state.includeInitiatives,
-    refreshNonce,
-  });
+  // Feature 025: both the phase vocabulary (counts bundle) and the initiative rows come
+  // off the ONE loaded dataset — this tab adds no request of its own (FR-002).
+  const { data } = useCounts();
+  const dataset = useGraphDataset();
+  const { error } = useCoreLoadState();
+  const allRows = useInitiativeRows();
 
   // Measure the container so the layout is computed against real pixels — the funnel is
   // laid out to fit, never scaled after the fact, so dot sizes stay honest on every size.
@@ -96,8 +87,6 @@ export function FunnelTab() {
   // Names beside the dots. Off by default — see the prop's note in FunnelChart — but the
   // natural next move after narrowing with the filters above, so it sits beside them.
   const [showLabels, setShowLabels] = useState(false);
-
-  const allRows = useMemo(() => buildInitiativeRows(dataset), [dataset]);
 
   /** Distinct values actually present on the rows, so no option can select nothing. */
   const optionsFor = (pick: (r: (typeof allRows)[number]) => string[]): string[] => {
@@ -143,7 +132,6 @@ export function FunnelTab() {
     [rows, data, size.width, size.height],
   );
 
-  const error = dashboardError ?? graphError;
   const phaseDrift = data?.vocabularyDrift?.find((d) => d.dimension === 'phase');
 
   const body = () => {

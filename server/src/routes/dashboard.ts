@@ -1,15 +1,10 @@
 import { Router, Request, Response } from 'express';
 import { authMiddleware, invalidateAndReject } from '../auth/middleware.js';
 import { resolveUser } from '../auth/resolve-user.js';
-import {
-  assembleCityPopulation,
-  assembleDashboard,
-  assembleGemeenteDistribution,
-} from '../services/vng-dashboard-service.js';
 import { fetchGemeentedelersCallouts } from '../services/gd-initiatives-service.js';
 import { getGemeenteLocations } from '../services/gemeente-geo-service.js';
-import type { GemeenteLocationsResponse } from '../types/api.js';
-import { generateGraph } from '../services/graph-service.js';
+import type { GemeenteLocationsResponse, VngDashboardResponse } from '../types/api.js';
+import { generateGraphBundle } from '../services/graph-service.js';
 import { loadVngRegistry } from '../services/vng-registry.js';
 import { createAlkemioSdk, isAlkemioAuthError } from '../graphql/client.js';
 import { loadConfig, type DashboardAppConfig, type DashboardAppId } from '../config.js';
@@ -70,40 +65,31 @@ dashboardRouter.post('/dashboard', async (req: Request, res: Response) => {
       return;
     }
 
-    const result = await assembleDashboard(
-      req.auth!,
-      body.spaceIds,
-      body.includeInitiatives ?? false,
-      profile,
-    );
-    // The gemeente-distribution and city-population panels both read the same graph,
-    // so generate it once here and hand it to both rather than paying for two cold
-    // generations. The GD layer is folded in only when the GD checkbox is on.
+    // Feature 025: ONE generate (memoised, cache-backed) yields the dataset AND both GD
+    // variants of every panel; the two checkboxes just pick a variant (FR-015).
     const includeGd = body.includeGemeenteDelers ?? false;
-    const dataset = await generateGraph(req.auth!.userId!, req.auth!, {
+    const includeGdInCategories = body.includeInitiatives ?? false;
+    const bundle = await generateGraphBundle(req.auth!.userId!, req.auth!, {
       spaceIds: body.spaceIds,
-      includeInitiatives: includeGd,
-      // Enrich nodes with THIS app's classification designations (feature 020).
+      includeInitiatives: includeGd || includeGdInCategories,
       app: req.baseUrl.split('/').filter(Boolean).pop(),
+      includeActivity: false,
+      includeExtendedProfiles: false,
     });
-    // Initiatives-by-gemeente-count distribution (stacked Groei + GD). Always
-    // includes Groei (selected spaces); folds in GD when the GD checkbox is on.
-    result.gemeenteDistribution = await assembleGemeenteDistribution(
-      req.auth!.userId!,
-      req.auth!,
-      body.spaceIds,
-      includeGd,
-      dataset,
-    );
-    // Population × initiative-count series (feature 018). Plots participating cities
-    // AND the municipalities taking part in nothing, so outreach gaps are visible.
-    result.cityPopulation = await assembleCityPopulation(
-      req.auth!.userId!,
-      req.auth!,
-      body.spaceIds,
-      includeGd,
-      dataset,
-    );
+    const counts = bundle.dashboard;
+    if (!counts) {
+      res.status(404).json({ error: 'UNKNOWN_APP', message: 'No dashboard profile for this app' });
+      return;
+    }
+    const categories =
+      includeGdInCategories && counts.categories.withGd ? counts.categories.withGd : counts.categories.base;
+    const distribution =
+      includeGd && counts.distribution.withGd ? counts.distribution.withGd : counts.distribution.base;
+    const result: VngDashboardResponse = {
+      ...categories,
+      gemeenteDistribution: distribution.gemeenteDistribution,
+      cityPopulation: distribution.cityPopulation,
+    };
     res.json(result);
   } catch (err) {
     if (isAlkemioAuthError(err)) return invalidateAndReject(req, res);

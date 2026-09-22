@@ -14,8 +14,7 @@ import {
 } from '@ea/shared';
 import type { GeoPermissibleObjects } from 'd3-geo';
 import type { GraphDataset, GraphNode } from '@server/types/graph.js';
-import { useVngGraph } from '../hooks/useVngGraph.js';
-import { useGraphProgress } from '../hooks/useGraphProgress.js';
+import { useCoreLoadState, useGraphDataset } from '../data/derive/index.js';
 import { MapToggle } from '../components/MapToggle.js';
 import { GemeenteToggle } from '../components/GemeenteToggle.js';
 import { GraphMetricsBar } from '../components/GraphMetricsBar.js';
@@ -160,11 +159,14 @@ export function GraphTab({
   const includeInitiatives = selection.includeInitiatives;
   const showGemeentes = selection.showGemeentes;
 
-  const { dataset: rawDataset, loading, error, warnings } = useVngGraph(spaceIds, {
-    includeInitiatives,
-    refreshNonce,
-  });
-  const progress = useGraphProgress(loading);
+  // Feature 025: the dataset comes from the shared provider (loaded once per selection,
+  // FR-001); this tab only derives its view. `includeInitiatives`/`refreshNonce` are
+  // driven by the shell's selection, which the provider already watches.
+  void includeInitiatives;
+  void refreshNonce;
+  const rawDataset = useGraphDataset();
+  const { loading, error, progress } = useCoreLoadState();
+  const warnings = rawDataset?.errors ?? [];
   const [offMapMinimized, setOffMapMinimized] = useState(false);
 
   // ── T051 — hide gemeente organisation nodes (and any edges touching them) ──

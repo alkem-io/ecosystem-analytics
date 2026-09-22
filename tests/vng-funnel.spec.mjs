@@ -19,6 +19,7 @@
  * frontend/vng/src/dashboard/funnel.test.ts.
  */
 import { test, expect } from '@playwright/test';
+import { generateJson, activityJson } from './fixtures/bff-mock.mjs';
 import { readFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -93,16 +94,16 @@ async function boot(page, { withPhases = true, dashboardDelayMs = 0 } = {}) {
   await page.route('**/api/auth/me', (r) => json(r, F.me));
   await page.route('**/api/hubs?*', (r) => json(r, F.hubs));
   await page.route('**/api/hubs/*/spaces', (r) => json(r, F.hubSpaces));
-  await page.route('**/api/graph/generate', (r) => json(r, withPhases ? dataset : F.dataset));
+  // Feature 025: the counts (phase vocabulary) travel WITH the dataset; the two sources
+  // can no longer land in either order, so `dashboardDelayMs` just delays the one load.
+  await page.route('**/api/graph/generate', async (r) => {
+    if (dashboardDelayMs) await new Promise((done) => setTimeout(done, dashboardDelayMs));
+    return generateJson(r, withPhases ? dataset : F.dataset, withPhases ? dashboard : F.dashboard);
+  });
+  await page.route('**/api/graph/activity', (r) => activityJson(r, withPhases ? dataset : F.dataset));
   await page.route('**/api/graph/progress', (r) =>
     json(r, { step: 'ready', spacesTotal: 6, spacesCompleted: 6 }),
   );
-  await page.route('**/api/vng/dashboard', async (r) => {
-    // The funnel's two sources land in either order, and the graph is normally the
-    // cached one. Delaying the dashboard reproduces that ordering deterministically.
-    if (dashboardDelayMs) await new Promise((done) => setTimeout(done, dashboardDelayMs));
-    return json(r, withPhases ? dashboard : F.dashboard);
-  });
   await page.route('**/api/vng/initiatives', (r) => json(r, []));
   await page.route('**/api/features', (r) => json(r, {}));
   await page.route('**/api/meta', (r) => json(r, { environment: 'test' }));

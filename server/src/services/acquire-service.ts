@@ -1,6 +1,6 @@
 import { getLogger } from '../logging/logger.js';
 import { loadConfig } from '../config.js';
-import { createAlkemioSdk } from '../graphql/client.js';
+import { createAlkemioSdk, getRequestStats } from '../graphql/client.js';
 import type { AuthContext } from '../auth/middleware.js';
 import {
   fetchSpaceByName,
@@ -8,14 +8,18 @@ import {
   fetchSubspaceDetails,
   type RawSpace,
 } from './space-service.js';
-import type { UsersByIDsQuery, OrganizationByIdQuery } from '../graphql/generated/alkemio-schema.js';
+import type { UsersByIDsQuery, OrganizationCoreProfileFragment } from '../graphql/generated/alkemio-schema.js';
 import type { Sdk } from '../graphql/generated/graphql.js';
 
 /** Raw user profile — derived from codegen types */
 export type RawUser = UsersByIDsQuery['users'][number];
 
-/** Raw organization profile — derived from codegen types */
-export type RawOrganization = NonNullable<OrganizationByIdQuery['lookup']['organization']>;
+/**
+ * Raw organisation CORE profile — carried inline by the roles fragment (feature 025), so
+ * the core load makes no per-organisation lookup. The extended profile (description,
+ * website, references, …) is the on-demand `organization-service` item.
+ */
+export type RawOrganization = OrganizationCoreProfileFragment;
 
 /** Lightweight activity entry — matches the fields returned by our activityFeedGrouped query */
 export interface RawActivityEntry {
@@ -53,13 +57,14 @@ export async function acquireSpaces(
   /** Fired just before a space is fetched (before the slow network call), so the
    *  loading UI can name the space it is currently waiting on. */
   onSpaceStart?: (nameId: string) => void,
+  options: { includeActivity?: boolean } = {},
 ): Promise<AcquiredData> {
   const logger = getLogger();
   const sdk = await createAlkemioSdk(auth);
 
   const spacesL0: AcquiredData['spacesL0'] = [];
   const userIds = new Set<string>();
-  const orgIds = new Set<string>();
+  const organizations = new Map<string, RawOrganization>();
   const errors: string[] = [];
   let aboutOnlyCount = 0;
 
@@ -108,113 +113,73 @@ export async function acquireSpaces(
     }
 
     spacesL0.push({ space, nameId });
-    collectContributorIds(space as SpaceWithCommunity, userIds, orgIds);
+    collectContributors(space as SpaceWithCommunity, userIds, organizations);
     onSpaceAcquired?.(nameId);
   }
 
   logger.info(
-    `Acquired ${spacesL0.length} space(s), found ${userIds.size} users and ${orgIds.size} organizations` +
-      (aboutOnlyCount > 0 ? ` (${aboutOnlyCount} read-about only: no members/subspaces visible)` : ''),
+    `Acquired ${spacesL0.length} space(s), found ${userIds.size} users and ${organizations.size} organizations` +
+      (aboutOnlyCount > 0 ? ` (${aboutOnlyCount} read-about only: no members/subspaces visible)` : '') +
+      ` requests=${getRequestStats(auth).requests} bytes=${getRequestStats(auth).bytes}`,
     { context: 'Acquire' },
   );
 
-  // Activity event types to track — contributions only (excludes MEMBER_JOINED, SUBSPACE_CREATED, CALLOUT_PUBLISHED)
-  const CONTRIBUTION_EVENT_TYPES: string[] = [
-    'CALLOUT_POST_CREATED',
-    'CALLOUT_POST_COMMENT',
-    'CALLOUT_MEMO_CREATED',
-    'CALLOUT_LINK_CREATED',
-    'CALLOUT_WHITEBOARD_CREATED',
-    'CALLOUT_WHITEBOARD_CONTENT_MODIFIED',
-    'DISCUSSION_COMMENT',
-    'UPDATE_SENT',
-    'CALENDAR_EVENT_CREATED',
-  ];
-
-  // Run user fetch, org fetch, and activity fetch in parallel
-  const allSpaceIds = spacesL0.map((s) => s.space.id);
-
-  const [usersResult, orgsResult, activityResult, memberJoinedResult] = await Promise.allSettled([
-    // Batch-fetch user profiles
-    (async () => {
-      const users = new Map<string, RawUser>();
-      if (userIds.size > 0) {
-        const { data } = await sdk.usersByIDs({ ids: Array.from(userIds) });
-        for (const user of data.users) {
-          users.set(user.id, user);
-        }
-      }
-      return users;
-    })(),
-
-    // Fetch organization profiles one by one
-    (async () => {
-      const organizations = new Map<string, RawOrganization>();
-      for (const id of orgIds) {
-        try {
-          const { data } = await sdk.organizationByID({ id });
-          if (data.lookup.organization) {
-            organizations.set(id, data.lookup.organization);
-          }
-        } catch {
-          logger.warn(`Failed to fetch organization ${id}, skipping`, { context: 'Acquire' });
-        }
-      }
-      return organizations;
-    })(),
-
-    // Fetch contribution activity data (chunked — Alkemio caps this query at 10 spaces)
-    (async () => {
-      if (allSpaceIds.length === 0) return undefined;
-      return fetchActivityFeedChunked(sdk, allSpaceIds, CONTRIBUTION_EVENT_TYPES);
-    })(),
-
-    // Fetch MEMBER_JOINED events separately with its own limit
-    // so join events aren't crowded out by contribution events
-    (async () => {
-      if (allSpaceIds.length === 0) return undefined;
-      return fetchActivityFeedChunked(sdk, allSpaceIds, ['MEMBER_JOINED']);
-    })(),
-  ]);
-
-  const users = usersResult.status === 'fulfilled' ? usersResult.value : new Map<string, RawUser>();
-  if (usersResult.status === 'rejected') {
-    const msg = `Failed to fetch user profiles: ${(usersResult.reason as Error).message}`;
-    logger.warn(msg, { context: 'Acquire' });
-    errors.push(msg);
-  }
-
-  const organizations = orgsResult.status === 'fulfilled' ? orgsResult.value : new Map<string, RawOrganization>();
-  if (orgsResult.status === 'rejected') {
-    const msg = `Failed to fetch organization profiles: ${(orgsResult.reason as Error).message}`;
+  // Feature 025: the core load is RELATIONAL — Spaces, roles, organisations (inline),
+  // user profiles (one batched call). Activity is a separate item (activity-service) that
+  // only the Explorer's JSON path folds in here; the dashboards never ask for it.
+  const users = new Map<string, RawUser>();
+  try {
+    if (userIds.size > 0) {
+      const { data } = await sdk.usersByIDs({ ids: Array.from(userIds) });
+      for (const user of data.users) users.set(user.id, user);
+    }
+  } catch (err) {
+    const msg = `Failed to fetch user profiles: ${(err as Error).message}`;
     logger.warn(msg, { context: 'Acquire' });
     errors.push(msg);
   }
 
   let activityEntries: RawActivityEntry[] | undefined;
-  const contributions = activityResult.status === 'fulfilled' ? activityResult.value : undefined;
-  const joinEvents = memberJoinedResult.status === 'fulfilled' ? memberJoinedResult.value : undefined;
-
-  if (contributions || joinEvents) {
-    activityEntries = [...(contributions ?? []), ...(joinEvents ?? [])];
-    const joinCount = joinEvents?.length ?? 0;
-    const contribCount = contributions?.length ?? 0;
-    logger.info(`Fetched ${contribCount} contribution + ${joinCount} MEMBER_JOINED = ${activityEntries.length} total activity entries for ${allSpaceIds.length} space(s)`, { context: 'Acquire' });
-  } else {
-    activityEntries = undefined;
-    if (activityResult.status === 'rejected') {
-      const msg = `Failed to fetch activity data, pulse will be unavailable: ${(activityResult.reason as Error).message}`;
-      logger.warn(msg, { context: 'Acquire' });
-      errors.push(msg);
-    }
-    if (memberJoinedResult.status === 'rejected') {
-      const msg = `Failed to fetch MEMBER_JOINED events: ${(memberJoinedResult.reason as Error).message}`;
+  if (options.includeActivity && spacesL0.length > 0) {
+    try {
+      activityEntries = await fetchActivityEntries(sdk, spacesL0.map((s) => s.space.id));
+    } catch (err) {
+      const msg = `Failed to fetch activity data, pulse will be unavailable: ${(err as Error).message}`;
       logger.warn(msg, { context: 'Acquire' });
       errors.push(msg);
     }
   }
 
   return { spacesL0, users, organizations, activityEntries, errors };
+}
+
+/** Activity event types that count as contributions (MEMBER_JOINED is fetched separately). */
+export const CONTRIBUTION_EVENT_TYPES: string[] = [
+  'CALLOUT_POST_CREATED',
+  'CALLOUT_POST_COMMENT',
+  'CALLOUT_MEMO_CREATED',
+  'CALLOUT_LINK_CREATED',
+  'CALLOUT_WHITEBOARD_CREATED',
+  'CALLOUT_WHITEBOARD_CONTENT_MODIFIED',
+  'DISCUSSION_COMMENT',
+  'UPDATE_SENT',
+  'CALENDAR_EVENT_CREATED',
+];
+
+/**
+ * Both activity sweeps for a set of L0 Space ids: contributions, and MEMBER_JOINED on
+ * its own so join events are not crowded out by the contribution limit.
+ */
+export async function fetchActivityEntries(sdk: Sdk, spaceIds: string[]): Promise<RawActivityEntry[]> {
+  const [contributions, joins] = await Promise.all([
+    fetchActivityFeedChunked(sdk, spaceIds, CONTRIBUTION_EVENT_TYPES),
+    fetchActivityFeedChunked(sdk, spaceIds, ['MEMBER_JOINED']),
+  ]);
+  getLogger().info(
+    `Fetched ${contributions.length} contribution + ${joins.length} MEMBER_JOINED activity entries for ${spaceIds.length} space(s)`,
+    { context: 'Acquire' },
+  );
+  return [...contributions, ...joins];
 }
 
 /**
@@ -363,31 +328,27 @@ interface SpaceWithCommunity {
   community?: {
     roleSet: {
       memberUsers: Array<{ id: string }>;
-      memberOrganizations: Array<{ id: string }>;
-      leadOrganizations: Array<{ id: string }>;
+      memberOrganizations: RawOrganization[];
+      leadOrganizations: RawOrganization[];
       leadUsers: Array<{ id: string }>;
     };
   } | null;
   subspaces?: SpaceWithCommunity[];
 }
 
-/** Recursively collect user and org IDs from a space's community roles */
-function collectContributorIds(
+/** Recursively collect user ids and the inline organisation profiles from a space's roles */
+function collectContributors(
   space: SpaceWithCommunity,
   userIds: Set<string>,
-  orgIds: Set<string>,
+  organizations: Map<string, RawOrganization>,
 ): void {
   const roleSet = space.community?.roleSet;
   if (roleSet) {
     roleSet.memberUsers.forEach((u) => userIds.add(u.id));
     roleSet.leadUsers.forEach((u) => userIds.add(u.id));
-    roleSet.memberOrganizations.forEach((o) => orgIds.add(o.id));
-    roleSet.leadOrganizations.forEach((o) => orgIds.add(o.id));
-  }
-
-  if (space.subspaces) {
-    for (const sub of space.subspaces) {
-      collectContributorIds(sub, userIds, orgIds);
+    for (const o of [...roleSet.memberOrganizations, ...roleSet.leadOrganizations]) {
+      if (!organizations.has(o.id)) organizations.set(o.id, o);
     }
   }
+  for (const sub of space.subspaces ?? []) collectContributors(sub, userIds, organizations);
 }

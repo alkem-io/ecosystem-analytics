@@ -1,3 +1,32 @@
+# Feature 025: organisations carry their CORE profile inline (what the dashboards and
+# the Explorer's graph render: name, avatar, url, location, tags), so the core load
+# needs no per-organisation lookup at all. The EXTENDED profile (description, website,
+# references, …) is a separate on-demand item — see organizationByID.graphql.
+fragment organizationCoreProfile on Organization {
+  id
+  nameID
+  profile {
+    displayName
+    url
+    avatar: visual(type: AVATAR) {
+      uri
+    }
+    location {
+      country
+      city
+      geoLocation {
+        latitude
+        longitude
+      }
+    }
+    tagsets {
+      name
+      tags
+      type
+    }
+  }
+}
+
 fragment communityRolesFragment on Community {
   id
   roleSet {
@@ -5,10 +34,10 @@ fragment communityRolesFragment on Community {
       id
     }
     memberOrganizations: organizationsInRole(role: MEMBER) {
-      id
+      ...organizationCoreProfile
     }
     leadOrganizations: organizationsInRole(role: LEAD) {
-      id
+      ...organizationCoreProfile
     }
     leadUsers: usersInRole(role: LEAD) {
       id

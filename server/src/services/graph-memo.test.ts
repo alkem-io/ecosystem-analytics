@@ -23,6 +23,9 @@ vi.mock('../cache/cache-service.js', () => ({
   getCacheEntry: () => null,
   setCacheEntry: () => {},
   invalidateCache: () => {},
+  invalidateItemRows: () => {},
+  activityCacheId: (id: string) => `__activity__:${id}`,
+  orgCacheId: (id: string) => `__org__:${id}`,
   GD_CACHE_SPACE_ID: '__gd_initiatives__',
   GEO_CACHE_SPACE_ID: '__gemeente_geo__',
 }));

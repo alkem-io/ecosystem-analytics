@@ -9,11 +9,8 @@
  * to no category in any dimension are counted as uncategorised (FR-024).
  */
 import { loadConfig, type VngConfig } from '../config.js';
-import { createAlkemioSdk } from '../graphql/client.js';
 import type { AuthContext } from '../auth/middleware.js';
-import { fetchGemeentedelersCallouts } from './gd-initiatives-service.js';
 import { countGroeiPhases } from './groei-phases.js';
-import { generateGraph } from './graph-service.js';
 import { NodeType, type GraphDataset, type GraphNode } from '../types/graph.js';
 import type {
   CategoryMatrix,
@@ -124,47 +121,6 @@ function addToSet(map: Map<string, Set<string>>, key: string, value: string): vo
   let s = map.get(key);
   if (!s) map.set(key, (s = new Set()));
   s.add(value);
-}
-
-/**
- * Build the initiatives-by-gemeente-count distribution for the selected set:
- *  • Groei — from the graph (each L0 space → its associated gemeente organisations).
- *  • GD    — from the GemeenteDelers callouts directly (distinct gemeente-resolving
- *            tags per callout); this is the source of truth for GD gemeente links and
- *            avoids the graph layer's node-dedup complexity. Only when `includeGd`.
- */
-export async function assembleGemeenteDistribution(
-  userId: string,
-  auth: AuthContext,
-  spaceIds: string[],
-  includeGd: boolean,
-  /**
-   * Pre-generated graph, so a single dashboard request generates the graph once and
-   * shares it with the city-population assembler instead of paying for two cold
-   * generations under different cache keys. Only the Groei side reads it, and only
-   * SPACE_L0 ↔ gemeente edges — which a GD-layer dataset carries unchanged.
-   */
-  prebuiltDataset?: GraphDataset,
-): Promise<GemeenteDistribution> {
-  // Groei: the base graph is enough (no GD layer needed for space↔gemeente links).
-  const dataset =
-    prebuiltDataset ?? (await generateGraph(userId, auth, { spaceIds, includeInitiatives: false }));
-  const groeiCounts = countSpaceGemeentes(dataset);
-
-  let gdCounts: InitiativeGemeenteCount[] = [];
-  if (includeGd) {
-    const { loadVngRegistry } = await import('./vng-registry.js');
-    const registry = loadVngRegistry();
-    const sdk = await createAlkemioSdk(auth);
-    const callouts = await fetchGemeentedelersCallouts(auth, sdk);
-    // GD initiatives mention their gemeentes in the DESCRIPTION (not the tags).
-    gdCounts = callouts.map((c) => ({
-      label: c.displayName,
-      count: registry.findGemeentesInText(c.description).length,
-    }));
-  }
-
-  return bucketGemeenteDistribution(groeiCounts, gdCounts, includeGd);
 }
 
 // ── City perspective (feature 018, US3) ──────────────────────────────────────
@@ -306,26 +262,6 @@ export function buildCityPopulationSeries(
     nonParticipating: nonParticipating.sort(bySize),
     excludedUnknownPopulation,
   };
-}
-
-/**
- * Assemble the city-population series for the selected set. Uses the SAME cached graph
- * the other dashboard panels use; the GD layer is folded in only when the GD checkbox
- * is on, so a city's count reflects exactly what the Cities table shows.
- */
-export async function assembleCityPopulation(
-  userId: string,
-  auth: AuthContext,
-  spaceIds: string[],
-  includeGd: boolean,
-  /** Pre-generated graph — see {@link assembleGemeenteDistribution}. */
-  prebuiltDataset?: GraphDataset,
-): Promise<CityPopulationSeries> {
-  const dataset =
-    prebuiltDataset ??
-    (await generateGraph(userId, auth, { spaceIds, includeInitiatives: includeGd }));
-  const { loadVngRegistry } = await import('./vng-registry.js');
-  return buildCityPopulationSeries(dataset, loadVngRegistry().municipalities(), includeGd);
 }
 
 /**
@@ -517,7 +453,7 @@ export function countDashboard(
  * Resolve the vocabularies + per-entity selections for one Space's classifications.
  * Returns the designated vocabularies (this Space's snapshot) and what it selected.
  */
-function readSpaceClassifications(
+export function readSpaceClassifications(
   entries: ClassificationEntryInput[] | undefined,
   designations: VngConfig['classifications'],
 ): {
@@ -542,16 +478,17 @@ function readSpaceClassifications(
 /**
  * Assemble the dashboard for the selected spaces (US3).
  *
- * Reads each selected Space's Alkemio Classifications and counts it by what an editor
- * SELECTED there — never by its free-text tags (FR-002). Chart categories come from the
- * union of the Spaces' snapshot vocabularies, so adding a value in Alkemio shows up here
- * with no configuration change (FR-007).
+ * Feature 025: the counts are computed from the SAME dataset the graph is built from —
+ * `generateGraphBundle` reads each selected Space's Alkemio Classifications off the
+ * nodes it already fetched (and the GemeenteDelers callouts off the cached GD layer) and
+ * hands back both variants (spec FR-015, research R4). This function is the
+ * compatibility shape for `/api/<app>/dashboard`; the dashboards themselves take the
+ * bundle straight off the generate response and never call it.
  *
- * When `includeGd` is set, GemeenteDelers initiatives are counted as a separate stacked
- * segment. They are Callouts and carry no classifications at all, so their tags are
- * matched against the same vocabulary's LABELS (research R-006) — the one place in the
- * dashboard where a tag still places anything, and only for the layer the spec declares
- * tag-derived (FR-020).
+ * Spaces are counted by what an editor SELECTED in their classifications — never by
+ * free-text tags (FR-002). GD initiatives are Callouts with no classifications, so their
+ * tags are matched against the vocabulary LABELS (research R-006) — the one place a tag
+ * still places anything, and only for the layer the spec declares tag-derived (FR-020).
  */
 export async function assembleDashboard(
   auth: AuthContext,
@@ -561,106 +498,25 @@ export async function assembleDashboard(
    *  which vocabulary feeds which panel. Defaults to the VNG profile for back-compat. */
   profile: VngConfig = loadConfig().vng,
 ): Promise<VngDashboardResponse> {
-  const sdk = await createAlkemioSdk(auth);
-  const designations = profile.classifications;
-
-  const perSpace = await Promise.all(
-    spaceIds.map(async (nameId) => {
-      const res = await sdk.SpaceClassifications({ nameId });
-      const space = res.data.lookupByName.space;
-      const entries = space?.about.classifications;
-      const read = readSpaceClassifications(entries, designations);
-      return {
-        // Diagnostics only (never rendered). `resolved: false` means the nameID did not
-        // resolve to an L0 space at all — indistinguishable from "unclassified" in the
-        // counts, but a completely different problem, so it is reported separately.
-        resolved: !!space,
-        presentLabels: (entries ?? []).map((e) => e.displayLabel),
-        countable: {
-          id: nameId,
-          label: space?.about.profile.displayName ?? nameId,
-          // Retained for provenance only; the counting path never reads it for a Space.
-          tags: (space?.about.profile.tagsets ?? []).flatMap((ts) => ts.tags),
-          selections: read.selections,
-          // An absent or empty array both mean "the programme has not reached this
-          // Space yet" — the rollout gap, reported but never tag-inferred (FR-014/016).
-          hasClassifications: (entries?.length ?? 0) > 0,
-          source: 'spaces' as const,
-        } satisfies DashboardCountable,
-        vocabularies: read.vocabularies,
-        phaseVocabulary: read.phaseVocabulary,
-      };
-    }),
-  );
-
-  // Union the per-Space snapshots: a selection can straddle template versions, so a value
-  // present in only some snapshots must still render (research R-003).
-  // An explicit "Geen classificatie" VALUE means the same as selecting nothing, so it is
-  // removed here — once, before anything reads these — and the Spaces that chose it fall
-  // into the uncategorised bucket the charts list underneath (see stripNoClassificationValues).
-  const vocabularies: DashboardVocabularies = {
-    nds: stripNoClassificationValues(unionVocabularies(perSpace.map((p) => p.vocabularies.nds))),
-    vng2030: stripNoClassificationValues(
-      unionVocabularies(perSpace.map((p) => p.vocabularies.vng2030)),
-    ),
-  };
-  const phaseVocabulary = stripNoClassificationValues(
-    unionVocabularies(perSpace.map((p) => p.phaseVocabulary)),
-  );
-
-  warnOnUnmatchedDesignations(
-    designations,
-    vocabularies,
-    phaseVocabulary,
-    perSpace.map((p) => ({ resolved: p.resolved, presentLabels: p.presentLabels })),
-  );
-
-  const entities: DashboardCountable[] = perSpace.map((p) => p.countable);
-
-  if (includeGd) {
-    const callouts = await fetchGemeentedelersCallouts(auth, sdk);
-    entities.push(
-      ...callouts.map((c) => ({
-        id: c.id,
-        label: c.displayName,
-        tags: c.tags,
-        selections: {
-          nds: resolveByLabel(c.tags, vocabularies.nds),
-          vng2030: resolveByLabel(c.tags, vocabularies.vng2030),
-          // GD is a completed programme with no growth phase.
-          phase: [],
-        },
-        // GD initiatives are never part of the classification rollout.
-        hasClassifications: false,
-        source: 'gd' as const,
-      })),
-    );
-  }
-
-  // Compare the live vocabularies against this build's expectation. Advisory only: the
-  // counts below are computed from the LIVE vocabulary exactly as before, so an
-  // unreviewed value still renders and still counts — the drift is reported alongside
-  // the result, never applied to it.
-  const vocabularyDrift = collectVocabularyDrift({
-    nds: vocabularies.nds,
-    vng2030: vocabularies.vng2030,
-    phase: phaseVocabulary,
+  const { generateGraphBundle } = await import('./graph-service.js');
+  const app = dashboardAppIdOf(profile);
+  const bundle = await generateGraphBundle(auth.userId!, auth, {
+    spaceIds,
+    includeInitiatives: includeGd,
+    app,
+    includeActivity: false,
+    includeExtendedProfiles: false,
   });
-  for (const drift of vocabularyDrift) {
-    const parts: string[] = [];
-    if (drift.unexpected.length)
-      parts.push(`not expected by this build: ${drift.unexpected.map((l) => `'${l}'`).join(', ')}`);
-    if (drift.missing.length)
-      parts.push(`expected but absent: ${drift.missing.map((l) => `'${l}'`).join(', ')}`);
-    logger.warn(
-      `The '${drift.dimension}' vocabulary differs from EXPECTED_VOCABULARIES — ${parts.join('; ')}. ` +
-        `Counts are unaffected; reconcile transform/expected-vocabularies.ts with Alkemio.`,
-      { context: 'Dashboard' },
-    );
-  }
+  const counts = bundle.dashboard;
+  if (!counts) throw new Error(`No dashboard profile for app '${app}'`);
+  return includeGd && counts.categories.withGd ? counts.categories.withGd : counts.categories.base;
+}
 
-  const response = countDashboard(entities, vocabularies, phaseVocabulary);
-  return vocabularyDrift.length ? { ...response, vocabularyDrift } : response;
+/** The app id whose dashboard profile this is (the registry is keyed by app). */
+function dashboardAppIdOf(profile: VngConfig): string {
+  const cfg = loadConfig();
+  for (const [id, p] of Object.entries(cfg.dashboards)) if (p === profile) return id;
+  return 'vng';
 }
 
 /**
@@ -678,7 +534,7 @@ export async function assembleDashboard(
  * named 'VNG 2030'" without them sends you looking in the wrong place. Only
  * classification group names are logged — never a space name, id, or any user data.
  */
-function warnOnUnmatchedDesignations(
+export function warnOnUnmatchedDesignations(
   designations: VngConfig['classifications'],
   vocabularies: DashboardVocabularies,
   phaseVocabulary: Vocabulary,

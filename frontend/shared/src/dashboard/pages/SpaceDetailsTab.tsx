@@ -12,8 +12,7 @@ import {
 } from '@ea/shared';
 import type { GraphNode } from '@server/types/graph.js';
 import { useSelectionContext } from '../hooks/SelectionContext.js';
-import { useVngGraph } from '../hooks/useVngGraph.js';
-import { useGraphProgress } from '../hooks/useGraphProgress.js';
+import { useCoreLoadState, useGraphDataset } from '../data/derive/index.js';
 import { InitiativeMap } from '../components/InitiativeMap.js';
 import { LoadingOverlay } from '../components/LoadingOverlay.js';
 
@@ -49,9 +48,9 @@ export function SpaceDetailsTab({ openSpaceId, openSpaceSeq }: SpaceDetailsTabPr
       new CustomEvent(`${cfg.eventPrefix}:openCity`, { detail: { cityId } }),
     );
 
-  const { dataset, loading: graphLoading } = useVngGraph(effectiveSpaceIds, {
-    includeInitiatives: state.includeInitiatives,
-  });
+  // Feature 025: the dataset is loaded once by the shared provider; this tab derives.
+  const dataset = useGraphDataset();
+  const { loading: graphLoading, progress } = useCoreLoadState();
 
   // The gemeente map/count come from the (heavy) /api/graph/generate call, which
   // on a large, cold-cache selection can take a while. Poll server-side progress
@@ -59,7 +58,6 @@ export function SpaceDetailsTab({ openSpaceId, openSpaceSeq }: SpaceDetailsTabPr
   // Y" bar + the space being fetched, instead of a static "Gemeenten laden…" that
   // looks stuck. Matches the Dashboard/Graph/Initiatives tabs.
   const graphFirstLoading = graphLoading && !dataset;
-  const progress = useGraphProgress(graphFirstLoading);
   const currentSpaceLabel = useMemo(() => {
     const nameId = progress?.currentSpace;
     if (!nameId) return null;
