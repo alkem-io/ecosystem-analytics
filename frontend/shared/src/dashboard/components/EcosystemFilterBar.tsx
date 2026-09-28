@@ -8,6 +8,9 @@ export interface EcosystemFilterBarProps {
   onChange: (filters: EcosystemFilters) => void;
   hiddenCount: number;
   onFit: () => void;
+  /** Rings of involvement: a view choice, not a filter — nothing is hidden by it. */
+  rings: boolean;
+  onRingsChange: (rings: boolean) => void;
 }
 
 /**
@@ -17,7 +20,14 @@ export interface EcosystemFilterBarProps {
  * busyness IS the finding. These two filters are how a reader cuts it down to the story
  * the hand-drawn reference tells: the organisations that hold the ecosystem together.
  */
-export function EcosystemFilterBar({ filters, onChange, hiddenCount, onFit }: EcosystemFilterBarProps) {
+export function EcosystemFilterBar({
+  filters,
+  onChange,
+  hiddenCount,
+  onFit,
+  rings,
+  onRingsChange,
+}: EcosystemFilterBarProps) {
   const { t } = useTranslation();
   const any = filters.linkedToOrchestrator || filters.multiMembership;
 
@@ -63,6 +73,17 @@ export function EcosystemFilterBar({ filters, onChange, hiddenCount, onFit }: Ec
         </button>
       )}
 
+      <label className="flex cursor-pointer items-center gap-2 border-l border-[var(--border)] pl-4">
+        <input
+          type="checkbox"
+          data-testid="ecosystem-rings"
+          checked={rings}
+          onChange={(e) => onRingsChange(e.target.checked)}
+          className="h-4 w-4 accent-[var(--primary)]"
+        />
+        {t('ecosystem.rings.toggle')}
+      </label>
+
       <button
         type="button"
         data-testid="ecosystem-fit"
@@ -78,18 +99,31 @@ export function EcosystemFilterBar({ filters, onChange, hiddenCount, onFit }: Ec
   );
 }
 
-/** What the strokes and rings mean. Without it the two line styles are just noise. */
+/** What the strokes, rings and wedges mean. Without it the line styles are just noise. */
 function Legend() {
   const { t } = useTranslation();
   const items: [string, React.ReactNode][] = [
-    [t('ecosystem.legend.lead'), <Swatch key="lead" width={3} />],
+    [t('ecosystem.legend.lead'), <Swatch key="lead" width={3} primary />],
     [t('ecosystem.legend.member'), <Swatch key="member" width={1.25} />],
     [t('ecosystem.legend.viaSubspace'), <Swatch key="sub" width={1.25} dashed />],
     [t('ecosystem.legend.partOf'), <Swatch key="part" width={1} primary />],
     [
       t('ecosystem.legend.connector'),
       <svg key="conn" width={16} height={16} aria-hidden>
+        <circle cx={8} cy={8} r={7} fill="var(--primary)" fillOpacity={0.15} />
         <circle cx={8} cy={8} r={5} fill="none" stroke="var(--primary)" strokeWidth={3} />
+      </svg>,
+    ],
+    [
+      t('ecosystem.legend.cluster'),
+      <svg key="cluster" width={20} height={12} aria-hidden>
+        <path
+          d="M1 9 A9 9 0 0 1 19 9 L19 11 L1 11 Z"
+          fill="hsl(210 65% 52%)"
+          fillOpacity={0.18}
+          stroke="hsl(210 65% 52%)"
+          strokeOpacity={0.5}
+        />
       </svg>,
     ],
   ];
@@ -101,6 +135,7 @@ function Legend() {
           {label}
         </span>
       ))}
+      <span className="italic">{t('ecosystem.hint.select')}</span>
     </div>
   );
 }
