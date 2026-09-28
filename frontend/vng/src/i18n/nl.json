@@ -396,7 +396,9 @@
       "builtInMissing": "De ingestelde orkestrator is niet gevonden; de eerstvolgende match wordt getoond."
     },
     "hint": {
-      "addSpace": "Staat de gewenste ruimte er niet bij? Voeg die eerst toe aan je selectie."
+      "addSpace": "Staat de gewenste ruimte er niet bij? Voeg die eerst toe aan je selectie.",
+      "select": "Klik op een knooppunt voor details",
+      "keyboard": "Toetsenbord: Tab naar de kaart, pijltjes links/rechts langs een ring, omhoog/omlaag naar binnen/buiten, Enter selecteert, Esc wist."
     },
     "filter": {
       "orchestrator": "Verbonden met orkestrator",
@@ -411,7 +413,20 @@
       "direct": "Directe rol",
       "viaSubspace": "Via subruimte",
       "partOf": "Onderdeel van ecosysteem",
-      "connector": "Verbinder"
+      "connector": "Verbinder",
+      "cluster": "Cluster rond een initiatief"
+    },
+    "details": {
+      "title": "Details",
+      "close": "Sluiten",
+      "initiative": "Initiatief",
+      "organisation": "Organisatie",
+      "gemeente": "Gemeente",
+      "organisations": "Organisaties",
+      "openSpace": "Open initiatief",
+      "openCity": "Open gemeente",
+      "connectionCount_one": "{{count}} verbinding",
+      "connectionCount_other": "{{count}} verbindingen"
     },
     "empty": {
       "noSpaces": "Deze hub bevat geen initiatieven.",
@@ -422,7 +437,13 @@
     "orgCount_one": "{{count}} organisatie",
     "orgCount_other": "{{count}} organisaties",
     "error": "De ecosysteemkaart kon niet worden geladen.",
-    "retry": "Opnieuw proberen"
+    "retry": "Opnieuw proberen",
+    "rings": {
+      "toggle": "Ringen van betrokkenheid",
+      "lead": "Trekkers",
+      "member": "Deelnemers",
+      "loose": "Alleen via subruimte"
+    }
   },
   "load": {
     "item": {

@@ -396,7 +396,9 @@
       "builtInMissing": "The configured orchestrator was not found; showing the next best match."
     },
     "hint": {
-      "addSpace": "To choose a space that is not listed here, add it to your selection first."
+      "addSpace": "To choose a space that is not listed here, add it to your selection first.",
+      "select": "Click a node for details",
+      "keyboard": "Keyboard: Tab into the map, left/right arrows move along a ring, up/down move inward/outward, Enter selects, Esc clears."
     },
     "filter": {
       "orchestrator": "Linked to orchestrator",
@@ -411,7 +413,20 @@
       "direct": "Direct role",
       "viaSubspace": "Via subspace",
       "partOf": "Part of ecosystem",
-      "connector": "Connector"
+      "connector": "Connector",
+      "cluster": "Cluster around an initiative"
+    },
+    "details": {
+      "title": "Details",
+      "close": "Close",
+      "initiative": "Initiative",
+      "organisation": "Organisation",
+      "gemeente": "Municipality",
+      "organisations": "Organisations",
+      "openSpace": "Open initiative",
+      "openCity": "Open municipality",
+      "connectionCount_one": "{{count}} connection",
+      "connectionCount_other": "{{count}} connections"
     },
     "empty": {
       "noSpaces": "This hub lists no initiatives.",
@@ -422,7 +437,13 @@
     "orgCount_one": "{{count}} organisation",
     "orgCount_other": "{{count}} organisations",
     "error": "The ecosystem map could not be loaded.",
-    "retry": "Try again"
+    "retry": "Try again",
+    "rings": {
+      "toggle": "Rings of involvement",
+      "lead": "Leads",
+      "member": "Participants",
+      "loose": "Only via subspace"
+    }
   },
   "load": {
     "item": {
