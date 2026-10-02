@@ -81,7 +81,7 @@ export default function LoginPage() {
             <span className={styles.brandName}>Alkemio</span>
           </div>
           <h1 className={styles.title}>Ecosystem Analytics</h1>
-          <p className={styles.subtitle}>Safe Spaces for Collaboration</p>
+          <p className={styles.subtitle}>Collaboration in the spaces between organisations</p>
         </div>
 
         <div className={styles.body}>
