@@ -9,7 +9,11 @@
 import { describe, expect, it } from 'vitest';
 import { EdgeType, NodeType, type GraphDataset, type GraphEdge, type GraphNode } from '@server/types/graph.js';
 import { buildEcosystemModel, type EcosystemInput } from '@ea/shared/dashboard/utils/ecosystem.js';
-import { layoutEcosystems, RING_RADIUS_RATIO } from '@ea/shared/dashboard/utils/ecosystem-layout.js';
+import {
+  involvementTier,
+  layoutEcosystems,
+  RING_RADIUS_RATIO,
+} from '@ea/shared/dashboard/utils/ecosystem-layout.js';
 
 const SIZE = { width: 1200, height: 800 };
 
@@ -211,5 +215,75 @@ describe('degenerate shapes', () => {
     const l = layoutEcosystems(model, SIZE);
     expect(l.orgs.size).toBe(0);
     expect(l.regions[0].cloudPath.startsWith('M')).toBe(true);
+  });
+});
+
+describe('rings of involvement', () => {
+  // One initiative (s0) with a subspace (s0-sub). Leads on s0, members on s0, and
+  // organisations whose only role sits on the subspace — one tier each.
+  function tiered(): GraphDataset {
+    const base = dataset(1, []);
+    const sub: GraphNode = { ...space('s0-sub', 's0-sub', 'Sub'), type: NodeType.SPACE_L1, parentSpaceId: 's0' };
+    const leads = ['l1', 'l2', 'l3'];
+    const members = ['m1', 'm2', 'm3', 'm4'];
+    const loose = ['v1', 'v2'];
+    return {
+      ...base,
+      nodes: [...base.nodes, sub, ...[...leads, ...members, ...loose].map((id) => org(id, id))],
+      edges: [
+        ...leads.map((id) => edge(id, 's0', EdgeType.LEAD)),
+        ...members.map((id) => edge(id, 's0')),
+        ...loose.map((id) => edge(id, 's0-sub')),
+      ],
+    };
+  }
+  const tieredModel = () =>
+    buildEcosystemModel(tiered(), [input({ listedSpaceNameIds: ['s0'], selectedSpaceNameIds: ['s0'] })]);
+  const distance = (l: ReturnType<typeof layoutEcosystems>, id: string) => {
+    const p = l.orgs.get(id)!;
+    return Math.hypot(p.x - l.regions[0].cx, p.y - l.regions[0].cy);
+  };
+
+  it('classifies by strongest role: lead, else a direct role, else loose', () => {
+    const model = tieredModel();
+    const tier = (id: string) => involvementTier(model.organisations.find((o) => o.id === id)!, 'hub');
+    expect(tier('l1')).toBe('lead');
+    expect(tier('m1')).toBe('member');
+    expect(tier('v1')).toBe('loose');
+  });
+
+  it('draws no rings unless asked, and one ring per occupied tier when asked', () => {
+    const model = tieredModel();
+    expect(layoutEcosystems(model, SIZE).regions[0].tierRings).toEqual([]);
+    const rings = layoutEcosystems(model, SIZE, { rings: true }).regions[0].tierRings;
+    expect(rings.map((r) => r.tier)).toEqual(['lead', 'member', 'loose']);
+    expect(rings[0].radius).toBeLessThan(rings[1].radius);
+    expect(rings[1].radius).toBeLessThan(rings[2].radius);
+  });
+
+  it('puts every Trekker inside every Deelnemer, and every Deelnemer inside the loosely connected', () => {
+    const l = layoutEcosystems(tieredModel(), SIZE, { rings: true });
+    const max = (ids: string[]) => Math.max(...ids.map((id) => distance(l, id)));
+    const min = (ids: string[]) => Math.min(...ids.map((id) => distance(l, id)));
+    expect(max(['l1', 'l2', 'l3'])).toBeLessThan(min(['m1', 'm2', 'm3', 'm4']));
+    expect(max(['m1', 'm2', 'm3', 'm4'])).toBeLessThan(min(['v1', 'v2']));
+  });
+
+  it('leaves out a tier nobody occupies', () => {
+    const model = buildEcosystemModel(dataset(2, [['a', ['s0']], ['b', ['s1']]]), [
+      input({ listedSpaceNameIds: ['s0', 's1'], selectedSpaceNameIds: ['s0', 's1'] }),
+    ]);
+    const rings = layoutEcosystems(model, SIZE, { rings: true }).regions[0].tierRings;
+    expect(rings.map((r) => r.tier)).toEqual(['member']);
+  });
+
+  it('stays deterministic and keeps each cluster in its sector', () => {
+    const a = layoutEcosystems(tieredModel(), SIZE, { rings: true });
+    const b = layoutEcosystems(tieredModel(), SIZE, { rings: true });
+    expect(JSON.stringify([...a.orgs])).toBe(JSON.stringify([...b.orgs]));
+    const plain = layoutEcosystems(tieredModel(), SIZE);
+    expect(a.clusters.map((c) => [c.id, c.startAngle, c.endAngle])).toEqual(
+      plain.clusters.map((c) => [c.id, c.startAngle, c.endAngle]),
+    );
   });
 });
