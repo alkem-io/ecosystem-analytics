@@ -32,7 +32,7 @@ describe('runDeploymentCacheMaintenance', () => {
 
     const first = runDeploymentCacheMaintenance();
     expect(first.gdRowsCleared).toBe(1);
-    expect(getDatabase().pragma('user_version', { simple: true })).toBe(5);
+    expect(getDatabase().pragma('user_version', { simple: true })).toBe(6);
 
     // A GD row written after maintenance must survive a second run — the marker
     // guarantees the one-time purge does not fire again on the next restart.
@@ -61,8 +61,8 @@ describe('runDeploymentCacheMaintenance', () => {
 
   // v5: GD initiatives now come from the GD space's subspaces first. A v4 DB's GD row
   // holds posts only, so it alone goes — the per-space and gemeente-location rows stay.
-  it('clears only the GD rows of a v4 DB on the v5 step, then never again', () => {
-    getDatabase().pragma('user_version = 4');
+  it.each([4, 5])('clears only the GD rows of a v%i DB on the v5/v6 step, then never again', (from) => {
+    getDatabase().pragma(`user_version = ${from}`);
     setCacheEntry('user-a', GD_CACHE_SPACE_ID, '{"nodes":[]}', 168);
     setCacheEntry('user-b', GD_CACHE_SPACE_ID, '{"nodes":[]}', 168);
     setCacheEntry('user-a', 'space-1', '{"nodes":[]}', 24);
@@ -71,7 +71,7 @@ describe('runDeploymentCacheMaintenance', () => {
     expect(first).toEqual({ gdRowsCleared: 2, classificationRowsCleared: 0 });
     expect(getCacheEntry('user-a', GD_CACHE_SPACE_ID)).toBeNull();
     expect(getCacheEntry('user-a', 'space-1')).not.toBeNull();
-    expect(getDatabase().pragma('user_version', { simple: true })).toBe(5);
+    expect(getDatabase().pragma('user_version', { simple: true })).toBe(6);
 
     setCacheEntry('user-a', GD_CACHE_SPACE_ID, '{"nodes":[]}', 168);
     expect(runDeploymentCacheMaintenance().gdRowsCleared).toBe(0);
