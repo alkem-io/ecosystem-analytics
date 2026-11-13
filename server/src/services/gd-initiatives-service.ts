@@ -12,7 +12,11 @@ import type { AuthContext } from '../auth/middleware.js';
 import type { GdInitiativeInput } from '../types/api.js';
 import type { GraphNode } from '../types/graph.js';
 import { buildOrgNode } from '../transform/transformer.js';
-import { LEGACY_GD_POSTS_NOTICE, mergeGdSources } from '../transform/gd-initiative-sources.js';
+import {
+  describeGdSources,
+  LEGACY_GD_POSTS_NOTICE,
+  mergeGdSources,
+} from '../transform/gd-initiative-sources.js';
 import { getLogger } from '../logging/logger.js';
 import { loadConfig } from '../config.js';
 import { loadVngRegistry } from './vng-registry.js';
@@ -78,24 +82,12 @@ export async function fetchGemeentedelersInitiatives(
 
   const merge = mergeGdSources(subspaces, posts);
 
-  // Counts and nameIDs only — never descriptions or tags (Constitution IV).
-  const fromSubspaces = merge.initiatives.filter((i) => i.source === 'subspace').length;
-  logger.info(
-    `GD initiatives: ${merge.initiatives.length} = ${fromSubspaces} from subspaces + ` +
-      `${merge.initiatives.length - fromSubspaces} from posts ` +
-      `(${merge.superseded.length} posts superseded by a subspace; ` +
-      `${merge.skippedSubspaceNameIds.length} non-initiative subspaces skipped: ` +
-      `${merge.skippedSubspaceNameIds.join(', ') || 'none'})`,
-    { context: 'GD' },
-  );
-  const byTitle = merge.superseded.filter((s) => s.rule !== 'nameId');
-  if (byTitle.length) {
-    logger.info(
-      `GD posts superseded by title rather than nameID: ` +
-        byTitle.map((s) => `${s.postNameId} → ${s.subspaceNameId} (${s.rule})`).join(', '),
-      { context: 'GD' },
-    );
+  // Which initiatives came from where — nameIDs only (Constitution IV).
+  for (const line of describeGdSources(merge.initiatives, merge)) {
+    logger.info(line, { context: 'GD' });
   }
+  const fromSubspaces = merge.initiatives.filter((i) => i.source === 'subspace').length;
+
   // Keep the removal visible to whoever reads the logs. LEGACY-GD-POSTS: delete with it.
   const fromPosts = merge.initiatives.length - fromSubspaces;
   if (fromPosts > 0) {

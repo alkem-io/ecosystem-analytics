@@ -28,6 +28,7 @@ import {
   fetchGemeentedelersInitiatives,
   resolveGemeenteOrgNode,
 } from './gd-initiatives-service.js';
+import { describeGdSources } from '../transform/gd-initiative-sources.js';
 import {
   buildInitiativeLayer,
   resolveInitiativeCategories,
@@ -579,7 +580,9 @@ async function loadGdSubgraph(
     const cached = getCacheEntry(userId, GD_CACHE_SPACE_ID);
     if (cached) {
       logger.info(`GD initiative subgraph served from cache for user ${userId}`, { context: 'Graph' });
-      return JSON.parse(cached.datasetJson) as GdSubgraph;
+      const subgraph = JSON.parse(cached.datasetJson) as GdSubgraph;
+      logGdSourcesFromCache(subgraph);
+      return subgraph;
     }
   }
 
@@ -621,6 +624,8 @@ async function loadGdSubgraph(
     initiativeCount: callouts.length,
     callouts: callouts.map((c) => ({
       id: c.id,
+      nameId: c.nameId,
+      source: c.source,
       displayName: c.displayName,
       tags: c.tags,
       // Subspace initiatives are counted by their Classifications, posts by tag label.
@@ -635,6 +640,32 @@ async function loadGdSubgraph(
   setCacheEntry(userId, GD_CACHE_SPACE_ID, JSON.stringify(subgraph), ttlHours);
 
   return subgraph;
+}
+
+/**
+ * The GD load summary for a subgraph served from cache — which initiatives came from
+ * subspaces and which from posts. A row written before the summary existed carries no
+ * sources; say so rather than report it as zero of each.
+ */
+function logGdSourcesFromCache(subgraph: GdSubgraph): void {
+  const callouts = subgraph.callouts ?? [];
+  const sourced = callouts.filter(
+    (c): c is GdCountableCallout & { nameId: string; source: 'subspace' | 'post' } =>
+      !!c.nameId && !!c.source,
+  );
+  if (sourced.length < callouts.length || callouts.length === 0) {
+    logger.info(
+      `GD initiatives loaded from cache: ${subgraph.initiativeCount} total — sources not recorded ` +
+        `in this cache row (it predates source logging; a Refresh rebuilds it)`,
+      { context: 'GD' },
+    );
+    return;
+  }
+  for (const line of describeGdSources(sourced)) {
+    logger.info(line.replace(/^GD initiatives loaded:/, 'GD initiatives loaded from cache:'), {
+      context: 'GD',
+    });
+  }
 }
 
 /** Get current generation progress for a user */
