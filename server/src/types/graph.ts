@@ -184,8 +184,13 @@ export interface GraphNode {
   vng2030Categories?: string[];
   /** Resolved GemeenteDelers theme titles (also exposed as THEME nodes/edges). */
   vngThemes?: string[];
-  /** INITIATIVE: year from a `gd-<jaartal>` tag, if present. */
+  /** INITIATIVE: submission year, from a `2021` (or older `gd-2021`) tag, if present. */
   initiativeYear?: number;
+  /**
+   * INITIATIVE: where the GemeenteDelers initiative was loaded from — its own subspace
+   * (canonical) or a legacy post. LEGACY-GD-POSTS: drop once only subspaces remain.
+   */
+  initiativeSource?: 'subspace' | 'post';
   /** INITIATIVE: GemeenteDelers classifications (winner/finalist/…). */
   initiativeClassifications?: string[];
   /** INITIATIVE: Global Goals (`sdg-NN`) tags, if present. */
@@ -318,5 +323,19 @@ export interface GraphDataset {
     initiativeCount: number;
     source: { programme: string; years: string; url: string };
     error?: string;
+    /**
+     * How the GD subspaces and posts were reconciled, for the browser-console load
+     * summary — nameIDs only. Absent on GD rows cached before it existed.
+     * LEGACY-GD-POSTS: drop with the posts path.
+     */
+    sources?: GdLayerSources;
   };
+}
+
+/** How the GemeenteDelers subspaces and posts were reconciled (LEGACY-GD-POSTS). */
+export interface GdLayerSources {
+  /** Each post dropped because a subspace supersedes it, and the rule that matched. */
+  superseded: { postNameId: string; subspaceNameId: string; rule: 'nameId' | 'title' | 'title-prefix' }[];
+  /** Subspaces skipped as not an initiative (template, training). */
+  skippedSubspaceNameIds: string[];
 }

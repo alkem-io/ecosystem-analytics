@@ -16,6 +16,7 @@ import type {
   OrganizationsResponse,
 } from '@server/types/api.js';
 import type { LoadGraphFn } from '../../services/graph-loader.js';
+import { logGdSources } from './gd-source-log.js';
 import { DashboardStore, type LoadRequester, type LoadedExtras, type Selection } from './store.js';
 
 /** The BFF calls the loader makes for extra items — injectable for tests. */
@@ -144,6 +145,8 @@ export class DashboardLoader {
       .then((result) => {
         if (controller.signal.aborted) return;
         this.store.setData(loadKey, result);
+        // Once per completed load: which GD initiatives came via subspaces / via posts.
+        logGdSources(result.dataset);
         for (const key of this.declared.keys()) this.runExtra(key, force);
       })
       .catch((err: unknown) => {
