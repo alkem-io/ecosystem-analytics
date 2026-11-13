@@ -141,3 +141,26 @@ govtech:
     phase: "${GOVTECH_CLASSIFICATION_PHASE}:Fase"
     # Technology Readiness Level — same ordered-vocabulary reading as `phase`.
     trl: "${GOVTECH_CLASSIFICATION_TRL}:TRL"
+
+# Access gate (feature 026-space-access-gate). Each application names the Alkemio
+# Space whose MEMBER role admits a signed-in person (MEMBER + ADMIN = the Manage
+# level), or `none` for explicitly
+# ungated. EVERY app key is REQUIRED: a missing/empty/unparseable value stops the
+# server at start-up (FR-003). Nothing is ever ungated by accident.
+#
+# Accepted values: `none` · `space` · `space/subspace` · `space/subspace/subsubspace`
+# · or a full Alkemio Space URL (`https://alkem.io/<space>/challenges/<sub>`).
+#
+# The defaults are the PRODUCTION policy: only the VNG dashboard (the monitor) is
+# gated, by the Landelijk Innovatiemonitor subspace; GovTech and the Explorer stay open.
+# Roles, not privileges: a public gate Space is fine — reading it grants no role.
+access:
+  explorer: ${EXPLORER_ACCESS_GATE}:none
+  vng: ${VNG_ACCESS_GATE}:programmagroei/landelijkinnovatiemonitor
+  govtech: ${GOVTECH_ACCESS_GATE}:none
+  # Shown on the "no access" page only if the start-up probe cannot reach Alkemio.
+  vng_display_name: "${VNG_ACCESS_GATE_NAME}:Landelijk Innovatie Monitor"
+  govtech_display_name: "${GOVTECH_ACCESS_GATE_NAME}:"
+  explorer_display_name: "${EXPLORER_ACCESS_GATE_NAME}:"
+  # Per-person role check timeout; on timeout the person is NOT admitted (fail closed).
+  check_timeout_ms: ${ACCESS_CHECK_TIMEOUT_MS}:5000

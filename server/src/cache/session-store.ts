@@ -1,4 +1,5 @@
 import { getDatabase } from './db.js';
+import { clearForSession } from '../access/decision-store.js';
 
 /**
  * Parameterized CRUD for the two OIDC tables (`oidc_auth_tx`, `oidc_sessions`).
@@ -186,4 +187,6 @@ export function updateSessionTokens(
 
 export function deleteSession(sessionId: string): void {
   getDatabase().prepare('DELETE FROM oidc_sessions WHERE session_id = ?').run(sessionId);
+  // Feature 026: a session's access decisions die with it (sign-out, expiry, refresh failure).
+  clearForSession(sessionId);
 }

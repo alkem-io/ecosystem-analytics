@@ -18177,6 +18177,58 @@ export type SpaceAboutOnlyFragmentFragment = { id: string, nameID: string, creat
 
 export type SpaceGraphInfoFragmentFragment = { id: string, nameID: string, createdDate: Date, visibility: SpaceVisibility, about: { id: string, isContentPublic: boolean, membership: { myPrivileges?: Array<AuthorizationPrivilege> | undefined }, classifications: Array<{ id: string, displayLabel: string, cardinality: ClassificationCardinality, display: boolean, sortOrder: number, values: Array<{ id: string, label: string }>, selectedValues: Array<{ id: string, label: string }> }>, profile: { id: string, displayName: string, tagline?: string | undefined, url: string, location?: { country?: string | undefined, city?: string | undefined, geoLocation: { latitude?: number | undefined, longitude?: number | undefined } } | undefined, avatar?: { uri: string } | undefined, banner?: { uri: string } | undefined, bannerWide?: { uri: string } | undefined, tagsets?: Array<{ name: string, tags: Array<string>, type: TagsetType, allowedValues: Array<string> }> | undefined } }, community: { id: string, roleSet: { memberUsers: Array<{ id: string }>, memberOrganizations: Array<{ id: string, nameID: string, profile?: { displayName: string, url: string, avatar?: { uri: string } | undefined, location?: { country?: string | undefined, city?: string | undefined, geoLocation: { latitude?: number | undefined, longitude?: number | undefined } } | undefined, tagsets?: Array<{ name: string, tags: Array<string>, type: TagsetType }> | undefined } | undefined }>, leadOrganizations: Array<{ id: string, nameID: string, profile?: { displayName: string, url: string, avatar?: { uri: string } | undefined, location?: { country?: string | undefined, city?: string | undefined, geoLocation: { latitude?: number | undefined, longitude?: number | undefined } } | undefined, tagsets?: Array<{ name: string, tags: Array<string>, type: TagsetType }> | undefined } | undefined }>, leadUsers: Array<{ id: string }>, adminUsers: Array<{ id: string }> } }, subspaces: Array<{ id: string, nameID: string, createdDate: Date, visibility: SpaceVisibility, about: { id: string, isContentPublic: boolean, membership: { myPrivileges?: Array<AuthorizationPrivilege> | undefined }, classifications: Array<{ id: string, displayLabel: string, cardinality: ClassificationCardinality, display: boolean, sortOrder: number, values: Array<{ id: string, label: string }>, selectedValues: Array<{ id: string, label: string }> }>, profile: { id: string, displayName: string, tagline?: string | undefined, url: string, location?: { country?: string | undefined, city?: string | undefined, geoLocation: { latitude?: number | undefined, longitude?: number | undefined } } | undefined, avatar?: { uri: string } | undefined, banner?: { uri: string } | undefined, bannerWide?: { uri: string } | undefined, tagsets?: Array<{ name: string, tags: Array<string>, type: TagsetType, allowedValues: Array<string> }> | undefined } } }> };
 
+export type AccessGateRolesFragment = { id: string, community: { roleSet: { myRoles: Array<RoleName> } } };
+
+export type AccessGateL0QueryVariables = Exact<{
+  space: Scalars['NameID']['input'];
+}>;
+
+
+export type AccessGateL0Query = { lookupByName: { space?: { id: string, community: { roleSet: { myRoles: Array<RoleName> } } } | undefined } };
+
+export type AccessGateL1QueryVariables = Exact<{
+  space: Scalars['NameID']['input'];
+  sub: Scalars['NameID']['input'];
+}>;
+
+
+export type AccessGateL1Query = { lookupByName: { space?: { id: string, subspaceByNameID: { id: string, community: { roleSet: { myRoles: Array<RoleName> } } } } | undefined } };
+
+export type AccessGateL2QueryVariables = Exact<{
+  space: Scalars['NameID']['input'];
+  sub: Scalars['NameID']['input'];
+  subsub: Scalars['NameID']['input'];
+}>;
+
+
+export type AccessGateL2Query = { lookupByName: { space?: { id: string, subspaceByNameID: { id: string, subspaceByNameID: { id: string, community: { roleSet: { myRoles: Array<RoleName> } } } } } | undefined } };
+
+export type AccessGateProbeFieldsFragment = { id: string, about: { profile: { displayName: string, url: string } } };
+
+export type AccessGateProbeL0QueryVariables = Exact<{
+  space: Scalars['NameID']['input'];
+}>;
+
+
+export type AccessGateProbeL0Query = { lookupByName: { space?: { id: string, about: { profile: { displayName: string, url: string } } } | undefined } };
+
+export type AccessGateProbeL1QueryVariables = Exact<{
+  space: Scalars['NameID']['input'];
+  sub: Scalars['NameID']['input'];
+}>;
+
+
+export type AccessGateProbeL1Query = { lookupByName: { space?: { id: string, subspaceByNameID: { id: string, about: { profile: { displayName: string, url: string } } } } | undefined } };
+
+export type AccessGateProbeL2QueryVariables = Exact<{
+  space: Scalars['NameID']['input'];
+  sub: Scalars['NameID']['input'];
+  subsub: Scalars['NameID']['input'];
+}>;
+
+
+export type AccessGateProbeL2Query = { lookupByName: { space?: { id: string, subspaceByNameID: { id: string, subspaceByNameID: { id: string, about: { profile: { displayName: string, url: string } } } } } | undefined } };
+
 export type ActivityFeedGroupedQueryVariables = Exact<{
   args?: InputMaybe<ActivityFeedGroupedQueryArgs>;
 }>;

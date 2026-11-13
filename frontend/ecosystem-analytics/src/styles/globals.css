@@ -1,4 +1,6 @@
 @import "tailwindcss";
+/* Feature 026: the shared access-gate screens are styled with Tailwind utilities. */
+@source "../../../shared/src/access";
 
 @custom-variant dark (:root[data-theme="dark"] &);
 

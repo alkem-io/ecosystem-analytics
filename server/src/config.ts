@@ -2,6 +2,7 @@ import dotenv from 'dotenv';
 import { existsSync, readFileSync } from 'fs';
 import { join } from 'path';
 import YAML from 'yaml';
+import { APP_IDS, parseGateRef, type AppId, type GateRef } from './access/policy.js';
 
 dotenv.config();
 
@@ -100,6 +101,16 @@ export type VngConfig = DashboardAppConfig;
 /** Known dashboard app ids (each maps to a `dashboards` registry profile + a served port). */
 export type DashboardAppId = 'vng' | 'govtech';
 
+/**
+ * The access gate (feature 026). Each application is gated by one Alkemio Space or
+ * explicitly ungated — never by default (FR-001, FR-003).
+ */
+export interface AccessConfig {
+  apps: Record<AppId, { gate: GateRef | null; displayNameFallback: string }>;
+  /** Per-person privilege check timeout; a timeout is "could not verify" (fail closed). */
+  checkTimeoutMs: number;
+}
+
 export interface ServerConfig {
   alkemioServerUrl: string;
   alkemioGraphqlEndpoint: string;
@@ -125,6 +136,8 @@ export interface ServerConfig {
   dashboards: Record<DashboardAppId, DashboardAppConfig>;
   /** Back-compat alias of `dashboards.vng` (existing readers/services depend on it). */
   vng: VngConfig;
+  /** Per-application access gate (feature 026). */
+  access: AccessConfig;
 }
 
 /** Resolve the YAML config file path (check env override, cwd, then relative to dist) */
@@ -212,12 +225,14 @@ export function loadConfig(): ServerConfig {
     };
     vng?: DashboardYamlBlock;
     govtech?: DashboardYamlBlock;
+    access?: Record<string, unknown>;
   };
 
   const oidc = parseOidcConfig(yml.oidc);
   const session = parseSessionConfig(yml.session);
   const vng = parseDashboardConfig(yml.vng);
   const govtech = parseDashboardConfig(yml.govtech);
+  const access = parseAccessConfig(yml.access);
 
   cachedConfig = {
     alkemioServerUrl: String(yml.alkemio.server_url),
@@ -253,6 +268,7 @@ export function loadConfig(): ServerConfig {
     session,
     dashboards: { vng, govtech },
     vng,
+    access,
   };
 
   return cachedConfig;
@@ -296,6 +312,39 @@ function parseDashboardConfig(raw?: DashboardYamlBlock): DashboardAppConfig {
       trl: designation(raw?.classifications?.trl, 'TRL'),
     },
   };
+}
+
+/**
+ * Parse + validate the `access:` block (feature 026, contracts/config-access.md).
+ * Every application MUST be declared — a gate path/URL or the literal `none`. A
+ * missing, empty or unparseable value throws, so start-up fails rather than leaving
+ * an application open by accident (FR-003).
+ */
+export function parseAccessConfig(raw: Record<string, unknown> | undefined): AccessConfig {
+  const block = raw ?? {};
+  const apps = {} as AccessConfig['apps'];
+  for (const app of APP_IDS) {
+    const value = block[app];
+    if (value === undefined || value === null || String(value).trim() === '') {
+      throw new Error(
+        `access.${app} is not set. Declare the gate Space (e.g. 'space/subspace') or ` +
+          `'none' to run ${app} ungated on purpose (feature 026, FR-003).`,
+      );
+    }
+    let gate: GateRef | null;
+    try {
+      gate = parseGateRef(String(value));
+    } catch (err) {
+      throw new Error(`access.${app}: '${String(value)}' is not valid — ${(err as Error).message}.`);
+    }
+    const fallback = block[`${app}_display_name`];
+    apps[app] = {
+      gate,
+      displayNameFallback:
+        fallback === undefined || fallback === null ? '' : String(fallback).trim(),
+    };
+  }
+  return { apps, checkTimeoutMs: Number(block.check_timeout_ms) || 5000 };
 }
 
 /** Parse + validate the OIDC block, failing fast on misconfiguration (FR-018/FR-019). */

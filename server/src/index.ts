@@ -4,6 +4,8 @@ import { createLogger } from './logging/logger.js';
 import { initDatabase } from './cache/db.js';
 import { purgeExpired, runDeploymentCacheMaintenance } from './cache/cache-service.js';
 import { LEGACY_GD_POSTS_NOTICE } from './transform/gd-initiative-sources.js';
+import { APP_IDS } from './access/policy.js';
+import { startGateProbes } from './access/probe.js';
 
 const config = loadConfig();
 const logger = createLogger(config.logging);
@@ -19,15 +21,34 @@ logger.info(
 // LEGACY-GD-POSTS: delete with the posts path.
 logger.warn(LEGACY_GD_POSTS_NOTICE, { context: 'Bootstrap' });
 
+// Feature 026 — each application's access gate. `loadConfig()` has already refused
+// to start if any app is undeclared (FR-003); state each one plainly, then probe the
+// gates anonymously in the background (name/link for the "no access" page, and a
+// loud warning if a gate is publicly readable — FR-020). Listeners do not wait.
+for (const appId of APP_IDS) {
+  const { gate } = config.access.apps[appId];
+  logger.info(
+    gate ? `[Access] ${appId}: gated by ${gate.key} (read)` : `[Access] ${appId}: UNGATED (explicit)`,
+    { context: 'Bootstrap' },
+  );
+}
+startGateProbes(
+  APP_IDS.flatMap((appId) => {
+    const { gate, displayNameFallback } = config.access.apps[appId];
+    return gate ? [{ app: appId, gate, displayNameFallback }] : [];
+  }),
+  { alkemioServerUrl: config.alkemioServerUrl, timeoutMs: config.access.checkTimeoutMs },
+);
+
 // Three apps sharing the same /api routes + SQLite session/cache store:
 //  - the Explorer SPA on `config.port`
 //  - the VNG Kenniscentrum Innovatie SPA on `config.vngPort` (feature 016)
 //  - the GovTech Netherlands SPA on `config.govtechPort` (feature 017)
 // In production each serves its own static build; the shared `ea_session` cookie
 // (parent-domain scoped) means signing in on any subdomain works on all of them.
-const app = createApp('../frontend/dist');
-const vngApp = createApp('../frontend-vng/dist');
-const govtechApp = createApp('../frontend-govtech/dist');
+const app = createApp('explorer', '../frontend/dist');
+const vngApp = createApp('vng', '../frontend-vng/dist');
+const govtechApp = createApp('govtech', '../frontend-govtech/dist');
 // Namespace the default DB file per environment (issuer) so switching between
 // e.g. production and acceptance can't reuse another env's cache/session rows.
 initDatabase(config.oidc.issuer);

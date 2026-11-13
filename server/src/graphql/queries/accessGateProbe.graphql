@@ -1,0 +1,47 @@
+# Feature 026 — the ANONYMOUS start-up probe of a gate Space (no Authorization header,
+# no user data). It confirms the gate exists (FR-020) and learns the public display name
+# and link shown on the "no access" page (a private gate is invisible to the people it
+# refuses).
+
+fragment AccessGateProbeFields on Space {
+  id
+  about {
+    profile {
+      displayName
+      url
+    }
+  }
+}
+
+query accessGateProbeL0($space: NameID!) {
+  lookupByName {
+    space(NAMEID: $space) {
+      ...AccessGateProbeFields
+    }
+  }
+}
+
+query accessGateProbeL1($space: NameID!, $sub: NameID!) {
+  lookupByName {
+    space(NAMEID: $space) {
+      id
+      subspaceByNameID(NAMEID: $sub) {
+        ...AccessGateProbeFields
+      }
+    }
+  }
+}
+
+query accessGateProbeL2($space: NameID!, $sub: NameID!, $subsub: NameID!) {
+  lookupByName {
+    space(NAMEID: $space) {
+      id
+      subspaceByNameID(NAMEID: $sub) {
+        id
+        subspaceByNameID(NAMEID: $subsub) {
+          ...AccessGateProbeFields
+        }
+      }
+    }
+  }
+}

@@ -3,6 +3,9 @@ import { loadConfig } from '../config.js';
 import { createAlkemioSdk, isAlkemioAuthError } from '../graphql/client.js';
 import { invalidateAndReject } from './middleware.js';
 import { getLogger } from '../logging/logger.js';
+import { report } from '../access/access-service.js';
+import type { AccessReport } from '../types/access.js';
+import type { AppId } from '../access/policy.js';
 
 /**
  * GET /api/auth/me — returns the current signed-in identity plus the Alkemio
@@ -40,10 +43,24 @@ export async function meHandler(req: Request, res: Response): Promise<void> {
     });
   }
 
+  // Feature 026: where this person stands with the application that served the
+  // request. Never an HTTP error — "could not verify" is reported in `access`.
+  let access: AccessReport;
+  try {
+    access = await report(req.auth, res.locals.appId as AppId);
+  } catch (err) {
+    if (isAlkemioAuthError(err)) {
+      invalidateAndReject(req, res);
+      return;
+    }
+    throw err;
+  }
+
   res.json({
     userId: req.auth.userId,
     displayName: displayName ?? 'Unknown',
     avatarUrl,
     alkemioServerUrl,
+    access,
   });
 }

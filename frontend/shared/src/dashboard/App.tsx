@@ -3,10 +3,16 @@ import { useTranslation } from 'react-i18next';
 import {
   cn,
   fetchMe,
+  logout,
   type MeResponse,
   BrokenVisualsPanel,
   useAppConfig,
   useIsCompact,
+  useAccessControl,
+  NoAccessScreen,
+  AccessCheckFailedScreen,
+  ACCESS_STRINGS_EN,
+  type AccessStrings,
 } from '@ea/shared';
 import { LoginScreen } from './components/LoginScreen.js';
 import { LoadingScreen } from './components/LoadingScreen.js';
@@ -350,6 +356,55 @@ export default function App() {
 
   if (status === 'loading') return <LoadingScreen message={t('states.connecting')} />;
   if (!me) return <LoginScreen />;
+  return <AccessGate me={me} />;
+}
+
+/**
+ * Feature 026 — the dashboard renders only for a person this application admits.
+ * Otherwise the "no access" or "could not verify" screen, which also takes over when a
+ * request is refused mid-session (FR-013–FR-015).
+ */
+function AccessGate({ me }: { me: MeResponse }) {
+  const { t } = useTranslation();
+  const { Logo } = useAppConfig();
+  const { screen, access, checking, recheck } = useAccessControl(me);
+  const logo = <Logo className="h-9 w-auto max-w-full" title={t('app.title')} />;
+  const signOut = () => void logout('/');
+
+  if (screen !== 'app') {
+    const strings = (Object.keys(ACCESS_STRINGS_EN) as Array<keyof AccessStrings>).reduce(
+      (acc, key) => ({
+        ...acc,
+        [key]: t(`access.${key}`, {
+          defaultValue: ACCESS_STRINGS_EN[key],
+          space: access?.gate?.displayName ?? '',
+        }),
+      }),
+      {} as AccessStrings,
+    );
+    if (screen === 'no-access' && access?.gate) {
+      return (
+        <NoAccessScreen
+          accountName={me.displayName}
+          gate={access.gate}
+          strings={strings}
+          checking={checking}
+          onCheckAgain={() => void recheck()}
+          onSignOut={signOut}
+          logo={logo}
+        />
+      );
+    }
+    return (
+      <AccessCheckFailedScreen
+        strings={strings}
+        checking={checking}
+        onRetry={() => void recheck()}
+        onSignOut={signOut}
+        logo={logo}
+      />
+    );
+  }
 
   return (
     <SelectionProvider>

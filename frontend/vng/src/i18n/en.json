@@ -14,6 +14,18 @@
     "envUnknown": "not reported by server",
     "disclaimer": "Prototype for exploration"
   },
+  "access": {
+    "noAccessTitle": "You do not have access",
+    "noAccessBody": "Access to this monitor is granted to members of {{space}} on Alkemio. Ask to join it there, then check again.",
+    "openSpace": "Open {{space}} on Alkemio",
+    "checkAgain": "Check again",
+    "checking": "Checking…",
+    "signOut": "Sign out",
+    "signedInAs": "Signed in as",
+    "unverifiedTitle": "We could not verify your access",
+    "unverifiedBody": "Alkemio did not answer in time, so we could not confirm your access. This is usually temporary — please try again.",
+    "tryAgain": "Try again"
+  },
   "tabs": {
     "label": "Views",
     "graph": "Graph",

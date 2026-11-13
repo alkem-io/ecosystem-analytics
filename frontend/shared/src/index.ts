@@ -48,7 +48,31 @@ export { DashboardDataProvider, useDashboardData } from './dashboard/data/Dashbo
 export { useLoadedData, useLoadPlan, useExtraItem } from './dashboard/data/hooks.js';
 export type { LoadItem, LoadPlan, LoadRequester, LoadedData, Selection } from './dashboard/data/store.js';
 export { memoiseByDataset } from './dashboard/data/derive/memo.js';
-export { login, logout, fetchMe, redirectToLogin, type MeResponse } from './services/auth.js';
+export {
+  login,
+  logout,
+  fetchMe,
+  recheckAccess,
+  redirectToLogin,
+  type MeResponse,
+} from './services/auth.js';
+// Feature 026 — the access gate's shared UI and client-side signal.
+export { accessScreenFor, type AccessScreen } from './access/access-screen.js';
+export {
+  AccessDeniedError,
+  onAccessDenied,
+  resetAccessSignal,
+  signalAccessDenied,
+  throwIfAccessDenied,
+  type AccessDeniedReason,
+} from './access/access-signal.js';
+export {
+  ACCESS_STRINGS_EN,
+  AccessCheckFailedScreen,
+  NoAccessScreen,
+  type AccessStrings,
+} from './access/AccessScreens.js';
+export { useAccessControl, type AccessControl } from './access/useAccessControl.js';
 
 // Per-app configuration primitive + the shared dashboard application shell.
 // Each wrapper app (VNG, GovTech) supplies an AppConfig and renders DashboardApp.

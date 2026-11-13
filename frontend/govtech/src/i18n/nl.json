@@ -14,6 +14,18 @@
     "envUnknown": "niet gemeld door server",
     "disclaimer": "Prototype ter verkenning"
   },
+  "access": {
+    "noAccessTitle": "Je hebt geen toegang",
+    "noAccessBody": "Toegang tot deze monitor krijgen leden van {{space}} op Alkemio. Vraag daar om lid te worden en controleer het daarna opnieuw.",
+    "openSpace": "Open {{space}} op Alkemio",
+    "checkAgain": "Opnieuw controleren",
+    "checking": "Bezig met controleren…",
+    "signOut": "Uitloggen",
+    "signedInAs": "Ingelogd als",
+    "unverifiedTitle": "We konden je toegang niet controleren",
+    "unverifiedBody": "Alkemio reageerde niet op tijd, waardoor we je toegang niet konden bevestigen. Dit is meestal tijdelijk — probeer het opnieuw.",
+    "tryAgain": "Opnieuw proberen"
+  },
   "tabs": {
     "label": "Weergaven",
     "graph": "Graph",

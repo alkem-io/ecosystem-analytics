@@ -18083,6 +18083,58 @@ export type SpaceAboutOnlyFragmentFragment = { id: string, nameID: string, creat
 
 export type SpaceGraphInfoFragmentFragment = { id: string, nameID: string, createdDate: Date, visibility: SchemaTypes.SpaceVisibility, about: { id: string, isContentPublic: boolean, membership: { myPrivileges?: Array<SchemaTypes.AuthorizationPrivilege> | undefined }, classifications: Array<{ id: string, displayLabel: string, cardinality: SchemaTypes.ClassificationCardinality, display: boolean, sortOrder: number, values: Array<{ id: string, label: string }>, selectedValues: Array<{ id: string, label: string }> }>, profile: { id: string, displayName: string, tagline?: string | undefined, url: string, location?: { country?: string | undefined, city?: string | undefined, geoLocation: { latitude?: number | undefined, longitude?: number | undefined } } | undefined, avatar?: { uri: string } | undefined, banner?: { uri: string } | undefined, bannerWide?: { uri: string } | undefined, tagsets?: Array<{ name: string, tags: Array<string>, type: SchemaTypes.TagsetType, allowedValues: Array<string> }> | undefined } }, community: { id: string, roleSet: { memberUsers: Array<{ id: string }>, memberOrganizations: Array<{ id: string, nameID: string, profile?: { displayName: string, url: string, avatar?: { uri: string } | undefined, location?: { country?: string | undefined, city?: string | undefined, geoLocation: { latitude?: number | undefined, longitude?: number | undefined } } | undefined, tagsets?: Array<{ name: string, tags: Array<string>, type: SchemaTypes.TagsetType }> | undefined } | undefined }>, leadOrganizations: Array<{ id: string, nameID: string, profile?: { displayName: string, url: string, avatar?: { uri: string } | undefined, location?: { country?: string | undefined, city?: string | undefined, geoLocation: { latitude?: number | undefined, longitude?: number | undefined } } | undefined, tagsets?: Array<{ name: string, tags: Array<string>, type: SchemaTypes.TagsetType }> | undefined } | undefined }>, leadUsers: Array<{ id: string }>, adminUsers: Array<{ id: string }> } }, subspaces: Array<{ id: string, nameID: string, createdDate: Date, visibility: SchemaTypes.SpaceVisibility, about: { id: string, isContentPublic: boolean, membership: { myPrivileges?: Array<SchemaTypes.AuthorizationPrivilege> | undefined }, classifications: Array<{ id: string, displayLabel: string, cardinality: SchemaTypes.ClassificationCardinality, display: boolean, sortOrder: number, values: Array<{ id: string, label: string }>, selectedValues: Array<{ id: string, label: string }> }>, profile: { id: string, displayName: string, tagline?: string | undefined, url: string, location?: { country?: string | undefined, city?: string | undefined, geoLocation: { latitude?: number | undefined, longitude?: number | undefined } } | undefined, avatar?: { uri: string } | undefined, banner?: { uri: string } | undefined, bannerWide?: { uri: string } | undefined, tagsets?: Array<{ name: string, tags: Array<string>, type: SchemaTypes.TagsetType, allowedValues: Array<string> }> | undefined } } }> };
 
+export type AccessGateRolesFragment = { id: string, community: { roleSet: { myRoles: Array<SchemaTypes.RoleName> } } };
+
+export type AccessGateL0QueryVariables = SchemaTypes.Exact<{
+  space: SchemaTypes.Scalars['NameID']['input'];
+}>;
+
+
+export type AccessGateL0Query = { lookupByName: { space?: { id: string, community: { roleSet: { myRoles: Array<SchemaTypes.RoleName> } } } | undefined } };
+
+export type AccessGateL1QueryVariables = SchemaTypes.Exact<{
+  space: SchemaTypes.Scalars['NameID']['input'];
+  sub: SchemaTypes.Scalars['NameID']['input'];
+}>;
+
+
+export type AccessGateL1Query = { lookupByName: { space?: { id: string, subspaceByNameID: { id: string, community: { roleSet: { myRoles: Array<SchemaTypes.RoleName> } } } } | undefined } };
+
+export type AccessGateL2QueryVariables = SchemaTypes.Exact<{
+  space: SchemaTypes.Scalars['NameID']['input'];
+  sub: SchemaTypes.Scalars['NameID']['input'];
+  subsub: SchemaTypes.Scalars['NameID']['input'];
+}>;
+
+
+export type AccessGateL2Query = { lookupByName: { space?: { id: string, subspaceByNameID: { id: string, subspaceByNameID: { id: string, community: { roleSet: { myRoles: Array<SchemaTypes.RoleName> } } } } } | undefined } };
+
+export type AccessGateProbeFieldsFragment = { id: string, about: { profile: { displayName: string, url: string } } };
+
+export type AccessGateProbeL0QueryVariables = SchemaTypes.Exact<{
+  space: SchemaTypes.Scalars['NameID']['input'];
+}>;
+
+
+export type AccessGateProbeL0Query = { lookupByName: { space?: { id: string, about: { profile: { displayName: string, url: string } } } | undefined } };
+
+export type AccessGateProbeL1QueryVariables = SchemaTypes.Exact<{
+  space: SchemaTypes.Scalars['NameID']['input'];
+  sub: SchemaTypes.Scalars['NameID']['input'];
+}>;
+
+
+export type AccessGateProbeL1Query = { lookupByName: { space?: { id: string, subspaceByNameID: { id: string, about: { profile: { displayName: string, url: string } } } } | undefined } };
+
+export type AccessGateProbeL2QueryVariables = SchemaTypes.Exact<{
+  space: SchemaTypes.Scalars['NameID']['input'];
+  sub: SchemaTypes.Scalars['NameID']['input'];
+  subsub: SchemaTypes.Scalars['NameID']['input'];
+}>;
+
+
+export type AccessGateProbeL2Query = { lookupByName: { space?: { id: string, subspaceByNameID: { id: string, subspaceByNameID: { id: string, about: { profile: { displayName: string, url: string } } } } } | undefined } };
+
 export type ActivityFeedGroupedQueryVariables = SchemaTypes.Exact<{
   args?: SchemaTypes.InputMaybe<SchemaTypes.ActivityFeedGroupedQueryArgs>;
 }>;
@@ -18337,6 +18389,99 @@ export const SpaceGraphInfoFragmentFragmentDoc = gql`
     ${SpaceAboutFragmentFragmentDoc}
 ${CommunityRolesFragmentFragmentDoc}
 ${SpaceAboutOnlyFragmentFragmentDoc}`;
+export const AccessGateRolesFragmentDoc = gql`
+    fragment AccessGateRoles on Space {
+  id
+  community {
+    roleSet {
+      myRoles
+    }
+  }
+}
+    `;
+export const AccessGateProbeFieldsFragmentDoc = gql`
+    fragment AccessGateProbeFields on Space {
+  id
+  about {
+    profile {
+      displayName
+      url
+    }
+  }
+}
+    `;
+export const AccessGateL0Document = gql`
+    query accessGateL0($space: NameID!) {
+  lookupByName {
+    space(NAMEID: $space) {
+      ...AccessGateRoles
+    }
+  }
+}
+    ${AccessGateRolesFragmentDoc}`;
+export const AccessGateL1Document = gql`
+    query accessGateL1($space: NameID!, $sub: NameID!) {
+  lookupByName {
+    space(NAMEID: $space) {
+      id
+      subspaceByNameID(NAMEID: $sub) {
+        ...AccessGateRoles
+      }
+    }
+  }
+}
+    ${AccessGateRolesFragmentDoc}`;
+export const AccessGateL2Document = gql`
+    query accessGateL2($space: NameID!, $sub: NameID!, $subsub: NameID!) {
+  lookupByName {
+    space(NAMEID: $space) {
+      id
+      subspaceByNameID(NAMEID: $sub) {
+        id
+        subspaceByNameID(NAMEID: $subsub) {
+          ...AccessGateRoles
+        }
+      }
+    }
+  }
+}
+    ${AccessGateRolesFragmentDoc}`;
+export const AccessGateProbeL0Document = gql`
+    query accessGateProbeL0($space: NameID!) {
+  lookupByName {
+    space(NAMEID: $space) {
+      ...AccessGateProbeFields
+    }
+  }
+}
+    ${AccessGateProbeFieldsFragmentDoc}`;
+export const AccessGateProbeL1Document = gql`
+    query accessGateProbeL1($space: NameID!, $sub: NameID!) {
+  lookupByName {
+    space(NAMEID: $space) {
+      id
+      subspaceByNameID(NAMEID: $sub) {
+        ...AccessGateProbeFields
+      }
+    }
+  }
+}
+    ${AccessGateProbeFieldsFragmentDoc}`;
+export const AccessGateProbeL2Document = gql`
+    query accessGateProbeL2($space: NameID!, $sub: NameID!, $subsub: NameID!) {
+  lookupByName {
+    space(NAMEID: $space) {
+      id
+      subspaceByNameID(NAMEID: $sub) {
+        id
+        subspaceByNameID(NAMEID: $subsub) {
+          ...AccessGateProbeFields
+        }
+      }
+    }
+  }
+}
+    ${AccessGateProbeFieldsFragmentDoc}`;
 export const ActivityFeedGroupedDocument = gql`
     query ActivityFeedGrouped($args: ActivityFeedGroupedQueryArgs) {
   activityFeedGrouped(args: $args) {
@@ -18740,6 +18885,12 @@ export type SdkFunctionWrapper = <T>(action: (requestHeaders?:Record<string, str
 
 
 const defaultWrapper: SdkFunctionWrapper = (action, _operationName, _operationType, _variables) => action();
+const AccessGateL0DocumentString = print(AccessGateL0Document);
+const AccessGateL1DocumentString = print(AccessGateL1Document);
+const AccessGateL2DocumentString = print(AccessGateL2Document);
+const AccessGateProbeL0DocumentString = print(AccessGateProbeL0Document);
+const AccessGateProbeL1DocumentString = print(AccessGateProbeL1Document);
+const AccessGateProbeL2DocumentString = print(AccessGateProbeL2Document);
 const ActivityFeedGroupedDocumentString = print(ActivityFeedGroupedDocument);
 const GemeenteLocationsDocumentString = print(GemeenteLocationsDocument);
 const GemeentedelersInitiativesDocumentString = print(GemeentedelersInitiativesDocument);
@@ -18758,6 +18909,24 @@ const SubspaceDetailsDocumentString = print(SubspaceDetailsDocument);
 const UsersByIDsDocumentString = print(UsersByIDsDocument);
 export function getSdk(client: GraphQLClient, withWrapper: SdkFunctionWrapper = defaultWrapper) {
   return {
+    accessGateL0(variables: SchemaTypes.AccessGateL0QueryVariables, requestHeaders?: GraphQLClientRequestHeaders): Promise<{ data: SchemaTypes.AccessGateL0Query; errors?: GraphQLError[]; extensions?: any; headers: Headers; status: number; }> {
+        return withWrapper((wrappedRequestHeaders) => client.rawRequest<SchemaTypes.AccessGateL0Query>(AccessGateL0DocumentString, variables, {...requestHeaders, ...wrappedRequestHeaders}), 'accessGateL0', 'query', variables);
+    },
+    accessGateL1(variables: SchemaTypes.AccessGateL1QueryVariables, requestHeaders?: GraphQLClientRequestHeaders): Promise<{ data: SchemaTypes.AccessGateL1Query; errors?: GraphQLError[]; extensions?: any; headers: Headers; status: number; }> {
+        return withWrapper((wrappedRequestHeaders) => client.rawRequest<SchemaTypes.AccessGateL1Query>(AccessGateL1DocumentString, variables, {...requestHeaders, ...wrappedRequestHeaders}), 'accessGateL1', 'query', variables);
+    },
+    accessGateL2(variables: SchemaTypes.AccessGateL2QueryVariables, requestHeaders?: GraphQLClientRequestHeaders): Promise<{ data: SchemaTypes.AccessGateL2Query; errors?: GraphQLError[]; extensions?: any; headers: Headers; status: number; }> {
+        return withWrapper((wrappedRequestHeaders) => client.rawRequest<SchemaTypes.AccessGateL2Query>(AccessGateL2DocumentString, variables, {...requestHeaders, ...wrappedRequestHeaders}), 'accessGateL2', 'query', variables);
+    },
+    accessGateProbeL0(variables: SchemaTypes.AccessGateProbeL0QueryVariables, requestHeaders?: GraphQLClientRequestHeaders): Promise<{ data: SchemaTypes.AccessGateProbeL0Query; errors?: GraphQLError[]; extensions?: any; headers: Headers; status: number; }> {
+        return withWrapper((wrappedRequestHeaders) => client.rawRequest<SchemaTypes.AccessGateProbeL0Query>(AccessGateProbeL0DocumentString, variables, {...requestHeaders, ...wrappedRequestHeaders}), 'accessGateProbeL0', 'query', variables);
+    },
+    accessGateProbeL1(variables: SchemaTypes.AccessGateProbeL1QueryVariables, requestHeaders?: GraphQLClientRequestHeaders): Promise<{ data: SchemaTypes.AccessGateProbeL1Query; errors?: GraphQLError[]; extensions?: any; headers: Headers; status: number; }> {
+        return withWrapper((wrappedRequestHeaders) => client.rawRequest<SchemaTypes.AccessGateProbeL1Query>(AccessGateProbeL1DocumentString, variables, {...requestHeaders, ...wrappedRequestHeaders}), 'accessGateProbeL1', 'query', variables);
+    },
+    accessGateProbeL2(variables: SchemaTypes.AccessGateProbeL2QueryVariables, requestHeaders?: GraphQLClientRequestHeaders): Promise<{ data: SchemaTypes.AccessGateProbeL2Query; errors?: GraphQLError[]; extensions?: any; headers: Headers; status: number; }> {
+        return withWrapper((wrappedRequestHeaders) => client.rawRequest<SchemaTypes.AccessGateProbeL2Query>(AccessGateProbeL2DocumentString, variables, {...requestHeaders, ...wrappedRequestHeaders}), 'accessGateProbeL2', 'query', variables);
+    },
     ActivityFeedGrouped(variables?: SchemaTypes.ActivityFeedGroupedQueryVariables, requestHeaders?: GraphQLClientRequestHeaders): Promise<{ data: SchemaTypes.ActivityFeedGroupedQuery; errors?: GraphQLError[]; extensions?: any; headers: Headers; status: number; }> {
         return withWrapper((wrappedRequestHeaders) => client.rawRequest<SchemaTypes.ActivityFeedGroupedQuery>(ActivityFeedGroupedDocumentString, variables, {...requestHeaders, ...wrappedRequestHeaders}), 'ActivityFeedGrouped', 'query', variables);
     },
