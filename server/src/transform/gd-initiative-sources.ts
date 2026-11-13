@@ -201,3 +201,43 @@ function isTitlePrefixMatch(a: string, b: string): boolean {
   const [shorter, longer] = a.length <= b.length ? [a, b] : [b, a];
   return shorter.length >= MIN_PREFIX_TITLE_LENGTH && longer.startsWith(shorter);
 }
+
+/** What the load summary needs per initiative — also kept in the cached GD row. */
+export interface GdSourcedInitiative {
+  nameId: string;
+  source: GdInitiativeInput['source'];
+}
+
+/**
+ * The GD load summary, one line per group, for the server console: how many initiatives
+ * came from subspaces and from posts, and which (by nameID). With `merge`, also which
+ * posts a subspace superseded and which subspaces were skipped — known only on a fresh
+ * fetch, not when the row is served from cache.
+ *
+ * NameIDs only — never descriptions or tags (Constitution IV). Pure: the caller logs.
+ */
+export function describeGdSources(
+  initiatives: readonly GdSourcedInitiative[],
+  merge?: Pick<GdSourceMerge, 'superseded' | 'skippedSubspaceNameIds'>,
+): string[] {
+  const list = (nameIds: readonly string[]) => (nameIds.length ? nameIds.join(', ') : '—');
+  const viaSubspaces = initiatives.filter((i) => i.source === 'subspace').map((i) => i.nameId);
+  // LEGACY-GD-POSTS: the posts line goes with the posts path.
+  const viaPosts = initiatives.filter((i) => i.source === 'post').map((i) => i.nameId);
+
+  const lines = [
+    `GD initiatives loaded: ${initiatives.length} total — ` +
+      `${viaSubspaces.length} via subspaces, ${viaPosts.length} via posts`,
+    `GD via subspaces (${viaSubspaces.length}): ${list(viaSubspaces)}`,
+    `GD via posts (${viaPosts.length}): ${list(viaPosts)}`,
+  ];
+  if (merge) {
+    lines.push(
+      `GD posts superseded by a subspace (${merge.superseded.length}): ` +
+        list(merge.superseded.map((s) => `${s.postNameId} → ${s.subspaceNameId} [${s.rule}]`)),
+      `GD subspaces skipped as not an initiative (${merge.skippedSubspaceNameIds.length}): ` +
+        list(merge.skippedSubspaceNameIds),
+    );
+  }
+  return lines;
+}
