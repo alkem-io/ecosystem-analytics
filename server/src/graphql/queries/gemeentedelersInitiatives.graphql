@@ -1,0 +1,68 @@
+# The GemeenteDelers corpus, from BOTH places it lives during the migration:
+#
+#  • subspaces — the canonical form. One L1 subspace per initiative, categorised by real
+#    Alkemio Classifications. Only `about` is read: it is what READ_ABOUT grants, so it
+#    stays readable for guests even where a subspace's content is not public.
+#  • callouts  — the original posts on the L0. Still loaded, but any post that a subspace
+#    supersedes is dropped (transform/gd-initiative-sources.ts).
+#
+# LEGACY-GD-POSTS: the `collaboration` selection below is TEMPORARY. Remove it (and run
+# `pnpm run codegen`) once the migration completes — see the checklist in
+# server/src/transform/gd-initiative-sources.ts.
+query GemeentedelersInitiatives($nameId: NameID!) {
+  lookupByName {
+    space(NAMEID: $nameId) {
+      id
+      nameID
+      # LEGACY-GD-POSTS: remove this selection with the posts path.
+      collaboration {
+        calloutsSet {
+          callouts {
+            id
+            nameID
+            framing {
+              profile {
+                displayName
+                description
+                tagsets {
+                  name
+                  tags
+                }
+              }
+            }
+          }
+        }
+      }
+      subspaces {
+        id
+        nameID
+        about {
+          profile {
+            displayName
+            description
+            url
+            tagsets {
+              name
+              tags
+            }
+          }
+          classifications {
+            id
+            displayLabel
+            cardinality
+            display
+            sortOrder
+            values {
+              id
+              label
+            }
+            selectedValues {
+              id
+              label
+            }
+          }
+        }
+      }
+    }
+  }
+}

@@ -3,6 +3,7 @@ import { loadConfig } from './config.js';
 import { createLogger } from './logging/logger.js';
 import { initDatabase } from './cache/db.js';
 import { purgeExpired, runDeploymentCacheMaintenance } from './cache/cache-service.js';
+import { LEGACY_GD_POSTS_NOTICE } from './transform/gd-initiative-sources.js';
 
 const config = loadConfig();
 const logger = createLogger(config.logging);
@@ -14,6 +15,9 @@ logger.info(
     ` · GemeenteDelers space nameID: "${config.vng.gemeentedelersSpaceNameId}"`,
   { context: 'Bootstrap' },
 );
+// A standing reminder to whoever runs this server that the GD posts path must go.
+// LEGACY-GD-POSTS: delete with the posts path.
+logger.warn(LEGACY_GD_POSTS_NOTICE, { context: 'Bootstrap' });
 
 // Three apps sharing the same /api routes + SQLite session/cache store:
 //  - the Explorer SPA on `config.port`

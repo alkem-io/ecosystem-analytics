@@ -7,7 +7,7 @@ import {
 import type { Vocabulary } from './classifications.js';
 import { NodeType, EdgeType, type GraphNode } from '../types/graph.js';
 import type { VngRegistry, RegistryTheme } from '../services/vng-registry.js';
-import type { GdCalloutInput } from '../types/api.js';
+import type { GdInitiativeInput } from '../types/api.js';
 
 const THEME: RegistryTheme = { slug: 'energietransitie', title: 'Energietransitie', priorLabels: [] };
 
@@ -32,7 +32,7 @@ const registry: VngRegistry = {
   gemeenteNameIds: () => ['gemeente-groningen', 'gemeente-utrecht'],
   municipalities: () => [
     {
-      nameId: 'gemeente-groningen',
+      nameId: 'gemeente-groningen', source: 'post',
       title: 'Groningen',
       info: {
         cbsCode: 'GM0014',
@@ -43,7 +43,7 @@ const registry: VngRegistry = {
       },
     },
     {
-      nameId: 'gemeente-utrecht',
+      nameId: 'gemeente-utrecht', source: 'post',
       title: 'Utrecht',
       info: {
         cbsCode: 'GM0344',
@@ -74,10 +74,11 @@ const resolveGemeenteNodeId = (nameId: string): string | null =>
 
 describe('buildInitiativeLayer', () => {
   it('creates an initiative node with parsed year/classification/sdg and edges to gemeente + theme', () => {
-    const callouts: GdCalloutInput[] = [
+    const callouts: GdInitiativeInput[] = [
       {
         id: 'cal-1',
         nameId: 'mooi-initiatief',
+        source: 'post',
         displayName: 'Mooi initiatief',
         description: 'Een mooi project. Deelnemende gemeente: Groningen',
         tags: ['Energietransitie', 'gd-2024', 'sdg-08', 'winner'],
@@ -119,8 +120,8 @@ describe('buildInitiativeLayer', () => {
   });
 
   it('records unresolvable gemeente references instead of creating duplicate nodes', () => {
-    const callouts: GdCalloutInput[] = [
-      { id: 'cal-2', nameId: 'utrecht-case', displayName: 'Utrecht', description: 'Deelnemende gemeente: Utrecht', tags: [] },
+    const callouts: GdInitiativeInput[] = [
+      { id: 'cal-2', nameId: 'utrecht-case', source: 'post', displayName: 'Utrecht', description: 'Deelnemende gemeente: Utrecht', tags: [] },
     ];
     const layer = buildInitiativeLayer(callouts, registry, resolveGemeenteNodeId);
     expect(layer.unresolvedGemeenteNameIds).toEqual(['gemeente-utrecht']);
@@ -128,9 +129,9 @@ describe('buildInitiativeLayer', () => {
   });
 
   it('resolves the INITIATIVE_GEMEENTE edge on a second pass once the resolver gains the nameId (no duplicate edges)', () => {
-    const callouts: GdCalloutInput[] = [
-      { id: 'cal-3', nameId: 'utrecht-case', displayName: 'Utrecht', description: 'Deelnemende gemeente: Utrecht', tags: [] },
-      { id: 'cal-4', nameId: 'utrecht-case-2', displayName: 'Utrecht 2', description: 'Deelnemende gemeente: Utrecht', tags: [] },
+    const callouts: GdInitiativeInput[] = [
+      { id: 'cal-3', nameId: 'utrecht-case', source: 'post', displayName: 'Utrecht', description: 'Deelnemende gemeente: Utrecht', tags: [] },
+      { id: 'cal-4', nameId: 'utrecht-case-2', source: 'post', displayName: 'Utrecht 2', description: 'Deelnemende gemeente: Utrecht', tags: [] },
     ];
 
     // First pass: Utrecht is unresolvable → recorded once (dedup), no edges.
@@ -150,10 +151,10 @@ describe('buildInitiativeLayer', () => {
   });
 
   it('flags Common Ground initiatives from a tag (any spelling) and leaves others unset', () => {
-    const callouts: GdCalloutInput[] = [
-      { id: 'cg-1', nameId: 'cg-1', displayName: 'CG one', description: '', tags: ['Common Ground'] },
-      { id: 'cg-2', nameId: 'cg-2', displayName: 'CG two', description: '', tags: ['commonground'] },
-      { id: 'plain', nameId: 'plain', displayName: 'Plain', description: '', tags: ['Energietransitie'] },
+    const callouts: GdInitiativeInput[] = [
+      { id: 'cg-1', nameId: 'cg-1', source: 'post', displayName: 'CG one', description: '', tags: ['Common Ground'] },
+      { id: 'cg-2', nameId: 'cg-2', source: 'post', displayName: 'CG two', description: '', tags: ['commonground'] },
+      { id: 'plain', nameId: 'plain', source: 'post', displayName: 'Plain', description: '', tags: ['Energietransitie'] },
     ];
     const layer = buildInitiativeLayer(callouts, registry, resolveGemeenteNodeId);
     const byId = new Map(layer.nodes.map((n) => [n.id, n]));
@@ -170,15 +171,54 @@ describe('buildInitiativeLayer', () => {
   });
 
   it('canonicalises a shared theme to one node across initiatives (no duplicates)', () => {
-    const callouts: GdCalloutInput[] = [
-      { id: 'a', nameId: 'a', displayName: 'A', description: '', tags: ['Energietransitie'] },
-      { id: 'b', nameId: 'b', displayName: 'B', description: '', tags: ['Energietransitie'] },
+    const callouts: GdInitiativeInput[] = [
+      { id: 'a', nameId: 'a', source: 'post', displayName: 'A', description: '', tags: ['Energietransitie'] },
+      { id: 'b', nameId: 'b', source: 'post', displayName: 'B', description: '', tags: ['Energietransitie'] },
     ];
     const layer = buildInitiativeLayer(callouts, registry, resolveGemeenteNodeId);
     const themeNodes = layer.nodes.filter((n) => n.type === NodeType.THEME);
     expect(themeNodes).toHaveLength(1);
     const themeEdges = layer.edges.filter((e) => e.type === EdgeType.INITIATIVE_THEME);
     expect(themeEdges).toHaveLength(2);
+  });
+
+  // Production tags the submission year plainly ("2021"); `gd-2021` is the older form.
+  it('reads the submission year from a plain year tag as well as gd-YYYY', () => {
+    const layer = buildInitiativeLayer(
+      [{ id: 'y', nameId: 'y', source: 'post', displayName: 'Y', description: '', tags: ['2021'] }],
+      registry,
+      resolveGemeenteNodeId,
+    );
+    expect(layer.nodes[0].initiativeYear).toBe(2021);
+  });
+
+  it('gives a subspace initiative its Alkemio URL and carries its classifications for the merge', () => {
+    const entries = [
+      { displayLabel: 'NDS-prioriteit', values: [{ id: 'v-data', label: 'Data' }], selectedValues: [{ id: 'v-data', label: 'Data' }] },
+    ];
+    const layer = buildInitiativeLayer(
+      [
+        {
+          id: 'sub-1',
+          nameId: 'buurt-in-bloei',
+          source: 'subspace',
+          displayName: 'Buurt in bloei',
+          description: 'Deelnemende gemeente: Groningen',
+          tags: ['2021'],
+          url: 'https://alkem.io/gemeentedelers/challenges/buurt-in-bloei',
+          classificationEntries: entries,
+        },
+      ],
+      registry,
+      resolveGemeenteNodeId,
+    );
+    const node = layer.nodes.find((n) => n.type === NodeType.INITIATIVE)!;
+    expect(node.url).toBe('https://alkem.io/gemeentedelers/challenges/buurt-in-bloei');
+    expect(node.classificationEntries).toEqual(entries);
+    // The gemeente is still read from the description text, exactly as for a post.
+    expect(layer.edges).toContainEqual(
+      expect.objectContaining({ sourceId: 'sub-1', targetId: 'org-groningen', type: EdgeType.INITIATIVE_GEMEENTE }),
+    );
   });
 });
 
@@ -188,13 +228,14 @@ describe('resolveInitiativeCategories', () => {
     { key: 'v-ai', label: 'Artificiële Intelligentie' },
   ];
   const VNG2030: Vocabulary = [{ key: 'v-wonen', label: 'Wonen en Ruimte' }];
+  const DESIGNATIONS = { nds: 'NDS-prioriteit', vng2030: 'VNG 2030 thema' };
 
   const initiative = (id: string, tags: string[]): GraphNode =>
     ({ id, type: NodeType.INITIATIVE, displayName: id, nameId: id, tags: { default: tags } }) as GraphNode;
 
   it('resolves a GD initiative’s categories from its tags, by vocabulary label', () => {
     const nodes = [initiative('a', ['data', 'Wonen en Ruimte', 'gd-2024'])];
-    const counts = resolveInitiativeCategories(nodes, NDS, VNG2030);
+    const counts = resolveInitiativeCategories(nodes, NDS, VNG2030, DESIGNATIONS);
 
     expect(nodes[0].ndsCategories).toEqual(['Data']);
     expect(nodes[0].vng2030Categories).toEqual(['Wonen en Ruimte']);
@@ -203,7 +244,7 @@ describe('resolveInitiativeCategories', () => {
 
   it('leaves an initiative whose tags match no value uncategorised, and reports it', () => {
     const nodes = [initiative('a', ['gd-2024', 'sdg-08'])];
-    const counts = resolveInitiativeCategories(nodes, NDS, VNG2030);
+    const counts = resolveInitiativeCategories(nodes, NDS, VNG2030, DESIGNATIONS);
 
     expect(nodes[0].ndsCategories).toBeUndefined();
     expect(counts).toEqual({ total: 1, matched: 0 });
@@ -216,18 +257,54 @@ describe('resolveInitiativeCategories', () => {
    */
   it('reports total 0 when no initiative is in the node set yet (the pre-merge trap)', () => {
     const spacesOnly = [{ id: 's', type: NodeType.SPACE_L0, displayName: 's', nameId: 's' } as GraphNode];
-    expect(resolveInitiativeCategories(spacesOnly, NDS, VNG2030)).toEqual({ total: 0, matched: 0 });
+    expect(resolveInitiativeCategories(spacesOnly, NDS, VNG2030, DESIGNATIONS)).toEqual({ total: 0, matched: 0 });
 
     // …and once the GD nodes are merged in, the very same call categorises them.
     const merged = [...spacesOnly, initiative('a', ['Data'])];
-    expect(resolveInitiativeCategories(merged, NDS, VNG2030)).toEqual({ total: 1, matched: 1 });
+    expect(resolveInitiativeCategories(merged, NDS, VNG2030, DESIGNATIONS)).toEqual({ total: 1, matched: 1 });
     expect(merged[1].ndsCategories).toEqual(['Data']);
   });
 
   it('never touches a non-initiative node', () => {
     const space = { id: 's', type: NodeType.SPACE_L0, displayName: 's', nameId: 's',
       ndsCategories: ['Cloud'], tags: { default: ['Data'] } } as GraphNode;
-    resolveInitiativeCategories([space], NDS, VNG2030);
+    resolveInitiativeCategories([space], NDS, VNG2030, DESIGNATIONS);
     expect(space.ndsCategories).toEqual(['Cloud']);
+  });
+
+  /** A subspace initiative is placed by its own Classifications, as a Space is. */
+  const subspaceInitiative = (tags: string[]): GraphNode =>
+    ({
+      ...initiative('sub', tags),
+      classificationEntries: [
+        {
+          displayLabel: 'NDS-prioriteit',
+          values: NDS.map((v) => ({ id: v.key, label: v.label })),
+          selectedValues: [{ id: 'v-ai', label: 'Artificiële Intelligentie' }],
+        },
+        {
+          displayLabel: 'VNG 2030 thema',
+          values: VNG2030.map((v) => ({ id: v.key, label: v.label })),
+          selectedValues: [{ id: 'v-wonen', label: 'Wonen en Ruimte' }],
+        },
+      ],
+    }) as GraphNode;
+
+  it('places a subspace initiative by its classifications, ignoring its tags', () => {
+    // The tag 'Data' would label-match NDS — the classification (AI) must win.
+    const nodes = [subspaceInitiative(['2021', 'Data'])];
+    const counts = resolveInitiativeCategories(nodes, NDS, VNG2030, DESIGNATIONS);
+
+    expect(nodes[0].ndsCategories).toEqual(['Artificiële Intelligentie']);
+    expect(nodes[0].vng2030Categories).toEqual(['Wonen en Ruimte']);
+    expect(counts).toEqual({ total: 1, matched: 1 });
+    expect(nodes[0].classifications?.map((c) => c.label)).toEqual(['NDS-prioriteit', 'VNG 2030 thema']);
+  });
+
+  it('strips the raw classification entries so they never reach the browser — even with no vocabulary', () => {
+    const nodes = [subspaceInitiative(['2021'])];
+    resolveInitiativeCategories(nodes, [], [], DESIGNATIONS);
+    expect(nodes[0].classificationEntries).toBeUndefined();
+    expect(nodes[0].ndsCategories).toBeUndefined();
   });
 });

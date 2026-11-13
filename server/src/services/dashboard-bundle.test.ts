@@ -143,6 +143,35 @@ describe('buildDashboardBundle (feature 025, FR-015)', () => {
     expect(createAlkemioSdk).not.toHaveBeenCalled();
   });
 
+  // GD initiatives migrated to subspaces carry real Classifications: they are counted by
+  // those (value ids), exactly as a Space is — their tags are not consulted.
+  it('counts a subspace GD initiative by its classifications and a post GD initiative by tag label', () => {
+    const bundle = buildDashboardBundle({
+      dataset: dataset(true),
+      snapshots,
+      unresolvedCount: 0,
+      gdCallouts: [
+        {
+          id: 'init-sub',
+          displayName: 'Subspace initiative',
+          // 'Dienstverlening' would label-match nds-1 — the classification (nds-2) must win.
+          tags: ['2021', 'Dienstverlening'],
+          entries: [{ ...NDS, selectedValues: [{ id: 'nds-2', label: 'Data' }] }],
+          gemeenteCount: 0,
+        },
+        { id: 'init-post', displayName: 'Post initiative', tags: ['2023', 'Dienstverlening'], gemeenteCount: 0 },
+      ],
+      municipalities,
+      profile: PROFILE,
+    });
+    const nds = bundle.categories.withGd!.dimensions.find((d) =>
+      d.categories.some((c) => c.key === 'nds-1'),
+    )!;
+    const byKey = new Map(nds.categories.map((c) => [c.key, c]));
+    expect(byKey.get('nds-2')?.gdItems).toEqual(['Subspace initiative']);
+    expect(byKey.get('nds-1')?.gdItems).toEqual(['Post initiative']);
+  });
+
   it('stripGdLayer removes INITIATIVE/THEME nodes and their edges, and is identity otherwise', () => {
     const plain = dataset(false);
     expect(stripGdLayer(plain)).toBe(plain);

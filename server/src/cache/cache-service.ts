@@ -177,7 +177,7 @@ export function invalidateGdCacheForAllUsers(): number {
  * Bump this and add a numbered step below whenever a deployment needs a one-time,
  * cache-wide action to run exactly once per environment DB.
  */
-const CACHE_MAINTENANCE_VERSION = 4;
+const CACHE_MAINTENANCE_VERSION = 5;
 
 /**
  * Deployment-scoped, run-once cache maintenance. SQLite's `user_version` is used
@@ -225,6 +225,15 @@ export function runDeploymentCacheMaintenance(): {
       classificationRowsCleared = db
         .prepare('DELETE FROM cache_entries WHERE space_id != ?')
         .run(GEO_CACHE_SPACE_ID).changes;
+    }
+    // v5: GemeenteDelers initiatives now come from the GD space's SUBSPACES first, with a
+    // post dropped wherever a subspace supersedes it. A pre-change GD row holds posts
+    // only — it would keep reporting a migrated initiative from its post, uncategorised
+    // by its new Classifications, for up to the 168h TTL. Only the GD row goes: nothing
+    // else in the cache depends on where the initiatives came from. A DB below v4 has just
+    // lost its GD row to the v4 sweep above, so only a v4 DB needs this step.
+    if (current === 4) {
+      gdRowsCleared = invalidateGdCacheForAllUsers();
     }
     db.pragma(`user_version = ${CACHE_MAINTENANCE_VERSION}`);
   }

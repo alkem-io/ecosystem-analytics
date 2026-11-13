@@ -1,7 +1,7 @@
 import { Router, Request, Response } from 'express';
 import { authMiddleware, invalidateAndReject } from '../auth/middleware.js';
 import { resolveUser } from '../auth/resolve-user.js';
-import { fetchGemeentedelersCallouts } from '../services/gd-initiatives-service.js';
+import { fetchGemeentedelersInitiatives } from '../services/gd-initiatives-service.js';
 import { getGemeenteLocations } from '../services/gemeente-geo-service.js';
 import type { GemeenteLocationsResponse, VngDashboardResponse } from '../types/api.js';
 import { generateGraphBundle } from '../services/graph-service.js';
@@ -111,12 +111,12 @@ dashboardRouter.get('/initiatives', async (req: Request, res: Response) => {
   try {
     if (!resolveProfile(req, res)) return;
     const sdk = await createAlkemioSdk(req.auth!);
-    const callouts = await fetchGemeentedelersCallouts(req.auth!, sdk);
+    const callouts = await fetchGemeentedelersInitiatives(req.auth!, sdk);
     const registry = loadVngRegistry();
     res.json(
       callouts
         .map((c) => {
-          // Gemeentes are named in the description; themes are tagsets on the callout.
+          // Gemeentes are named in the description; themes are free-text tags.
           const gemeentes = registry.findGemeentesInText(c.description).map((g) => g.title);
           const themes = [
             ...new Set(
