@@ -51,6 +51,10 @@ export interface SpaceClassificationSnapshot {
 /** What the counting needs from one GemeenteDelers initiative — kept in the GD cache row. */
 export interface GdCountableCallout {
   id: string;
+  /** For the GD load summary on a cache hit. Absent on rows written before it existed. */
+  nameId?: string;
+  /** Where the initiative came from (LEGACY-GD-POSTS: drop with the posts path). */
+  source?: 'subspace' | 'post';
   displayName: string;
   tags: string[];
   /**

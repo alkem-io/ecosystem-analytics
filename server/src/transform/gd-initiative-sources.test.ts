@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import {
+  describeGdSources,
   isSubspaceInitiative,
   mergeGdSources,
   normaliseForMatch,
@@ -154,5 +155,38 @@ describe('mergeGdSources', () => {
     );
     expect(merge.superseded).toHaveLength(1);
     expect(ids(merge.initiatives)).toEqual(['sub:x', 'sub:x2']);
+  });
+});
+
+describe('describeGdSources', () => {
+  it('lists how many and which initiatives came from subspaces and from posts', () => {
+    const merge = mergeGdSources(
+      [
+        subspace('buurt-in-bloei', 'Buurt in bloei', ['2021']),
+        subspace('masterclassklooienenpruts', 'Masterclass Klooien en Prutsen', ['2020']),
+        subspace('template', 'Template', []),
+      ],
+      [
+        post('buurt-in-bloei', 'Buurt in bloei', ['2021']),
+        post('masterclass-klooien', 'Masterclass Klooien en Prutsen', ['2020']),
+        post('maex-amsterdam', 'MAEX Amsterdam', ['2022']),
+      ],
+    );
+    expect(describeGdSources(merge.initiatives, merge)).toEqual([
+      'GD initiatives loaded: 3 total — 2 via subspaces, 1 via posts',
+      'GD via subspaces (2): buurt-in-bloei, masterclassklooienenpruts',
+      'GD via posts (1): maex-amsterdam',
+      'GD posts superseded by a subspace (2): buurt-in-bloei → buurt-in-bloei [nameId], ' +
+        'masterclass-klooien → masterclassklooienenpruts [title]',
+      'GD subspaces skipped as not an initiative (1): template',
+    ]);
+  });
+
+  it('omits the merge-only lines without a merge (cache hit) and marks empty groups', () => {
+    expect(describeGdSources([{ nameId: 'a', source: 'subspace' }])).toEqual([
+      'GD initiatives loaded: 1 total — 1 via subspaces, 0 via posts',
+      'GD via subspaces (1): a',
+      'GD via posts (0): —',
+    ]);
   });
 });
