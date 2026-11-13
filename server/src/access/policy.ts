@@ -7,33 +7,23 @@
  * satisfies it (FR-018a–c). Nothing else in the codebase decides access.
  */
 
+import type { AccessLevel, AccessPolicy, AppId, GateRef } from '../types/access.js';
+
+export type { AccessLevel, AccessPolicy, AppId, GateRef };
+
 /** Every application the BFF serves, one per listener (Explorer :4000, VNG :4001, GovTech :4002). */
-export const APP_IDS = ['explorer', 'vng', 'govtech'] as const;
-export type AppId = (typeof APP_IDS)[number];
+export const APP_IDS = ['explorer', 'vng', 'govtech'] as const satisfies readonly AppId[];
+
+// Compile-time guard: APP_IDS must list every AppId (the type lives in types/access.ts).
+type MissingAppId = Exclude<AppId, (typeof APP_IDS)[number]>;
+const appIdsAreExhaustive: [MissingAppId] extends [never] ? true : never = true;
+void appIdsAreExhaustive;
 
 export function isAppId(value: unknown): value is AppId {
   return typeof value === 'string' && (APP_IDS as readonly string[]).includes(value);
 }
 
-/**
- * The Alkemio Space whose privileges decide access: nameIDs from the L0 Space down to
- * the gate (1–3 levels). `key` identifies it in a stored decision, so a reconfigured
- * gate invalidates every decision taken against the old one.
- */
-export interface GateRef {
-  path: string[];
-  key: string;
-}
-
-/** Ordered `none < read < manage` (data-model.md). */
-export type AccessLevel = 'none' | 'read' | 'manage';
-
 const RANK: Record<AccessLevel, number> = { none: 0, read: 1, manage: 2 };
-
-/** What one consumer requires: explicitly ungated, or a gate Space plus a minimum level. */
-export type AccessPolicy =
-  | { app: AppId; gate: null }
-  | { app: AppId; gate: GateRef; required: Exclude<AccessLevel, 'none'> };
 
 /** An Alkemio nameID segment (lowercased): letters, digits and hyphens. */
 const NAME_ID = /^[a-z0-9][a-z0-9-]{0,62}$/;
