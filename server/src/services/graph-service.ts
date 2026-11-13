@@ -24,10 +24,7 @@ import {
   type Vocabulary,
   resolvePhase,
 } from '../transform/classifications.js';
-import {
-  fetchGemeentedelersInitiatives,
-  resolveGemeenteOrgNode,
-} from './gd-initiatives-service.js';
+import { fetchGemeentedelersSources, resolveGemeenteOrgNode } from './gd-initiatives-service.js';
 import { describeGdSources } from '../transform/gd-initiative-sources.js';
 import {
   buildInitiativeLayer,
@@ -35,7 +32,7 @@ import {
   resolveThemeTitles,
 } from '../transform/initiatives.js';
 import { getLogger } from '../logging/logger.js';
-import { type GraphDataset, type GraphNode, type GraphEdge, type SpaceCacheInfo, type SpaceTimeSeries, NodeType } from '../types/graph.js';
+import { type GraphDataset, type GraphNode, type GraphEdge, type SpaceCacheInfo, type SpaceTimeSeries, type GdLayerSources, NodeType } from '../types/graph.js';
 import type { GraphGenerationBundle, GraphGenerationRequest, GraphProgress } from '../types/api.js';
 import type { GdCountableCallout, SpaceClassificationSnapshot } from './dashboard-bundle.js';
 import { LoadReporter } from './progress/load-reporter.js';
@@ -338,7 +335,12 @@ async function buildGraph(
         allNodes.push(node);
       }
       allEdges.push(...subgraph.edges);
-      gdLayer = { available: true, initiativeCount: subgraph.initiativeCount, source };
+      gdLayer = {
+        available: true,
+        initiativeCount: subgraph.initiativeCount,
+        source,
+        ...(subgraph.sources ? { sources: subgraph.sources } : {}),
+      };
       gdCallouts = subgraph.callouts ?? [];
       report((r) => r.itemDone('gd-initiatives'));
     } catch (err) {
@@ -560,6 +562,8 @@ interface GdSubgraph {
    * Absent on rows written before the split (cleared by cache maintenance v4).
    */
   callouts?: GdCountableCallout[];
+  /** How subspaces and posts were reconciled — for the browser load summary. */
+  sources?: GdLayerSources;
 }
 
 /**
@@ -587,7 +591,8 @@ async function loadGdSubgraph(
   }
 
   const sdk = await createAlkemioSdk(auth);
-  const callouts = await fetchGemeentedelersInitiatives(auth, sdk);
+  const merge = await fetchGemeentedelersSources(auth, sdk);
+  const callouts = merge.initiatives;
 
   // First pass: build the layer, collecting gemeente nameIds we couldn't resolve
   // to a node (the GD subgraph starts with no org nodes of its own).
@@ -622,6 +627,10 @@ async function loadGdSubgraph(
     nodes: [...finalLayer.nodes, ...extraOrgNodes],
     edges: finalLayer.edges,
     initiativeCount: callouts.length,
+    sources: {
+      superseded: merge.superseded,
+      skippedSubspaceNameIds: merge.skippedSubspaceNameIds,
+    },
     callouts: callouts.map((c) => ({
       id: c.id,
       nameId: c.nameId,

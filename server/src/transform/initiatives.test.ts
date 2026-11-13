@@ -91,6 +91,7 @@ describe('buildInitiativeLayer', () => {
     expect(initiative).toMatchObject({
       id: 'cal-1',
       nameId: 'mooi-initiatief',
+      initiativeSource: 'post',
       initiativeYear: 2024,
       initiativeClassifications: ['winner'],
       globalGoals: ['sdg-08'],
@@ -213,6 +214,7 @@ describe('buildInitiativeLayer', () => {
       resolveGemeenteNodeId,
     );
     const node = layer.nodes.find((n) => n.type === NodeType.INITIATIVE)!;
+    expect(node.initiativeSource).toBe('subspace');
     expect(node.url).toBe('https://alkem.io/gemeentedelers/challenges/buurt-in-bloei');
     expect(node.classificationEntries).toEqual(entries);
     // The gemeente is still read from the description text, exactly as for a post.
