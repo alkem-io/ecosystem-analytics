@@ -1,7 +1,7 @@
 /**
  * GemeenteDelers initiative layer (feature 016, US10).
  *
- * Pure transform: given GD Knowledge-Base callouts (as data), the snapshot
+ * Pure transform: given the GD initiatives (subspaces and posts, as data), the snapshot
  * registry, and a gemeente-node resolver, produce the INITIATIVE/THEME nodes and
  * INITIATIVE_GEMEENTE/INITIATIVE_THEME edges to fold into the graph.
  *
@@ -19,9 +19,17 @@ import {
   type GraphEdge,
   type GraphNode,
 } from '../types/graph.js';
-import type { GdCalloutInput } from '../types/api.js';
+import type { GdInitiativeInput } from '../types/api.js';
+import type { VngConfig } from '../config.js';
 import type { VngRegistry } from '../services/vng-registry.js';
-import { resolveByLabel, type Vocabulary } from './classifications.js';
+import {
+  presentClassifications,
+  resolveByLabel,
+  resolveDesignated,
+  selectionOf,
+  type Vocabulary,
+} from './classifications.js';
+import { submissionYearOf } from './gd-initiative-sources.js';
 
 export interface InitiativeLayer {
   /** INITIATIVE + canonical THEME nodes (gemeente org nodes are owned by the caller). */
@@ -32,7 +40,6 @@ export interface InitiativeLayer {
   unresolvedGemeenteNameIds: string[];
 }
 
-const YEAR_RE = /^gd-(\d{4})$/i;
 const SDG_RE = /^sdg-\d{1,}$/i;
 /** GemeenteDelers award/classification tags (winner/finalist/…). Exported for the
  *  initiatives table, which surfaces them as a column. */
@@ -81,7 +88,7 @@ function baseNode(id: string, type: NodeType, displayName: string, nameId: strin
 }
 
 export function buildInitiativeLayer(
-  callouts: GdCalloutInput[],
+  callouts: GdInitiativeInput[],
   registry: VngRegistry,
   /** Resolve a gemeente org nameID to an existing/added node id (null if unresolvable). */
   resolveGemeenteNodeId: (gemeenteNameId: string) => string | null,
@@ -100,23 +107,26 @@ export function buildInitiativeLayer(
   };
 
   for (const callout of callouts) {
-    let year: number | undefined;
+    const year = submissionYearOf(callout.tags);
     const classifications: string[] = [];
     const globalGoals: string[] = [];
 
     const node = baseNode(callout.id, NodeType.INITIATIVE, callout.displayName, callout.nameId);
     node.sourceUrl = callout.sourceUrl ?? null;
+    // A subspace initiative is a real page on Alkemio; a post has no page of its own.
+    node.url = callout.url ?? null;
+    // Subspace initiatives are categorised by their own Classifications, resolved post-
+    // merge in resolveInitiativeCategories (which also strips them before the browser).
+    if (callout.classificationEntries?.length) {
+      node.classificationEntries = callout.classificationEntries;
+    }
     nodes.push(node);
 
     for (const rawTag of callout.tags) {
       const tag = rawTag.trim();
       if (!tag) continue;
 
-      const yearMatch = tag.match(YEAR_RE);
-      if (yearMatch) {
-        year = Number(yearMatch[1]);
-        continue;
-      }
+      if (submissionYearOf([tag]) !== undefined) continue;
       if (SDG_RE.test(tag)) {
         globalGoals.push(tag.toLowerCase());
         continue;
@@ -165,8 +175,18 @@ export function buildInitiativeLayer(
 
 /**
  * Resolve the NDS / VNG-2030 categories of the GemeenteDelers INITIATIVE nodes in a
- * merged graph, from their callout tags matched against the vocabulary LABELS
- * (research R-006). Non-INITIATIVE nodes are left untouched.
+ * merged graph. Non-INITIATIVE nodes are left untouched.
+ *
+ *  • A SUBSPACE initiative carries real Alkemio Classifications and is placed by them,
+ *    exactly as a selected Space is: the designated entry's selected value ids, labelled
+ *    from the selection's vocabulary. Its tags are never consulted.
+ *  • A POST initiative carries no classifications, so its tags are matched against the
+ *    vocabulary LABELS (research R-006). LEGACY-GD-POSTS: temporary, see
+ *    transform/gd-initiative-sources.ts.
+ *
+ * Either way the raw `classificationEntries` are stripped here — they are internal and
+ * must never reach the browser — so this MUST run for every dataset carrying the GD
+ * layer, even when the vocabularies are empty.
  *
  * Deliberately a separate pass over the FINAL node set rather than part of the graph's
  * enrichment loop: INITIATIVE nodes only join the graph when the GD subgraph is merged
@@ -178,6 +198,7 @@ export function resolveInitiativeCategories(
   nodes: GraphNode[],
   ndsVocabulary: Vocabulary,
   vng2030Vocabulary: Vocabulary,
+  designations: Pick<VngConfig['classifications'], 'nds' | 'vng2030'>,
 ): { total: number; matched: number } {
   const labelsFor = (vocabulary: Vocabulary, ids: string[]): string[] =>
     ids.map((id) => vocabulary.find((v) => v.key === id)?.label).filter((l): l is string => !!l);
@@ -187,9 +208,24 @@ export function resolveInitiativeCategories(
   for (const node of nodes) {
     if (node.type !== NodeType.INITIATIVE) continue;
     total += 1;
-    const tags = node.tags?.default ?? [];
-    const nds = labelsFor(ndsVocabulary, resolveByLabel(tags, ndsVocabulary));
-    const vng2030 = labelsFor(vng2030Vocabulary, resolveByLabel(tags, vng2030Vocabulary));
+    const entries = node.classificationEntries;
+    let ndsIds: string[];
+    let vng2030Ids: string[];
+    if (entries?.length) {
+      ndsIds = selectionOf(resolveDesignated(entries, designations.nds));
+      vng2030Ids = selectionOf(resolveDesignated(entries, designations.vng2030));
+      const presented = presentClassifications(entries);
+      node.classifications = presented.length ? presented : undefined;
+      delete node.classificationEntries;
+    } else {
+      // LEGACY-GD-POSTS: posts are the only initiatives without classifications. Delete
+      // this branch with the posts path.
+      const tags = node.tags?.default ?? [];
+      ndsIds = resolveByLabel(tags, ndsVocabulary);
+      vng2030Ids = resolveByLabel(tags, vng2030Vocabulary);
+    }
+    const nds = labelsFor(ndsVocabulary, ndsIds);
+    const vng2030 = labelsFor(vng2030Vocabulary, vng2030Ids);
     node.ndsCategories = nds.length ? nds : undefined;
     node.vng2030Categories = vng2030.length ? vng2030 : undefined;
     if (nds.length || vng2030.length) matched += 1;

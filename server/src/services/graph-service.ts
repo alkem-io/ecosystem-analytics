@@ -24,7 +24,10 @@ import {
   type Vocabulary,
   resolvePhase,
 } from '../transform/classifications.js';
-import { fetchGemeentedelersCallouts, resolveGemeenteOrgNode } from './gd-initiatives-service.js';
+import {
+  fetchGemeentedelersInitiatives,
+  resolveGemeenteOrgNode,
+} from './gd-initiatives-service.js';
 import {
   buildInitiativeLayer,
   resolveInitiativeCategories,
@@ -349,16 +352,25 @@ async function buildGraph(
   // the separate `__gd_initiatives__` cache row, not the per-space rows), so doing it in
   // the enrichment loop would silently leave every GD initiative uncategorised.
   //
-  // GD initiatives are Callouts and carry no classifications, so their tags are matched
-  // against the same vocabulary's LABELS (research R-006). This is the ONLY place a tag
-  // still places anything, and never for a Space.
-  if (ndsVocabulary.length > 0 || vngVocabulary.length > 0) {
-    const { total, matched } = resolveInitiativeCategories(allNodes, ndsVocabulary, vngVocabulary);
+  // Subspace initiatives are placed by their own Classifications, like any Space. POST
+  // initiatives carry none, so their tags are matched against the same vocabulary's
+  // LABELS (research R-006) — the ONLY place a tag still places anything, never a Space.
+  //
+  // It runs whenever the GD layer is present, even with empty vocabularies: it is also
+  // what strips the subspace initiatives' raw classification entries before the browser.
+  if (gdLayer?.available) {
+    const { total, matched } = resolveInitiativeCategories(
+      allNodes,
+      ndsVocabulary,
+      vngVocabulary,
+      designations,
+    );
+    // LEGACY-GD-POSTS: this warning describes POST initiatives only; delete it with them.
     // Label matching is exact (after normalisation), so a vocabulary authored with
     // different wording than the GD callout tags silently drops every initiative into the
     // "no classification" bar. Surfacing that makes it diagnosable without logging any
     // Alkemio-derived content.
-    if (total > 0 && matched === 0) {
+    if (total > 0 && matched === 0 && (ndsVocabulary.length > 0 || vngVocabulary.length > 0)) {
       logger.warn(
         `None of the ${total} GemeenteDelers initiatives matched a classification value label — ` +
           `check that the vocabulary wording matches the callout tags.`,
@@ -572,7 +584,7 @@ async function loadGdSubgraph(
   }
 
   const sdk = await createAlkemioSdk(auth);
-  const callouts = await fetchGemeentedelersCallouts(auth, sdk);
+  const callouts = await fetchGemeentedelersInitiatives(auth, sdk);
 
   // First pass: build the layer, collecting gemeente nameIds we couldn't resolve
   // to a node (the GD subgraph starts with no org nodes of its own).
@@ -611,6 +623,8 @@ async function loadGdSubgraph(
       id: c.id,
       displayName: c.displayName,
       tags: c.tags,
+      // Subspace initiatives are counted by their Classifications, posts by tag label.
+      entries: c.classificationEntries,
       // GD initiatives mention their gemeentes in the DESCRIPTION (not the tags).
       gemeenteCount: registry.findGemeentesInText(c.description).length,
     })),

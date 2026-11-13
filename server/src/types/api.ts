@@ -1,4 +1,4 @@
-import type { ActivityTier, GraphDataset } from './graph.js';
+import type { ActivityTier, ClassificationEntryInput, GraphDataset } from './graph.js';
 
 /** A selectable L0 Space returned by the BFF */
 export interface SpaceSelectionItem {
@@ -148,19 +148,35 @@ export interface OrganizationsResponse {
   missing: string[];
 }
 
-/** A GemeenteDelers initiative as fetched from a Knowledge Base callout. */
-export interface GdCalloutInput {
-  /** Callout UUID (becomes the INITIATIVE node id). */
+/**
+ * A GemeenteDelers initiative, from either place the corpus lives.
+ *
+ * `subspace` is the canonical form: one L1 subspace of the GD space per initiative,
+ * categorised by real Alkemio Classifications. `post` is the original Knowledge-Base
+ * callout on the GD space itself — still read, but dropped wherever a subspace
+ * supersedes it (`transform/gd-initiative-sources.ts`).
+ */
+export interface GdInitiativeInput {
+  /** Subspace / callout UUID (becomes the INITIATIVE node id). */
   id: string;
-  /** Callout nameID (alkemio_nameid). */
+  /** Subspace / callout nameID (alkemio_nameid). */
   nameId: string;
+  source: 'subspace' | 'post';
   displayName: string;
   /** Free-text description — the associated gemeentes are mentioned in here. */
   description: string;
-  /** Flat tag strings on the callout (themes, gemeente names, gd-YYYY, sdg-NN, classifications). */
+  /** Flat free-text tags (themes, submission year, sdg-NN, award classifications). */
   tags: string[];
   /** Original vng.nl source link, if present. */
   sourceUrl?: string | null;
+  /** The subspace's page on Alkemio (subspaces only). */
+  url?: string | null;
+  /**
+   * The subspace's raw Alkemio Classifications (subspaces only). When present they —
+   * not the tags — place the initiative in the NDS / VNG-2030 categories, exactly as
+   * for a selected Space. Internal: stripped before a dataset reaches the browser.
+   */
+  classificationEntries?: ClassificationEntryInput[];
 }
 
 /**
