@@ -48,11 +48,16 @@ export interface SpaceClassificationSnapshot {
   entries: ClassificationEntryInput[] | undefined;
 }
 
-/** What the counting needs from one GemeenteDelers callout — kept in the GD cache row. */
+/** What the counting needs from one GemeenteDelers initiative — kept in the GD cache row. */
 export interface GdCountableCallout {
   id: string;
   displayName: string;
   tags: string[];
+  /**
+   * A subspace initiative's raw Classifications. When present the initiative is counted
+   * by them, as a Space is; absent for a post, which is counted by tag LABEL.
+   */
+  entries?: ClassificationEntryInput[];
   /** Distinct gemeenten named in the callout description (the distribution's GD side). */
   gemeenteCount: number;
 }
@@ -104,18 +109,26 @@ export function countFromSnapshots(
   const entities: DashboardCountable[] = perSpace.map((p) => p.countable);
   if (gdCallouts) {
     entities.push(
-      ...gdCallouts.map((c) => ({
-        id: c.id,
-        label: c.displayName,
-        tags: c.tags,
-        selections: {
-          nds: resolveByLabel(c.tags, vocabularies.nds),
-          vng2030: resolveByLabel(c.tags, vocabularies.vng2030),
-          phase: [], // GD is a completed programme with no growth phase.
-        },
-        hasClassifications: false,
-        source: 'gd' as const,
-      })),
+      ...gdCallouts.map((c) => {
+        // A subspace initiative is counted by its Classifications, as a Space is; a post
+        // has none, so its tags are matched against the vocabulary LABELS.
+        // LEGACY-GD-POSTS: the tag-label fallback goes with the posts path.
+        const own = c.entries?.length
+          ? readSpaceClassifications(c.entries, designations).selections
+          : null;
+        return {
+          id: c.id,
+          label: c.displayName,
+          tags: c.tags,
+          selections: {
+            nds: own ? own.nds : resolveByLabel(c.tags, vocabularies.nds),
+            vng2030: own ? own.vng2030 : resolveByLabel(c.tags, vocabularies.vng2030),
+            phase: [], // GD is a completed programme with no growth phase.
+          },
+          hasClassifications: false,
+          source: 'gd' as const,
+        };
+      }),
     );
   }
 

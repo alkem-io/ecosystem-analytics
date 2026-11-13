@@ -1,68 +1,125 @@
 /**
  * GemeenteDelers initiative fetching (feature 016, US10).
  *
- * Reads the gemeentedelers space's callouts (the Knowledge Base set — identifiable
- * as the one with 300+ callouts) and flattens each callout's tagset tags into the
- * shape consumed by `transform/initiatives.ts`. The gemeentedelers space nameID
- * comes from config (FR-045).
+ * The GD corpus lives in two places while it is migrated: one L1 subspace per
+ * initiative (canonical) and the original Knowledge-Base posts on the GD space. Both
+ * are read in one query; `mergeGdSources` reports each initiative once — from its
+ * subspace when it has one. The gemeentedelers space nameID comes from config (FR-045).
  */
 import { createAlkemioSdk } from '../graphql/client.js';
 import type { Sdk } from '../graphql/generated/graphql.js';
 import type { AuthContext } from '../auth/middleware.js';
-import type { GdCalloutInput } from '../types/api.js';
+import type { GdInitiativeInput } from '../types/api.js';
 import type { GraphNode } from '../types/graph.js';
 import { buildOrgNode } from '../transform/transformer.js';
+import { LEGACY_GD_POSTS_NOTICE, mergeGdSources } from '../transform/gd-initiative-sources.js';
 import { getLogger } from '../logging/logger.js';
 import { loadConfig } from '../config.js';
 import { loadVngRegistry } from './vng-registry.js';
 
 const logger = getLogger();
 
+type TagsetLike = { tags: string[] } | null | undefined;
+const flatTags = (tagsets: readonly TagsetLike[] | null | undefined): string[] =>
+  (tagsets ?? []).flatMap((ts) => ts?.tags ?? []).filter((t) => t.trim());
+
 /**
- * Fetch the gemeentedelers Knowledge-Base callouts as GD initiative inputs.
+ * Fetch the GemeenteDelers initiatives: every initiative subspace, plus every post that
+ * no subspace supersedes.
  *
- * The space's calloutsSet contains the GemeenteDelers initiatives PLUS a few
- * non-initiative callouts (intro/home). We keep only the actual initiatives: those
- * carrying at least one tag. Every GD initiative is tagged (gemeente, theme,
- * gd-<year>, sdg-NN, classification…); the intro/home callouts carry no tags. This
- * yields the intended ~305 set without depending on callout grouping metadata
- * (which would require an SDK regen).
+ * Throws `GD_SPACE_UNREADABLE` when the space resolves to null (the user lacks READ, or
+ * it is absent) so the caller can fall back to gdLayer.available=false (FR-044).
  */
-export async function fetchGemeentedelersCallouts(
+export async function fetchGemeentedelersInitiatives(
   auth: AuthContext,
   sdk?: Sdk,
-): Promise<GdCalloutInput[]> {
+): Promise<GdInitiativeInput[]> {
   const config = loadConfig();
   const client = sdk ?? (await createAlkemioSdk(auth));
-  const res = await client.GemeentedelersCallouts({
+  const res = await client.GemeentedelersInitiatives({
     nameId: config.vng.gemeentedelersSpaceNameId,
   });
   const space = res.data.lookupByName.space;
-  // A null space means the user lacks READ on the GD space (or it is absent):
-  // signal non-readability so the caller can fall back to gdLayer.available=false (FR-044).
   if (!space) {
     throw new Error('GD_SPACE_UNREADABLE');
   }
-  const rawCallouts = space.collaboration.calloutsSet.callouts ?? [];
 
-  const all = rawCallouts.map((c) => ({
+  const subspaces: GdInitiativeInput[] = (space.subspaces ?? []).map((s) => ({
+    id: s.id,
+    nameId: s.nameID,
+    source: 'subspace',
+    displayName: s.about.profile.displayName,
+    description: s.about.profile.description ?? '',
+    tags: flatTags(s.about.profile.tagsets),
+    sourceUrl: null,
+    url: s.about.profile.url ?? null,
+    classificationEntries: (s.about.classifications ?? []).map((c) => ({
+      id: c.id,
+      displayLabel: c.displayLabel,
+      cardinality: c.cardinality,
+      display: c.display,
+      sortOrder: c.sortOrder,
+      values: c.values ?? [],
+      selectedValues: c.selectedValues ?? [],
+    })),
+  }));
+
+  // LEGACY-GD-POSTS: from here to the end of this function is the temporary posts bridge.
+  // Once every initiative is a subspace, return `subspaces.filter(isSubspaceInitiative)`.
+  const posts: GdInitiativeInput[] = (space.collaboration.calloutsSet.callouts ?? []).map((c) => ({
     id: c.id,
     nameId: c.nameID,
+    source: 'post',
     displayName: c.framing.profile.displayName,
     description: c.framing.profile.description ?? '',
-    tags: (c.framing.profile.tagsets ?? []).flatMap((ts) => ts.tags).filter((t) => t.trim()),
+    tags: flatTags(c.framing.profile.tagsets),
     sourceUrl: null,
   }));
 
-  const initiatives = all.filter((c) => c.tags.length > 0);
+  const merge = mergeGdSources(subspaces, posts);
 
-  if (initiatives.length !== all.length) {
+  // Counts and nameIDs only — never descriptions or tags (Constitution IV).
+  const fromSubspaces = merge.initiatives.filter((i) => i.source === 'subspace').length;
+  logger.info(
+    `GD initiatives: ${merge.initiatives.length} = ${fromSubspaces} from subspaces + ` +
+      `${merge.initiatives.length - fromSubspaces} from posts ` +
+      `(${merge.superseded.length} posts superseded by a subspace; ` +
+      `${merge.skippedSubspaceNameIds.length} non-initiative subspaces skipped: ` +
+      `${merge.skippedSubspaceNameIds.join(', ') || 'none'})`,
+    { context: 'GD' },
+  );
+  const byTitle = merge.superseded.filter((s) => s.rule !== 'nameId');
+  if (byTitle.length) {
     logger.info(
-      `GD callouts: ${all.length} in set → ${initiatives.length} initiatives (dropped ${all.length - initiatives.length} tag-less callouts)`,
+      `GD posts superseded by title rather than nameID: ` +
+        byTitle.map((s) => `${s.postNameId} → ${s.subspaceNameId} (${s.rule})`).join(', '),
       { context: 'GD' },
     );
   }
-  return initiatives;
+  // Keep the removal visible to whoever reads the logs. LEGACY-GD-POSTS: delete with it.
+  const fromPosts = merge.initiatives.length - fromSubspaces;
+  if (fromPosts > 0) {
+    logger.warn(
+      `${fromPosts} of ${merge.initiatives.length} initiatives still come from posts. ` +
+        LEGACY_GD_POSTS_NOTICE,
+      { context: 'GD' },
+    );
+  } else {
+    logger.warn(
+      'LEGACY-GD-POSTS: every GemeenteDelers initiative now comes from a subspace — the posts ' +
+        'path is DEAD CODE and should be removed now. Follow the checklist in ' +
+        'server/src/transform/gd-initiative-sources.ts (grep -rn LEGACY-GD-POSTS).',
+      { context: 'GD' },
+    );
+  }
+  for (const a of merge.ambiguous) {
+    logger.warn(
+      `GD subspace '${a.subspaceNameId}' matches several posts (${a.candidatePostNameIds.join(', ')}); ` +
+        `none dropped, so this initiative is counted twice until the subspace's nameID matches its post.`,
+      { context: 'GD' },
+    );
+  }
+  return merge.initiatives;
 }
 
 /**
