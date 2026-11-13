@@ -16,6 +16,7 @@ import {
   describeGdSources,
   LEGACY_GD_POSTS_NOTICE,
   mergeGdSources,
+  type GdSourceMerge,
 } from '../transform/gd-initiative-sources.js';
 import { getLogger } from '../logging/logger.js';
 import { loadConfig } from '../config.js';
@@ -38,6 +39,17 @@ export async function fetchGemeentedelersInitiatives(
   auth: AuthContext,
   sdk?: Sdk,
 ): Promise<GdInitiativeInput[]> {
+  return (await fetchGemeentedelersSources(auth, sdk)).initiatives;
+}
+
+/**
+ * As {@link fetchGemeentedelersInitiatives}, plus how the subspaces and posts were
+ * reconciled (superseded posts, skipped subspaces) — for the load summaries.
+ */
+export async function fetchGemeentedelersSources(
+  auth: AuthContext,
+  sdk?: Sdk,
+): Promise<GdSourceMerge> {
   const config = loadConfig();
   const client = sdk ?? (await createAlkemioSdk(auth));
   const res = await client.GemeentedelersInitiatives({
@@ -111,7 +123,7 @@ export async function fetchGemeentedelersInitiatives(
       { context: 'GD' },
     );
   }
-  return merge.initiatives;
+  return merge;
 }
 
 /**

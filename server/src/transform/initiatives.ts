@@ -113,6 +113,7 @@ export function buildInitiativeLayer(
 
     const node = baseNode(callout.id, NodeType.INITIATIVE, callout.displayName, callout.nameId);
     node.sourceUrl = callout.sourceUrl ?? null;
+    node.initiativeSource = callout.source;
     // A subspace initiative is a real page on Alkemio; a post has no page of its own.
     node.url = callout.url ?? null;
     // Subspace initiatives are categorised by their own Classifications, resolved post-

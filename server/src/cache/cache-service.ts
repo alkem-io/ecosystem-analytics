@@ -178,7 +178,7 @@ export function invalidateGdCacheForAllUsers(): number {
  * Bump this and add a numbered step below whenever a deployment needs a one-time,
  * cache-wide action to run exactly once per environment DB.
  */
-const CACHE_MAINTENANCE_VERSION = 5;
+const CACHE_MAINTENANCE_VERSION = 6;
 
 /**
  * Deployment-scoped, run-once cache maintenance. SQLite's `user_version` is used
@@ -233,7 +233,10 @@ export function runDeploymentCacheMaintenance(): {
     // by its new Classifications, for up to the 168h TTL. Only the GD row goes: nothing
     // else in the cache depends on where the initiatives came from. A DB below v4 has just
     // lost its GD row to the v4 sweep above, so only a v4 DB needs this step.
-    if (current === 4) {
+    // v6: the GD row gained each initiative's source (subspace / post) on its nodes and
+    // the subspace/post reconciliation, which the browser-console load summary reads. A
+    // v5 row has neither, so it would log no sources for up to the 168h TTL. Same step.
+    if (current === 4 || current === 5) {
       gdRowsCleared = invalidateGdCacheForAllUsers();
     }
     db.pragma(`user_version = ${CACHE_MAINTENANCE_VERSION}`);

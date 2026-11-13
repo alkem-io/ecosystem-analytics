@@ -16,7 +16,7 @@
  * │ initiative is a subspace (the server warns "posts path is now dead code" when    │
  * │ none comes from a post), delete everything tagged LEGACY-GD-POSTS:               │
  * │                                                                                  │
- * │   grep -rn LEGACY-GD-POSTS server/src CLAUDE.md                                  │
+ * │   grep -rn LEGACY-GD-POSTS server/src frontend/shared/src CLAUDE.md              │
  * │                                                                                  │
  * │  1. graphql/queries/gemeentedelersInitiatives.graphql — the `collaboration`      │
  * │     (callouts) selection; then `pnpm run codegen`.                               │
@@ -30,8 +30,12 @@
  * │  6. services/graph-service.ts — the "matched no classification value label"      │
  * │     warning, which only describes posts.                                         │
  * │  7. index.ts — the startup reminder; CLAUDE.md — the architecture note.          │
- * │  8. `GdInitiativeInput.source` — drop it once only subspaces remain.             │
- * │  9. Bump CACHE_MAINTENANCE_VERSION with a GD-row step, as v5 did.                │
+ * │  8. `GdInitiativeInput.source`, `GraphNode.initiativeSource`,                    │
+ * │     `gdLayer.sources` / `GdLayerSources` and the source fields on                │
+ * │     `GdCountableCallout` — drop once only subspaces remain.                      │
+ * │  9. The load summaries: `describeGdSources` here (the posts lines) and the       │
+ * │     browser console in frontend/shared/src/dashboard/data/gd-source-log.ts.      │
+ * │ 10. Bump CACHE_MAINTENANCE_VERSION with a GD-row step, as v5/v6 did.             │
  * └──────────────────────────────────────────────────────────────────────────────────┘
  */
 import type { GdInitiativeInput } from '../types/api.js';
