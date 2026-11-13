@@ -20,8 +20,8 @@ import { resetGateInfo } from '../access/probe.js';
 
 const determine = vi.mocked(determineLevel);
 const LIM_GATE = {
-  displayName: 'Landelijk Innovatie Monitor',
-  url: 'https://alkem.io/programmagroei/challenges/landelijkinnovatiemonitor',
+  displayName: 'Kenniscentrum Innovatie',
+  url: 'https://alkem.io/programmagroei',
 };
 
 beforeEach(() => {

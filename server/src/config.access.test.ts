@@ -72,7 +72,7 @@ describe('access defaults in analytics.yml (the production policy)', () => {
     }
   });
 
-  it('gates only the VNG dashboard, by the Landelijk Innovatiemonitor subspace', async () => {
+  it('gates only the VNG dashboard, by the Programmagroei Space', async () => {
     for (const k of keys) {
       saved[k] = process.env[k];
       delete process.env[k];
@@ -82,7 +82,7 @@ describe('access defaults in analytics.yml (the production policy)', () => {
     const { apps } = loadConfig().access;
     expect(apps.explorer.gate).toBeNull();
     expect(apps.govtech.gate).toBeNull();
-    expect(apps.vng.gate).toEqual(LIM);
-    expect(apps.vng.displayNameFallback).toBe('Landelijk Innovatie Monitor');
+    expect(apps.vng.gate).toEqual({ path: ['programmagroei'], key: 'programmagroei' });
+    expect(apps.vng.displayNameFallback).toBe('Kenniscentrum Innovatie');
   });
 });

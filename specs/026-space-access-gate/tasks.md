@@ -195,6 +195,8 @@ privileges. READ on a public Space is granted to everyone, and the production ga
 - [X] T060 Replace `levelFromPrivileges` with `levelFromRoles` in `server/src/access/policy.ts`; read `community.roleSet.myRoles` in `server/src/access/determine.ts`; remove `publiclyReadable` and the public-gate warning from `server/src/access/probe.ts`; update `policy.test.ts`, `determine.test.ts`, `probe.test.ts`, `server/src/auth/me.test.ts`
 - [X] T061 Update research R3/R4/R6/R7, plan, data-model, contracts, quickstart, `server/src/access/README.md`, `server/analytics.yml`, `server/.env.default` and `CLAUDE.md` to the role rule
 
+- [X] T062 Change the production VNG gate from `programmagroei/landelijkinnovatiemonitor` to the L0 Space `programmagroei` ("Kenniscentrum Innovatie"): `server/analytics.yml` default + display-name fallback, `server/.env.default`, `server/src/config.access.test.ts`, `server/src/auth/me.test.ts`, spec FR-002/Assumptions/Clarifications, plan, research R9, contracts, quickstart, README and `CLAUDE.md`
+
 ## Dependencies & Execution Order
 
 ### Phase dependencies

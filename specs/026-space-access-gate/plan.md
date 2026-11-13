@@ -9,7 +9,7 @@
 Make use of an application conditional on the signed-in person's roles on a designated Alkemio
 Space. Each application (Explorer, VNG, GovTech) declares an **Access Policy**: `none`, or a gate
 Space plus a required level. In production only the VNG dashboard is gated, by
-`programmagroei/landelijkinnovatiemonitor`, at **Read** (the Member role). **Manage** (Member + Admin) is determined
+`programmagroei` (the Kenniscentrum Innovatie Space), at **Read** (the Member role). **Manage** (Member + Admin) is determined
 and reported now, for the forthcoming management area.
 
 Approach:

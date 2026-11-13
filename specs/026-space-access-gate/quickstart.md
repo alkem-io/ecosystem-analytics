@@ -5,12 +5,12 @@
 ## Role check against production
 
 The gate reads the person's **roles** on the gate Space, not their privileges (research R4), so the
-production subspace may stay public. An anonymous caller holds no role on it:
+production gate Space may stay public. An anonymous caller holds no role on it:
 
 ```bash
 # Expect: "myRoles":[] and "myMembershipStatus":"NOT_MEMBER"
 curl -s https://alkem.io/api/private/non-interactive/graphql -H 'content-type: application/json' \
-  -d '{"query":"{ lookupByName { space(NAMEID:\"programmagroei\") { subspaceByNameID(NAMEID:\"landelijkinnovatiemonitor\") { community { roleSet { myRoles myMembershipStatus } } } } } }"}'
+  -d '{"query":"{ lookupByName { space(NAMEID:\"programmagroei\") { community { roleSet { myRoles myMembershipStatus } } } } }"}'
 ```
 
 ## Prerequisites

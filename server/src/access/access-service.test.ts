@@ -1,6 +1,7 @@
 process.env.DB_PATH = ':memory:';
 process.env.EXPLORER_ACCESS_GATE = 'none';
 process.env.VNG_ACCESS_GATE = 'programmagroei/landelijkinnovatiemonitor';
+process.env.VNG_ACCESS_GATE_NAME = 'Landelijk Innovatie Monitor'; // independent of the yml default
 process.env.GOVTECH_ACCESS_GATE = 'govtechspace/govgate';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 

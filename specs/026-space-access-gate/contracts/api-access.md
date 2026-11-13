@@ -25,8 +25,8 @@ Unchanged: requires a session (401 without one) and is exempt from the gate.
     "level": "none",
     "gated": true,
     "gate": {
-      "displayName": "Landelijk Innovatie Monitor",
-      "url": "https://alkem.io/programmagroei/challenges/landelijkinnovatiemonitor"
+      "displayName": "Kenniscentrum Innovatie",
+      "url": "https://alkem.io/programmagroei"
     }
   }
 }

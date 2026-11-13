@@ -74,6 +74,6 @@ be bounced round the sign-in loop.
 
 Alkemio grants the `READ` **privilege** on a public Space to everyone, so a privilege check
 would admit every signed-in person while the gate is public. The production gate
-`programmagroei/landelijkinnovatiemonitor` **is** public. A **role** (`MEMBER`, `ADMIN`) is
+`programmagroei` **is** public. A **role** (`MEMBER`, `ADMIN`) is
 held only by the people actually given it, so the gate works whatever the Space's
 visibility (research R4).

@@ -7,9 +7,9 @@
 ```yaml
 access:
   explorer: ${EXPLORER_ACCESS_GATE}:none
-  vng: ${VNG_ACCESS_GATE}:programmagroei/landelijkinnovatiemonitor
+  vng: ${VNG_ACCESS_GATE}:programmagroei
   govtech: ${GOVTECH_ACCESS_GATE}:none
-  vng_display_name: ${VNG_ACCESS_GATE_NAME}:Landelijk Innovatie Monitor   # optional fallback
+  vng_display_name: ${VNG_ACCESS_GATE_NAME}:Kenniscentrum Innovatie   # optional fallback
   check_timeout_ms: ${ACCESS_CHECK_TIMEOUT_MS}:5000
 ```
 
@@ -37,7 +37,7 @@ access:
 
 | Deployment | `EXPLORER_ACCESS_GATE` | `VNG_ACCESS_GATE` | `GOVTECH_ACCESS_GATE` |
 |---|---|---|---|
-| production | (unset → `none`) | (unset → LIM) | (unset → `none`) |
+| production | (unset → `none`) | (unset → `programmagroei`) | (unset → `none`) |
 | acceptance / test | `none` | a private test subspace path | `none` |
-| local against production | `none` | (unset → LIM; the developer must have the Member role on it) | `none` |
+| local against production | `none` | (unset → `programmagroei`; the developer must have the Member role on it) | `none` |
 | local, gate disabled on purpose | `none` | `none` | `none` |

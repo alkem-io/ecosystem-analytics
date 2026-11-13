@@ -19,8 +19,8 @@ This feature adds an **access gate**: entry to an application becomes conditiona
 person holding the **Member role** in the community of one designated Alkemio Space or subspace — that
 application's **gate Space**. Each application (Explorer, VNG dashboard, GovTech dashboard) is gated
 independently, by its own Space or not at all. In production only the **VNG dashboard** is gated, by
-the *Landelijk Innovatiemonitor* subspace of *Programmagroei*
-(`https://alkem.io/programmagroei/challenges/landelijkinnovatiemonitor`). The GovTech dashboard and
+the *Programmagroei* Space, "Kenniscentrum Innovatie" (`https://alkem.io/programmagroei`). The
+GovTech dashboard and
 the Explorer stay open to any signed-in Alkemio user, as today, until configured otherwise. Who is let in is therefore
 managed entirely on Alkemio, through that subspace's community, by the people who already administer
 it — no separate user list is kept in Ecosystem Analytics.
@@ -51,7 +51,7 @@ stays protected by Alkemio's own permissions, in every application.
 
 - Q: Which applications does the gate cover, and can each have its own gate Space? → A: Each
   application names its own gate Space, or none. In production only the VNG dashboard is gated (by
-  Landelijk Innovatiemonitor); GovTech and the Explorer stay open to any signed-in Alkemio user, as
+  Landelijk Innovatiemonitor, since changed to Programmagroei — see below); GovTech and the Explorer stay open to any signed-in Alkemio user, as
   today.
 - Directive: the logic that decides where authorisation comes from must be reusable. → One shared
   access-determination capability that each consumer configures with an Access Policy and never
@@ -60,7 +60,7 @@ stays protected by Alkemio's own permissions, in every application.
   the VNG dashboard itself? → A: The dashboard only — "it is the monitor that they cannot use". The
   data stays protected by each person's own Alkemio permissions; ungated applications (e.g. the
   Explorer) are not restricted by another application's gate (FR-012a).
-- Q: How soon after someone is removed from the Landelijk Innovatiemonitor subspace on Alkemio
+- Q: How soon after someone is removed from the gate Space on Alkemio
   should they lose access to the monitor? → A: Only at sign-in. The decision is made when a session
   first uses the application and held for the rest of that session; removal takes effect at the
   person's next sign-in. "Check again" still lets a refused person in immediately (FR-006, FR-015).
@@ -68,6 +68,9 @@ stays protected by Alkemio's own permissions, in every application.
   privilege. The production gate subspace is public, so READ is granted to everyone and a privilege
   check would admit every signed-in person. Read = the Member role; Manage = the Member and Admin
   roles (FR-004). The gate Space no longer needs to be private.
+- Directive: change the production gate from the *Landelijk Innovatiemonitor* subspace to the
+  *Programmagroei* Space itself (`https://alkem.io/programmagroei`, L0, "Kenniscentrum Innovatie")
+  → FR-002 and Assumptions updated; a configuration default only.
 
 ## User Scenarios & Testing *(mandatory)*
 
@@ -239,8 +242,8 @@ first and "Manage" for the second, and that both can use the application identic
   Alkemio Space and (where applicable) subspace path — or explicitly no gate. Every environment
   (production, acceptance, test, local development) MUST be able to set or change each application's
   gate through configuration alone, with no code change.
-- **FR-002**: In production, the **VNG dashboard** MUST be gated by the *Landelijk Innovatiemonitor*
-  subspace of *Programmagroei*. The **GovTech dashboard** and the **Explorer** MUST be configured with
+- **FR-002**: In production, the **VNG dashboard** MUST be gated by the *Programmagroei* Space
+  ("Kenniscentrum Innovatie", `https://alkem.io/programmagroei`). The **GovTech dashboard** and the **Explorer** MUST be configured with
   no gate and MUST behave exactly as they do today, admitting any signed-in Alkemio user. Gating either
   of them later MUST need only a configuration change.
 - **FR-003**: An application without a gate Space MUST NOT be left ungated by accident. Running an
@@ -387,8 +390,9 @@ first and "Manage" for the second, and that both can use the application identic
   matter. On 2026-11-13 the production gate subspace was public, so a READ-privilege check would have
   admitted everyone.
 - **Production gate Space (VNG dashboard only)**:
-  `https://alkem.io/programmagroei/challenges/landelijkinnovatiemonitor` — Space *programmagroei*,
-  subspace *landelijkinnovatiemonitor*. GovTech and the Explorer are explicitly ungated in production.
+  `https://alkem.io/programmagroei` — the L0 Space *programmagroei* ("Kenniscentrum Innovatie"),
+  originally the *landelijkinnovatiemonitor* subspace (changed 2026-11-13). GovTech and the Explorer
+  are explicitly ungated in production.
 - **Existing sign-in is reused unchanged**: people still sign in through Alkemio as they do today; the
   gate runs after sign-in and adds no credential step.
 - **No guest access**: anonymous "explore as a guest" access (specified in feature 023 but never

@@ -152,14 +152,14 @@ govtech:
 # · or a full Alkemio Space URL (`https://alkem.io/<space>/challenges/<sub>`).
 #
 # The defaults are the PRODUCTION policy: only the VNG dashboard (the monitor) is
-# gated, by the Landelijk Innovatiemonitor subspace; GovTech and the Explorer stay open.
+# gated, by the Programmagroei Space (Kenniscentrum Innovatie); GovTech and the Explorer stay open.
 # Roles, not privileges: a public gate Space is fine — reading it grants no role.
 access:
   explorer: ${EXPLORER_ACCESS_GATE}:none
-  vng: ${VNG_ACCESS_GATE}:programmagroei/landelijkinnovatiemonitor
+  vng: ${VNG_ACCESS_GATE}:programmagroei
   govtech: ${GOVTECH_ACCESS_GATE}:none
   # Shown on the "no access" page only if the start-up probe cannot reach Alkemio.
-  vng_display_name: "${VNG_ACCESS_GATE_NAME}:Landelijk Innovatie Monitor"
+  vng_display_name: "${VNG_ACCESS_GATE_NAME}:Kenniscentrum Innovatie"
   govtech_display_name: "${GOVTECH_ACCESS_GATE_NAME}:"
   explorer_display_name: "${EXPLORER_ACCESS_GATE_NAME}:"
   # Per-person role check timeout; on timeout the person is NOT admitted (fail closed).

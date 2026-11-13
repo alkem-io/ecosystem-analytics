@@ -189,17 +189,18 @@ keeps "not signed in" (401) and "forbidden" (403) distinct, as the spec requires
 ```yaml
 access:
   explorer: ${EXPLORER_ACCESS_GATE}:none
-  vng: ${VNG_ACCESS_GATE}:programmagroei/landelijkinnovatiemonitor
+  vng: ${VNG_ACCESS_GATE}:programmagroei
   govtech: ${GOVTECH_ACCESS_GATE}:none
   # optional fallbacks for the "no access" page when the start-up probe cannot reach Alkemio
-  vng_display_name: ${VNG_ACCESS_GATE_NAME}:Landelijk Innovatie Monitor
+  vng_display_name: ${VNG_ACCESS_GATE_NAME}:Kenniscentrum Innovatie
 ```
 
 Each value is either the literal `none` (explicitly ungated), a path of 1–3 nameIDs
 (`space[/subspace[/subsubspace]]`), or a full Alkemio Space URL. For a URL, the `challenges` /
 `opportunities` segments are dropped. A missing or empty key, or an unparseable value, **fails
 start-up** with a message naming the key. At boot each application's status is logged
-(`gated by programmagroei/landelijkinnovatiemonitor (read)` / `UNGATED (explicit)`).
+(`gated by programmagroei (read)` / `UNGATED (explicit)`). The production gate was changed
+from the `landelijkinnovatiemonitor` subspace to the `programmagroei` Space on 2026-11-13.
 
 **Rationale**: The checked-in defaults are the production policy, so leaving an env var unset falls
 back to the safe value rather than to "open". Accepting the URL lets an operator paste exactly what
