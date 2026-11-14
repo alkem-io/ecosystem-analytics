@@ -49,7 +49,8 @@ export function useMonitorScope({ enabled }: { enabled: boolean }): UseMonitorSc
         if (!cancelled) setScope(res);
       })
       .catch((err: unknown) => {
-        if (!cancelled) setError(err instanceof Error ? err.message : String(err));
+        // Never an empty string: an error without a message must still read as an error.
+        if (!cancelled) setError((err instanceof Error && err.message) || 'SCOPE_UNAVAILABLE');
       })
       .finally(() => {
         if (!cancelled) setLoading(false);

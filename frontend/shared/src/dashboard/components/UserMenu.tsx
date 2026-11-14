@@ -1,11 +1,15 @@
 import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import * as Avatar from '@radix-ui/react-avatar';
-import { Info, LogOut } from 'lucide-react';
+import { ExternalLink, Info, LogOut, RefreshCw, Settings, ShieldCheck } from 'lucide-react';
 import { cn, fetchMe, logout, proxyImageUrl, type MeResponse } from '@ea/shared';
 import { LanguageSwitcher } from './LanguageSwitcher.js';
 import { AboutDialog } from './AboutDialog.js';
 import { initials } from '../../lib/initials.js';
+import { useAccessReport } from '../hooks/AccessLevelContext.js';
+import { useSelectionContext } from '../hooks/SelectionContext.js';
+import { openAdmin } from '../../admin/navigation.js';
+import { useAppConfig } from '@ea/shared';
 
 /**
  * Header user control: an avatar button that opens a dropdown containing the
@@ -22,6 +26,12 @@ export function UserMenu() {
   const [open, setOpen] = useState(false);
   const [aboutOpen, setAboutOpen] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
+  const panelRef = useRef<HTMLDivElement>(null);
+  // Feature 027: where this person's access comes from, and (VNG) refresh on small screens.
+  const access = useAccessReport();
+  const { flags } = useAppConfig();
+  const managedScope = flags?.managedScope === true;
+  const { refresh } = useSelectionContext();
 
   useEffect(() => {
     let cancelled = false;
@@ -33,9 +43,10 @@ export function UserMenu() {
     };
   }, []);
 
-  // Dismiss on outside click or Escape.
+  // Dismiss on outside click or Escape; move focus into the panel when it opens.
   useEffect(() => {
     if (!open) return;
+    panelRef.current?.focus();
     const onPointerDown = (e: MouseEvent) => {
       if (rootRef.current && !rootRef.current.contains(e.target as Node)) setOpen(false);
     };
@@ -59,10 +70,11 @@ export function UserMenu() {
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
-        aria-haspopup="menu"
+        aria-haspopup="dialog"
         aria-expanded={open}
         aria-label={t('user.menu')}
         title={me.displayName}
+        data-touch-target
         className={cn(
           'flex items-center gap-2 rounded-full border border-border bg-card p-0.5 pr-2.5 transition-colors',
           'hover:bg-muted focus:outline-none focus-visible:ring-2 focus-visible:ring-primary',
@@ -87,7 +99,9 @@ export function UserMenu() {
 
       {open && (
         <div
-          role="menu"
+          ref={panelRef}
+          role="dialog"
+          tabIndex={-1}
           aria-label={t('user.menu')}
           className="absolute right-0 z-50 mt-2 w-64 overflow-hidden rounded-lg border border-border bg-card shadow-lg"
         >
@@ -114,6 +128,88 @@ export function UserMenu() {
 
           <div className="h-px bg-border" role="separator" />
 
+          {/* Only for a gated application: an open one has nothing to explain. */}
+          {access?.gated && (
+            <div className="px-4 py-3 text-xs" data-testid="user-access">
+              <div className="flex items-center gap-1.5 font-medium text-foreground">
+                <ShieldCheck className="h-4 w-4 text-primary" aria-hidden="true" />
+                {access.level === 'manage'
+                  ? t('user.accessManager', { defaultValue: 'Monitor manager' })
+                  : t('user.accessViewer', { defaultValue: 'User' })}
+              </div>
+              {access.gated ? (
+                <>
+                  <p className="mt-1 text-muted-foreground">
+                    {t('user.accessVia', { defaultValue: 'Members of these Spaces have access:' })}
+                  </p>
+                  <ul className="mt-1 space-y-0.5">
+                    {access.viewerSpaces.map((space) => (
+                      <li key={space.key} className="min-w-0">
+                        <a
+                          href={space.url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="break-words font-medium text-primary hover:underline"
+                        >
+                          {space.displayName}
+                          <ExternalLink className="ml-1 inline h-3 w-3 align-[-1px]" aria-hidden />
+                        </a>
+                      </li>
+                    ))}
+                  </ul>
+                  {access.level === 'manage' && (
+                    <p className="mt-1.5 text-muted-foreground">
+                      {t('user.accessManagerVia', {
+                        defaultValue: 'You can manage it as an admin of one of its admin Spaces.',
+                      })}
+                    </p>
+                  )}
+                </>
+              ) : (
+                <p className="mt-1 text-muted-foreground">
+                  {t('user.accessOpen', { defaultValue: 'Open to every signed-in Alkemio user.' })}
+                </p>
+              )}
+            </div>
+          )}
+
+          {managedScope && access?.level === 'manage' && (
+            <button
+              type="button"
+             
+              onClick={() => {
+                setOpen(false);
+                openAdmin();
+              }}
+              className={cn(
+                'flex w-full items-center gap-2 px-4 py-2.5 text-left text-sm font-medium text-foreground transition-colors',
+                'hover:bg-muted focus:bg-muted focus:outline-none',
+              )}
+            >
+              <Settings className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
+              {t('admin.entry', { defaultValue: 'Monitor settings' })}
+            </button>
+          )}
+          {managedScope && (
+            <button
+              type="button"
+             
+              onClick={() => {
+                setOpen(false);
+                refresh();
+              }}
+              className={cn(
+                'flex w-full items-center gap-2 px-4 py-2.5 text-left text-sm font-medium text-foreground transition-colors sm:hidden',
+                'hover:bg-muted focus:bg-muted focus:outline-none',
+              )}
+            >
+              <RefreshCw className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
+              {t('panel.refresh')}
+            </button>
+          )}
+
+          <div className="h-px bg-border" role="separator" />
+
           <div className="flex items-center justify-between px-4 py-3">
             <span className="text-xs font-medium text-muted-foreground">{t('language.label')}</span>
             <LanguageSwitcher />
@@ -123,7 +219,7 @@ export function UserMenu() {
 
           <button
             type="button"
-            role="menuitem"
+           
             onClick={() => {
               setOpen(false);
               setAboutOpen(true);
@@ -141,7 +237,7 @@ export function UserMenu() {
 
           <button
             type="button"
-            role="menuitem"
+           
             onClick={() => {
               setOpen(false);
               void logout();

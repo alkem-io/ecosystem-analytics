@@ -1,7 +1,7 @@
 /**
- * Feature 027 — the VNG monitor reports on its managers' Spaces (`managedScope`). Viewers
- * can only narrow the set; a selection saved before the feature loses its direct
- * additions. GovTech (no flag) keeps the hub behaviour unchanged.
+ * Feature 027 — the VNG monitor reports on ALL of its managers' Spaces (`managedScope`).
+ * Viewers cannot change the set in either direction, so a selection saved by an older
+ * build loses its additions AND its removals. GovTech (no flag) keeps the hub behaviour.
  */
 import { describe, expect, it } from 'vitest';
 import {
@@ -23,16 +23,16 @@ const ids = (state: Parameters<typeof effectiveSelection>[0]) =>
   effectiveSelection(state).map((s) => s.nameId);
 
 describe('managed scope (VNG)', () => {
-  it('drops the direct additions of a selection saved before the feature, keeping removals', () => {
+  it('drops the additions and removals of a selection saved by an older build', () => {
     const state = parseSelectionState(legacy, { managedScope: true });
     expect(state.directAdded).toEqual([]);
-    expect(state.directRemoved).toEqual(['b']);
+    expect(state.directRemoved).toEqual([]);
   });
 
-  it('reports on the scope minus the viewer’s removals', () => {
+  it('reports on exactly the monitor’s Spaces', () => {
     const state = parseSelectionState(legacy, { managedScope: true });
     const scoped = { ...state, hubSpaceIds: ['a', 'b', 'c', 'd'] };
-    expect(ids(scoped)).toEqual(['a', 'c', 'd']);
+    expect(ids(scoped)).toEqual(['a', 'b', 'c', 'd']);
   });
 
   it('ignores adding a Space', () => {

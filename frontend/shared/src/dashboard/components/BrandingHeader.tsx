@@ -3,7 +3,8 @@ import { Menu, Settings } from 'lucide-react';
 import { cn, useAppConfig } from '@ea/shared';
 import { UserMenu } from './UserMenu.js';
 import { useAccessLevel } from '../hooks/AccessLevelContext.js';
-import { ADMIN_PATH, navigate } from '../../admin/navigation.js';
+import { HeaderDataControls } from './HeaderDataControls.js';
+import { openAdmin } from '../../admin/navigation.js';
 
 /**
  * Persistent header (FR-025). Shows the app logo plus the title/subtitle on the
@@ -53,7 +54,7 @@ export function BrandingHeader({
         <Logo className="h-7 w-auto shrink-0 sm:h-8" />
         {/* The title truncates rather than wrapping: a two-line header on a phone
             costs more vertical space than the tab strip underneath it. */}
-        <div className="flex min-w-0 items-baseline gap-3 border-l border-border pl-2 sm:pl-3">
+        <div className="hidden min-w-0 items-baseline gap-3 border-l border-border pl-2 sm:flex sm:pl-3">
           <span className="truncate text-sm font-semibold text-foreground sm:text-base">
             {t('app.title')}
           </span>
@@ -63,10 +64,11 @@ export function BrandingHeader({
         </div>
       </div>
       <div className="flex shrink-0 items-center gap-2">
+        {flags?.managedScope && <HeaderDataControls />}
         {canManage && (
           <button
             type="button"
-            onClick={() => navigate(ADMIN_PATH)}
+            onClick={() => openAdmin()}
             data-testid="admin-entry"
             aria-label={t('admin.entry', { defaultValue: 'Monitor settings' })}
             title={t('admin.entry', { defaultValue: 'Monitor settings' })}

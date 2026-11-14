@@ -218,7 +218,8 @@ When it is on:
 - `useSelectedSpaces` takes its base set from `GET /api/vng/scope` (the Included Spaces nameIDs)
   instead of `/api/hubs/:nameId/spaces`. `activeHubNameId` becomes the scope's `ecosystemKey`.
 - `SelectedSpacesPanel` hides `HubSelector`, the "load all hub initiatives" button and
-  `SpacePicker`. It keeps the per-row checkboxes, select-all and remove (narrowing = `directRemoved`).
+  `SpacePicker`. (Revised 2026-11-14: for VNG the whole selection panel and its drawer are gone; the
+  GemeenteDelers switch and refresh are in the header, and saved `directAdded`/`directRemoved` are ignored.)
 - `addSpace` is a no-op, and a persisted `directAdded` from before this feature is discarded on
   load (FR-014).
 - The Ecosystem tab's orchestrator keying uses `ecosystemKey`. The first release seeds it as

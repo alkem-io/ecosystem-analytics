@@ -93,7 +93,12 @@
   "user": {
     "menu": "User menu",
     "signedIn": "Signed in",
-    "logout": "Sign out"
+    "logout": "Sign out",
+    "accessViewer": "User",
+    "accessManager": "Monitor manager",
+    "accessVia": "Members of these Spaces have access:",
+    "accessManagerVia": "You can manage the monitor as an admin of one of its admin Spaces.",
+    "accessOpen": "Open to every signed-in Alkemio user."
   },
   "hub": {
     "label": "Innovation hub",
@@ -107,11 +112,7 @@
     "added": "added",
     "empty": "No initiatives selected yet",
     "remove": "Remove",
-    "count": "{{count}} initiative(s)",
-    "fromMonitor": "In the monitor",
-    "restoreAll": "Show all of the monitor’s spaces again",
-    "managedHint": "This monitor follows a fixed set of spaces. Remove spaces to narrow your view.",
-    "scopeError": "The monitor’s spaces could not be loaded."
+    "count": "{{count}} initiative(s)"
   },
   "panel": {
     "refresh": "Refresh data",
@@ -165,9 +166,9 @@
   "dashboard": {
     "nds": "Initiatives by NDS",
     "vng2030": "Number of initiatives by VNG-2030",
-    "sourceSpaces": "Based on selected spaces",
+    "sourceSpaces": "Based on the spaces in the monitor",
     "sourceInitiatives": "Based on GemeenteDelers initiatives",
-    "sourceSpacesGd": "Based on selected spaces + GemeenteDelers initiatives",
+    "sourceSpacesGd": "Based on the spaces in the monitor + GemeenteDelers initiatives",
     "uncategorised": "No classification",
     "noData": "No data available",
     "totalCounted": "{{count}} counted",
@@ -217,7 +218,8 @@
   },
   "warning": {
     "authTitle": "Please note",
-    "authBody": "You only see data you are authorised to access. Seeing limited data? Check your authorisation on the underlying spaces."
+    "authBody": "You only see data you are authorised to access. Seeing limited data? Check your authorisation on the underlying spaces.",
+    "accessVia": "Members of {{spaces}} on Alkemio have access to this monitor."
   },
   "provenance": {
     "gd": "GemeenteDelers was a VNG programme (2021–2025) with around 305 initiatives, originally published at vng.nl/praktijkvoorbeelden."
@@ -519,7 +521,8 @@
       "saveFailed": "Saving failed. Your changes are kept — try again.",
       "saved": "Saved",
       "title": "Classifications of an initiative",
-      "valueRemoved": "A chosen value no longer exists — not saved."
+      "valueRemoved": "A chosen value no longer exists — not saved.",
+      "noResults": "No initiatives found"
     },
     "entry": "Monitor settings",
     "gd": {
@@ -597,5 +600,23 @@
     "retry": "Try again",
     "sectionError": "This section could not be loaded.",
     "title": "Monitor settings"
+  },
+  "header": {
+    "gdLabel": "Include GemeenteDelers",
+    "gdShort": "GD",
+    "gdHint": "Include the historical GemeenteDelers initiatives (2021–2025) in every view",
+    "gdCountSuffix": "initiatives"
+  },
+  "scope": {
+    "loading": "Loading the monitor’s initiatives…",
+    "error": "The monitor’s initiatives could not be loaded.",
+    "retry": "Try again",
+    "empty": "The monitor’s managers have not chosen any initiatives yet.",
+    "title": "In this monitor",
+    "spaces": "Spaces",
+    "description": "The monitor reports on these Spaces. Its managers choose them.",
+    "close": "Close",
+    "missing": "{{count}} of these Spaces are not in your data. Usually you have no read rights on them on Alkemio, so the figures you see are incomplete.",
+    "notInData": "not in your data"
   }
 }

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ExternalLink, Loader2, Lock } from 'lucide-react';
 import type {
@@ -88,12 +88,23 @@ function Picker({ onPick, current }: { onPick: (nameId: string) => void; current
           {t('admin.sectionError', { defaultValue: 'This section could not be loaded.' })}
         </p>
       )}
+      {items === null && !failed && (
+        <p className="mt-2 text-xs text-muted-foreground" role="status">
+          {t('admin.loading', { defaultValue: 'Loading…' })}
+        </p>
+      )}
+      {items !== null && items.length === 0 && (
+        <p className="mt-2 text-xs text-muted-foreground">
+          {t('admin.classifications.noResults', { defaultValue: 'No initiatives found' })}
+        </p>
+      )}
       <ul className="mt-2 max-h-72 space-y-1 overflow-auto" data-testid="classification-picker-list">
         {(items ?? []).map((i) => (
           <li key={i.nameId}>
             <button
               type="button"
               onClick={() => onPick(i.nameId)}
+              aria-current={current === i.nameId ? 'true' : undefined}
               className={cn(
                 'flex w-full min-w-0 flex-col items-start rounded-md px-2 py-1.5 text-left text-sm hover:bg-muted',
                 current === i.nameId && 'bg-primary/10',
@@ -172,7 +183,7 @@ function EntryEditor({
       {result && (
         <p
           role={result.outcome === 'SAVED' ? 'status' : 'alert'}
-          className={cn('mt-2 text-xs', result.outcome === 'SAVED' ? 'text-emerald-700' : 'text-destructive')}
+          className={cn('mt-2 text-xs', result.outcome === 'SAVED' ? 'text-success' : 'text-destructive')}
           data-testid={`classification-${entry.key}-result`}
         >
           {outcomeText(t, result)}
@@ -184,6 +195,7 @@ function EntryEditor({
 
 function Editor({ nameId }: { nameId: string }) {
   const { t } = useTranslation();
+  const headingRef = useRef<HTMLHeadingElement>(null);
   const { data, setData, error, loading, retry } = useSectionData(() => adminApi.classifications(nameId), [nameId]);
   const [edits, setEdits] = useState<Record<string, string[]>>({});
   const [results, setResults] = useState<Record<string, ClassificationChangeResult>>({});
@@ -194,6 +206,14 @@ function Editor({ nameId }: { nameId: string }) {
     setEdits({});
     setResults({});
   }, [nameId]);
+
+  // On a phone the editor sits below the picker: bring it to where the person is looking,
+  // and move focus there so a screen reader follows.
+  useEffect(() => {
+    if (!data || data.initiative.nameId !== nameId) return;
+    headingRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    headingRef.current?.focus({ preventScroll: true });
+  }, [data, nameId]);
 
   const changed = useMemo(
     () =>
@@ -248,7 +268,7 @@ function Editor({ nameId }: { nameId: string }) {
   return (
     <div className="min-w-0 space-y-4" data-testid="classification-editor">
       <div>
-        <h3 className="text-base font-semibold text-foreground">
+        <h3 ref={headingRef} tabIndex={-1} className="text-base font-semibold text-foreground focus:outline-none">
           {data.initiative.url ? (
             <a href={data.initiative.url} target="_blank" rel="noopener noreferrer" className="hover:underline">
               {data.initiative.displayName}

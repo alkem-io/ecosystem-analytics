@@ -49,7 +49,7 @@ export function AccessSection() {
   const standing = (ok: boolean, yes: string, no: string) => (
     <li className="flex items-center gap-2 text-sm">
       {ok ? (
-        <CheckCircle2 className="h-4 w-4 shrink-0 text-emerald-600" aria-hidden />
+        <CheckCircle2 className="h-4 w-4 shrink-0 text-success" aria-hidden />
       ) : (
         <MinusCircle className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden />
       )}

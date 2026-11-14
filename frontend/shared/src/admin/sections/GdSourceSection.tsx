@@ -51,7 +51,7 @@ export function GdSourceSection() {
             {stat(t('admin.gd.viaPosts', { defaultValue: 'From posts' }), data.viaPosts, 'gd-posts')}
           </div>
           {data.migrationComplete && (
-            <p className="flex items-center gap-2 text-sm text-emerald-700" data-testid="gd-migration-complete">
+            <p className="flex items-center gap-2 text-sm text-success" data-testid="gd-migration-complete">
               <CheckCircle2 className="h-4 w-4" aria-hidden />
               {t('admin.gd.migrationComplete', { defaultValue: 'Migration to subspaces complete: no posts are read any more.' })}
             </p>

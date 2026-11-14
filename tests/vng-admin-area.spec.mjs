@@ -95,16 +95,18 @@ const json = (route, body, status = 200) =>
   route.fulfill({ status, contentType: 'application/json', body: JSON.stringify(body) });
 
 /** Mount the monitor with the BFF mocked. Returns the admin requests made. */
-async function boot(page, { level, path = '/', admin = {} }) {
+async function boot(page, { level, path = '/', admin = {}, scope }) {
   const adminCalls = [];
   await page.route('**/api/**', (r) => r.abort());
   await page.route('**/api/auth/me', (r) => json(r, { ...F.me, access: access(level) }));
   await page.route('**/api/features', (r) => json(r, {}));
   await page.route('**/api/meta', (r) => json(r, { environment: 'test' }));
   await page.route('**/api/image-proxy*', (r) => r.abort());
-  await page.route('**/api/vng/scope', (r) => json(r, scopeOf(F)));
+  await page.route('**/api/vng/scope', (r) => (scope ? scope(r) : json(r, scopeOf(F))));
   await page.route('**/api/graph/generate', (r) => generateJson(r, F.dataset, F.dashboard));
-  await page.route('**/api/graph/activity', (r) => json(r, []));
+  await page.route('**/api/graph/activity', (r) =>
+    json(r, { bySpace: {}, fetchedAt: new Date().toISOString(), unavailable: [] }),
+  );
   await page.route('**/api/vng/initiatives', (r) => json(r, []));
   await page.route('**/api/vng/dashboard', (r) => json(r, F.dashboard ?? {}));
   await page.route('**/api/ecosystem/orchestrator/**', (r) => json(r, F.orchestratorChoice));
@@ -139,11 +141,31 @@ test('a viewer sees no settings entry, and /admin shows "no access" without load
   expect(calls).toEqual([]);
 });
 
-test('a viewer sees no hub picker and no "add Space" search', async ({ page }) => {
+test('a viewer has no Space selection at all, and sees where their access comes from', async ({ page }) => {
   await boot(page, { level: 'read' });
   await expect(page.getByRole('tablist')).toBeVisible({ timeout: 20_000 });
-  await expect(page.getByTestId('managed-scope-note').first()).toBeAttached();
+  await expect(page.getByText(/Geselecteerde initiatieven|Selected initiatives/)).toHaveCount(0);
   await expect(page.getByRole('combobox', { name: /hub/i })).toHaveCount(0);
+  await expect(page.getByTestId('gd-switch')).toBeVisible();
+  await expect(page.getByTestId('auth-access-via')).toContainText('Kenniscentrum Innovatie');
+  await expect(page.getByTestId('auth-access-via')).toContainText(/leden van|Members of/);
+  await page.getByRole('button', { name: /Gebruikersmenu|User menu/ }).click();
+  const box = page.getByTestId('user-access');
+  await expect(box).toContainText(/Gebruiker|User/);
+  await expect(box.getByRole('link', { name: /Kenniscentrum Innovatie/ })).toHaveAttribute('href', PG.url);
+});
+
+test('the GemeenteDelers switch in the header reloads the data with the historical initiatives', async ({ page }) => {
+  const bodies = [];
+  page.on('request', (req) => {
+    if (req.url().endsWith('/api/graph/generate')) bodies.push(req.postDataJSON());
+  });
+  await boot(page, { level: 'read' });
+  await expect(page.getByRole('tablist')).toBeVisible({ timeout: 20_000 });
+  await expect.poll(() => bodies.length).toBeGreaterThan(0);
+  expect(bodies.at(-1).includeInitiatives).toBe(false);
+  await page.getByTestId('gd-switch').click();
+  await expect.poll(() => bodies.at(-1)?.includeInitiatives).toBe(true);
 });
 
 test('a manager reaches every section from the header and can go back', async ({ page }) => {
@@ -285,4 +307,61 @@ test('the GemeenteDelers section shows the counts and when the data was read', a
   await expect(page.getByTestId('gd-subspaces')).toHaveText('3');
   await expect(page.getByTestId('gd-posts')).toHaveText('2');
   await expect(page.getByTestId('gd-migration-complete')).toHaveCount(0);
+});
+
+test('a failed scope load says so and can be retried — it never asks the viewer to "select"', async ({ page }) => {
+  let fail = true;
+  await boot(page, {
+    level: 'read',
+    scope: (r) => (fail ? json(r, { error: 'SCOPE_UNAVAILABLE' }, 503) : json(r, scopeOf(F))),
+  });
+  await expect(page.getByTestId('scope-error')).toBeVisible({ timeout: 20_000 });
+  await expect(page.getByText(/geselecteerd|selected/i)).toHaveCount(0);
+  fail = false;
+  await page.getByTestId('scope-error').getByRole('button').click();
+  await expect(page.getByTestId('scope-error')).toHaveCount(0);
+});
+
+test('an empty monitor says the managers have not chosen initiatives yet', async ({ page }) => {
+  await boot(page, { level: 'read', scope: (r) => json(r, { revision: 2, ecosystemKey: 'vih-test', spaceNameIds: [] }) });
+  await expect(page.getByTestId('scope-empty')).toBeVisible({ timeout: 20_000 });
+});
+
+test('"In deze monitor" lists the monitor’s Spaces and flags one missing from the viewer’s data', async ({ page }) => {
+  const scoped = scopeOf(F);
+  await boot(page, {
+    level: 'read',
+    scope: (r) => json(r, { ...scoped, spaceNameIds: [...scoped.spaceNameIds, 'geheime-space'] }),
+  });
+  await expect(page.getByRole('tablist')).toBeVisible({ timeout: 20_000 });
+  await page.getByTestId('scope-button').click();
+  const panel = page.getByTestId('scope-panel');
+  await expect(panel).toBeVisible();
+  await expect(page.getByTestId('scope-list').locator('li')).toHaveCount(scoped.spaceNameIds.length + 1);
+  await expect(page.getByTestId('scope-missing')).toBeVisible();
+  await expect(panel.getByText('geheime-space')).toBeVisible();
+  await expect(page.getByTestId('scope-access')).toContainText('Kenniscentrum Innovatie');
+  await page.keyboard.press('Escape');
+  await expect(panel).toHaveCount(0);
+});
+
+test('a manager returns from the settings to the same tab, without reloading the data', async ({ page }) => {
+  let loads = 0;
+  page.on('request', (req) => {
+    if (req.url().endsWith('/api/graph/generate')) loads += 1;
+  });
+  await boot(page, { level: 'manage' });
+  await page.getByRole('tab', { name: 'Gemeenten', exact: true }).click();
+  await expect(page.getByRole('tab', { name: 'Gemeenten', exact: true })).toHaveAttribute('aria-selected', 'true');
+  const before = loads;
+
+  await page.getByTestId('admin-entry').click();
+  await expect(page.getByTestId('admin-section-access')).toBeVisible({ timeout: 15_000 });
+  await page.getByTestId('admin-back').first().click();
+
+  await expect(page).toHaveURL(/\/$/);
+  await expect(page.getByRole('tab', { name: 'Gemeenten', exact: true })).toHaveAttribute('aria-selected', 'true');
+  expect(loads).toBe(before);
+  // Back went back in history: one more Back leaves the dashboard rather than reopening admin.
+  expect(await page.evaluate(() => window.history.state?.fromDashboard ?? false)).toBe(false);
 });

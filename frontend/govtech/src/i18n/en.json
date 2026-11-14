@@ -89,7 +89,12 @@
   "user": {
     "menu": "User menu",
     "signedIn": "Signed in",
-    "logout": "Sign out"
+    "logout": "Sign out",
+    "accessViewer": "User",
+    "accessManager": "Monitor manager",
+    "accessVia": "Members of these Spaces have access:",
+    "accessManagerVia": "You can manage the monitor as an admin of one of its admin Spaces.",
+    "accessOpen": "Open to every signed-in Alkemio user."
   },
   "hub": {
     "label": "Innovation hub",
@@ -209,7 +214,8 @@
   },
   "warning": {
     "authTitle": "Please note",
-    "authBody": "You only see data you are authorised to access. Seeing limited data? Check your authorisation on the underlying spaces."
+    "authBody": "You only see data you are authorised to access. Seeing limited data? Check your authorisation on the underlying spaces.",
+    "accessVia": "Members of {{spaces}} on Alkemio have access to this monitor."
   },
   "provenance": {
     "gd": "GemeenteDelers was a VNG programme (2021–2025) with around 305 initiatives, originally published at vng.nl/praktijkvoorbeelden."

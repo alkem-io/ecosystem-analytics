@@ -31,9 +31,9 @@ const DEFAULT_STATE: SelectionState = {
 };
 
 /**
- * Parse a persisted selection. With `managedScope` (feature 027, FR-014) any `directAdded`
- * from before the feature is discarded — viewers can no longer add Spaces — while
- * `directRemoved` (narrowing) is kept.
+ * Parse a persisted selection. With `managedScope` (feature 027, FR-014) the monitor always
+ * reports on ALL of its Spaces: any `directAdded` or `directRemoved` saved by an older
+ * build is discarded, since viewers can no longer change the set in either direction.
  */
 export function parseSelectionState(
   raw: string | null,
@@ -47,7 +47,7 @@ export function parseSelectionState(
       ...parsed,
       hubSpaceIds: parsed.hubSpaceIds ?? [],
       directAdded: opts.managedScope ? [] : (parsed.directAdded ?? []),
-      directRemoved: parsed.directRemoved ?? [],
+      directRemoved: opts.managedScope ? [] : (parsed.directRemoved ?? []),
     };
   } catch {
     return { ...DEFAULT_STATE };
@@ -189,7 +189,8 @@ export function useSelectedSpaces(): UseSelectedSpacesResult {
         s.activeHubNameId === scope.ecosystemKey &&
         s.hubSpaceIds.length === scope.spaceNameIds.length &&
         s.hubSpaceIds.every((id, i) => id === scope.spaceNameIds[i]) &&
-        s.directAdded.length === 0;
+        s.directAdded.length === 0 &&
+        s.directRemoved.length === 0;
       return same
         ? s
         : {
@@ -197,6 +198,7 @@ export function useSelectedSpaces(): UseSelectedSpacesResult {
             activeHubNameId: scope.ecosystemKey,
             hubSpaceIds: scope.spaceNameIds,
             directAdded: [],
+            directRemoved: [],
           };
     });
   }, [managedScope, scope]);
@@ -270,6 +272,7 @@ export function useSelectedSpaces(): UseSelectedSpacesResult {
   );
 
   const removeSpace = useCallback((nameId: string) => {
+    if (managedScope) return;
     setState((s) => {
       const directAdded = s.directAdded.filter((id) => id !== nameId);
       // If it was a hub space, record an explicit removal so it stays excluded.
@@ -279,10 +282,10 @@ export function useSelectedSpaces(): UseSelectedSpacesResult {
           : s.directRemoved;
       return { ...s, directAdded, directRemoved };
     });
-  }, []);
+  }, [managedScope]);
 
   const removeSpaces = useCallback((nameIds: string[]) => {
-    if (nameIds.length === 0) return;
+    if (managedScope || nameIds.length === 0) return;
     const toRemove = new Set(nameIds);
     setState((s) => {
       const directAdded = s.directAdded.filter((id) => !toRemove.has(id));
@@ -297,7 +300,7 @@ export function useSelectedSpaces(): UseSelectedSpacesResult {
       }
       return { ...s, directAdded, directRemoved };
     });
-  }, []);
+  }, [managedScope]);
 
   const selectAllHubSpaces = useCallback(() => {
     // Clear any removals that hid hub spaces so all hubSpaceIds are included again.
@@ -346,13 +349,14 @@ export function useSelectedSpaces(): UseSelectedSpacesResult {
   }, [activeHubNameId, fetchHubSpaces, managedScope, refetchScope]);
 
   const clearSelection = useCallback(() => {
+    if (managedScope) return;
     // Empty the effective set: drop direct additions and remove every hub space.
     setState((s) => ({
       ...s,
       directAdded: [],
       directRemoved: [...new Set([...s.directRemoved, ...s.hubSpaceIds])],
     }));
-  }, []);
+  }, [managedScope]);
 
   const learnDisplayNames = useCallback((names: Record<string, string>) => {
     setDisplayNames((prev) => {

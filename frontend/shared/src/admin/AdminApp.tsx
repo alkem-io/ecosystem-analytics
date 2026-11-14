@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ArrowLeft, ShieldX } from 'lucide-react';
 import { useAppConfig } from '../app/AppConfig.js';
-import { navigate } from './navigation.js';
+import { leaveAdmin } from './navigation.js';
 import { AccessSection } from './sections/AccessSection.js';
 import { IncludedSpacesSection } from './sections/IncludedSpacesSection.js';
 import { ClassificationsSection } from './sections/ClassificationsSection.js';
@@ -21,7 +21,7 @@ export default function AdminApp({ canManage }: { canManage: boolean }) {
   const [initiative, setInitiative] = useState<string | null>(null);
 
   const back = (
-    <button type="button" className={smallButton} onClick={() => navigate('/')} data-testid="admin-back">
+    <button type="button" className={smallButton} onClick={leaveAdmin} data-testid="admin-back">
       <ArrowLeft className="h-3.5 w-3.5" aria-hidden />
       {t('admin.back', { defaultValue: 'Back to the monitor' })}
     </button>
@@ -44,8 +44,8 @@ export default function AdminApp({ canManage }: { canManage: boolean }) {
             <AccessSection />
             <IncludedSpacesSection
               onOpenClassifications={(nameId) => {
+                // The editor scrolls itself into view once it has loaded.
                 setInitiative(nameId);
-                document.getElementById('admin-classifications-title')?.scrollIntoView({ behavior: 'smooth' });
               }}
             />
             <ClassificationsSection selected={initiative} onSelect={setInitiative} />

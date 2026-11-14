@@ -9,10 +9,28 @@ const EVENT = 'ea:navigate';
 
 export const ADMIN_PATH = '/admin';
 
-export function navigate(path: string): void {
+export function navigate(path: string, state: Record<string, unknown> = {}): void {
   if (typeof window === 'undefined' || window.location.pathname === path) return;
-  window.history.pushState({}, '', path);
+  window.history.pushState(state, '', path);
   window.dispatchEvent(new Event(EVENT));
+}
+
+/** Open the admin area from the dashboard, remembering that Back can simply return. */
+export function openAdmin(): void {
+  navigate(ADMIN_PATH, { fromDashboard: true });
+}
+
+/**
+ * Leave the admin area: step back in history when it was opened from the dashboard (so
+ * the dashboard is exactly where it was, and Back/Forward stay natural), otherwise go to
+ * the dashboard.
+ */
+export function leaveAdmin(): void {
+  if (typeof window !== 'undefined' && (window.history.state as { fromDashboard?: boolean })?.fromDashboard) {
+    window.history.back();
+    return;
+  }
+  navigate('/');
 }
 
 /** The current pathname, kept in step with pushState navigation and Back/Forward. */

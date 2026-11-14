@@ -1,14 +1,16 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Loader2, PanelLeftClose, RefreshCw, Trash2, X } from 'lucide-react';
-import { cn, useAppConfig } from '@ea/shared';
+import { cn } from '@ea/shared';
 import { useSelectionContext } from '../hooks/SelectionContext.js';
 import { HubSelector } from './HubSelector.js';
 import { SpacePicker } from './SpacePicker.js';
 import { GdInitiativesSection } from './GdInitiativesSection.js';
 
 /**
- * Persistent selected-space list, visible regardless of the active tab (FR-008).
+ * Persistent selected-space list, visible regardless of the active tab (FR-008). Used by
+ * hub-based dashboards (GovTech); a managed-scope dashboard (VNG, feature 027) has no
+ * selection and does not render it.
  * Shows each space's provenance — from the hub vs added directly (FR-013) — and
  * lets the user remove spaces and add new ones (US2).
  *
@@ -40,17 +42,7 @@ export function SelectedSpacesPanel({ onClose }: { onClose?: () => void } = {}) 
     refresh,
     hubResolveError,
     hubsError,
-    selectAllHubSpaces,
   } = useSelectionContext();
-
-  // Feature 027: a managed-scope dashboard (VNG) reports on the monitor's own Spaces. No
-  // hub picker and no "add Space" — viewers only narrow the set.
-  const { flags } = useAppConfig();
-  const managedScope = flags?.managedScope === true;
-  const nameOf = (space: { nameId: string; displayName: string }) => space.displayName;
-  const hiddenCount = managedScope
-    ? state.directRemoved.filter((id) => state.hubSpaceIds.includes(id)).length
-    : 0;
 
   // Brief spinner on the Refresh button while the cache-bypassing reload runs.
   const [refreshing, setRefreshing] = useState(false);
@@ -180,31 +172,6 @@ export function SelectedSpacesPanel({ onClose }: { onClose?: () => void } = {}) 
         </div>
       </div>
 
-      {managedScope ? (
-        <div className="flex flex-col gap-2 border-b border-border pb-4" data-testid="managed-scope-note">
-          <p className="text-xs text-muted-foreground">{t('selection.managedHint')}</p>
-          {hiddenCount > 0 && (
-            <button
-              type="button"
-              onClick={selectAllHubSpaces}
-              data-testid="restore-monitor-spaces"
-              className={cn(
-                'self-start rounded-md border border-border bg-card px-2.5 py-1.5 text-xs font-medium text-foreground',
-                'transition-colors hover:bg-muted',
-                'focus:outline-none focus-visible:ring-2 focus-visible:ring-primary',
-              )}
-            >
-              {t('selection.restoreAll')}
-            </button>
-          )}
-          {!resolvingHub && hubResolveError && (
-            <span className="text-xs text-destructive" role="alert">
-              {t('selection.scopeError')}
-            </span>
-          )}
-        </div>
-      ) : (
-        <>
       {/* Data-selection controls: hub picker + hub actions + gemeente toggle. */}
       <div className="flex flex-col gap-3 border-b border-border pb-4">
         <HubSelector
@@ -245,10 +212,7 @@ export function SelectedSpacesPanel({ onClose }: { onClose?: () => void } = {}) 
         )}
       </div>
 
-        <SpacePicker excludeNameIds={effectiveSpaceIds} onAdd={addSpace} refreshNonce={refreshNonce} />
-
-        </>
-      )}
+      <SpacePicker excludeNameIds={effectiveSpaceIds} onAdd={addSpace} refreshNonce={refreshNonce} />
 
       {selectedSpaces.length > 0 && (
         <div className="flex items-center justify-between gap-2">
@@ -292,17 +256,13 @@ export function SelectedSpacesPanel({ onClose }: { onClose?: () => void } = {}) 
                   type="checkbox"
                   checked={checked.has(space.nameId)}
                   onChange={() => toggleRow(space.nameId)}
-                  aria-label={t('panel.selectRow', { name: nameOf(space) })}
+                  aria-label={t('panel.selectRow', { name: space.displayName })}
                   className={checkboxClass}
                 />
                 <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm text-foreground">{nameOf(space)}</p>
+                  <p className="truncate text-sm text-foreground">{space.displayName}</p>
                   <p className="text-xs text-muted-foreground">
-                    {managedScope
-                      ? t('selection.fromMonitor')
-                      : space.origin === 'hub'
-                        ? t('selection.fromHub')
-                        : t('selection.added')}
+                    {space.origin === 'hub' ? t('selection.fromHub') : t('selection.added')}
                   </p>
                 </div>
                 <button

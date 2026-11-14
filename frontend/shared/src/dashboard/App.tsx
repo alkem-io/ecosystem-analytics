@@ -23,7 +23,7 @@ import { ErrorBoundary } from './components/ErrorBoundary.js';
 import { SelectionProvider, useSelectionContext } from './hooks/SelectionContext.js';
 import { DashboardDataProvider } from './data/DashboardDataProvider.js';
 import { useLoadedData } from './data/hooks.js';
-import { AccessLevelContext } from './hooks/AccessLevelContext.js';
+import { AccessReportContext } from './hooks/AccessLevelContext.js';
 import { isAdminPath, usePathname } from '../admin/navigation.js';
 
 // Feature 027: the admin area is its own chunk — viewers never download it.
@@ -82,6 +82,10 @@ function AppShell() {
   const { t } = useTranslation();
   const cfg = useAppConfig();
   const compact = useIsCompact();
+  // Feature 027: a managed-scope dashboard (VNG) has no Space selection at all — the
+  // monitor reports on the Spaces its managers chose, and its data controls sit in the
+  // header — so it has neither the selection column nor its drawer.
+  const hasSelectionPanel = !cfg.flags?.managedScope;
   const [active, setActive] = useState<TabKey>('dashboard');
   const [navOpen, setNavOpen] = useState(false);
 
@@ -97,7 +101,23 @@ function AppShell() {
     ...(cfg.ecosystem ? (['ecosystem'] as TabKey[]) : []),
     'graph',
   ];
-  const { effectiveSpaceIds, state, refreshNonce, setShowGemeentes } = useSelectionContext();
+  const {
+    effectiveSpaceIds,
+    state,
+    refreshNonce,
+    setShowGemeentes,
+    resolvingHub,
+    hubResolveError,
+    loadHubSpaces,
+  } = useSelectionContext();
+  const scopeNotice = !hasSelectionPanel
+    ? managedScopeNotice(t, {
+        loading: resolvingHub,
+        error: hubResolveError,
+        count: effectiveSpaceIds.length,
+        retry: loadHubSpaces,
+      })
+    : null;
 
   // The space whose details should be shown when the Space details tab opens
   // via a graph node click. Bumped together with `requestSeq` so re-clicking the
@@ -168,12 +188,14 @@ function AppShell() {
   return (
     <div className="flex h-dvh flex-col overflow-hidden bg-background text-foreground">
       <BrandingHeader
-        onMenuClick={compact ? () => setNavOpen(true) : undefined}
+        onMenuClick={compact && hasSelectionPanel ? () => setNavOpen(true) : undefined}
         menuOpen={navOpen}
       />
       <AuthorizationWarning />
 
       <div className="flex min-h-0 min-w-0 flex-1">
+        {hasSelectionPanel && (
+          <>
         {/* Selection panel. One instance, two presentations: a static column at
             `lg`+, an off-canvas drawer below it. Rendered in both cases (never
             unmounted) so the drawer does not lose scroll position or in-flight
@@ -204,6 +226,8 @@ function AppShell() {
             <SelectedSpacesPanel onClose={compact ? () => setNavOpen(false) : undefined} />
           </ErrorBoundary>
         </div>
+          </>
+        )}
 
         {/* Right-hand area: the tab bar sits over the content, not the selection panel. */}
         <div className="flex min-h-0 min-w-0 flex-1 flex-col">
@@ -221,6 +245,12 @@ function AppShell() {
           <LoadStrip />
 
           <main className="min-h-0 min-w-0 flex-1">
+            {/* Feature 027: a managed-scope dashboard has no selection to fall back on, so
+                its scope's loading, failure and emptiness are said once, here, instead of
+                every tab asking the viewer to "select" something they cannot select. */}
+            {!hasSelectionPanel && scopeNotice ? (
+              scopeNotice
+            ) : (
             <ErrorBoundary key={active} label={t(`tabs.${active}`)}>
               {active === 'graph' && (
                 <GraphTab
@@ -245,10 +275,53 @@ function AppShell() {
               {active === 'ecosystem' && <EcosystemTab />}
               {active === 'dashboard' && <DashboardTab />}
             </ErrorBoundary>
+            )}
           </main>
         </div>
       </div>
     </div>
+  );
+}
+
+/**
+ * Feature 027 — what a managed-scope dashboard shows instead of a tab while its scope is
+ * loading, could not be loaded, or holds no Spaces. `null` once there is something to show.
+ */
+function managedScopeNotice(
+  t: ReturnType<typeof useTranslation>['t'],
+  s: { loading: boolean; error: string | null; count: number; retry: () => void },
+) {
+  const box = 'mx-auto mt-10 max-w-md px-6 text-center text-sm text-muted-foreground';
+  if (s.error) {
+    return (
+      <div role="alert" className={box} data-testid="scope-error">
+        <p className="text-destructive">
+          {t('scope.error', { defaultValue: 'The monitor’s initiatives could not be loaded.' })}
+        </p>
+        <button
+          type="button"
+          onClick={s.retry}
+          className="mt-3 rounded-md border border-border bg-card px-3 py-1.5 text-xs font-medium text-foreground hover:bg-muted"
+        >
+          {t('scope.retry', { defaultValue: 'Try again' })}
+        </button>
+      </div>
+    );
+  }
+  if (s.count > 0) return null;
+  if (s.loading) {
+    return (
+      <p role="status" className={box} data-testid="scope-loading">
+        {t('scope.loading', { defaultValue: 'Loading the monitor’s initiatives…' })}
+      </p>
+    );
+  }
+  return (
+    <p className={box} data-testid="scope-empty">
+      {t('scope.empty', {
+        defaultValue: 'The monitor’s managers have not chosen any initiatives yet.',
+      })}
+    </p>
   );
 }
 
@@ -396,6 +469,7 @@ function AccessGate({ me }: { me: MeResponse }) {
   const { screen, access, checking, recheck } = useAccessControl(me);
   const managedScope = flags?.managedScope === true;
   const pathname = usePathname();
+  const dashboardShown = useRef(false);
   const logo = <Logo className="h-9 w-auto max-w-full" title={t('app.title')} />;
   const signOut = () => void logout('/');
 
@@ -437,25 +511,41 @@ function AccessGate({ me }: { me: MeResponse }) {
   }
 
   // Feature 027: `/admin` is the monitor's settings area, for a managed-scope dashboard.
-  if (managedScope && isAdminPath(pathname)) {
-    return (
-      <Suspense fallback={<LoadingScreen message={t('states.connecting')} />}>
-        <AdminApp canManage={access?.level === 'manage'} />
-      </Suspense>
-    );
-  }
+  // Opened from the dashboard, the dashboard stays MOUNTED underneath (invisible and
+  // inert), so coming back finds the same tab, open initiative or city, scroll position
+  // and loaded data. Opened directly, only the admin area loads.
+  const onAdmin = managedScope && isAdminPath(pathname);
+  if (!onAdmin) dashboardShown.current = true;
+  const keepDashboard = !onAdmin || dashboardShown.current;
 
   return (
-    <AccessLevelContext.Provider value={access?.level ?? null}>
-    <SelectionProvider>
-      {/* Feature 025: ONE loaded dataset per selection for every tab, mounted above the
-          tab switch so tab (un)mounting never touches it. */}
-      <DashboardDataProvider>
-        <SelectionNamesFromDataset />
-        <AppShell />
-        <BrokenVisualsPanel />
-      </DashboardDataProvider>
-    </SelectionProvider>
-    </AccessLevelContext.Provider>
+    <>
+      {keepDashboard && (
+        <div
+          className={onAdmin ? 'invisible fixed inset-0 overflow-hidden' : undefined}
+          aria-hidden={onAdmin || undefined}
+          inert={onAdmin}
+        >
+          <AccessReportContext.Provider value={access ?? null}>
+            <SelectionProvider>
+              {/* Feature 025: ONE loaded dataset per selection for every tab, mounted above the
+                  tab switch so tab (un)mounting never touches it. */}
+              <DashboardDataProvider>
+                <SelectionNamesFromDataset />
+                <AppShell />
+                <BrokenVisualsPanel />
+              </DashboardDataProvider>
+            </SelectionProvider>
+          </AccessReportContext.Provider>
+        </div>
+      )}
+      {onAdmin && (
+        <div className="relative z-10">
+          <Suspense fallback={<LoadingScreen message={t('states.connecting')} />}>
+            <AdminApp canManage={access?.level === 'manage'} />
+          </Suspense>
+        </div>
+      )}
+    </>
   );
 }

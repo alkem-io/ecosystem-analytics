@@ -83,7 +83,7 @@ function Status({ space }: { space: IncludedSpaceView }) {
     <span
       className={cn(
         'whitespace-nowrap rounded-full px-2 py-0.5 text-xs',
-        complete ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-900',
+        complete ? 'bg-success/15 text-foreground' : 'bg-warning/15 text-foreground',
       )}
     >
       {t('admin.included.status', {
@@ -356,7 +356,7 @@ function Editor({
               <span className="min-w-0 truncate">
                 {nameOf(nameId)}
                 {added.includes(nameId) && (
-                  <span className="ml-2 rounded-full bg-emerald-100 px-2 py-0.5 text-xs text-emerald-800">
+                  <span className="ml-2 rounded-full bg-success/15 px-2 py-0.5 text-xs text-foreground">
                     {t('admin.included.edit.new', { defaultValue: 'new' })}
                   </span>
                 )}
@@ -385,7 +385,7 @@ function Editor({
             {t('admin.included.edit.pending', { defaultValue: 'Not saved yet' })}
           </p>
           {added.length > 0 && (
-            <p className="mt-1 break-words text-emerald-800">
+            <p className="mt-1 break-words text-foreground">
               + {added.map(nameOf).join(', ')}
             </p>
           )}
@@ -421,14 +421,14 @@ function Editor({
       )}
 
       {confirmEmpty && (
-        <div role="alertdialog" aria-modal="false" className="rounded-lg border border-destructive/40 bg-destructive/10 p-4 text-sm" data-testid="included-confirm-empty">
-          <p className="text-foreground">
+        <div role="alertdialog" aria-labelledby="included-confirm-empty-text" className="rounded-lg border border-destructive/40 bg-destructive/10 p-4 text-sm" data-testid="included-confirm-empty">
+          <p id="included-confirm-empty-text" className="text-foreground">
             {t('admin.included.edit.confirmEmpty', {
               defaultValue: 'Remove every Space? The monitor will show no initiatives to anyone.',
             })}
           </p>
           <div className="mt-3 flex flex-wrap gap-2">
-            <button type="button" className={primarySmallButton} onClick={() => save(true)}>
+            <button type="button" autoFocus className={primarySmallButton} onClick={() => save(true)}>
               {t('admin.included.edit.confirmEmptyYes', { defaultValue: 'Yes, remove all' })}
             </button>
             <button type="button" className={smallButton} onClick={() => setConfirmEmpty(false)}>
@@ -439,8 +439,8 @@ function Editor({
       )}
 
       {conflict && (
-        <div role="alertdialog" aria-modal="false" className="rounded-lg border border-amber-300 bg-amber-50 p-4 text-sm" data-testid="included-conflict">
-          <p className="font-medium text-foreground">
+        <div role="alertdialog" aria-labelledby="included-conflict-title" className="rounded-lg border border-warning/40 bg-warning/10 p-4 text-sm" data-testid="included-conflict">
+          <p id="included-conflict-title" className="font-medium text-foreground">
             {t('admin.included.edit.conflictTitle', { defaultValue: 'Someone else changed the list' })}
           </p>
           <p className="mt-1 text-muted-foreground">
@@ -456,6 +456,7 @@ function Editor({
           <div className="mt-3 flex flex-wrap gap-2">
             <button
               type="button"
+              autoFocus
               className={primarySmallButton}
               onClick={() => {
                 setBase(conflict);

@@ -246,7 +246,7 @@ test('signed out, the sign-in screen lists the viewer Spaces with links (feature
   await expect(links).toHaveCount(VIEWER_SPACES.length);
   await expect(links.first()).toHaveAttribute('href', GATE.url);
   // Never blocks signing in.
-  await expect(page.getByRole('button', { name: /aanmelden|sign in/i })).toBeEnabled();
+  await expect(page.getByRole('button', { name: /inloggen|sign in/i })).toBeEnabled();
 });
 
 test('the sign-in screen shows a generic line when the Space list cannot be loaded', async ({
@@ -257,5 +257,5 @@ test('the sign-in screen shows a generic line when the Space list cannot be load
   await page.route('**/api/features', (r) => json(r, {}));
   await page.goto(VNG_URL, { waitUntil: 'domcontentloaded' });
   await expect(page.getByTestId('login-access-generic')).toBeVisible({ timeout: 15_000 });
-  await expect(page.getByRole('button', { name: /aanmelden|sign in/i })).toBeEnabled();
+  await expect(page.getByRole('button', { name: /inloggen|sign in/i })).toBeEnabled();
 });

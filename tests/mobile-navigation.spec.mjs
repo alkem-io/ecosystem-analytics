@@ -174,51 +174,25 @@ test.describe('phone (390px)', () => {
     expect(main.width).toBeGreaterThan(viewport.width * 0.9);
   });
 
-  test('the selection panel is a drawer: off-canvas, opened from the header, dismissible', async ({
+  test('has no Space selection; the GemeenteDelers switch sits in the header (feature 027)', async ({
     page,
   }) => {
     await boot(page);
-    const menu = page.getByRole('button', { name: 'Selectie' });
-    await expect(menu).toBeVisible();
+    // The monitor reports on its managers' Spaces: no drawer, no selection list.
+    await expect(page.getByRole('button', { name: 'Selectie' })).toHaveCount(0);
+    await expect(page.getByText('Geselecteerde initiatieven')).toHaveCount(0);
 
-    // Closed: the panel is `inert` + aria-hidden, so its controls are not reachable.
-    const refresh = page.getByRole('button', { name: 'Vernieuwen' });
-    await expect(refresh).toHaveCount(0);
+    const gd = page.getByTestId('gd-switch');
+    await expect(gd).toBeVisible();
+    await expect(gd).toHaveAttribute('aria-checked', 'false');
+    await gd.click();
+    await expect(gd).toHaveAttribute('aria-checked', 'true');
 
-    await menu.click();
-    await expect(refresh).toBeVisible();
-
-    // Escape dismisses.
-    await page.keyboard.press('Escape');
-    await expect(refresh).toHaveCount(0);
-
-    // The backdrop dismisses. Tap well clear of the drawer's 85vw width.
-    await menu.click();
-    await expect(refresh).toBeVisible();
-    await page.mouse.click(page.viewportSize().width - 6, page.viewportSize().height / 2);
-    await expect(refresh).toHaveCount(0);
-
-    // While open the drawer is modal: the backdrop is what receives a tap aimed at the
-    // tabs behind it, and closes. That is deliberate — a half-covered tab row invites
-    // taps that land on the wrong destination.
-    await menu.click();
-    await expect(refresh).toBeVisible();
-    await expect(
-      page.getByRole('tab', { name: 'Gemeenten', exact: true }).click({ timeout: 2000 }),
-    ).rejects.toThrow();
-    await page.keyboard.press('Escape');
-
-    // A tab change the SHELL makes (the graph→details and cities→city bridges) does
-    // dismiss it, since no backdrop tap was involved.
-    await menu.click();
-    await expect(refresh).toBeVisible();
-    await page.evaluate(() =>
-      window.dispatchEvent(new CustomEvent('vng:openSpace', { detail: { spaceId: 'slimme-stad' } })),
-    );
-    await expect(refresh).toHaveCount(0);
-    expect(
-      (await page.locator('[role=tab][aria-selected=true]').textContent())?.trim(),
-    ).toBe('Initiatief informatie');
+    // Refresh moved into the user menu on a phone.
+    await expect(page.getByTestId('header-refresh')).toBeHidden();
+    await page.getByRole('button', { name: 'Gebruikersmenu' }).click();
+    await expect(page.getByRole('dialog').getByRole('button', { name: /vernieuwen/i })).toBeVisible();
+    await expectNoHorizontalPageScroll(page, 'phone header');
   });
 
   test('wide tables become card lists that keep their sort and their filters', async ({ page }) => {
@@ -278,7 +252,7 @@ test.describe('phone (390px)', () => {
     // WCAG 2.5.5 / iOS HIG. Checked on the controls that navigate, which are the ones a
     // mistap actually costs you something on.
     for (const target of [
-      page.getByRole('button', { name: 'Selectie' }),
+      page.getByTestId('gd-switch'),
       page.getByRole('tab', { name: 'Dashboard', exact: true }),
       page.getByRole('tab', { name: 'Graph', exact: true }),
     ]) {
@@ -307,9 +281,10 @@ test.describe('phone (390px)', () => {
 test.describe('tablet (820px)', () => {
   test.use({ viewport: { width: 820, height: 1180 } });
 
-  test('keeps the drawer and the card lists, and never scrolls sideways', async ({ page }) => {
+  test('has no selection drawer, keeps the card lists, and never scrolls sideways', async ({ page }) => {
     await boot(page);
-    await expect(page.getByRole('button', { name: 'Selectie' })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Selectie' })).toHaveCount(0);
+    await expect(page.getByTestId('gd-switch')).toBeVisible();
 
     await page.getByRole('tab', { name: 'Initiatieven', exact: true }).click();
     await expect(page.locator('main table')).toHaveCount(0);
@@ -324,14 +299,15 @@ test.describe('tablet (820px)', () => {
 test.describe('desktop (1440px)', () => {
   test.use({ viewport: { width: 1440, height: 900 } });
 
-  test('keeps the static selection column, the inline tabs and the real tables', async ({
+  test('has no selection column, the data controls in the header, the inline tabs and the real tables', async ({
     page,
   }) => {
     await boot(page);
-    // No drawer button: the panel is a permanent column, and its controls are reachable
-    // without opening anything.
+    // Feature 027: no selection column or drawer; GD switch and refresh are in the header.
     await expect(page.getByRole('button', { name: 'Selectie' })).toHaveCount(0);
+    await expect(page.getByText('Geselecteerde initiatieven')).toHaveCount(0);
     await expect(page.getByRole('button', { name: 'Vernieuwen' })).toBeVisible();
+    await expect(page.getByRole('switch', { name: /GemeenteDelers/ })).toBeVisible();
 
     await page.getByRole('tab', { name: 'Gemeenten', exact: true }).click();
     await expect(page.locator('main table')).toHaveCount(1);
