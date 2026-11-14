@@ -245,6 +245,11 @@ The manager sees where the monitor's GemeenteDelers initiatives come from:
 - Editing other Space content (description, tags, members) or GemeenteDelers posts.
 - Forcing a refresh of the GemeenteDelers source or other cached data from the area.
 - Administration areas for the GovTech dashboard or the Explorer.
+- The **operational guarantees** behind FR-012 (decision 2026-11-14): confirming the production
+  storage is persistent, placing backups on storage that survives losing it, and rehearsing a
+  restore. They are handled separately. This feature ships the mechanism (durable settings, a
+  daily settings-only backup, a restore command); FR-012's "at most one day lost" holds only once
+  those operational steps are in place.
 
 ### Key Entities
 

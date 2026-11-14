@@ -2,14 +2,21 @@
 
 **Feature**: 027-vng-admin-area · contracts in [contracts/](./contracts/) · model in [data-model.md](./data-model.md)
 
-## 0. Release preconditions (infra, before production)
+## 0. Release preconditions
 
 | # | Check | Why |
 |---|---|---|
-| P1 | `server/data/` in the production pod is on a **persistent** volume (sessions survive a redeploy today; confirm in the manifests, which live outside this repo) | FR-012 |
-| P2 | `SETTINGS_BACKUP_DIR` points at storage that survives loss of that volume, or the volume has a daily snapshot policy | FR-012, research R6 |
 | P3 | `monitor-settings.seed.json` lists exactly today's `vih-test` Spaces, in order (§2) | SC-008 |
 | P4 | `VNG_ADMIN_GATE` is unset (default `programmagroei`) or deliberately set. Its ADMINs become Monitor Managers | FR-007 |
+
+**Operational guarantees are handled separately, not in this first implementation**
+(decision 2026-11-14). The code ships the mechanism — settings tables, a daily settings-only
+backup, a restore command — but these are out of scope here and tracked on their own:
+
+| # | Separately handled | Relates to |
+|---|---|---|
+| P1 | `server/data/` in the production pod is on a **persistent** volume (manifests live outside this repo) | FR-012 |
+| P2 | `SETTINGS_BACKUP_DIR` on storage that survives loss of that volume, or a volume snapshot policy; a restore drill | FR-012, research R6 |
 
 ## 1. Local setup
 
@@ -57,7 +64,7 @@ It prints `OK: 22 Spaces, same order` (the count is whatever the hub has), or th
 | 10 | GemeenteDelers section | counts equal the dashboard's `[GemeenteDelers]` console group; `readAt`/next refresh shown |
 | 11 | Remove yourself as ADMIN on Alkemio, then save something | 403. The area switches to "no access" after `/me` is re-read |
 | 12 | Refresh the dashboard (force-refresh) and restart the BFF | Included Spaces and history unchanged (SC-005) |
-| 13 | Stop the BFF, `node dist/settings/restore-cli.js data/backups/settings.<slug>.<date>.sqlite`, start | the CLI and the start-up log show the restored revision; the area shows that set; you are still signed in |
+| 13 | *(optional; operational, see §0)* Stop the BFF, `node dist/settings/restore-cli.js data/backups/settings.<slug>.<date>.sqlite`, start | the CLI and the start-up log show the restored revision; the area shows that set; you are still signed in |
 | 14 | Open GovTech (http://localhost:5175) | unchanged: hub dropdown and Space picker still there |
 
 ## 4. Automated checks

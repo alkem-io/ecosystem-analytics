@@ -405,7 +405,7 @@ description: "Task list for 027-vng-admin-area"
 - [X] T069 Run quickstart §4 and fix any failures:
   - `pnpm run build` and `pnpm run test` in `server/`;
   - `pnpm run build` in `frontend/vng`, `frontend/govtech` and `frontend/ecosystem-analytics`, including the types-boundary test, so the Docker frontend stage still compiles.
-- [ ] T070 Run quickstart §3 manually against acceptance, rows 1–14. Hand release preconditions P1–P4 (persistent volume, backup location, seed equality, admin gate) to infra and the user, and record the outcomes in `specs/027-vng-admin-area/quickstart.md`.
+- [ ] T070 Run quickstart §3 manually against acceptance, rows 1–12 (row 13 optional). Check release preconditions P3–P4 (seed equality, admin gate) and record the outcomes in `specs/027-vng-admin-area/quickstart.md`. P1–P2 (persistent volume, backup location) are operational guarantees handled separately, not in this implementation.
 
 ---
 
@@ -444,4 +444,4 @@ Setup ─▶ Foundational ─┬─▶ US1
 3. **US4**: managers curate the scope. This is the point where the monitor becomes "its own application".
 4. **US5**, then **US6**.
 
-Validate each increment with its Independent Test before moving on. Quickstart §0 preconditions P1–P2 (persistent volume, backup location) must be confirmed before the MVP reaches production, because the store starts accumulating real changes once US4 ships.
+Validate each increment with its Independent Test before moving on. The operational guarantees (quickstart §0 P1–P2: persistent volume, backup location, restore drill) are handled separately from this first implementation (decision 2026-11-14).

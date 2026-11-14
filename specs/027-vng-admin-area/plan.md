@@ -99,7 +99,7 @@ specs/027-vng-admin-area/
 ├── plan.md              # This file
 ├── research.md          # R1–R15
 ├── data-model.md        # access sets, settings tables, starting set, admin read models
-├── quickstart.md        # release preconditions P1–P4 + scenario run
+├── quickstart.md        # release preconditions P3–P4 (P1–P2 operational, separate) + scenario run
 ├── contracts/
 │   ├── api-access-sets.md   # public Space list, /me change, config, screens
 │   ├── api-admin.md         # /api/vng/scope + /api/vng/admin/*
