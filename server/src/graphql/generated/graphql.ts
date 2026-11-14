@@ -18083,6 +18083,66 @@ export type SpaceAboutOnlyFragmentFragment = { id: string, nameID: string, creat
 
 export type SpaceGraphInfoFragmentFragment = { id: string, nameID: string, createdDate: Date, visibility: SchemaTypes.SpaceVisibility, about: { id: string, isContentPublic: boolean, membership: { myPrivileges?: Array<SchemaTypes.AuthorizationPrivilege> | undefined }, classifications: Array<{ id: string, displayLabel: string, cardinality: SchemaTypes.ClassificationCardinality, display: boolean, sortOrder: number, values: Array<{ id: string, label: string }>, selectedValues: Array<{ id: string, label: string }> }>, profile: { id: string, displayName: string, tagline?: string | undefined, url: string, location?: { country?: string | undefined, city?: string | undefined, geoLocation: { latitude?: number | undefined, longitude?: number | undefined } } | undefined, avatar?: { uri: string } | undefined, banner?: { uri: string } | undefined, bannerWide?: { uri: string } | undefined, tagsets?: Array<{ name: string, tags: Array<string>, type: SchemaTypes.TagsetType, allowedValues: Array<string> }> | undefined } }, community: { id: string, roleSet: { memberUsers: Array<{ id: string }>, memberOrganizations: Array<{ id: string, nameID: string, profile?: { displayName: string, url: string, avatar?: { uri: string } | undefined, location?: { country?: string | undefined, city?: string | undefined, geoLocation: { latitude?: number | undefined, longitude?: number | undefined } } | undefined, tagsets?: Array<{ name: string, tags: Array<string>, type: SchemaTypes.TagsetType }> | undefined } | undefined }>, leadOrganizations: Array<{ id: string, nameID: string, profile?: { displayName: string, url: string, avatar?: { uri: string } | undefined, location?: { country?: string | undefined, city?: string | undefined, geoLocation: { latitude?: number | undefined, longitude?: number | undefined } } | undefined, tagsets?: Array<{ name: string, tags: Array<string>, type: SchemaTypes.TagsetType }> | undefined } | undefined }>, leadUsers: Array<{ id: string }>, adminUsers: Array<{ id: string }> } }, subspaces: Array<{ id: string, nameID: string, createdDate: Date, visibility: SchemaTypes.SpaceVisibility, about: { id: string, isContentPublic: boolean, membership: { myPrivileges?: Array<SchemaTypes.AuthorizationPrivilege> | undefined }, classifications: Array<{ id: string, displayLabel: string, cardinality: SchemaTypes.ClassificationCardinality, display: boolean, sortOrder: number, values: Array<{ id: string, label: string }>, selectedValues: Array<{ id: string, label: string }> }>, profile: { id: string, displayName: string, tagline?: string | undefined, url: string, location?: { country?: string | undefined, city?: string | undefined, geoLocation: { latitude?: number | undefined, longitude?: number | undefined } } | undefined, avatar?: { uri: string } | undefined, banner?: { uri: string } | undefined, bannerWide?: { uri: string } | undefined, tagsets?: Array<{ name: string, tags: Array<string>, type: SchemaTypes.TagsetType, allowedValues: Array<string> }> | undefined } } }> };
 
+export type UpdateClassificationSelectionMutationVariables = SchemaTypes.Exact<{
+  entryId: SchemaTypes.Scalars['UUID']['input'];
+  selectedValueIDs: Array<SchemaTypes.Scalars['String']['input']> | SchemaTypes.Scalars['String']['input'];
+}>;
+
+
+export type UpdateClassificationSelectionMutation = { updateClassificationEntrySelection: { id: string, selectedValueIDs: Array<string> } };
+
+export type AccessGateRolesFragment = { id: string, community: { roleSet: { myRoles: Array<SchemaTypes.RoleName> } } };
+
+export type AccessGateL0QueryVariables = SchemaTypes.Exact<{
+  space: SchemaTypes.Scalars['NameID']['input'];
+}>;
+
+
+export type AccessGateL0Query = { lookupByName: { space?: { id: string, community: { roleSet: { myRoles: Array<SchemaTypes.RoleName> } } } | undefined } };
+
+export type AccessGateL1QueryVariables = SchemaTypes.Exact<{
+  space: SchemaTypes.Scalars['NameID']['input'];
+  sub: SchemaTypes.Scalars['NameID']['input'];
+}>;
+
+
+export type AccessGateL1Query = { lookupByName: { space?: { id: string, subspaceByNameID: { id: string, community: { roleSet: { myRoles: Array<SchemaTypes.RoleName> } } } } | undefined } };
+
+export type AccessGateL2QueryVariables = SchemaTypes.Exact<{
+  space: SchemaTypes.Scalars['NameID']['input'];
+  sub: SchemaTypes.Scalars['NameID']['input'];
+  subsub: SchemaTypes.Scalars['NameID']['input'];
+}>;
+
+
+export type AccessGateL2Query = { lookupByName: { space?: { id: string, subspaceByNameID: { id: string, subspaceByNameID: { id: string, community: { roleSet: { myRoles: Array<SchemaTypes.RoleName> } } } } } | undefined } };
+
+export type AccessGateProbeFieldsFragment = { id: string, about: { profile: { displayName: string, url: string } } };
+
+export type AccessGateProbeL0QueryVariables = SchemaTypes.Exact<{
+  space: SchemaTypes.Scalars['NameID']['input'];
+}>;
+
+
+export type AccessGateProbeL0Query = { lookupByName: { space?: { id: string, about: { profile: { displayName: string, url: string } } } | undefined } };
+
+export type AccessGateProbeL1QueryVariables = SchemaTypes.Exact<{
+  space: SchemaTypes.Scalars['NameID']['input'];
+  sub: SchemaTypes.Scalars['NameID']['input'];
+}>;
+
+
+export type AccessGateProbeL1Query = { lookupByName: { space?: { id: string, subspaceByNameID: { id: string, about: { profile: { displayName: string, url: string } } } } | undefined } };
+
+export type AccessGateProbeL2QueryVariables = SchemaTypes.Exact<{
+  space: SchemaTypes.Scalars['NameID']['input'];
+  sub: SchemaTypes.Scalars['NameID']['input'];
+  subsub: SchemaTypes.Scalars['NameID']['input'];
+}>;
+
+
+export type AccessGateProbeL2Query = { lookupByName: { space?: { id: string, subspaceByNameID: { id: string, subspaceByNameID: { id: string, about: { profile: { displayName: string, url: string } } } } } | undefined } };
+
 export type ActivityFeedGroupedQueryVariables = SchemaTypes.Exact<{
   args?: SchemaTypes.InputMaybe<SchemaTypes.ActivityFeedGroupedQueryArgs>;
 }>;
@@ -18102,6 +18162,36 @@ export type ActivityFeedGroupedQuery = { activityFeedGrouped: Array<
     | { id: string, type: SchemaTypes.ActivityEventType, createdDate: Date, triggeredBy: { id: string }, space?: { id: string } | undefined }
     | { id: string, type: SchemaTypes.ActivityEventType, createdDate: Date, triggeredBy: { id: string }, space?: { id: string } | undefined }
   > };
+
+export type AdminSpaceClassificationsQueryVariables = SchemaTypes.Exact<{
+  nameId: SchemaTypes.Scalars['NameID']['input'];
+}>;
+
+
+export type AdminSpaceClassificationsQuery = { lookupByName: { space?: { id: string, nameID: string, level: SchemaTypes.SpaceLevel, about: { authorization?: { myPrivileges?: Array<SchemaTypes.AuthorizationPrivilege> | undefined } | undefined, profile: { displayName: string, url: string }, classifications: Array<{ id: string, displayLabel: string, cardinality: SchemaTypes.ClassificationCardinality, sortOrder: number, selectedValueIDs: Array<string>, values: Array<{ id: string, label: string }> }> } } | undefined } };
+
+export type AdminSpaceClassificationsByIdQueryVariables = SchemaTypes.Exact<{
+  id: SchemaTypes.Scalars['UUID']['input'];
+}>;
+
+
+export type AdminSpaceClassificationsByIdQuery = { lookup: { space?: { id: string, nameID: string, level: SchemaTypes.SpaceLevel, about: { authorization?: { myPrivileges?: Array<SchemaTypes.AuthorizationPrivilege> | undefined } | undefined, profile: { displayName: string, url: string }, classifications: Array<{ id: string, displayLabel: string, cardinality: SchemaTypes.ClassificationCardinality, sortOrder: number, selectedValueIDs: Array<string>, values: Array<{ id: string, label: string }> }> } } | undefined } };
+
+export type AdminSpaceSearchQueryVariables = SchemaTypes.Exact<{
+  terms: Array<SchemaTypes.Scalars['String']['input']> | SchemaTypes.Scalars['String']['input'];
+}>;
+
+
+export type AdminSpaceSearchQuery = { search: { spaceResults: { results: Array<
+        | { type: SchemaTypes.SearchResultType }
+        | { type: SchemaTypes.SearchResultType }
+        | { type: SchemaTypes.SearchResultType }
+        | { type: SchemaTypes.SearchResultType }
+        | { type: SchemaTypes.SearchResultType }
+        | { type: SchemaTypes.SearchResultType, space: { id: string, nameID: string, level: SchemaTypes.SpaceLevel, about: { profile: { displayName: string, url: string } } } }
+        | { type: SchemaTypes.SearchResultType }
+        | { type: SchemaTypes.SearchResultType }
+      > } } };
 
 export type GemeenteLocationsQueryVariables = SchemaTypes.Exact<{
   first: SchemaTypes.Scalars['Int']['input'];
@@ -18337,6 +18427,109 @@ export const SpaceGraphInfoFragmentFragmentDoc = gql`
     ${SpaceAboutFragmentFragmentDoc}
 ${CommunityRolesFragmentFragmentDoc}
 ${SpaceAboutOnlyFragmentFragmentDoc}`;
+export const AccessGateRolesFragmentDoc = gql`
+    fragment AccessGateRoles on Space {
+  id
+  community {
+    roleSet {
+      myRoles
+    }
+  }
+}
+    `;
+export const AccessGateProbeFieldsFragmentDoc = gql`
+    fragment AccessGateProbeFields on Space {
+  id
+  about {
+    profile {
+      displayName
+      url
+    }
+  }
+}
+    `;
+export const UpdateClassificationSelectionDocument = gql`
+    mutation UpdateClassificationSelection($entryId: UUID!, $selectedValueIDs: [String!]!) {
+  updateClassificationEntrySelection(
+    classificationData: {classificationEntryID: $entryId, selectedValueIDs: $selectedValueIDs}
+  ) {
+    id
+    selectedValueIDs
+  }
+}
+    `;
+export const AccessGateL0Document = gql`
+    query accessGateL0($space: NameID!) {
+  lookupByName {
+    space(NAMEID: $space) {
+      ...AccessGateRoles
+    }
+  }
+}
+    ${AccessGateRolesFragmentDoc}`;
+export const AccessGateL1Document = gql`
+    query accessGateL1($space: NameID!, $sub: NameID!) {
+  lookupByName {
+    space(NAMEID: $space) {
+      id
+      subspaceByNameID(NAMEID: $sub) {
+        ...AccessGateRoles
+      }
+    }
+  }
+}
+    ${AccessGateRolesFragmentDoc}`;
+export const AccessGateL2Document = gql`
+    query accessGateL2($space: NameID!, $sub: NameID!, $subsub: NameID!) {
+  lookupByName {
+    space(NAMEID: $space) {
+      id
+      subspaceByNameID(NAMEID: $sub) {
+        id
+        subspaceByNameID(NAMEID: $subsub) {
+          ...AccessGateRoles
+        }
+      }
+    }
+  }
+}
+    ${AccessGateRolesFragmentDoc}`;
+export const AccessGateProbeL0Document = gql`
+    query accessGateProbeL0($space: NameID!) {
+  lookupByName {
+    space(NAMEID: $space) {
+      ...AccessGateProbeFields
+    }
+  }
+}
+    ${AccessGateProbeFieldsFragmentDoc}`;
+export const AccessGateProbeL1Document = gql`
+    query accessGateProbeL1($space: NameID!, $sub: NameID!) {
+  lookupByName {
+    space(NAMEID: $space) {
+      id
+      subspaceByNameID(NAMEID: $sub) {
+        ...AccessGateProbeFields
+      }
+    }
+  }
+}
+    ${AccessGateProbeFieldsFragmentDoc}`;
+export const AccessGateProbeL2Document = gql`
+    query accessGateProbeL2($space: NameID!, $sub: NameID!, $subsub: NameID!) {
+  lookupByName {
+    space(NAMEID: $space) {
+      id
+      subspaceByNameID(NAMEID: $sub) {
+        id
+        subspaceByNameID(NAMEID: $subsub) {
+          ...AccessGateProbeFields
+        }
+      }
+    }
+  }
+}
+    ${AccessGateProbeFieldsFragmentDoc}`;
 export const ActivityFeedGroupedDocument = gql`
     query ActivityFeedGrouped($args: ActivityFeedGroupedQueryArgs) {
   activityFeedGrouped(args: $args) {
@@ -18354,6 +18547,94 @@ export const ActivityFeedGroupedDocument = gql`
         id
       }
       actorType
+    }
+  }
+}
+    `;
+export const AdminSpaceClassificationsDocument = gql`
+    query AdminSpaceClassifications($nameId: NameID!) {
+  lookupByName {
+    space(NAMEID: $nameId) {
+      id
+      nameID
+      level
+      about {
+        authorization {
+          myPrivileges
+        }
+        profile {
+          displayName
+          url
+        }
+        classifications {
+          id
+          displayLabel
+          cardinality
+          sortOrder
+          values {
+            id
+            label
+          }
+          selectedValueIDs
+        }
+      }
+    }
+  }
+}
+    `;
+export const AdminSpaceClassificationsByIdDocument = gql`
+    query AdminSpaceClassificationsById($id: UUID!) {
+  lookup {
+    space(ID: $id) {
+      id
+      nameID
+      level
+      about {
+        authorization {
+          myPrivileges
+        }
+        profile {
+          displayName
+          url
+        }
+        classifications {
+          id
+          displayLabel
+          cardinality
+          sortOrder
+          values {
+            id
+            label
+          }
+          selectedValueIDs
+        }
+      }
+    }
+  }
+}
+    `;
+export const AdminSpaceSearchDocument = gql`
+    query AdminSpaceSearch($terms: [String!]!) {
+  search(
+    searchData: {terms: $terms, filters: [{category: SPACES, types: [SPACE], size: 20}]}
+  ) {
+    spaceResults {
+      results {
+        type
+        ... on SearchResultSpace {
+          space {
+            id
+            nameID
+            level
+            about {
+              profile {
+                displayName
+                url
+              }
+            }
+          }
+        }
+      }
     }
   }
 }
@@ -18740,7 +19021,17 @@ export type SdkFunctionWrapper = <T>(action: (requestHeaders?:Record<string, str
 
 
 const defaultWrapper: SdkFunctionWrapper = (action, _operationName, _operationType, _variables) => action();
+const UpdateClassificationSelectionDocumentString = print(UpdateClassificationSelectionDocument);
+const AccessGateL0DocumentString = print(AccessGateL0Document);
+const AccessGateL1DocumentString = print(AccessGateL1Document);
+const AccessGateL2DocumentString = print(AccessGateL2Document);
+const AccessGateProbeL0DocumentString = print(AccessGateProbeL0Document);
+const AccessGateProbeL1DocumentString = print(AccessGateProbeL1Document);
+const AccessGateProbeL2DocumentString = print(AccessGateProbeL2Document);
 const ActivityFeedGroupedDocumentString = print(ActivityFeedGroupedDocument);
+const AdminSpaceClassificationsDocumentString = print(AdminSpaceClassificationsDocument);
+const AdminSpaceClassificationsByIdDocumentString = print(AdminSpaceClassificationsByIdDocument);
+const AdminSpaceSearchDocumentString = print(AdminSpaceSearchDocument);
 const GemeenteLocationsDocumentString = print(GemeenteLocationsDocument);
 const GemeentedelersInitiativesDocumentString = print(GemeentedelersInitiativesDocument);
 const InnovationHubByIdDocumentString = print(InnovationHubByIdDocument);
@@ -18758,8 +19049,38 @@ const SubspaceDetailsDocumentString = print(SubspaceDetailsDocument);
 const UsersByIDsDocumentString = print(UsersByIDsDocument);
 export function getSdk(client: GraphQLClient, withWrapper: SdkFunctionWrapper = defaultWrapper) {
   return {
+    UpdateClassificationSelection(variables: SchemaTypes.UpdateClassificationSelectionMutationVariables, requestHeaders?: GraphQLClientRequestHeaders): Promise<{ data: SchemaTypes.UpdateClassificationSelectionMutation; errors?: GraphQLError[]; extensions?: any; headers: Headers; status: number; }> {
+        return withWrapper((wrappedRequestHeaders) => client.rawRequest<SchemaTypes.UpdateClassificationSelectionMutation>(UpdateClassificationSelectionDocumentString, variables, {...requestHeaders, ...wrappedRequestHeaders}), 'UpdateClassificationSelection', 'mutation', variables);
+    },
+    accessGateL0(variables: SchemaTypes.AccessGateL0QueryVariables, requestHeaders?: GraphQLClientRequestHeaders): Promise<{ data: SchemaTypes.AccessGateL0Query; errors?: GraphQLError[]; extensions?: any; headers: Headers; status: number; }> {
+        return withWrapper((wrappedRequestHeaders) => client.rawRequest<SchemaTypes.AccessGateL0Query>(AccessGateL0DocumentString, variables, {...requestHeaders, ...wrappedRequestHeaders}), 'accessGateL0', 'query', variables);
+    },
+    accessGateL1(variables: SchemaTypes.AccessGateL1QueryVariables, requestHeaders?: GraphQLClientRequestHeaders): Promise<{ data: SchemaTypes.AccessGateL1Query; errors?: GraphQLError[]; extensions?: any; headers: Headers; status: number; }> {
+        return withWrapper((wrappedRequestHeaders) => client.rawRequest<SchemaTypes.AccessGateL1Query>(AccessGateL1DocumentString, variables, {...requestHeaders, ...wrappedRequestHeaders}), 'accessGateL1', 'query', variables);
+    },
+    accessGateL2(variables: SchemaTypes.AccessGateL2QueryVariables, requestHeaders?: GraphQLClientRequestHeaders): Promise<{ data: SchemaTypes.AccessGateL2Query; errors?: GraphQLError[]; extensions?: any; headers: Headers; status: number; }> {
+        return withWrapper((wrappedRequestHeaders) => client.rawRequest<SchemaTypes.AccessGateL2Query>(AccessGateL2DocumentString, variables, {...requestHeaders, ...wrappedRequestHeaders}), 'accessGateL2', 'query', variables);
+    },
+    accessGateProbeL0(variables: SchemaTypes.AccessGateProbeL0QueryVariables, requestHeaders?: GraphQLClientRequestHeaders): Promise<{ data: SchemaTypes.AccessGateProbeL0Query; errors?: GraphQLError[]; extensions?: any; headers: Headers; status: number; }> {
+        return withWrapper((wrappedRequestHeaders) => client.rawRequest<SchemaTypes.AccessGateProbeL0Query>(AccessGateProbeL0DocumentString, variables, {...requestHeaders, ...wrappedRequestHeaders}), 'accessGateProbeL0', 'query', variables);
+    },
+    accessGateProbeL1(variables: SchemaTypes.AccessGateProbeL1QueryVariables, requestHeaders?: GraphQLClientRequestHeaders): Promise<{ data: SchemaTypes.AccessGateProbeL1Query; errors?: GraphQLError[]; extensions?: any; headers: Headers; status: number; }> {
+        return withWrapper((wrappedRequestHeaders) => client.rawRequest<SchemaTypes.AccessGateProbeL1Query>(AccessGateProbeL1DocumentString, variables, {...requestHeaders, ...wrappedRequestHeaders}), 'accessGateProbeL1', 'query', variables);
+    },
+    accessGateProbeL2(variables: SchemaTypes.AccessGateProbeL2QueryVariables, requestHeaders?: GraphQLClientRequestHeaders): Promise<{ data: SchemaTypes.AccessGateProbeL2Query; errors?: GraphQLError[]; extensions?: any; headers: Headers; status: number; }> {
+        return withWrapper((wrappedRequestHeaders) => client.rawRequest<SchemaTypes.AccessGateProbeL2Query>(AccessGateProbeL2DocumentString, variables, {...requestHeaders, ...wrappedRequestHeaders}), 'accessGateProbeL2', 'query', variables);
+    },
     ActivityFeedGrouped(variables?: SchemaTypes.ActivityFeedGroupedQueryVariables, requestHeaders?: GraphQLClientRequestHeaders): Promise<{ data: SchemaTypes.ActivityFeedGroupedQuery; errors?: GraphQLError[]; extensions?: any; headers: Headers; status: number; }> {
         return withWrapper((wrappedRequestHeaders) => client.rawRequest<SchemaTypes.ActivityFeedGroupedQuery>(ActivityFeedGroupedDocumentString, variables, {...requestHeaders, ...wrappedRequestHeaders}), 'ActivityFeedGrouped', 'query', variables);
+    },
+    AdminSpaceClassifications(variables: SchemaTypes.AdminSpaceClassificationsQueryVariables, requestHeaders?: GraphQLClientRequestHeaders): Promise<{ data: SchemaTypes.AdminSpaceClassificationsQuery; errors?: GraphQLError[]; extensions?: any; headers: Headers; status: number; }> {
+        return withWrapper((wrappedRequestHeaders) => client.rawRequest<SchemaTypes.AdminSpaceClassificationsQuery>(AdminSpaceClassificationsDocumentString, variables, {...requestHeaders, ...wrappedRequestHeaders}), 'AdminSpaceClassifications', 'query', variables);
+    },
+    AdminSpaceClassificationsById(variables: SchemaTypes.AdminSpaceClassificationsByIdQueryVariables, requestHeaders?: GraphQLClientRequestHeaders): Promise<{ data: SchemaTypes.AdminSpaceClassificationsByIdQuery; errors?: GraphQLError[]; extensions?: any; headers: Headers; status: number; }> {
+        return withWrapper((wrappedRequestHeaders) => client.rawRequest<SchemaTypes.AdminSpaceClassificationsByIdQuery>(AdminSpaceClassificationsByIdDocumentString, variables, {...requestHeaders, ...wrappedRequestHeaders}), 'AdminSpaceClassificationsById', 'query', variables);
+    },
+    AdminSpaceSearch(variables: SchemaTypes.AdminSpaceSearchQueryVariables, requestHeaders?: GraphQLClientRequestHeaders): Promise<{ data: SchemaTypes.AdminSpaceSearchQuery; errors?: GraphQLError[]; extensions?: any; headers: Headers; status: number; }> {
+        return withWrapper((wrappedRequestHeaders) => client.rawRequest<SchemaTypes.AdminSpaceSearchQuery>(AdminSpaceSearchDocumentString, variables, {...requestHeaders, ...wrappedRequestHeaders}), 'AdminSpaceSearch', 'query', variables);
     },
     GemeenteLocations(variables: SchemaTypes.GemeenteLocationsQueryVariables, requestHeaders?: GraphQLClientRequestHeaders): Promise<{ data: SchemaTypes.GemeenteLocationsQuery; errors?: GraphQLError[]; extensions?: any; headers: Headers; status: number; }> {
         return withWrapper((wrappedRequestHeaders) => client.rawRequest<SchemaTypes.GemeenteLocationsQuery>(GemeenteLocationsDocumentString, variables, {...requestHeaders, ...wrappedRequestHeaders}), 'GemeenteLocations', 'query', variables);

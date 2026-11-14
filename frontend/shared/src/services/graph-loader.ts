@@ -21,6 +21,7 @@ import type {
 } from '@server/types/api.js';
 import { API_BASE, apiStream, NetworkError, StreamNotSupportedError } from './api.js';
 import { redirectToLogin } from './auth.js';
+import { throwIfAccessDenied } from '../access/access-signal.js';
 
 export interface LoadGraphRequest {
   app: string;
@@ -75,6 +76,8 @@ export async function loadGraphJson(
     redirectToLogin(window.location.origin + window.location.pathname + window.location.search);
     throw new Error('Session expired');
   }
+  // Feature 026: refused by an access gate → the shell's "no access" screen, not an error.
+  await throwIfAccessDenied(response);
   if (!response.ok) {
     const err = await response.json().catch(() => ({ message: `HTTP ${response.status}` }));
     throw new Error((err as { message?: string }).message ?? `HTTP ${response.status}`);

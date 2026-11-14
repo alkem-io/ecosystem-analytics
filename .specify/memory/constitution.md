@@ -1,5 +1,19 @@
 <!--
 Sync Impact Report
+- Version change: 4.3.1 → 4.3.2
+- PATCH (4.3.2): Development Workflow "add a new dashboard" step mentions the optional
+  `access.<app>_admin` (admin Spaces whose ADMINs manage the dashboard; feature
+  027-vng-admin-area), and Principle IV notes that a dashboard's own settings tables are
+  global configuration, not a per-user cache of Alkemio data. Clarification only — no
+  principle added, removed or redefined.
+- Earlier history:
+- Version change: 4.3.0 → 4.3.1
+- PATCH (4.3.1): Development Workflow "add a new dashboard" steps gain one item — declare
+  the app's access gate (`access.<app>` in `server/analytics.yml`: a gate Space path/URL or
+  `none`) and pass the app id to `createApp(appId, …)` (feature 026-space-access-gate; a
+  missing declaration stops start-up). Dev ports note updated: each SPA proxies to its own
+  listener. Clarification only — no principle added, removed or redefined.
+- Earlier history:
 - Version change: 4.2.0 → 4.3.0
 - MINOR (4.3.0): Generalised Principle VII from "VNG Map Scope" to "Dutch-Dashboard Map Scope
   (Netherlands-only)" so the HARD Netherlands-only map requirement formally binds EVERY Dutch
@@ -99,6 +113,11 @@ Sync Impact Report
   backend replicas without losing sessions. The browser holds only the opaque session-id reference.
 - SQL queries MUST use parameterised statements; no string interpolation of user-supplied values.
 - Cache access-control MUST be verified at read time — stale caches MUST NOT re-introduce unauthorised data.
+- A dashboard's own settings (feature 027: the VNG monitor's Included Spaces and change history,
+  `server/src/settings/`) are global configuration, not a cache of Alkemio-derived data, so the
+  per-user rule does not apply to them. They MUST hold only identifiers (nameIDs/UUIDs) and change
+  records (actor id and name) — never tokens, session ids or Alkemio content — and everything shown
+  from them MUST be resolved per request with the viewer's own token.
 
 ### V. Graceful Degradation
 
@@ -164,8 +183,8 @@ Sync Impact Report
 - **TypeScript strict mode**: `tsc --noEmit` MUST pass on `server/` and every `frontend/*` package before any merge to the main branch.
 - **Codegen workflow**: when `.graphql` query or fragment files are added or modified, run `pnpm run codegen` in `server/` to regenerate the typed SDK. Generated files (`src/graphql/generated/`) MUST be committed.
 - **Frontend tooling**: Vite + Tailwind v4 + Radix (shadcn-style) per SPA. Design tokens as CSS custom properties in `@ea/shared` `styles/tokens.css`; per-dashboard overrides go in that app's entry stylesheet. NOTE: any global CSS reset MUST be inside `@layer base` — unlayered CSS overrides ALL Tailwind utilities in v4.
-- **Dev servers**: `pnpm run dev` at the root runs the BFF + all SPAs concurrently (BFF tsx watch; each SPA on its own Vite port proxying `/api` to the BFF — e.g. Explorer :5173, VNG :5174).
-- **Multi-dashboard serving (one BFF, many SPAs, distinct ports)**: a SINGLE BFF container serves every SPA, each on its own port, all sharing the same `/api` routes and SQLite session/cache store. `createApp(staticDir)` is invoked once per SPA in `server/src/index.ts`; ports are `config.port` (Explorer, `../frontend/dist`) and `config.vngPort = port+1` (VNG, `../frontend-vng/dist`), with `EXPOSE`d container ports (4000, 4001, …). Each SPA is fronted by its own subdomain (e.g. `analytics.alkem.io`, `vih-analytics.alkem.io`) routed by infra to the matching port; sign-in is shared via the parent-domain `ea_session` cookie (`SESSION_COOKIE_DOMAIN=.alkem.io`, every subdomain origin in `SESSION_ALLOWED_ORIGINS`). **To add a new dashboard**: create `frontend/<name>` (consume `@ea/shared`), build it to `frontend/<name>/dist`, COPY it into the image, add a `createApp('../<name>/dist')` listener on the next port, `EXPOSE` it, and add the subdomain route + allowed-origin. This is the standard pattern — more dashboards are expected.
+- **Dev servers**: `pnpm run dev` at the root runs the BFF + all SPAs concurrently (BFF tsx watch; each SPA on its own Vite port proxying `/api` to **its own** BFF listener — Explorer :5173 → :4100, VNG :5174 → :4101, GovTech :5175 → :4102 — because the listener identifies the application for the access gate).
+- **Multi-dashboard serving (one BFF, many SPAs, distinct ports)**: a SINGLE BFF container serves every SPA, each on its own port, all sharing the same `/api` routes and SQLite session/cache store. `createApp(staticDir)` is invoked once per SPA in `server/src/index.ts`; ports are `config.port` (Explorer, `../frontend/dist`) and `config.vngPort = port+1` (VNG, `../frontend-vng/dist`), with `EXPOSE`d container ports (4000, 4001, …). Each SPA is fronted by its own subdomain (e.g. `analytics.alkem.io`, `vih-analytics.alkem.io`) routed by infra to the matching port; sign-in is shared via the parent-domain `ea_session` cookie (`SESSION_COOKIE_DOMAIN=.alkem.io`, every subdomain origin in `SESSION_ALLOWED_ORIGINS`). **To add a new dashboard**: create `frontend/<name>` (consume `@ea/shared`), build it to `frontend/<name>/dist`, COPY it into the image, add a `createApp('<name>', '../<name>/dist')` listener on the next port (and add `<name>` to `APP_IDS` in `server/src/access/policy.ts`), **declare its access gate as `access.<name>` in `server/analytics.yml` — its viewer Space(s) as path/URL (comma-separated) or `none` (an undeclared app stops start-up, feature 026), and optionally `access.<name>_admin`, the admin Spaces whose ADMINs may manage it (feature 027)**, point its Vite dev proxy at its own listener port, `EXPOSE` it, and add the subdomain route + allowed-origin. This is the standard pattern — more dashboards are expected.
 
 ## Governance
 
@@ -177,4 +196,4 @@ Sync Impact Report
   3. An updated Sync Impact Report (HTML comment at top of this file).
 - The feature spec (`specs/001-ecosystem-analytics/spec.md`) contains the detailed functional, non-functional, and technical requirements. This constitution captures the overarching principles that govern how those requirements are implemented.
 
-**Version**: 4.3.0 | **Ratified**: 2026-02-21 | **Last Amended**: 2026-06-25
+**Version**: 4.3.2 | **Ratified**: 2026-02-21 | **Last Amended**: 2026-11-14

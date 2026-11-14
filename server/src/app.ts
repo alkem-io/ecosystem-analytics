@@ -11,19 +11,30 @@ import { hubsRouter } from './routes/hubs.js';
 import { dashboardRouter } from './routes/dashboard.js';
 import { metaRouter } from './routes/meta.js';
 import { ecosystemRouter } from './routes/ecosystem.js';
+import { scopeRouter } from './routes/scope.js';
+import { adminRouter } from './admin/router.js';
 import { loadConfig } from './config.js';
 import { getLogger } from './logging/logger.js';
 import type { ApiError } from './types/api.js';
+import type { AppId } from './access/policy.js';
+import { accessGate } from './access/middleware.js';
 
 /**
  * Build an Express app exposing the BFF `/api` + (in production) a static SPA.
- * Called twice in production: once for the Explorer (`../frontend/dist`) and once
- * for the VNG SPA (`../frontend-vng/dist`), on two ports sharing the same session
- * store. `staticDirRelative` is relative to the compiled `dist/` directory.
+ * Called once per application — Explorer, VNG, GovTech — each on its own port,
+ * all sharing the same session store. `appId` names the application this listener
+ * serves: it is how the access gate (feature 026) knows which application a request
+ * is for. `staticDirRelative` is relative to the compiled `dist/` directory.
  */
-export function createApp(staticDirRelative = '../frontend/dist') {
+export function createApp(appId: AppId, staticDirRelative = '../frontend/dist') {
   const app = express();
   const config = loadConfig();
+
+  // Feature 026: every request carries the application of the listener that served it.
+  app.use((_req, res, next) => {
+    res.locals.appId = appId;
+    next();
+  });
 
   // Middleware — CORS is restricted to the configured deployment origin(s)
   // (no longer `origin: true`). Same-origin requests (no Origin header) and
@@ -49,6 +60,9 @@ export function createApp(staticDirRelative = '../frontend/dist') {
   );
   app.use(cookieParser());
   app.use(express.json());
+  // Feature 026: the access gate — before EVERY router, so no route can forget it and
+  // a refusal happens before any handler, cache read or SSE stream (research R8).
+  app.use(accessGate);
 
   // Routes
   app.use('/api/auth', authRouter);
@@ -57,6 +71,10 @@ export function createApp(staticDirRelative = '../frontend/dist') {
   app.use('/api/image-proxy', imageProxyRouter);
   app.use('/api/query', queryRouter);
   app.use('/api/hubs', hubsRouter);
+  // Feature 027 — the VNG monitor's own scope and its administration API. Mounted before
+  // the app-aware dashboard router so its auth middleware never handles these paths.
+  app.use('/api/vng/scope', scopeRouter);
+  app.use('/api/vng/admin', adminRouter);
   // App-aware dashboard routes — same router mounted per dashboard app so the app
   // id is derived from the path. `/api/vng/*` preserved; `/api/govtech/*` added (feature 017).
   app.use('/api/vng', dashboardRouter);

@@ -74,6 +74,8 @@ export async function mockBff(page, F, opts = {}) {
   await page.route('**/api/auth/me', (r) => json(r, F.me));
   await page.route('**/api/hubs?*', (r) => json(r, F.hubs));
   await page.route('**/api/hubs/*/spaces', (r) => json(r, F.hubSpaces));
+  // Feature 027: VNG reads its Spaces from the monitor scope, not a hub.
+  await page.route('**/api/vng/scope', (r) => json(r, scopeOf(F)));
   await page.route('**/api/features', (r) => json(r, {}));
   await page.route('**/api/meta', (r) => json(r, { environment: 'test' }));
   await page.route('**/api/image-proxy*', (r) => r.abort());
@@ -173,3 +175,15 @@ export function bundleOf(F) {
 
 /** Count recorded calls whose path ends with `suffix` (e.g. '/api/graph/generate'). */
 export const countCalls = (calls, suffix) => calls.filter((c) => c.path.endsWith(suffix)).length;
+
+/**
+ * Feature 027 — the VNG monitor scope (`GET /api/vng/scope`) equivalent to a fixture's hub:
+ * the hub's Spaces in order, keyed by the hub nameID so orchestrator fixtures still match.
+ */
+export function scopeOf(F) {
+  return {
+    revision: 1,
+    ecosystemKey: F.hubs?.defaultHubNameId ?? F.hubSpaces?.nameId ?? 'vih-test',
+    spaceNameIds: (F.hubSpaces?.spaces ?? []).map((s) => s.nameId),
+  };
+}

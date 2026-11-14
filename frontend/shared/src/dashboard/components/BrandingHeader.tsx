@@ -1,7 +1,10 @@
 import { useTranslation } from 'react-i18next';
-import { Menu } from 'lucide-react';
+import { Menu, Settings } from 'lucide-react';
 import { cn, useAppConfig } from '@ea/shared';
 import { UserMenu } from './UserMenu.js';
+import { useAccessLevel } from '../hooks/AccessLevelContext.js';
+import { HeaderDataControls } from './HeaderDataControls.js';
+import { openAdmin } from '../../admin/navigation.js';
 
 /**
  * Persistent header (FR-025). Shows the app logo plus the title/subtitle on the
@@ -19,7 +22,10 @@ export function BrandingHeader({
   menuOpen?: boolean;
 }) {
   const { t } = useTranslation();
-  const { Logo } = useAppConfig();
+  const { Logo, flags } = useAppConfig();
+  // Feature 027: the settings entry, for Monitor Managers of a managed-scope dashboard.
+  const level = useAccessLevel();
+  const canManage = flags?.managedScope === true && level === 'manage';
   return (
     <header
       className={cn(
@@ -48,7 +54,7 @@ export function BrandingHeader({
         <Logo className="h-7 w-auto shrink-0 sm:h-8" />
         {/* The title truncates rather than wrapping: a two-line header on a phone
             costs more vertical space than the tab strip underneath it. */}
-        <div className="flex min-w-0 items-baseline gap-3 border-l border-border pl-2 sm:pl-3">
+        <div className="hidden min-w-0 items-baseline gap-3 border-l border-border pl-2 sm:flex sm:pl-3">
           <span className="truncate text-sm font-semibold text-foreground sm:text-base">
             {t('app.title')}
           </span>
@@ -57,7 +63,27 @@ export function BrandingHeader({
           </span>
         </div>
       </div>
-      <UserMenu />
+      <div className="flex shrink-0 items-center gap-2">
+        {flags?.managedScope && <HeaderDataControls />}
+        {canManage && (
+          <button
+            type="button"
+            onClick={() => openAdmin()}
+            data-testid="admin-entry"
+            aria-label={t('admin.entry', { defaultValue: 'Monitor settings' })}
+            title={t('admin.entry', { defaultValue: 'Monitor settings' })}
+            data-touch-target
+            className={cn(
+              'inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-md border border-border bg-card text-foreground',
+              'transition-colors hover:bg-muted',
+              'focus:outline-none focus-visible:ring-2 focus-visible:ring-primary',
+            )}
+          >
+            <Settings className="h-5 w-5" aria-hidden />
+          </button>
+        )}
+        <UserMenu />
+      </div>
     </header>
   );
 }

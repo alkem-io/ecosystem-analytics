@@ -44,6 +44,18 @@ export interface AppConfig {
    * guess, and simply leaves this off.
    */
   ecosystem?: boolean;
+  /**
+   * Feature 027 — dashboard-level behaviour switches. VNG turns these on; GovTech does not.
+   */
+  flags?: {
+    /**
+     * The dashboard reports on the Spaces its managers chose (`GET /api/vng/scope`, the
+     * monitor's own settings store) instead of an innovation hub. No hub picker, no "add
+     * Space" for viewers — they can only narrow the set. Also enables the `/admin` area
+     * for Monitor Managers.
+     */
+    managedScope?: boolean;
+  };
 }
 
 const AppConfigContext = createContext<AppConfig | null>(null);

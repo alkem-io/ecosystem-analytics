@@ -1,5 +1,6 @@
 import type { ApiError } from '@server/types/api.js';
 import { redirectToLogin } from './auth.js';
+import { throwIfAccessDenied } from '@ea/shared';
 
 const API_BASE = import.meta.env.VITE_ECOSYSTEM_ANALYTICS_BACKEND_URL || '';
 
@@ -34,6 +35,8 @@ async function apiFetch<T>(path: string, options: RequestInit = {}): Promise<T> 
     redirectToLogin(window.location.pathname + window.location.search);
     throw new Error('Session expired');
   }
+  // Feature 026: refused by an access gate → the shell's "no access" screen, not an error.
+  await throwIfAccessDenied(response);
 
   if (!response.ok) {
     const error: ApiError = await response.json().catch(() => ({

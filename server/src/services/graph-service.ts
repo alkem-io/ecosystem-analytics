@@ -320,7 +320,12 @@ async function buildGraph(
     };
     try {
       report((r) => r.itemLoading('gd-initiatives'));
-      const subgraph = await loadGdSubgraph(userId, auth, registry, forceRefresh);
+      const { subgraph, readAt, expiresAt } = await loadGdSubgraphWithAge(
+        userId,
+        auth,
+        registry,
+        forceRefresh,
+      );
 
       // Dedupe ORGANIZATION nodes by nameId so initiatives attach to existing
       // gemeente nodes rather than spawning duplicates (FR-040/043).
@@ -340,6 +345,8 @@ async function buildGraph(
         initiativeCount: subgraph.initiativeCount,
         source,
         ...(subgraph.sources ? { sources: subgraph.sources } : {}),
+        readAt: new Date(readAt).toISOString(),
+        expiresAt: new Date(expiresAt).toISOString(),
       };
       gdCallouts = subgraph.callouts ?? [];
       report((r) => r.itemDone('gd-initiatives'));
@@ -484,7 +491,7 @@ function pruneDatasetMemo(now: number): void {
 }
 
 /** Drop every memoised dataset for one user — used when they force a refresh. */
-function invalidateDatasetMemo(userId: string): void {
+export function invalidateDatasetMemo(userId: string): void {
   const prefix = `${userId}|`;
   for (const key of datasetMemo.keys()) {
     if (key.startsWith(prefix)) datasetMemo.delete(key);
@@ -552,7 +559,7 @@ export function resetDatasetMemo(): void {
   datasetMemo.clear();
 }
 
-interface GdSubgraph {
+export interface GdSubgraph {
   nodes: GraphNode[];
   edges: GraphEdge[];
   initiativeCount: number;
@@ -567,6 +574,17 @@ interface GdSubgraph {
 }
 
 /**
+ * Feature 027 — the person's GD subgraph plus when its cache row was written and when it
+ * expires (ms since epoch), for the admin area's GemeenteDelers section. Built (and
+ * cached) when absent, exactly as a dashboard load would.
+ */
+export async function loadGdSubgraphForAdmin(
+  auth: AuthContext,
+): Promise<{ subgraph: GdSubgraph; readAt: number; expiresAt: number }> {
+  return loadGdSubgraphWithAge(auth.userId, auth, loadVngRegistry(), false);
+}
+
+/**
  * Build (or load from the long-TTL per-user cache) the GemeenteDelers initiative
  * subgraph: INITIATIVE/THEME nodes, resolved gemeente ORGANIZATION nodes, and the
  * INITIATIVE_GEMEENTE/INITIATIVE_THEME edges. Org node ids are the real Alkemio
@@ -574,19 +592,19 @@ interface GdSubgraph {
  * can be cached once per user (Constitution IV). Throws if the GD space is
  * unreadable so the caller can fall back to gdLayer.available=false (FR-044).
  */
-async function loadGdSubgraph(
+async function loadGdSubgraphWithAge(
   userId: string,
   auth: AuthContext,
   registry: ReturnType<typeof loadVngRegistry>,
   forceRefresh: boolean | undefined,
-): Promise<GdSubgraph> {
+): Promise<{ subgraph: GdSubgraph; readAt: number; expiresAt: number }> {
   if (!forceRefresh) {
     const cached = getCacheEntry(userId, GD_CACHE_SPACE_ID);
     if (cached) {
       logger.info(`GD initiative subgraph served from cache for user ${userId}`, { context: 'Graph' });
       const subgraph = JSON.parse(cached.datasetJson) as GdSubgraph;
       logGdSourcesFromCache(subgraph);
-      return subgraph;
+      return { subgraph, readAt: cached.createdAt, expiresAt: cached.expiresAt };
     }
   }
 
@@ -628,8 +646,17 @@ async function loadGdSubgraph(
     edges: finalLayer.edges,
     initiativeCount: callouts.length,
     sources: {
-      superseded: merge.superseded,
+      // Feature 027: the replacing subspace's name and link, for the admin area.
+      superseded: merge.superseded.map((s) => {
+        const sub = merge.initiatives.find((i) => i.nameId === s.subspaceNameId);
+        return {
+          ...s,
+          subspaceDisplayName: sub?.displayName ?? null,
+          subspaceUrl: sub?.url ?? null,
+        };
+      }),
       skippedSubspaceNameIds: merge.skippedSubspaceNameIds,
+      ambiguous: merge.ambiguous,
     },
     callouts: callouts.map((c) => ({
       id: c.id,
@@ -648,7 +675,8 @@ async function loadGdSubgraph(
   const ttlHours = loadConfig().vng.gdCacheTtlHours;
   setCacheEntry(userId, GD_CACHE_SPACE_ID, JSON.stringify(subgraph), ttlHours);
 
-  return subgraph;
+  const readAt = Date.now();
+  return { subgraph, readAt, expiresAt: readAt + ttlHours * 3_600_000 };
 }
 
 /**

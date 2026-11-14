@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { bumpImageCacheBust, clearBrokenVisuals, useAppConfig } from '@ea/shared';
 import { useHubs, type HubSummary, type HubSpace } from './useHubs.js';
+import { useMonitorScope } from './useMonitorScope.js';
 
 /** A space in the effective selected set, carrying its provenance (FR-013). */
 export interface SelectedSpace {
@@ -29,22 +30,70 @@ const DEFAULT_STATE: SelectionState = {
   includeInitiatives: false,
 };
 
-function loadState(storageKey: string): SelectionState {
-  if (typeof localStorage === 'undefined') return { ...DEFAULT_STATE };
+/**
+ * Parse a persisted selection. With `managedScope` (feature 027, FR-014) the monitor always
+ * reports on ALL of its Spaces: any `directAdded` or `directRemoved` saved by an older
+ * build is discarded, since viewers can no longer change the set in either direction.
+ */
+export function parseSelectionState(
+  raw: string | null,
+  opts: { managedScope?: boolean } = {},
+): SelectionState {
+  if (!raw) return { ...DEFAULT_STATE };
   try {
-    const raw = localStorage.getItem(storageKey);
-    if (!raw) return { ...DEFAULT_STATE };
     const parsed = JSON.parse(raw) as Partial<SelectionState>;
     return {
       ...DEFAULT_STATE,
       ...parsed,
       hubSpaceIds: parsed.hubSpaceIds ?? [],
-      directAdded: parsed.directAdded ?? [],
-      directRemoved: parsed.directRemoved ?? [],
+      directAdded: opts.managedScope ? [] : (parsed.directAdded ?? []),
+      directRemoved: opts.managedScope ? [] : (parsed.directRemoved ?? []),
     };
   } catch {
     return { ...DEFAULT_STATE };
   }
+}
+
+function loadState(storageKey: string, opts: { managedScope?: boolean }): SelectionState {
+  if (typeof localStorage === 'undefined') return { ...DEFAULT_STATE };
+  try {
+    return parseSelectionState(localStorage.getItem(storageKey), opts);
+  } catch {
+    return { ...DEFAULT_STATE };
+  }
+}
+
+/** Add a Space directly — a no-op with `managedScope` (viewers only narrow the set). */
+export function withAddedSpace(
+  s: SelectionState,
+  nameId: string,
+  opts: { managedScope?: boolean } = {},
+): SelectionState {
+  if (opts.managedScope) return s;
+  const directRemoved = s.directRemoved.filter((id) => id !== nameId);
+  const directAdded = s.directAdded.includes(nameId) ? s.directAdded : [...s.directAdded, nameId];
+  return { ...s, directAdded, directRemoved };
+}
+
+/** effective = (hubSpaceIds ∪ directAdded) − directRemoved, with provenance (FR-013). */
+export function effectiveSelection(
+  state: Pick<SelectionState, 'hubSpaceIds' | 'directAdded' | 'directRemoved'>,
+  displayNames: Record<string, string> = {},
+): SelectedSpace[] {
+  const removed = new Set(state.directRemoved);
+  const result: SelectedSpace[] = [];
+  const seen = new Set<string>();
+  for (const id of state.hubSpaceIds) {
+    if (removed.has(id) || seen.has(id)) continue;
+    seen.add(id);
+    result.push({ nameId: id, displayName: displayNames[id] ?? id, origin: 'hub' });
+  }
+  for (const id of state.directAdded) {
+    if (removed.has(id) || seen.has(id)) continue;
+    seen.add(id);
+    result.push({ nameId: id, displayName: displayNames[id] ?? id, origin: 'direct' });
+  }
+  return result;
 }
 
 export interface UseSelectedSpacesResult {
@@ -77,6 +126,11 @@ export interface UseSelectedSpacesResult {
   refreshNonce: number;
   /** Force a cache-bypassing reload of the graph and dashboard. */
   refresh: () => void;
+  /**
+   * Feature 027: remember Space display names learnt elsewhere (the loaded dataset). The
+   * managed scope carries nameIDs only, so names arrive once the dataset has loaded.
+   */
+  learnDisplayNames: (names: Record<string, string>) => void;
 }
 
 /**
@@ -86,14 +140,20 @@ export interface UseSelectedSpacesResult {
  * (FR-012, US2 scenario 3). State persists to localStorage.
  */
 export function useSelectedSpaces(): UseSelectedSpacesResult {
-  const { storagePrefix, eventPrefix } = useAppConfig();
+  const { storagePrefix, eventPrefix, flags } = useAppConfig();
+  const managedScope = flags?.managedScope === true;
   const storageKey = `${storagePrefix}_selection`;
   const selectionEvent = `${eventPrefix}:selection`;
 
-  const { hubs, defaultHubNameId, loading: hubsLoading, error: hubsError, fetchHubSpaces } =
-    useHubs();
+  // Feature 027: a managed-scope dashboard (VNG) takes its base set from the monitor's own
+  // settings, never from an innovation hub; the hub hooks stay idle.
+  const hubsResult = useHubs({ enabled: !managedScope });
+  const monitor = useMonitorScope({ enabled: managedScope });
+  const { hubs, defaultHubNameId, fetchHubSpaces } = hubsResult;
+  const hubsLoading = managedScope ? false : hubsResult.loading;
+  const hubsError = managedScope ? null : hubsResult.error;
 
-  const [state, setState] = useState<SelectionState>(() => loadState(storageKey));
+  const [state, setState] = useState<SelectionState>(() => loadState(storageKey, { managedScope }));
   const [resolvingHub, setResolvingHub] = useState(false);
   const [hubResolveError, setHubResolveError] = useState<string | null>(null);
 
@@ -119,9 +179,34 @@ export function useSelectedSpaces(): UseSelectedSpacesResult {
     }
   }, [state, storageKey, selectionEvent]);
 
+  // Feature 027: the monitor scope IS the base set; the ecosystem key keys the Ecosystem tab.
+  const scope = monitor.scope;
+  const refetchScope = monitor.refetch;
+  useEffect(() => {
+    if (!managedScope || !scope) return;
+    setState((s) => {
+      const same =
+        s.activeHubNameId === scope.ecosystemKey &&
+        s.hubSpaceIds.length === scope.spaceNameIds.length &&
+        s.hubSpaceIds.every((id, i) => id === scope.spaceNameIds[i]) &&
+        s.directAdded.length === 0 &&
+        s.directRemoved.length === 0;
+      return same
+        ? s
+        : {
+            ...s,
+            activeHubNameId: scope.ecosystemKey,
+            hubSpaceIds: scope.spaceNameIds,
+            directAdded: [],
+            directRemoved: [],
+          };
+    });
+  }, [managedScope, scope]);
+
   // Preselect the configured default hub on first load (only if none chosen yet).
   const appliedDefault = useRef(false);
   useEffect(() => {
+    if (managedScope) return;
     if (appliedDefault.current) return;
     if (state.activeHubNameId) {
       appliedDefault.current = true;
@@ -131,11 +216,12 @@ export function useSelectedSpaces(): UseSelectedSpacesResult {
       appliedDefault.current = true;
       setState((s) => ({ ...s, activeHubNameId: defaultHubNameId }));
     }
-  }, [defaultHubNameId, state.activeHubNameId]);
+  }, [defaultHubNameId, state.activeHubNameId, managedScope]);
 
   // Resolve the active hub's spaces whenever it changes.
   const activeHubNameId = state.activeHubNameId;
   useEffect(() => {
+    if (managedScope) return;
     if (!activeHubNameId) {
       setState((s) => (s.hubSpaceIds.length ? { ...s, hubSpaceIds: [] } : s));
       return;
@@ -165,25 +251,28 @@ export function useSelectedSpaces(): UseSelectedSpacesResult {
     return () => {
       cancelled = true;
     };
-  }, [activeHubNameId, fetchHubSpaces]);
+  }, [activeHubNameId, fetchHubSpaces, managedScope]);
 
-  const setActiveHub = useCallback((nameId: string) => {
-    appliedDefault.current = true;
-    setState((s) => ({ ...s, activeHubNameId: nameId }));
-  }, []);
+  const setActiveHub = useCallback(
+    (nameId: string) => {
+      if (managedScope) return;
+      appliedDefault.current = true;
+      setState((s) => ({ ...s, activeHubNameId: nameId }));
+    },
+    [managedScope],
+  );
 
-  const addSpace = useCallback((space: { nameId: string; displayName: string }) => {
-    setDisplayNames((prev) => ({ ...prev, [space.nameId]: space.displayName }));
-    setState((s) => {
-      const directRemoved = s.directRemoved.filter((id) => id !== space.nameId);
-      const directAdded = s.directAdded.includes(space.nameId)
-        ? s.directAdded
-        : [...s.directAdded, space.nameId];
-      return { ...s, directAdded, directRemoved };
-    });
-  }, []);
+  const addSpace = useCallback(
+    (space: { nameId: string; displayName: string }) => {
+      if (managedScope) return;
+      setDisplayNames((prev) => ({ ...prev, [space.nameId]: space.displayName }));
+      setState((s) => withAddedSpace(s, space.nameId));
+    },
+    [managedScope],
+  );
 
   const removeSpace = useCallback((nameId: string) => {
+    if (managedScope) return;
     setState((s) => {
       const directAdded = s.directAdded.filter((id) => id !== nameId);
       // If it was a hub space, record an explicit removal so it stays excluded.
@@ -193,10 +282,10 @@ export function useSelectedSpaces(): UseSelectedSpacesResult {
           : s.directRemoved;
       return { ...s, directAdded, directRemoved };
     });
-  }, []);
+  }, [managedScope]);
 
   const removeSpaces = useCallback((nameIds: string[]) => {
-    if (nameIds.length === 0) return;
+    if (managedScope || nameIds.length === 0) return;
     const toRemove = new Set(nameIds);
     setState((s) => {
       const directAdded = s.directAdded.filter((id) => !toRemove.has(id));
@@ -211,7 +300,7 @@ export function useSelectedSpaces(): UseSelectedSpacesResult {
       }
       return { ...s, directAdded, directRemoved };
     });
-  }, []);
+  }, [managedScope]);
 
   const selectAllHubSpaces = useCallback(() => {
     // Clear any removals that hid hub spaces so all hubSpaceIds are included again.
@@ -225,6 +314,10 @@ export function useSelectedSpaces(): UseSelectedSpacesResult {
   }, []);
 
   const loadHubSpaces = useCallback(() => {
+    if (managedScope) {
+      refetchScope();
+      return;
+    }
     if (!activeHubNameId) return;
     let cancelled = false;
     setResolvingHub(true);
@@ -253,15 +346,29 @@ export function useSelectedSpaces(): UseSelectedSpacesResult {
       .finally(() => {
         if (!cancelled) setResolvingHub(false);
       });
-  }, [activeHubNameId, fetchHubSpaces]);
+  }, [activeHubNameId, fetchHubSpaces, managedScope, refetchScope]);
 
   const clearSelection = useCallback(() => {
+    if (managedScope) return;
     // Empty the effective set: drop direct additions and remove every hub space.
     setState((s) => ({
       ...s,
       directAdded: [],
       directRemoved: [...new Set([...s.directRemoved, ...s.hubSpaceIds])],
     }));
+  }, [managedScope]);
+
+  const learnDisplayNames = useCallback((names: Record<string, string>) => {
+    setDisplayNames((prev) => {
+      let changed = false;
+      for (const [id, name] of Object.entries(names)) {
+        if (name && prev[id] !== name) {
+          changed = true;
+          break;
+        }
+      }
+      return changed ? { ...prev, ...names } : prev;
+    });
   }, []);
 
   const refresh = useCallback(() => {
@@ -281,22 +388,10 @@ export function useSelectedSpaces(): UseSelectedSpacesResult {
   }, []);
 
   // effective = (hubSpaceIds ∪ directAdded) − directRemoved
-  const selectedSpaces = useMemo<SelectedSpace[]>(() => {
-    const removed = new Set(state.directRemoved);
-    const result: SelectedSpace[] = [];
-    const seen = new Set<string>();
-    for (const id of state.hubSpaceIds) {
-      if (removed.has(id) || seen.has(id)) continue;
-      seen.add(id);
-      result.push({ nameId: id, displayName: displayNames[id] ?? id, origin: 'hub' });
-    }
-    for (const id of state.directAdded) {
-      if (removed.has(id) || seen.has(id)) continue;
-      seen.add(id);
-      result.push({ nameId: id, displayName: displayNames[id] ?? id, origin: 'direct' });
-    }
-    return result;
-  }, [state.hubSpaceIds, state.directAdded, state.directRemoved, displayNames]);
+  const selectedSpaces = useMemo<SelectedSpace[]>(
+    () => effectiveSelection(state, displayNames),
+    [state, displayNames],
+  );
 
   const effectiveSpaceIds = useMemo(
     () => selectedSpaces.map((s) => s.nameId),
@@ -308,8 +403,8 @@ export function useSelectedSpaces(): UseSelectedSpacesResult {
     hubs,
     hubsLoading,
     hubsError,
-    resolvingHub,
-    hubResolveError,
+    resolvingHub: managedScope ? monitor.loading : resolvingHub,
+    hubResolveError: managedScope ? monitor.error : hubResolveError,
     selectedSpaces,
     effectiveSpaceIds,
     setActiveHub,
@@ -323,5 +418,6 @@ export function useSelectedSpaces(): UseSelectedSpacesResult {
     setIncludeInitiatives,
     refreshNonce,
     refresh,
+    learnDisplayNames,
   };
 }

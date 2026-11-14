@@ -15,7 +15,10 @@ import { ensureFreshAccessToken } from '../auth/oidc/refresh.js';
  *
  * The legacy Kratos `cookie` mode has been removed — auth is OIDC-only.
  */
-export async function createAlkemioSdk(auth: AuthContext): Promise<Sdk> {
+export async function createAlkemioSdk(
+  auth: AuthContext,
+  opts: { timeoutMs?: number } = {},
+): Promise<Sdk> {
   const config = loadConfig();
   const session = await ensureFreshAccessToken(auth.session);
   const accessToken = decrypt(session.accessTokenEnc, config.session.encKey);
@@ -29,7 +32,7 @@ export async function createAlkemioSdk(auth: AuthContext): Promise<Sdk> {
     // platform cost of one load can be read from the log (SC-004 / SC-002a).
     fetch: async (input: RequestInfo | URL, init?: RequestInit) => {
       stats.requests += 1;
-      const res = await fetch(input, init);
+      const res = await fetch(input, withTimeout(init, opts.timeoutMs));
       const len = Number(res.headers.get('content-length'));
       if (Number.isFinite(len) && len > 0) {
         stats.bytes += len;
@@ -43,6 +46,27 @@ export async function createAlkemioSdk(auth: AuthContext): Promise<Sdk> {
     },
   });
   return getSdk(client);
+}
+
+/**
+ * An UNAUTHENTICATED typed SDK — no Authorization header, no user data (feature 026).
+ * Used only by the access gate's start-up probe to read a gate Space's public profile
+ * (research R6). Never use it to fetch anything on a person's behalf.
+ */
+export function createAnonymousAlkemioSdk(opts: { timeoutMs?: number } = {}): Sdk {
+  const client = new GraphQLClient(loadConfig().alkemioGraphqlEndpoint, {
+    fetch: (input: RequestInfo | URL, init?: RequestInit) =>
+      fetch(input, withTimeout(init, opts.timeoutMs)),
+  });
+  return getSdk(client);
+}
+
+/** Add an abort-after-`ms` signal to a fetch init (no-op without `ms`). */
+function withTimeout(init: RequestInit | undefined, ms: number | undefined): RequestInit | undefined {
+  if (!ms) return init;
+  const timeout = AbortSignal.timeout(ms);
+  const signal = init?.signal ? AbortSignal.any([init.signal, timeout]) : timeout;
+  return { ...init, signal };
 }
 
 /** Per-auth-context request counters (feature 025). Reset with {@link resetRequestStats}. */

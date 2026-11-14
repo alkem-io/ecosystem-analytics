@@ -7,10 +7,13 @@ import { readFileSync } from 'fs';
 const pkg = JSON.parse(readFileSync(path.resolve(__dirname, 'package.json'), 'utf-8'));
 
 export default defineConfig(({ mode }) => {
-  // Proxy /api to the shared EA backend (default local port 4100). Override with
+  // Proxy /api to the shared EA backend (see port note below). Override with
   // VITE_PROXY_TARGET in frontend/vng/.env if the backend runs elsewhere.
   const env = loadEnv(mode, __dirname, '');
-  const proxyTarget = env.VITE_PROXY_TARGET || 'http://localhost:4100';
+  // Each SPA proxies to ITS OWN BFF listener (Explorer :4100, VNG :4101, GovTech :4102):
+  // the listener is how the BFF knows which application a request is for, so the
+  // access gate (feature 026) applies in dev exactly as in production.
+  const proxyTarget = env.VITE_PROXY_TARGET || 'http://localhost:4102';
   console.info(`[vite:govtech] Proxying /api → backend at ${proxyTarget}`);
   return {
     plugins: [tailwindcss(), react()],

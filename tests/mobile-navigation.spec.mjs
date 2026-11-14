@@ -21,6 +21,7 @@
  *                       silently change the layout it was supposed to leave alone.
  */
 import { test, expect, devices } from '@playwright/test';
+import { scopeOf } from './fixtures/bff-mock.mjs';
 import { readFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -109,6 +110,8 @@ async function boot(page) {
   await page.route('**/api/auth/me', (r) => json(r, F.me));
   await page.route('**/api/hubs?*', (r) => json(r, F.hubs));
   await page.route('**/api/hubs/*/spaces', (r) => json(r, F.hubSpaces));
+  // Feature 027: VNG reads its Spaces from the monitor scope, not a hub.
+  await page.route('**/api/vng/scope', (r) => json(r, scopeOf(F)));
   await page.route('**/api/graph/generate', (r) => json(r, dataset));
   await page.route('**/api/graph/progress', (r) =>
     json(r, { step: 'ready', spacesTotal: 6, spacesCompleted: 6 }),
@@ -171,51 +174,25 @@ test.describe('phone (390px)', () => {
     expect(main.width).toBeGreaterThan(viewport.width * 0.9);
   });
 
-  test('the selection panel is a drawer: off-canvas, opened from the header, dismissible', async ({
+  test('has no Space selection; the GemeenteDelers switch sits in the header (feature 027)', async ({
     page,
   }) => {
     await boot(page);
-    const menu = page.getByRole('button', { name: 'Selectie' });
-    await expect(menu).toBeVisible();
+    // The monitor reports on its managers' Spaces: no drawer, no selection list.
+    await expect(page.getByRole('button', { name: 'Selectie' })).toHaveCount(0);
+    await expect(page.getByText('Geselecteerde initiatieven')).toHaveCount(0);
 
-    // Closed: the panel is `inert` + aria-hidden, so its controls are not reachable.
-    const refresh = page.getByRole('button', { name: 'Vernieuwen' });
-    await expect(refresh).toHaveCount(0);
+    const gd = page.getByTestId('gd-switch');
+    await expect(gd).toBeVisible();
+    await expect(gd).toHaveAttribute('aria-checked', 'false');
+    await gd.click();
+    await expect(gd).toHaveAttribute('aria-checked', 'true');
 
-    await menu.click();
-    await expect(refresh).toBeVisible();
-
-    // Escape dismisses.
-    await page.keyboard.press('Escape');
-    await expect(refresh).toHaveCount(0);
-
-    // The backdrop dismisses. Tap well clear of the drawer's 85vw width.
-    await menu.click();
-    await expect(refresh).toBeVisible();
-    await page.mouse.click(page.viewportSize().width - 6, page.viewportSize().height / 2);
-    await expect(refresh).toHaveCount(0);
-
-    // While open the drawer is modal: the backdrop is what receives a tap aimed at the
-    // tabs behind it, and closes. That is deliberate — a half-covered tab row invites
-    // taps that land on the wrong destination.
-    await menu.click();
-    await expect(refresh).toBeVisible();
-    await expect(
-      page.getByRole('tab', { name: 'Gemeenten', exact: true }).click({ timeout: 2000 }),
-    ).rejects.toThrow();
-    await page.keyboard.press('Escape');
-
-    // A tab change the SHELL makes (the graph→details and cities→city bridges) does
-    // dismiss it, since no backdrop tap was involved.
-    await menu.click();
-    await expect(refresh).toBeVisible();
-    await page.evaluate(() =>
-      window.dispatchEvent(new CustomEvent('vng:openSpace', { detail: { spaceId: 'slimme-stad' } })),
-    );
-    await expect(refresh).toHaveCount(0);
-    expect(
-      (await page.locator('[role=tab][aria-selected=true]').textContent())?.trim(),
-    ).toBe('Initiatief informatie');
+    // Refresh moved into the user menu on a phone.
+    await expect(page.getByTestId('header-refresh')).toBeHidden();
+    await page.getByRole('button', { name: 'Gebruikersmenu' }).click();
+    await expect(page.getByRole('dialog').getByRole('button', { name: /vernieuwen/i })).toBeVisible();
+    await expectNoHorizontalPageScroll(page, 'phone header');
   });
 
   test('wide tables become card lists that keep their sort and their filters', async ({ page }) => {
@@ -275,7 +252,7 @@ test.describe('phone (390px)', () => {
     // WCAG 2.5.5 / iOS HIG. Checked on the controls that navigate, which are the ones a
     // mistap actually costs you something on.
     for (const target of [
-      page.getByRole('button', { name: 'Selectie' }),
+      page.getByTestId('gd-switch'),
       page.getByRole('tab', { name: 'Dashboard', exact: true }),
       page.getByRole('tab', { name: 'Graph', exact: true }),
     ]) {
@@ -304,9 +281,10 @@ test.describe('phone (390px)', () => {
 test.describe('tablet (820px)', () => {
   test.use({ viewport: { width: 820, height: 1180 } });
 
-  test('keeps the drawer and the card lists, and never scrolls sideways', async ({ page }) => {
+  test('has no selection drawer, keeps the card lists, and never scrolls sideways', async ({ page }) => {
     await boot(page);
-    await expect(page.getByRole('button', { name: 'Selectie' })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Selectie' })).toHaveCount(0);
+    await expect(page.getByTestId('gd-switch')).toBeVisible();
 
     await page.getByRole('tab', { name: 'Initiatieven', exact: true }).click();
     await expect(page.locator('main table')).toHaveCount(0);
@@ -321,14 +299,15 @@ test.describe('tablet (820px)', () => {
 test.describe('desktop (1440px)', () => {
   test.use({ viewport: { width: 1440, height: 900 } });
 
-  test('keeps the static selection column, the inline tabs and the real tables', async ({
+  test('has no selection column, the data controls in the header, the inline tabs and the real tables', async ({
     page,
   }) => {
     await boot(page);
-    // No drawer button: the panel is a permanent column, and its controls are reachable
-    // without opening anything.
+    // Feature 027: no selection column or drawer; GD switch and refresh are in the header.
     await expect(page.getByRole('button', { name: 'Selectie' })).toHaveCount(0);
+    await expect(page.getByText('Geselecteerde initiatieven')).toHaveCount(0);
     await expect(page.getByRole('button', { name: 'Vernieuwen' })).toBeVisible();
+    await expect(page.getByRole('switch', { name: /GemeenteDelers/ })).toBeVisible();
 
     await page.getByRole('tab', { name: 'Gemeenten', exact: true }).click();
     await expect(page.locator('main table')).toHaveCount(1);
@@ -336,3 +315,70 @@ test.describe('desktop (1440px)', () => {
     await expectNoHorizontalPageScroll(page, 'desktop Cities');
   });
 });
+
+// ───────────────────────────────────────────────────────────────────────────────
+// Feature 027 — the admin area (`/admin`) at every width (FR-034)
+// ───────────────────────────────────────────────────────────────────────────────
+const ADMIN_SPACES = Array.from({ length: 6 }, (_, i) => ({
+  nameId: `initiatief-met-een-heel-lange-naam-${i}`,
+  spaceId: `id-${i}`,
+  position: i,
+  displayName: `Een initiatief met een opvallend lange naam die moet afbreken ${i}`,
+  url: `https://alkem.io/initiatief-${i}`,
+  readable: i !== 3,
+  found: true,
+  classificationStatus: i !== 3 ? { set: 2, designated: 4 } : null,
+}));
+
+async function bootAdmin(page) {
+  await page.route('**/api/**', (r) => r.abort());
+  await page.route('**/api/auth/me', (r) =>
+    json(r, {
+      ...F.me,
+      access: { app: 'vng', status: 'admitted', level: 'manage', gated: true, viewerSpaces: [] },
+    }),
+  );
+  await page.route('**/api/features', (r) => json(r, {}));
+  await page.route('**/api/meta', (r) => json(r, { environment: 'test' }));
+  const pg = { key: 'programmagroei', displayName: 'Kenniscentrum Innovatie', url: 'https://alkem.io/programmagroei', exists: 'yes' };
+  await page.route('**/api/vng/admin/access', (r) =>
+    json(r, { viewers: [pg], admins: [pg], me: { displayName: 'Mia', viewer: true, manager: true } }),
+  );
+  await page.route('**/api/vng/admin/included-spaces', (r) =>
+    json(r, {
+      revision: 1,
+      spaces: ADMIN_SPACES,
+      lastChange: { revision: 1, kind: 'seed', at: '2026-11-14T08:00:00Z', actorName: null, added: [], removed: [], note: 'from starting set v1' },
+    }),
+  );
+  await page.route('**/api/vng/admin/initiatives*', (r) => json(r, { initiatives: [] }));
+  await page.route('**/api/vng/admin/gd-source', (r) =>
+    json(r, {
+      space: { displayName: 'gemeentedelers', url: 'https://alkem.io/gemeentedelers' },
+      available: true, error: null, total: 1, viaSubspaces: 1, viaPosts: 0,
+      initiatives: [], superseded: [], ambiguous: [], readAt: null, nextRefreshAt: null, migrationComplete: true,
+    }),
+  );
+  await page.goto(`${VNG_URL}/admin`, { waitUntil: 'domcontentloaded' });
+  await expect(page.getByTestId('admin-section-included')).toBeVisible({ timeout: 20_000 });
+  await expect(page.getByTestId('included-row').first()).toBeVisible({ timeout: 20_000 });
+}
+
+for (const [label, viewport, cards] of [
+  ['phone', { width: 390, height: 844 }, true],
+  ['tablet', { width: 820, height: 1180 }, true],
+  ['desktop', { width: 1440, height: 900 }, false],
+]) {
+  test.describe(`admin area (${viewport.width}px)`, () => {
+    test.use({ viewport });
+
+    test(`never scrolls sideways, and lists the Spaces as ${cards ? 'cards' : 'a table'}`, async ({ page }) => {
+      await bootAdmin(page);
+      await expect(page.getByTestId(cards ? 'included-cards' : 'included-table')).toBeVisible();
+      await expect(page.getByTestId(cards ? 'included-table' : 'included-cards')).toHaveCount(0);
+      await expectNoHorizontalPageScroll(page, `${label} admin`);
+      await page.getByTestId('included-edit').click();
+      await expectNoHorizontalPageScroll(page, `${label} admin editing`);
+    });
+  });
+}

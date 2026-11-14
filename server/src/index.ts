@@ -4,6 +4,12 @@ import { createLogger } from './logging/logger.js';
 import { initDatabase } from './cache/db.js';
 import { purgeExpired, runDeploymentCacheMaintenance } from './cache/cache-service.js';
 import { LEGACY_GD_POSTS_NOTICE } from './transform/gd-initiative-sources.js';
+import { APP_IDS, type GateRef } from './access/policy.js';
+import { startGateProbes } from './access/probe.js';
+import { initSettingsStore, settingsCreatedNow } from './settings/db.js';
+import { loadStartingSet, seedIfEmpty } from './settings/seed.js';
+import { getScope } from './settings/store.js';
+import { lastBackup, runBackupIfDue, scheduleDailyBackup } from './settings/backup.js';
 
 const config = loadConfig();
 const logger = createLogger(config.logging);
@@ -19,15 +25,40 @@ logger.info(
 // LEGACY-GD-POSTS: delete with the posts path.
 logger.warn(LEGACY_GD_POSTS_NOTICE, { context: 'Bootstrap' });
 
+// Features 026 + 027 — each application's access: its viewer Spaces (MEMBER → read) and
+// admin Spaces (ADMIN → manage). `loadConfig()` has already refused to start if any app
+// is undeclared or misconfigured (FR-003); state each one plainly, then probe every
+// distinct Space anonymously in the background (names/links for the sign-in and
+// "no access" pages). Listeners do not wait.
+const gateProbes: Array<{ gate: GateRef; displayNameFallback: string }> = [];
+for (const appId of APP_IDS) {
+  const { sets, displayNames } = config.access.apps[appId];
+  const keys = (refs: GateRef[]) => refs.map((r) => r.key).join(', ') || '(none)';
+  logger.info(
+    sets
+      ? `[Access] ${appId}: viewers ${keys(sets.viewers)}; admins ${keys(sets.admins)}`
+      : `[Access] ${appId}: UNGATED (explicit)`,
+    { context: 'Bootstrap' },
+  );
+  sets?.viewers.forEach((gate, i) =>
+    gateProbes.push({ gate, displayNameFallback: displayNames[i] ?? '' }),
+  );
+  sets?.admins.forEach((gate) => gateProbes.push({ gate, displayNameFallback: '' }));
+}
+startGateProbes(gateProbes, {
+  alkemioServerUrl: config.alkemioServerUrl,
+  timeoutMs: config.access.checkTimeoutMs,
+});
+
 // Three apps sharing the same /api routes + SQLite session/cache store:
 //  - the Explorer SPA on `config.port`
 //  - the VNG Kenniscentrum Innovatie SPA on `config.vngPort` (feature 016)
 //  - the GovTech Netherlands SPA on `config.govtechPort` (feature 017)
 // In production each serves its own static build; the shared `ea_session` cookie
 // (parent-domain scoped) means signing in on any subdomain works on all of them.
-const app = createApp('../frontend/dist');
-const vngApp = createApp('../frontend-vng/dist');
-const govtechApp = createApp('../frontend-govtech/dist');
+const app = createApp('explorer', '../frontend/dist');
+const vngApp = createApp('vng', '../frontend-vng/dist');
+const govtechApp = createApp('govtech', '../frontend-govtech/dist');
 // Namespace the default DB file per environment (issuer) so switching between
 // e.g. production and acceptance can't reuse another env's cache/session rows.
 initDatabase(config.oidc.issuer);
@@ -39,6 +70,28 @@ const maintenance = runDeploymentCacheMaintenance();
 if (maintenance.gdRowsCleared > 0) {
   logger.info(
     `One-time cache refresh: cleared ${maintenance.gdRowsCleared} GD initiative cache row(s)`,
+    { context: 'Bootstrap' },
+  );
+}
+
+// Feature 027 — the monitor's own settings (server/src/settings/README.md): their own tables
+// in this same SQLite file, which no cache operation touches. Created, seeded from the
+// build's starting set if empty, and backed up BEFORE any listener starts. An invalid
+// starting set stops start-up.
+try {
+  const settingsDb = initSettingsStore();
+  seedIfEmpty(settingsDb, loadStartingSet(), { createdNow: settingsCreatedNow() });
+} catch (err) {
+  logger.error((err as Error).message, { context: 'Bootstrap' });
+  process.exit(1);
+}
+await runBackupIfDue();
+scheduleDailyBackup();
+{
+  const scope = getScope();
+  logger.info(
+    `[Settings] monitor scope revision ${scope.revision}, ${scope.spaceNameIds.length} Spaces; ` +
+      `last backup ${lastBackup() ?? '(none)'}`,
     { context: 'Bootstrap' },
   );
 }

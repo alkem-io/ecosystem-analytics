@@ -13,6 +13,7 @@
  * 3. `fetchMe()` reads the current identity; `logout()` ends the session.
  */
 
+import type { AccessReport } from '@server/types/access.js';
 import { scopeImageCacheBustToUser, redirectToLogin } from '@ea/shared';
 
 export { redirectToLogin };
@@ -23,6 +24,8 @@ export interface MeResponse {
   avatarUrl: string | null;
   /** Base URL of the Alkemio server the BFF is connected to. */
   alkemioServerUrl: string;
+  /** Feature 026 — where this person stands with the Explorer's access gate. */
+  access?: AccessReport;
 }
 
 /** Begin sign-in by redirecting to the BFF (which 302s to Alkemio). */

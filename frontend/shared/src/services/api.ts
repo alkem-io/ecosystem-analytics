@@ -1,6 +1,7 @@
 import i18next from 'i18next';
 import type { ApiError } from '@server/types/api.js';
 import { redirectToLogin } from './auth.js';
+import { throwIfAccessDenied } from '../access/access-signal.js';
 
 export const API_BASE = import.meta.env.VITE_ECOSYSTEM_ANALYTICS_BACKEND_URL || '';
 
@@ -61,6 +62,8 @@ async function apiFetch<T>(path: string, options: RequestInit = {}): Promise<T> 
     redirectToLogin(returnTo);
     throw new Error('Session expired');
   }
+  // Feature 026: refused by an access gate → the shell's "no access" screen, not an error.
+  await throwIfAccessDenied(response);
 
   if (!response.ok) {
     const error: ApiError = await response.json().catch(() => ({
@@ -126,6 +129,8 @@ export async function apiStream<E>(
     redirectToLogin(returnTo);
     throw new Error('Session expired');
   }
+  // Feature 026: refused by an access gate → the shell's "no access" screen, not an error.
+  await throwIfAccessDenied(response);
   if (!response.ok) {
     const error: ApiError = await response.json().catch(() => ({
       error: 'UNKNOWN',

@@ -1,0 +1,215 @@
+import { describe, it, expect, vi } from 'vitest';
+import { determineLevel, type GateSdk } from './determine.js';
+import type { GateRef } from './policy.js';
+import type { AuthContext } from '../auth/middleware.js';
+
+const AUTH = { userId: 'u1', session: { sessionId: 's1' } } as unknown as AuthContext;
+const L0: GateRef = { path: ['programmagroei'], key: 'programmagroei' };
+const L1: GateRef = {
+  path: ['programmagroei', 'landelijkinnovatiemonitor'],
+  key: 'programmagroei/landelijkinnovatiemonitor',
+};
+const L2: GateRef = { path: ['a1', 'b2', 'c3'], key: 'a1/b2/c3' };
+
+const gate = (roles: string[] | undefined) => ({
+  id: 'gate',
+  community: roles ? { roleSet: { myRoles: roles } } : undefined,
+});
+
+/** A fake SDK whose three queries resolve the given gate node at every depth. */
+function sdkResolving(node: ReturnType<typeof gate> | null | undefined): GateSdk {
+  return {
+    accessGateL0: vi.fn(async () => ({ data: { lookupByName: { space: node } } })),
+    accessGateL1: vi.fn(async () => ({
+      data: { lookupByName: { space: { id: 'l0', subspaceByNameID: node } } },
+    })),
+    accessGateL2: vi.fn(async () => ({
+      data: {
+        lookupByName: {
+          space: { id: 'l0', subspaceByNameID: { id: 'l1', subspaceByNameID: node } },
+        },
+      },
+    })),
+  } as unknown as GateSdk;
+}
+
+/** A fake SDK whose every query rejects with `err`. */
+function sdkRejecting(err: unknown): GateSdk {
+  const fail = vi.fn(async () => {
+    throw err;
+  });
+  return { accessGateL0: fail, accessGateL1: fail, accessGateL2: fail } as unknown as GateSdk;
+}
+
+/** The shape graphql-request's ClientError carries. */
+function graphqlError(code: string, message = 'boom', status = 200) {
+  return Object.assign(new Error(message), {
+    response: { status, errors: [{ message, extensions: { code } }] },
+  });
+}
+
+/** The 026 shape: one Space serving as both the viewer and the admin set. */
+const run = (sdk: GateSdk, ref: GateRef = L1, exists: 'yes' | 'no' | 'unknown' = 'yes') =>
+  determineLevel(AUTH, { viewers: [ref], admins: [ref] }, () => exists, {
+    sdkFor: async () => sdk,
+    timeoutMs: 5000,
+  });
+
+describe('determineLevel — roles returned', () => {
+  it('maps the person’s roles on the gate Space to a level', async () => {
+    expect(await run(sdkResolving(gate(['MEMBER'])))).toBe('read');
+    expect(await run(sdkResolving(gate(['MEMBER', 'ADMIN'])))).toBe('manage');
+    expect(await run(sdkResolving(gate(['ADMIN'])))).toBe('manage'); // FR-007
+    expect(await run(sdkResolving(gate(['LEAD'])))).toBe('none');
+    expect(await run(sdkResolving(gate(undefined)))).toBe('none');
+  });
+
+  it('queries at the depth of the gate', async () => {
+    const sdk = sdkResolving(gate(['MEMBER']));
+    await run(sdk, L0);
+    await run(sdk, L1);
+    await run(sdk, L2);
+    expect(sdk.accessGateL0).toHaveBeenCalledWith({ space: 'programmagroei' });
+    expect(sdk.accessGateL1).toHaveBeenCalledWith({
+      space: 'programmagroei',
+      sub: 'landelijkinnovatiemonitor',
+    });
+    expect(sdk.accessGateL2).toHaveBeenCalledWith({ space: 'a1', sub: 'b2', subsub: 'c3' });
+  });
+});
+
+describe('determineLevel — the person cannot see the gate', () => {
+  it('is none when the gate comes back null and the probe found the gate', async () => {
+    expect(await run(sdkResolving(null))).toBe('none');
+    expect(await run(sdkResolving(undefined), L0)).toBe('none');
+  });
+
+  it('is none on a FORBIDDEN / ENTITY_NOT_FOUND error when the probe found the gate', async () => {
+    expect(await run(sdkRejecting(graphqlError('FORBIDDEN_POLICY')))).toBe('none');
+    expect(await run(sdkRejecting(graphqlError('FORBIDDEN')))).toBe('none');
+    expect(await run(sdkRejecting(graphqlError('ENTITY_NOT_FOUND')))).toBe('none');
+    expect(
+      await run(
+        sdkRejecting(
+          graphqlError('', "User (x) does not have credentials that grant 'read' access"),
+        ),
+      ),
+    ).toBe('none');
+  });
+
+  it('does NOT mistake a refusal for an expired session (no sign-in loop)', async () => {
+    // Message mentions "authorization" but the code says forbidden → still `none`.
+    await expect(
+      run(sdkRejecting(graphqlError('FORBIDDEN_POLICY', 'Authorization: unable to read space'))),
+    ).resolves.toBe('none');
+  });
+
+  it('is unverified when the probe never confirmed the gate exists', async () => {
+    expect(await run(sdkResolving(null), L1, 'unknown')).toBe('unverified');
+    expect(await run(sdkResolving(null), L1, 'no')).toBe('unverified');
+    expect(await run(sdkRejecting(graphqlError('ENTITY_NOT_FOUND')), L1, 'unknown')).toBe(
+      'unverified',
+    );
+  });
+});
+
+describe('determineLevel — session or transport problems', () => {
+  it('rethrows an Alkemio auth error so the caller invalidates the session', async () => {
+    const unauth = graphqlError('UNAUTHENTICATED', 'not authenticated');
+    await expect(run(sdkRejecting(unauth))).rejects.toBe(unauth);
+    const http401 = Object.assign(new Error('401'), { response: { status: 401 } });
+    await expect(run(sdkRejecting(http401))).rejects.toBe(http401);
+  });
+
+  it('fails closed as unverified on a network error, timeout or 5xx', async () => {
+    expect(await run(sdkRejecting(new TypeError('fetch failed')))).toBe('unverified');
+    expect(await run(sdkRejecting(new DOMException('timed out', 'TimeoutError')))).toBe(
+      'unverified',
+    );
+    expect(
+      await run(sdkRejecting(Object.assign(new Error('502'), { response: { status: 502 } }))),
+    ).toBe('unverified');
+    expect(await run(sdkRejecting(graphqlError('INTERNAL_SERVER_ERROR')))).toBe('unverified');
+  });
+
+  it('fails closed when even building the client fails', async () => {
+    const outcome = await determineLevel(AUTH, { viewers: [L1], admins: [] }, () => 'yes', {
+      sdkFor: async () => {
+        throw new Error('decrypt failed');
+      },
+      timeoutMs: 5000,
+    });
+    expect(outcome).toBe('unverified');
+  });
+});
+
+describe('determineLevel — two sets (feature 027, research R1)', () => {
+  const V: GateRef = { path: ['viewers'], key: 'viewers' };
+  const A: GateRef = { path: ['admins'], key: 'admins' };
+  type Answer = string[] | null | Error;
+
+  /** An L0-only SDK answering per Space nameID. */
+  function sdkBySpace(answers: Record<string, Answer>): GateSdk {
+    return {
+      accessGateL0: vi.fn(async ({ space }: { space: string }) => {
+        const a = answers[space];
+        if (a instanceof Error) throw a;
+        return { data: { lookupByName: { space: a ? gate(a) : null } } };
+      }),
+    } as unknown as GateSdk;
+  }
+
+  const decide = (
+    sdk: GateSdk,
+    sets: { viewers: GateRef[]; admins: GateRef[] },
+    exists: (k: string) => 'yes' | 'no' | 'unknown' = () => 'yes',
+  ) => determineLevel(AUTH, sets, exists, { sdkFor: async () => sdk, timeoutMs: 5000 });
+
+  it('asks once per distinct Space, even when it is in both sets', async () => {
+    const sdk = sdkBySpace({ viewers: ['MEMBER'], admins: [] });
+    await decide(sdk, { viewers: [V, A], admins: [A] });
+    expect(sdk.accessGateL0).toHaveBeenCalledTimes(2);
+  });
+
+  it('is manage with ADMIN on an admin Space and nothing on the viewer Space', async () => {
+    expect(await decide(sdkBySpace({ viewers: null, admins: ['ADMIN'] }), { viewers: [V], admins: [A] })).toBe(
+      'manage',
+    );
+  });
+
+  it('admits on a proven role even while another Space is unverified', async () => {
+    const sdk = sdkBySpace({ viewers: new TypeError('fetch failed'), admins: ['ADMIN'] });
+    expect(await decide(sdk, { viewers: [V], admins: [A] })).toBe('manage');
+  });
+
+  it('is read when MEMBER is proven while the admin Space is unverified', async () => {
+    const sdk = sdkBySpace({ viewers: ['MEMBER'], admins: new TypeError('fetch failed') });
+    expect(await decide(sdk, { viewers: [V], admins: [A] })).toBe('read');
+  });
+
+  it('is unverified when nothing admits and one Space could not be checked', async () => {
+    const sdk = sdkBySpace({ viewers: [], admins: new TypeError('fetch failed') });
+    expect(await decide(sdk, { viewers: [V], admins: [A] })).toBe('unverified');
+    const unknown = sdkBySpace({ viewers: null, admins: [] });
+    expect(
+      await decide(unknown, { viewers: [V], admins: [A] }, (k) => (k === 'viewers' ? 'unknown' : 'yes')),
+    ).toBe('unverified');
+  });
+
+  it('is none when every Space is refused or roleless', async () => {
+    const forbidden = graphqlError('FORBIDDEN_POLICY');
+    expect(await decide(sdkBySpace({ viewers: forbidden, admins: ['LEAD'] }), { viewers: [V], admins: [A] })).toBe(
+      'none',
+    );
+    expect(await decide(sdkBySpace({ viewers: ['ADMIN'], admins: ['MEMBER'] }), { viewers: [V], admins: [A] })).toBe(
+      'none',
+    );
+  });
+
+  it('rethrows an auth error from any Space', async () => {
+    const unauth = graphqlError('UNAUTHENTICATED', 'not authenticated');
+    await expect(
+      decide(sdkBySpace({ viewers: ['MEMBER'], admins: unauth }), { viewers: [V], admins: [A] }),
+    ).rejects.toBe(unauth);
+  });
+});
