@@ -16,7 +16,7 @@
  * Needs a VNG dev server (default http://localhost:5174, override with VNG_URL).
  */
 import { test, expect } from '@playwright/test';
-import { generateJson } from './fixtures/bff-mock.mjs';
+import { generateJson, scopeOf } from './fixtures/bff-mock.mjs';
 import { readFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -28,10 +28,26 @@ const F = JSON.parse(
 const VNG_URL = process.env.VNG_URL ?? 'http://localhost:5174';
 
 const GATE = {
+  key: 'programmagroei/landelijkinnovatiemonitor',
   displayName: 'Landelijk Innovatie Monitor',
   url: 'https://alkem.io/programmagroei/challenges/landelijkinnovatiemonitor',
+  exists: 'yes',
 };
-const access = (status, level) => ({ app: 'vng', status, level, gated: true, gate: GATE });
+// Feature 027: several viewer Spaces, each listed with its link.
+const SECOND = {
+  key: 'programmagroei',
+  displayName: 'Kenniscentrum Innovatie',
+  url: 'https://alkem.io/programmagroei',
+  exists: 'yes',
+};
+const VIEWER_SPACES = [GATE, SECOND];
+const access = (status, level) => ({
+  app: 'vng',
+  status,
+  level,
+  gated: true,
+  viewerSpaces: VIEWER_SPACES,
+});
 const ADMITTED = access('admitted', 'read');
 const REFUSED = access('none', 'none');
 const UNVERIFIED = access('unverified', null);
@@ -74,7 +90,18 @@ async function boot(page, { me, recheck, deny = false }) {
   await page.route('**/api/auth/login*', (r) => r.fulfill({ status: 200, body: 'login' }));
   await page.route('**/api/auth/logout', (r) => json(r, { ok: true }));
   await page.route('**/api/features', (r) => json(r, {}));
+  await page.route('**/api/auth/access/spaces', (r) =>
+    json(r, {
+      app: 'vng',
+      gated: true,
+      spaces: VIEWER_SPACES.map(({ key, displayName, url }) => ({ key, displayName, url })),
+    }),
+  );
   await page.route('**/api/meta', (r) => json(r, { environment: 'test' }));
+  await page.route(
+    '**/api/vng/scope',
+    data((r) => json(r, scopeOf(F))),
+  );
   await page.route('**/api/image-proxy*', (r) => r.abort());
   await page.route(
     '**/api/hubs?*',
@@ -123,12 +150,17 @@ test('a refused person sees who they are, the gate Space and what to do — and 
 
   await expect(noAccessHeading(page)).toBeVisible({ timeout: 15_000 });
   await expect(page.getByTestId('access-account')).toContainText(F.me.displayName);
-  await expect(page.getByTestId('access-explanation')).toContainText(GATE.displayName);
+  await expect(page.getByTestId('access-explanation')).toBeVisible();
 
-  const link = page.getByTestId('access-gate-link');
-  await expect(link).toHaveAttribute('href', GATE.url);
-  await expect(link).toHaveAttribute('target', '_blank');
-  await expect(link).toHaveAttribute('rel', /noopener/);
+  // Feature 027 (FR-003): every viewer Space, each with its own link.
+  const links = page.getByTestId('access-gate-link');
+  await expect(links).toHaveCount(VIEWER_SPACES.length);
+  for (const [i, space] of VIEWER_SPACES.entries()) {
+    await expect(links.nth(i)).toContainText(space.displayName);
+    await expect(links.nth(i)).toHaveAttribute('href', space.url);
+    await expect(links.nth(i)).toHaveAttribute('target', '_blank');
+    await expect(links.nth(i)).toHaveAttribute('rel', /noopener/);
+  }
 
   await expect(
     page.getByRole('button', { name: /opnieuw controleren|check again/i }),
@@ -190,4 +222,40 @@ test('the no-access screen never scrolls horizontally at phone width', async ({ 
     () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
   );
   expect(overflow).toBeLessThanOrEqual(0);
+});
+
+test('signed out, the sign-in screen lists the viewer Spaces with links (feature 027, US1)', async ({
+  page,
+}) => {
+  await page.route('**/api/**', (r) => r.abort());
+  await page.route('**/api/auth/me', (r) => json(r, { error: 'UNAUTHORIZED' }, 401));
+  await page.route('**/api/features', (r) => json(r, {}));
+  await page.route('**/api/auth/access/spaces', (r) =>
+    json(r, {
+      app: 'vng',
+      gated: true,
+      spaces: VIEWER_SPACES.map(({ key, displayName, url }) => ({ key, displayName, url })),
+    }),
+  );
+  await page.goto(VNG_URL, { waitUntil: 'domcontentloaded' });
+
+  const box = page.getByTestId('login-access');
+  await expect(box).toBeVisible({ timeout: 15_000 });
+  await expect(box).toContainText(/Leden van deze Spaces|Members of these Spaces/);
+  const links = page.getByTestId('login-access-link');
+  await expect(links).toHaveCount(VIEWER_SPACES.length);
+  await expect(links.first()).toHaveAttribute('href', GATE.url);
+  // Never blocks signing in.
+  await expect(page.getByRole('button', { name: /aanmelden|sign in/i })).toBeEnabled();
+});
+
+test('the sign-in screen shows a generic line when the Space list cannot be loaded', async ({
+  page,
+}) => {
+  await page.route('**/api/**', (r) => r.abort());
+  await page.route('**/api/auth/me', (r) => json(r, { error: 'UNAUTHORIZED' }, 401));
+  await page.route('**/api/features', (r) => json(r, {}));
+  await page.goto(VNG_URL, { waitUntil: 'domcontentloaded' });
+  await expect(page.getByTestId('login-access-generic')).toBeVisible({ timeout: 15_000 });
+  await expect(page.getByRole('button', { name: /aanmelden|sign in/i })).toBeEnabled();
 });

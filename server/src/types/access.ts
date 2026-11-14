@@ -23,10 +23,35 @@ export interface GateRef {
   key: string;
 }
 
-/** What one consumer requires: explicitly ungated, or a gate Space plus a minimum level. */
+/**
+ * An application's two sets of Spaces (feature 027, research R1): MEMBER of any viewer
+ * Space gives Read; ADMIN of any admin Space gives Manage (which includes Read).
+ * `setKey` identifies both sets in a held decision, so changing either set invalidates
+ * every decision taken against the old ones.
+ */
+export interface AccessSets {
+  viewers: GateRef[];
+  /** May be empty: then nobody can manage. */
+  admins: GateRef[];
+  /** `v:<sorted viewer keys>|a:<sorted admin keys>`. */
+  setKey: string;
+}
+
+/** What one consumer requires: explicitly ungated, or the app's sets plus a minimum level. */
 export type AccessPolicy =
   | { app: AppId; gate: null }
-  | { app: AppId; gate: GateRef; required: Exclude<AccessLevel, 'none'> };
+  | { app: AppId; gate: AccessSets; required: Exclude<AccessLevel, 'none'> };
+
+/** A Space as shown to people: on the sign-in, no-access and admin screens (feature 027). */
+export interface GateLink {
+  /** The gate path, e.g. `programmagroei`. */
+  key: string;
+  /** Probe name, else the configured fallback, else the last path segment. */
+  displayName: string;
+  url: string;
+  /** From the anonymous start-up probe. */
+  exists: 'yes' | 'no' | 'unknown';
+}
 
 /** Where the person stands with ONE application — what a shell renders from. */
 export type AccessStatus = 'admitted' | 'none' | 'unverified';
@@ -40,8 +65,11 @@ export interface AccessReport {
   level: AccessLevel | null;
   /** Whether this application has a gate at all. */
   gated: boolean;
-  /** The gate Space as shown on the "no access" page; `null` when ungated. */
-  gate: { displayName: string; url: string } | null;
+  /**
+   * The viewer Spaces as shown on the "no access" page (feature 027); empty when ungated.
+   * Admin Spaces are never listed here — only the admin API returns them.
+   */
+  viewerSpaces: GateLink[];
 }
 
 /** Body of a 403 from a gated route (contracts/api-access.md §3). */

@@ -16,7 +16,8 @@
   },
   "access": {
     "noAccessTitle": "You do not have access",
-    "noAccessBody": "Access to this monitor is granted to members of {{space}} on Alkemio. Ask to join it there, then check again.",
+    "noAccessBody": "Access to this monitor is granted to members of the Spaces below on Alkemio. Ask to join one of them there, then check again.",
+    "spacesHeading": "Members of these Spaces have access",
     "openSpace": "Open {{space}} on Alkemio",
     "checkAgain": "Check again",
     "checking": "Checking…",

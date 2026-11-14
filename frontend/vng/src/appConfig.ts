@@ -22,4 +22,6 @@ export const appConfig: AppConfig = {
   intake: true,
   // Feature 024 — the ecosystem map. VNG-only for now.
   ecosystem: true,
+  // Feature 027 — the monitor's own Spaces (no hub picker) and the /admin area.
+  flags: { managedScope: true },
 };

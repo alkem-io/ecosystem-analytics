@@ -69,6 +69,15 @@ beforeAll(async () => {
       res.json({ ok: true });
     },
   );
+  // Feature 027: a write route re-determines first (research R4).
+  mgmt.put(
+    '/api/manage',
+    authMiddleware,
+    requireAccess({ app: 'vng', required: 'manage', fresh: true }),
+    (_req, res) => {
+      res.json({ ok: true });
+    },
+  );
   base.mgmt = await listen(mgmt);
 });
 
@@ -345,5 +354,47 @@ describe('requireAccess — a Manage-level route (US4, FR-018b)', () => {
     // The VNG app gate (Read) is answered from the same held decisions.
     expect((await call('vng', '/api/spaces', { cookie: reader })).status).not.toBe(403);
     expect(determine).toHaveBeenCalledTimes(2);
+  });
+});
+
+describe('requireAccess — two sets and fresh writes (feature 027)', () => {
+  it('admits an ADMIN-only person (determined as manage) and refuses a MEMBER-only one', async () => {
+    determine.mockResolvedValueOnce('manage').mockResolvedValueOnce('read');
+    const admin = newSession();
+    const member = newSession();
+    expect((await call('mgmt', '/api/manage', { cookie: admin })).status).toBe(200);
+    const refused = await call('mgmt', '/api/manage', { cookie: member });
+    expect(refused.status).toBe(403);
+    expect(refused.json).toMatchObject({ error: 'ACCESS_DENIED', reason: 'none', app: 'vng' });
+  });
+
+  it('refuses a fresh route at once when the role was removed mid-session (FR-009)', async () => {
+    determine.mockResolvedValueOnce('manage');
+    const cookie = newSession();
+    expect((await call('mgmt', '/api/manage', { cookie })).status).toBe(200);
+    // ADMIN removed on Alkemio: the next determination says read.
+    determine.mockResolvedValue('read');
+    const write = await call('mgmt', '/api/manage', { method: 'PUT', cookie });
+    expect(write.status).toBe(403);
+    expect(write.json).toMatchObject({ reason: 'none' });
+    expect(determine).toHaveBeenCalledTimes(2);
+  });
+
+  it('keeps admitting a non-fresh route on the held decision until it is re-determined', async () => {
+    determine.mockResolvedValueOnce('manage');
+    const cookie = newSession();
+    expect((await call('mgmt', '/api/manage', { cookie })).status).toBe(200);
+    determine.mockResolvedValue('read');
+    expect((await call('mgmt', '/api/manage', { cookie })).status).toBe(200);
+    expect(determine).toHaveBeenCalledTimes(1);
+  });
+
+  it('reports "unverified" from a fresh check that could not complete', async () => {
+    determine.mockResolvedValueOnce('manage').mockResolvedValueOnce('unverified');
+    const cookie = newSession();
+    expect((await call('mgmt', '/api/manage', { cookie })).status).toBe(200);
+    const write = await call('mgmt', '/api/manage', { method: 'PUT', cookie });
+    expect(write.status).toBe(403);
+    expect(write.json).toMatchObject({ reason: 'unverified' });
   });
 });

@@ -1,10 +1,10 @@
 import type { AuthContext } from '../auth/middleware.js';
 import { loadConfig } from '../config.js';
 import { getLogger } from '../logging/logger.js';
-import type { AccessReport } from '../types/access.js';
+import type { AccessReport, GateLink } from '../types/access.js';
 import { determineLevel, type DetermineOutcome } from './determine.js';
 import { clearDecision, getDecision, putDecision } from './decision-store.js';
-import { gateUrlPath, type AccessPolicy, type AppId } from './policy.js';
+import { gateUrlPath, type AccessPolicy, type AppId, type GateRef } from './policy.js';
 import { getGateInfo } from './probe.js';
 
 /**
@@ -14,8 +14,38 @@ import { getGateInfo } from './probe.js';
  * decision — a decision records the level, not a yes/no.
  */
 export function policyFor(app: AppId): AccessPolicy {
-  const gate = loadConfig().access.apps[app].gate;
-  return gate ? { app, gate, required: 'read' } : { app, gate: null };
+  const sets = loadConfig().access.apps[app].sets;
+  return sets ? { app, gate: sets, required: 'read' } : { app, gate: null };
+}
+
+/**
+ * A Space as shown to people (feature 027): the probe's public name and link, else the
+ * configured fallback name, else the last path segment, and a link built from the server
+ * URL. Never per-person data.
+ */
+export function gateLink(ref: GateRef, fallbackName = ''): GateLink {
+  const info = getGateInfo(ref.key);
+  return {
+    key: ref.key,
+    displayName: info?.displayName || fallbackName || ref.path[ref.path.length - 1],
+    url: info?.url || `${loadConfig().alkemioServerUrl.replace(/\/+$/, '')}${gateUrlPath(ref)}`,
+    exists: info?.exists ?? 'unknown',
+  };
+}
+
+/** An application's viewer Spaces as links, with the configured names by position. */
+export function viewerLinks(app: AppId): GateLink[] {
+  const { sets, displayNames } = loadConfig().access.apps[app];
+  return (sets?.viewers ?? []).map((ref, i) => gateLink(ref, displayNames[i]));
+}
+
+/** An application's admin Spaces as links (only the admin API shows these). */
+export function adminLinks(app: AppId): GateLink[] {
+  const { sets, displayNames } = loadConfig().access.apps[app];
+  return (sets?.admins ?? []).map((ref) => {
+    const asViewer = sets?.viewers.findIndex((v) => v.key === ref.key) ?? -1;
+    return gateLink(ref, asViewer >= 0 ? displayNames[asViewer] : '');
+  });
 }
 
 /** In-flight checks, so a burst of parallel first requests asks Alkemio once. */
@@ -36,13 +66,13 @@ export async function decide(
 ): Promise<DetermineOutcome> {
   const policy = policyFor(app);
   if (policy.gate === null) return 'read';
-  const gate = policy.gate;
+  const sets = policy.gate;
   const sessionId = auth.session.sessionId;
 
   if (opts.force) {
     clearDecision(sessionId, app);
   } else {
-    const held = getDecision(sessionId, app, gate.key);
+    const held = getDecision(sessionId, app, sets.setKey);
     if (held) return held.level;
   }
 
@@ -51,11 +81,11 @@ export async function decide(
   if (pending) return pending;
 
   const check = (async () => {
-    const exists = getGateInfo(app)?.exists ?? 'unknown';
-    const outcome = await determineLevel(auth, gate, exists, {
+    const existsFor = (key: string) => getGateInfo(key)?.exists ?? 'unknown';
+    const outcome = await determineLevel(auth, sets, existsFor, {
       timeoutMs: loadConfig().access.checkTimeoutMs,
     });
-    if (outcome !== 'unverified') putDecision(sessionId, app, gate.key, outcome);
+    if (outcome !== 'unverified') putDecision(sessionId, app, sets.setKey, outcome);
     if (outcome === 'none' || outcome === 'unverified') {
       // FR-019: who, which app, what — never a token, session id or cookie.
       getLogger().info(
@@ -76,29 +106,22 @@ export async function decide(
   }
 }
 
-/** Turn an outcome into what the frontends render (contracts/api-access.md §1). */
+/** Turn an outcome into what the frontends render (contracts/api-access-sets.md §2). */
 export function reportFor(app: AppId, outcome: DetermineOutcome): AccessReport {
   const policy = policyFor(app);
   if (policy.gate === null) {
-    return { app, status: 'admitted', level: 'read', gated: false, gate: null };
+    return { app, status: 'admitted', level: 'read', gated: false, viewerSpaces: [] };
   }
-  const info = getGateInfo(app);
-  const fallback = loadConfig().access.apps[app].displayNameFallback;
-  const gate = {
-    displayName: info?.displayName || fallback || policy.gate.path[policy.gate.path.length - 1],
-    url:
-      info?.url ||
-      `${loadConfig().alkemioServerUrl.replace(/\/+$/, '')}${gateUrlPath(policy.gate)}`,
-  };
+  const viewerSpaces = viewerLinks(app);
   if (outcome === 'unverified') {
-    return { app, status: 'unverified', level: null, gated: true, gate };
+    return { app, status: 'unverified', level: null, gated: true, viewerSpaces };
   }
   return {
     app,
     status: outcome === 'none' ? 'none' : 'admitted',
     level: outcome,
     gated: true,
-    gate,
+    viewerSpaces,
   };
 }
 

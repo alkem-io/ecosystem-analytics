@@ -9,7 +9,7 @@ let db: DatabaseType;
  * Turn an environment discriminator (an OIDC issuer or Alkemio server URL) into a
  * filesystem-safe slug, e.g. `https://identity.acc-alkem.io/` -> `identity-acc-alkem-io`.
  */
-function envSlug(discriminator?: string): string {
+export function envSlug(discriminator?: string): string {
   if (!discriminator) return '';
   let host = discriminator;
   try {

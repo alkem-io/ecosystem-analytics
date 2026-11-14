@@ -21,6 +21,7 @@
  *                       silently change the layout it was supposed to leave alone.
  */
 import { test, expect, devices } from '@playwright/test';
+import { scopeOf } from './fixtures/bff-mock.mjs';
 import { readFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -109,6 +110,8 @@ async function boot(page) {
   await page.route('**/api/auth/me', (r) => json(r, F.me));
   await page.route('**/api/hubs?*', (r) => json(r, F.hubs));
   await page.route('**/api/hubs/*/spaces', (r) => json(r, F.hubSpaces));
+  // Feature 027: VNG reads its Spaces from the monitor scope, not a hub.
+  await page.route('**/api/vng/scope', (r) => json(r, scopeOf(F)));
   await page.route('**/api/graph/generate', (r) => json(r, dataset));
   await page.route('**/api/graph/progress', (r) =>
     json(r, { step: 'ready', spacesTotal: 6, spacesCompleted: 6 }),
@@ -336,3 +339,70 @@ test.describe('desktop (1440px)', () => {
     await expectNoHorizontalPageScroll(page, 'desktop Cities');
   });
 });
+
+// ───────────────────────────────────────────────────────────────────────────────
+// Feature 027 — the admin area (`/admin`) at every width (FR-034)
+// ───────────────────────────────────────────────────────────────────────────────
+const ADMIN_SPACES = Array.from({ length: 6 }, (_, i) => ({
+  nameId: `initiatief-met-een-heel-lange-naam-${i}`,
+  spaceId: `id-${i}`,
+  position: i,
+  displayName: `Een initiatief met een opvallend lange naam die moet afbreken ${i}`,
+  url: `https://alkem.io/initiatief-${i}`,
+  readable: i !== 3,
+  found: true,
+  classificationStatus: i !== 3 ? { set: 2, designated: 4 } : null,
+}));
+
+async function bootAdmin(page) {
+  await page.route('**/api/**', (r) => r.abort());
+  await page.route('**/api/auth/me', (r) =>
+    json(r, {
+      ...F.me,
+      access: { app: 'vng', status: 'admitted', level: 'manage', gated: true, viewerSpaces: [] },
+    }),
+  );
+  await page.route('**/api/features', (r) => json(r, {}));
+  await page.route('**/api/meta', (r) => json(r, { environment: 'test' }));
+  const pg = { key: 'programmagroei', displayName: 'Kenniscentrum Innovatie', url: 'https://alkem.io/programmagroei', exists: 'yes' };
+  await page.route('**/api/vng/admin/access', (r) =>
+    json(r, { viewers: [pg], admins: [pg], me: { displayName: 'Mia', viewer: true, manager: true } }),
+  );
+  await page.route('**/api/vng/admin/included-spaces', (r) =>
+    json(r, {
+      revision: 1,
+      spaces: ADMIN_SPACES,
+      lastChange: { revision: 1, kind: 'seed', at: '2026-11-14T08:00:00Z', actorName: null, added: [], removed: [], note: 'from starting set v1' },
+    }),
+  );
+  await page.route('**/api/vng/admin/initiatives*', (r) => json(r, { initiatives: [] }));
+  await page.route('**/api/vng/admin/gd-source', (r) =>
+    json(r, {
+      space: { displayName: 'gemeentedelers', url: 'https://alkem.io/gemeentedelers' },
+      available: true, error: null, total: 1, viaSubspaces: 1, viaPosts: 0,
+      initiatives: [], superseded: [], ambiguous: [], readAt: null, nextRefreshAt: null, migrationComplete: true,
+    }),
+  );
+  await page.goto(`${VNG_URL}/admin`, { waitUntil: 'domcontentloaded' });
+  await expect(page.getByTestId('admin-section-included')).toBeVisible({ timeout: 20_000 });
+  await expect(page.getByTestId('included-row').first()).toBeVisible({ timeout: 20_000 });
+}
+
+for (const [label, viewport, cards] of [
+  ['phone', { width: 390, height: 844 }, true],
+  ['tablet', { width: 820, height: 1180 }, true],
+  ['desktop', { width: 1440, height: 900 }, false],
+]) {
+  test.describe(`admin area (${viewport.width}px)`, () => {
+    test.use({ viewport });
+
+    test(`never scrolls sideways, and lists the Spaces as ${cards ? 'cards' : 'a table'}`, async ({ page }) => {
+      await bootAdmin(page);
+      await expect(page.getByTestId(cards ? 'included-cards' : 'included-table')).toBeVisible();
+      await expect(page.getByTestId(cards ? 'included-table' : 'included-cards')).toHaveCount(0);
+      await expectNoHorizontalPageScroll(page, `${label} admin`);
+      await page.getByTestId('included-edit').click();
+      await expectNoHorizontalPageScroll(page, `${label} admin editing`);
+    });
+  });
+}

@@ -11,6 +11,8 @@ import { hubsRouter } from './routes/hubs.js';
 import { dashboardRouter } from './routes/dashboard.js';
 import { metaRouter } from './routes/meta.js';
 import { ecosystemRouter } from './routes/ecosystem.js';
+import { scopeRouter } from './routes/scope.js';
+import { adminRouter } from './admin/router.js';
 import { loadConfig } from './config.js';
 import { getLogger } from './logging/logger.js';
 import type { ApiError } from './types/api.js';
@@ -69,6 +71,10 @@ export function createApp(appId: AppId, staticDirRelative = '../frontend/dist') 
   app.use('/api/image-proxy', imageProxyRouter);
   app.use('/api/query', queryRouter);
   app.use('/api/hubs', hubsRouter);
+  // Feature 027 — the VNG monitor's own scope and its administration API. Mounted before
+  // the app-aware dashboard router so its auth middleware never handles these paths.
+  app.use('/api/vng/scope', scopeRouter);
+  app.use('/api/vng/admin', adminRouter);
   // App-aware dashboard routes — same router mounted per dashboard app so the app
   // id is derived from the path. `/api/vng/*` preserved; `/api/govtech/*` added (feature 017).
   app.use('/api/vng', dashboardRouter);

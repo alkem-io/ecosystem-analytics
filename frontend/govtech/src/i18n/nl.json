@@ -16,7 +16,8 @@
   },
   "access": {
     "noAccessTitle": "Je hebt geen toegang",
-    "noAccessBody": "Toegang tot deze monitor krijgen leden van {{space}} op Alkemio. Vraag daar om lid te worden en controleer het daarna opnieuw.",
+    "noAccessBody": "Toegang tot deze monitor krijgen leden van de Spaces hieronder op Alkemio. Vraag daar om lid te worden van een ervan en controleer het daarna opnieuw.",
+    "spacesHeading": "Leden van deze Spaces hebben toegang",
     "openSpace": "Open {{space}} op Alkemio",
     "checkAgain": "Opnieuw controleren",
     "checking": "Bezig met controleren…",

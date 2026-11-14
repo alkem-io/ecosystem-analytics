@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { getGateInfo, probeGate, resetGateInfo, type ProbeSdk } from './probe.js';
+import { getGateInfo, probeGate, resetGateInfo, startGateProbes, type ProbeSdk } from './probe.js';
 import { getLogger } from '../logging/logger.js';
 import type { GateRef } from './policy.js';
 
@@ -49,7 +49,7 @@ const gqlError = (code: string) =>
   });
 
 const probe = (sdk: ProbeSdk, fallback = '') =>
-  probeGate('vng', LIM, fallback, { sdk, alkemioServerUrl: SERVER });
+  probeGate(LIM, fallback, { sdk, alkemioServerUrl: SERVER });
 
 let warn: ReturnType<typeof vi.spyOn>;
 let error: ReturnType<typeof vi.spyOn>;
@@ -68,7 +68,7 @@ describe('probeGate', () => {
       url: 'https://alkem.io/programmagroei/challenges/landelijkinnovatiemonitor',
       exists: 'yes',
     });
-    expect(getGateInfo('vng')).toEqual(info);
+    expect(getGateInfo(LIM.key)).toEqual(info);
     expect(warn).not.toHaveBeenCalled();
     expect(error).not.toHaveBeenCalled();
   });
@@ -109,5 +109,28 @@ describe('probeGate', () => {
   it('builds the URL from the server URL when Alkemio returns none', async () => {
     const info = await probe(sdkResolving(node({ url: '' })));
     expect(info.url).toBe('https://alkem.io/programmagroei/challenges/landelijkinnovatiemonitor');
+  });
+});
+
+describe('startGateProbes', () => {
+  it('probes each distinct Space once, whichever apps and sets name it', async () => {
+    const l0 = vi.fn(async () => ({
+      data: { lookupByName: { space: { id: 'pg', about: { profile: { displayName: 'PG', url: 'https://alkem.io/programmagroei' } } } } },
+    }));
+    const client = await import('../graphql/client.js');
+    const spy = vi
+      .spyOn(client, 'createAnonymousAlkemioSdk')
+      .mockReturnValue({ accessGateProbeL0: l0 } as never);
+    const PG = { path: ['programmagroei'], key: 'programmagroei' };
+    startGateProbes(
+      [
+        { gate: PG, displayNameFallback: '' },
+        { gate: PG, displayNameFallback: 'Kenniscentrum' },
+      ],
+      { alkemioServerUrl: SERVER },
+    );
+    await vi.waitFor(() => expect(getGateInfo('programmagroei')?.exists).toBe('yes'));
+    expect(l0).toHaveBeenCalledTimes(1);
+    spy.mockRestore();
   });
 });

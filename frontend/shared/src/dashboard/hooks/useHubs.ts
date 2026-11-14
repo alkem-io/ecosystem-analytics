@@ -42,15 +42,17 @@ interface UseHubsResult {
  * Fetch the innovation hubs available to the signed-in user (US1, FR-009/010).
  * Exposes the configured default so the selection state can preselect it.
  */
-export function useHubs(): UseHubsResult {
+export function useHubs({ enabled = true }: { enabled?: boolean } = {}): UseHubsResult {
   const { appId } = useAppConfig();
   const [hubs, setHubs] = useState<HubSummary[]>([]);
   const [defaultHubNameId, setDefaultHubNameId] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(enabled);
   const [error, setError] = useState<string | null>(null);
   const [reloadKey, setReloadKey] = useState(0);
 
   useEffect(() => {
+    // Feature 027: a managed-scope dashboard never lists hubs.
+    if (!enabled) return;
     let cancelled = false;
     setLoading(true);
     setError(null);
@@ -71,7 +73,7 @@ export function useHubs(): UseHubsResult {
     return () => {
       cancelled = true;
     };
-  }, [reloadKey, appId]);
+  }, [reloadKey, appId, enabled]);
 
   const fetchHubSpaces = useCallback(async (nameId: string): Promise<HubSpace[]> => {
     const res = await api.get<HubSpacesResponse>(`/api/hubs/${encodeURIComponent(nameId)}/spaces`);

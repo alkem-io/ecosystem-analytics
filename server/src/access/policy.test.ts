@@ -3,8 +3,10 @@ import {
   APP_IDS,
   admits,
   gateUrlPath,
-  levelFromRoles,
+  levelFromSets,
+  parseGateList,
   parseGateRef,
+  setKey,
   type AccessPolicy,
   type GateRef,
 } from './policy.js';
@@ -76,34 +78,93 @@ describe('gateUrlPath', () => {
   });
 });
 
-describe('levelFromRoles', () => {
-  it('is none without the MEMBER role — whatever other roles are held', () => {
-    expect(levelFromRoles([])).toBe('none');
-    expect(levelFromRoles(undefined)).toBe('none');
-    expect(levelFromRoles(['ADMIN'])).toBe('none'); // Manage requires Read
-    expect(levelFromRoles(['LEAD'])).toBe('none');
-    expect(levelFromRoles(['GUEST', 'ANONYMOUS'])).toBe('none');
+describe('parseGateList', () => {
+  it('parses a comma-separated list, trimming whitespace', () => {
+    expect(parseGateList('a, b/c')).toEqual([
+      { path: ['a'], key: 'a' },
+      { path: ['b', 'c'], key: 'b/c' },
+    ]);
+    expect(parseGateList('https://alkem.io/programmagroei')).toEqual([
+      { path: ['programmagroei'], key: 'programmagroei' },
+    ]);
   });
 
-  it('ignores privileges entirely — READ on a public Space is not a role', () => {
-    expect(levelFromRoles(['READ', 'UPDATE'])).toBe('none');
+  it('gives an empty list for an empty value (no admin Spaces)', () => {
+    expect(parseGateList('')).toEqual([]);
+    expect(parseGateList('  ')).toEqual([]);
   });
 
-  it('is read with MEMBER (with or without LEAD)', () => {
-    expect(levelFromRoles(['MEMBER'])).toBe('read');
-    expect(levelFromRoles(['MEMBER', 'LEAD'])).toBe('read');
+  it('rejects an empty item, a duplicate, `none` inside a list and garbage', () => {
+    expect(() => parseGateList('a,,b')).toThrow(/empty item/);
+    expect(() => parseGateList('a, ')).toThrow(/empty item/);
+    expect(() => parseGateList('a, A')).toThrow(/listed twice/);
+    expect(() => parseGateList('a, none')).toThrow(/none/);
+    expect(() => parseGateList('a, not a space!')).toThrow();
+  });
+});
+
+describe('setKey', () => {
+  const a = { path: ['a'], key: 'a' };
+  const b = { path: ['b', 'c'], key: 'b/c' };
+  it('is v:<sorted viewers>|a:<sorted admins>, independent of order', () => {
+    expect(setKey([a, b], [a])).toBe('v:a,b/c|a:a');
+    expect(setKey([b, a], [a])).toBe(setKey([a, b], [a]));
+    expect(setKey([a], [])).toBe('v:a|a:');
   });
 
-  it('is manage with MEMBER and ADMIN', () => {
-    expect(levelFromRoles(['MEMBER', 'ADMIN'])).toBe('manage');
-    expect(levelFromRoles(['ADMIN', 'LEAD', 'MEMBER'])).toBe('manage');
+  it('differs when either set changes', () => {
+    expect(setKey([a], [a])).not.toBe(setKey([a], [b]));
+    expect(setKey([a], [a])).not.toBe(setKey([a, b], [a]));
+  });
+});
+
+describe('levelFromSets', () => {
+  const viewer = { path: ['viewers'], key: 'viewers' };
+  const admin = { path: ['admins'], key: 'admins' };
+  const sets = { viewers: [viewer], admins: [admin] };
+  const roles = (entries: Record<string, string[] | null>) => new Map(Object.entries(entries));
+
+  it('is manage with ADMIN on an admin Space, even without MEMBER (FR-007)', () => {
+    expect(levelFromSets(sets, roles({ admins: ['ADMIN'] }))).toBe('manage');
+    expect(levelFromSets(sets, roles({ viewers: ['MEMBER'], admins: ['ADMIN'] }))).toBe('manage');
+  });
+
+  it('is read with MEMBER on a viewer Space', () => {
+    expect(levelFromSets(sets, roles({ viewers: ['MEMBER'] }))).toBe('read');
+    expect(levelFromSets(sets, roles({ viewers: ['MEMBER', 'LEAD'], admins: ['MEMBER'] }))).toBe(
+      'read',
+    );
+  });
+
+  it('is none with ADMIN on a viewer-only Space', () => {
+    expect(levelFromSets(sets, roles({ viewers: ['ADMIN'] }))).toBe('none');
+  });
+
+  it('is none with LEAD alone, with nothing, and ignores privileges', () => {
+    expect(levelFromSets(sets, roles({ viewers: ['LEAD'], admins: ['LEAD'] }))).toBe('none');
+    expect(levelFromSets(sets, roles({}))).toBe('none');
+    expect(levelFromSets(sets, roles({ viewers: null, admins: null }))).toBe('none');
+    expect(levelFromSets(sets, roles({ viewers: ['READ', 'UPDATE'] }))).toBe('none');
+  });
+
+  it('uses one Space in both sets for both roles', () => {
+    const both = { viewers: [viewer], admins: [viewer] };
+    expect(levelFromSets(both, roles({ viewers: ['ADMIN'] }))).toBe('manage');
+    expect(levelFromSets(both, roles({ viewers: ['MEMBER'] }))).toBe('read');
+  });
+
+  it('is none for every role when the admin set is empty and no MEMBER is held', () => {
+    expect(levelFromSets({ viewers: [viewer], admins: [] }, roles({ viewers: ['ADMIN'] }))).toBe(
+      'none',
+    );
   });
 });
 
 describe('admits', () => {
+  const sets = { viewers: [LIM], admins: [LIM], setKey: setKey([LIM], [LIM]) };
   const ungated: AccessPolicy = { app: 'explorer', gate: null };
-  const read: AccessPolicy = { app: 'vng', gate: LIM, required: 'read' };
-  const manage: AccessPolicy = { app: 'vng', gate: LIM, required: 'manage' };
+  const read: AccessPolicy = { app: 'vng', gate: sets, required: 'read' };
+  const manage: AccessPolicy = { app: 'vng', gate: sets, required: 'manage' };
 
   it('admits every level on an ungated policy', () => {
     expect(admits(ungated, 'none')).toBe(true);

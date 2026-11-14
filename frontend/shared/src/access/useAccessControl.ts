@@ -36,7 +36,10 @@ export function useAccessControl(me: MeResponse | null): AccessControl {
             setAccess(next);
           } else if (next) {
             // The app itself admits the person — the refusal came from another
-            // application's feature. Stay put and re-arm for the next one.
+            // application's feature, or (feature 027) from a stricter route such as the
+            // admin area. Stay put, take the fresh level (a lost Manage hides the
+            // settings entry), and re-arm for the next one.
+            setAccess(next);
             resetAccessSignal();
           } else {
             setAccess((prev) =>

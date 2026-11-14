@@ -19,10 +19,15 @@ import { meHandler } from './me.js';
 import { resetGateInfo } from '../access/probe.js';
 
 const determine = vi.mocked(determineLevel);
-const LIM_GATE = {
-  displayName: 'Kenniscentrum Innovatie',
-  url: 'https://alkem.io/programmagroei',
-};
+// Feature 027: the viewer Spaces as links — the admin Spaces are never in /me.
+const VIEWER_SPACES = [
+  {
+    key: 'programmagroei',
+    displayName: 'Kenniscentrum Innovatie',
+    url: 'https://alkem.io/programmagroei',
+    exists: 'unknown',
+  },
+];
 
 beforeEach(() => {
   initDatabase();
@@ -63,7 +68,7 @@ describe('GET /api/auth/me — access report (feature 026)', () => {
       status: 'admitted',
       level: 'read',
       gated: false,
-      gate: null,
+      viewerSpaces: [],
     });
     expect(determine).not.toHaveBeenCalled();
   });
@@ -78,7 +83,7 @@ describe('GET /api/auth/me — access report (feature 026)', () => {
       status: 'admitted',
       level: 'read',
       gated: true,
-      gate: LIM_GATE,
+      viewerSpaces: VIEWER_SPACES,
     });
   });
 
@@ -101,7 +106,7 @@ describe('GET /api/auth/me — access report (feature 026)', () => {
       status: 'unverified',
       level: null,
       gated: true,
-      gate: LIM_GATE,
+      viewerSpaces: VIEWER_SPACES,
     });
   });
 

@@ -160,7 +160,20 @@ access:
   govtech: ${GOVTECH_ACCESS_GATE}:none
   # Shown on the "no access" page only if the start-up probe cannot reach Alkemio.
   vng_display_name: "${VNG_ACCESS_GATE_NAME}:Kenniscentrum Innovatie"
+  # Feature 027. `vng` above may list several viewer Spaces, comma-separated (MEMBER of any
+  # one admits). `vng_admin` lists the admin Spaces: ADMIN of any one is a Monitor Manager.
+  # Empty = nobody can manage. `vng_display_names` names the 2nd, 3rd… viewer Space by
+  # position (comma-separated); the first one is `vng_display_name`.
+  vng_admin: ${VNG_ADMIN_GATE}:programmagroei
+  vng_display_names: "${VNG_ACCESS_GATE_NAMES}:"
   govtech_display_name: "${GOVTECH_ACCESS_GATE_NAME}:"
   explorer_display_name: "${EXPLORER_ACCESS_GATE_NAME}:"
   # Per-person role check timeout; on timeout the person is NOT admitted (fail closed).
   check_timeout_ms: ${ACCESS_CHECK_TIMEOUT_MS}:5000
+
+# Monitor settings (feature 027, server/src/settings/README.md). They are tables in the one
+# application DB; a daily backup of THOSE TABLES ONLY goes to backup_dir (default
+# data/backups/). Keep it on storage that survives the data volume.
+settings:
+  backup_dir: "${SETTINGS_BACKUP_DIR}:"
+  backup_keep: ${SETTINGS_BACKUP_KEEP}:14

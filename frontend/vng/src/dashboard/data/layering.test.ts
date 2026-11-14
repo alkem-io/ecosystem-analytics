@@ -6,7 +6,8 @@
  * and the graph loader. If a tab grows a `useState` of a dataset or an `api.` call, this
  * test fails before a reviewer has to notice. Two static fetches are allow-listed on
  * purpose: the graph tab's region boundary (a static asset, not data) and the login
- * screen's feature flags (before any data exists).
+ * screen's feature flags and public viewer-Space list (feature 027) — both before any
+ * data exists.
  */
 import { describe, it, expect } from 'vitest';
 
@@ -19,7 +20,7 @@ const SOURCES = import.meta.glob(
 const rel = (path: string) => path.replace(/^.*\/shared\/src\/dashboard\//, '');
 const ALLOWED_FETCHES = new Map([
   ['pages/GraphTab.tsx', /fetch\(resolveMapConfig\(mapRegion\)\.url\)/],
-  ['components/LoginScreen.tsx', /fetch\('\/api\/features'\)/],
+  ['components/LoginScreen.tsx', /fetch\('\/api\/(features|auth\/access\/spaces)'\)/g],
 ]);
 const FORBIDDEN = [
   /from\s+'[./]*services\/api\.js'/,

@@ -17,7 +17,7 @@
  * what the SPEC promises: who is at the centre, what is drawn, what the filters do.
  */
 import { test, expect } from '@playwright/test';
-import { generateJson, activityJson } from './fixtures/bff-mock.mjs';
+import { generateJson, activityJson, scopeOf } from './fixtures/bff-mock.mjs';
 import { readFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -50,6 +50,8 @@ async function boot(page, { choice = F.orchestratorChoice, onPut } = {}) {
   await page.route('**/api/auth/me', (r) => json(r, F.me));
   await page.route('**/api/hubs?*', (r) => json(r, F.hubs));
   await page.route('**/api/hubs/*/spaces', (r) => json(r, F.hubSpaces));
+  // Feature 027: VNG reads its Spaces from the monitor scope, not a hub.
+  await page.route('**/api/vng/scope', (r) => json(r, scopeOf(F)));
   await page.route('**/api/graph/generate', (r) => generateJson(r, F.dataset, F.dashboard));
   await page.route('**/api/graph/activity', (r) => activityJson(r, F.dataset));
   await page.route('**/api/graph/progress', (r) =>

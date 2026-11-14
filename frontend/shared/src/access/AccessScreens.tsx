@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react';
+import type { GateLink } from '@server/types/access.js';
 import { ExternalLink, Loader2, LogOut, RefreshCw, ShieldAlert, ShieldX } from 'lucide-react';
 import { cn } from '../lib/cn.js';
 
@@ -12,8 +13,11 @@ import { cn } from '../lib/cn.js';
 export interface AccessStrings {
   /** "No access" screen */
   noAccessTitle: string;
-  /** Explanation; `{{space}}` is replaced with the gate Space's name. */
+  /** Explanation of where access comes from (no Space name: the Spaces are listed below). */
   noAccessBody: string;
+  /** Heading above the list of viewer Spaces (feature 027). */
+  spacesHeading: string;
+  /** Link text per Space; `{{space}}` is replaced with its name. */
   openSpace: string;
   checkAgain: string;
   checking: string;
@@ -29,7 +33,8 @@ export interface AccessStrings {
 export const ACCESS_STRINGS_EN: AccessStrings = {
   noAccessTitle: 'You do not have access',
   noAccessBody:
-    'Access to this application is granted to members of {{space}} on Alkemio. Ask to join it there, then check again.',
+    'Access to this application is granted to members of the Spaces below on Alkemio. Ask to join one of them there, then check again.',
+  spacesHeading: 'Members of these Spaces have access',
   openSpace: 'Open {{space}} on Alkemio',
   checkAgain: 'Check again',
   checking: 'Checking…',
@@ -82,7 +87,8 @@ const secondaryButton = cn(
 export interface NoAccessScreenProps {
   /** The signed-in account's display name. */
   accountName: string;
-  gate: { displayName: string; url: string };
+  /** The application's viewer Spaces (feature 027: one link each). */
+  spaces: GateLink[];
   strings: AccessStrings;
   checking: boolean;
   onCheckAgain: () => void;
@@ -93,7 +99,7 @@ export interface NoAccessScreenProps {
 /** FR-013: who you are, why you are refused, where to ask, check again, sign out. */
 export function NoAccessScreen({
   accountName,
-  gate,
+  spaces,
   strings,
   checking,
   onCheckAgain,
@@ -112,20 +118,11 @@ export function NoAccessScreen({
         className="mt-5 text-sm leading-relaxed text-muted-foreground"
         data-testid="access-explanation"
       >
-        {fill(strings.noAccessBody, gate.displayName)}
+        {strings.noAccessBody}
       </p>
-      <p className="mt-4">
-        <a
-          href={gate.url}
-          target="_blank"
-          rel="noopener noreferrer"
-          data-testid="access-gate-link"
-          className="break-words text-sm font-semibold text-primary underline-offset-4 hover:underline"
-        >
-          {fill(strings.openSpace, gate.displayName)}
-          <ExternalLink className="ml-1.5 inline h-3.5 w-3.5 align-[-2px]" aria-hidden />
-        </a>
-      </p>
+      {spaces.length > 0 && (
+        <AccessSpaceList heading={strings.spacesHeading} spaces={spaces} linkText={strings.openSpace} />
+      )}
       <div className="mt-8 flex flex-col gap-3">
         <button type="button" className={primaryButton} disabled={checking} onClick={onCheckAgain}>
           {checking ? (
@@ -141,6 +138,48 @@ export function NoAccessScreen({
         </button>
       </div>
     </AccessCard>
+  );
+}
+
+/**
+ * The viewer Spaces as links (feature 027, FR-001–FR-003): on the no-access screen and
+ * the dashboards' sign-in screen. `linkText` may contain `{{space}}`.
+ */
+export function AccessSpaceList({
+  heading,
+  spaces,
+  linkText = '{{space}}',
+  testId = 'access-gate-link',
+  className = 'mt-5',
+}: {
+  className?: string;
+  heading: string;
+  spaces: Array<Pick<GateLink, 'key' | 'displayName' | 'url'>>;
+  linkText?: string;
+  testId?: string;
+}) {
+  return (
+    <section className={className} aria-label={heading}>
+      <h2 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+        {heading}
+      </h2>
+      <ul className="mt-2 space-y-1.5">
+        {spaces.map((space) => (
+          <li key={space.key}>
+            <a
+              href={space.url}
+              target="_blank"
+              rel="noopener noreferrer"
+              data-testid={testId}
+              className="break-words text-sm font-semibold text-primary underline-offset-4 hover:underline"
+            >
+              {fill(linkText, space.displayName)}
+              <ExternalLink className="ml-1.5 inline h-3.5 w-3.5 align-[-2px]" aria-hidden />
+            </a>
+          </li>
+        ))}
+      </ul>
+    </section>
   );
 }
 

@@ -329,13 +329,28 @@ export interface GraphDataset {
      * LEGACY-GD-POSTS: drop with the posts path.
      */
     sources?: GdLayerSources;
+    /** Feature 027: when the GD row was read from Alkemio, and when it expires (ISO). */
+    readAt?: string;
+    expiresAt?: string;
   };
 }
 
 /** How the GemeenteDelers subspaces and posts were reconciled (LEGACY-GD-POSTS). */
 export interface GdLayerSources {
   /** Each post dropped because a subspace supersedes it, and the rule that matched. */
-  superseded: { postNameId: string; subspaceNameId: string; rule: 'nameId' | 'title' | 'title-prefix' }[];
+  superseded: {
+    postNameId: string;
+    subspaceNameId: string;
+    rule: 'nameId' | 'title' | 'title-prefix';
+    /** Feature 027: the replacing subspace's name and link. Absent on older rows. */
+    subspaceDisplayName?: string | null;
+    subspaceUrl?: string | null;
+  }[];
   /** Subspaces skipped as not an initiative (template, training). */
   skippedSubspaceNameIds: string[];
+  /**
+   * Feature 027: subspaces whose title matched several same-year posts (nothing dropped
+   * for them). Absent on rows cached before it was recorded.
+   */
+  ambiguous?: { subspaceNameId: string; candidatePostNameIds: string[] }[];
 }

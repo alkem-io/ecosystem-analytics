@@ -69,6 +69,7 @@ export {
 export {
   ACCESS_STRINGS_EN,
   AccessCheckFailedScreen,
+  AccessSpaceList,
   NoAccessScreen,
   type AccessStrings,
 } from './access/AccessScreens.js';

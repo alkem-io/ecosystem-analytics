@@ -19,13 +19,15 @@ import { api, apiStream } from '@ea/shared/services/api.js';
 import { loadGraph, loadGraphJson } from '@ea/shared/services/graph-loader.js';
 import * as auth from '@ea/shared/services/auth.js';
 
-const gate = { displayName: 'Landelijk Innovatie Monitor', url: 'https://alkem.io/x' };
+const viewerSpaces = [
+  { key: 'x', displayName: 'Landelijk Innovatie Monitor', url: 'https://alkem.io/x', exists: 'yes' as const },
+];
 const report = (over: Partial<AccessReport>): AccessReport => ({
   app: 'vng',
   status: 'admitted',
   level: 'read',
   gated: true,
-  gate,
+  viewerSpaces,
   ...over,
 });
 
@@ -33,7 +35,7 @@ describe('accessScreenFor', () => {
   it('renders the app for an admitted person, at Read or Manage, gated or not', () => {
     expect(accessScreenFor(report({}))).toBe('app');
     expect(accessScreenFor(report({ level: 'manage' }))).toBe('app');
-    expect(accessScreenFor(report({ gated: false, gate: null }))).toBe('app');
+    expect(accessScreenFor(report({ gated: false, viewerSpaces: [] }))).toBe('app');
   });
 
   it('renders the no-access screen for a refused person', () => {

@@ -1,7 +1,7 @@
 import { createAnonymousAlkemioSdk } from '../graphql/client.js';
 import type { Sdk } from '../graphql/generated/graphql.js';
 import { getLogger } from '../logging/logger.js';
-import { gateUrlPath, type AppId, type GateRef } from './policy.js';
+import { gateUrlPath, type GateRef } from './policy.js';
 import type { GateExistence } from './determine.js';
 
 /** The slice of the typed SDK the anonymous probe uses. */
@@ -24,11 +24,12 @@ export interface ProbeDeps {
   timeoutMs?: number;
 }
 
-const registry = new Map<AppId, GateInfo>();
+/** Keyed by Space key (gate path), not by application (feature 027, research R2). */
+const registry = new Map<string, GateInfo>();
 
-/** The last probe result for an application's gate (undefined for an ungated app). */
-export function getGateInfo(app: AppId): GateInfo | undefined {
-  return registry.get(app);
+/** The last probe result for a Space (undefined until it has been probed). */
+export function getGateInfo(key: string): GateInfo | undefined {
+  return registry.get(key);
 }
 
 /** Test helper — forget every probe result. */
@@ -49,7 +50,6 @@ interface ProbeNode {
  * - unreachable → `unknown`; name/link from config, then the nameID (caller retries)
  */
 export async function probeGate(
-  app: AppId,
   gate: GateRef,
   displayNameFallback: string,
   deps: ProbeDeps,
@@ -57,7 +57,7 @@ export async function probeGate(
   const log = getLogger();
   const fallbackName = displayNameFallback || gate.path[gate.path.length - 1];
   const derivedUrl = `${deps.alkemioServerUrl.replace(/\/+$/, '')}${gateUrlPath(gate)}`;
-  const label = `${app}: gate '${gate.key}'`;
+  const label = `gate Space '${gate.key}'`;
   let info: GateInfo;
 
   try {
@@ -86,12 +86,12 @@ export async function probeGate(
 
   if (info.exists === 'no') {
     log.error(
-      `${label} was NOT FOUND on Alkemio. Nobody can be admitted to ${app} — check access.${app}.`,
+      `${label} was NOT FOUND on Alkemio. Nobody is admitted through it — check the access.* configuration.`,
       { context: 'Access' },
     );
   }
 
-  registry.set(app, info);
+  registry.set(gate.key, info);
   return info;
 }
 
@@ -120,16 +120,24 @@ function errorCode(err: unknown): string {
 const RETRY_MS = 60_000;
 
 /**
- * Probe every gated application's gate at start-up, without blocking the listeners;
- * retry every 60 s while Alkemio is unreachable (`exists === 'unknown'`).
+ * Probe every viewer and admin Space of every application at start-up, once per distinct
+ * Space (research R2), without blocking the listeners; retry every 60 s while Alkemio is
+ * unreachable (`exists === 'unknown'`). The first non-empty fallback name given for a
+ * Space wins.
  */
 export function startGateProbes(
-  gates: Array<{ app: AppId; gate: GateRef; displayNameFallback: string }>,
+  entries: Array<{ gate: GateRef; displayNameFallback: string }>,
   deps: Omit<ProbeDeps, 'sdk'>,
 ): void {
-  for (const { app, gate, displayNameFallback } of gates) {
+  const byKey = new Map<string, { gate: GateRef; displayNameFallback: string }>();
+  for (const entry of entries) {
+    const known = byKey.get(entry.gate.key);
+    if (!known) byKey.set(entry.gate.key, { ...entry });
+    else if (!known.displayNameFallback) known.displayNameFallback = entry.displayNameFallback;
+  }
+  for (const { gate, displayNameFallback } of byKey.values()) {
     const attempt = (): void => {
-      void probeGate(app, gate, displayNameFallback, deps).then((info) => {
+      void probeGate(gate, displayNameFallback, deps).then((info) => {
         if (info.exists === 'unknown') setTimeout(attempt, RETRY_MS).unref();
       });
     };

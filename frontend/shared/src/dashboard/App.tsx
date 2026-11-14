@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { lazy, Suspense, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   cn,
@@ -22,6 +22,12 @@ import { SelectedSpacesPanel } from './components/SelectedSpacesPanel.js';
 import { ErrorBoundary } from './components/ErrorBoundary.js';
 import { SelectionProvider, useSelectionContext } from './hooks/SelectionContext.js';
 import { DashboardDataProvider } from './data/DashboardDataProvider.js';
+import { useLoadedData } from './data/hooks.js';
+import { AccessLevelContext } from './hooks/AccessLevelContext.js';
+import { isAdminPath, usePathname } from '../admin/navigation.js';
+
+// Feature 027: the admin area is its own chunk — viewers never download it.
+const AdminApp = lazy(() => import('../admin/AdminApp.js'));
 import { LoadStrip } from './components/LoadStrip.js';
 import { GraphTab } from './pages/GraphTab.js';
 import { SpaceDetailsTab } from './pages/SpaceDetailsTab.js';
@@ -330,6 +336,26 @@ function TabBar<T extends string>({
 }
 
 /**
+ * Feature 027: the managed scope (VNG) carries nameIDs only, so the selection learns each
+ * Space's display name from the loaded dataset — read with the viewer's own token, like
+ * everything else on the dashboard.
+ */
+function SelectionNamesFromDataset() {
+  const { flags } = useAppConfig();
+  const loaded = useLoadedData();
+  const { learnDisplayNames } = useSelectionContext();
+  useEffect(() => {
+    if (!flags?.managedScope || !loaded) return;
+    const names: Record<string, string> = {};
+    for (const node of loaded.dataset.nodes) {
+      if (node.type === 'SPACE_L0' && node.nameId) names[node.nameId] = node.displayName;
+    }
+    learnDisplayNames(names);
+  }, [flags?.managedScope, loaded, learnDisplayNames]);
+  return null;
+}
+
+/**
  * Auth gate (US5/FR-004): resolve the shared `ea_session` identity. While loading,
  * show a branded loading screen (so the app never looks frozen); if unauthenticated,
  * show the login screen (which displays the environment); otherwise render the app.
@@ -366,8 +392,10 @@ export default function App() {
  */
 function AccessGate({ me }: { me: MeResponse }) {
   const { t } = useTranslation();
-  const { Logo } = useAppConfig();
+  const { Logo, flags } = useAppConfig();
   const { screen, access, checking, recheck } = useAccessControl(me);
+  const managedScope = flags?.managedScope === true;
+  const pathname = usePathname();
   const logo = <Logo className="h-9 w-auto max-w-full" title={t('app.title')} />;
   const signOut = () => void logout('/');
 
@@ -375,18 +403,20 @@ function AccessGate({ me }: { me: MeResponse }) {
     const strings = (Object.keys(ACCESS_STRINGS_EN) as Array<keyof AccessStrings>).reduce(
       (acc, key) => ({
         ...acc,
+        // `{{space}}` is filled per Space by the screen itself, so keep it literal here.
         [key]: t(`access.${key}`, {
           defaultValue: ACCESS_STRINGS_EN[key],
-          space: access?.gate?.displayName ?? '',
+          space: '{{space}}',
+          interpolation: { escapeValue: false },
         }),
       }),
       {} as AccessStrings,
     );
-    if (screen === 'no-access' && access?.gate) {
+    if (screen === 'no-access' && access) {
       return (
         <NoAccessScreen
           accountName={me.displayName}
-          gate={access.gate}
+          spaces={access.viewerSpaces ?? []}
           strings={strings}
           checking={checking}
           onCheckAgain={() => void recheck()}
@@ -406,14 +436,26 @@ function AccessGate({ me }: { me: MeResponse }) {
     );
   }
 
+  // Feature 027: `/admin` is the monitor's settings area, for a managed-scope dashboard.
+  if (managedScope && isAdminPath(pathname)) {
+    return (
+      <Suspense fallback={<LoadingScreen message={t('states.connecting')} />}>
+        <AdminApp canManage={access?.level === 'manage'} />
+      </Suspense>
+    );
+  }
+
   return (
+    <AccessLevelContext.Provider value={access?.level ?? null}>
     <SelectionProvider>
       {/* Feature 025: ONE loaded dataset per selection for every tab, mounted above the
           tab switch so tab (un)mounting never touches it. */}
       <DashboardDataProvider>
+        <SelectionNamesFromDataset />
         <AppShell />
         <BrokenVisualsPanel />
       </DashboardDataProvider>
     </SelectionProvider>
+    </AccessLevelContext.Provider>
   );
 }

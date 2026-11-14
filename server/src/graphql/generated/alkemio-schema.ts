@@ -18177,6 +18177,14 @@ export type SpaceAboutOnlyFragmentFragment = { id: string, nameID: string, creat
 
 export type SpaceGraphInfoFragmentFragment = { id: string, nameID: string, createdDate: Date, visibility: SpaceVisibility, about: { id: string, isContentPublic: boolean, membership: { myPrivileges?: Array<AuthorizationPrivilege> | undefined }, classifications: Array<{ id: string, displayLabel: string, cardinality: ClassificationCardinality, display: boolean, sortOrder: number, values: Array<{ id: string, label: string }>, selectedValues: Array<{ id: string, label: string }> }>, profile: { id: string, displayName: string, tagline?: string | undefined, url: string, location?: { country?: string | undefined, city?: string | undefined, geoLocation: { latitude?: number | undefined, longitude?: number | undefined } } | undefined, avatar?: { uri: string } | undefined, banner?: { uri: string } | undefined, bannerWide?: { uri: string } | undefined, tagsets?: Array<{ name: string, tags: Array<string>, type: TagsetType, allowedValues: Array<string> }> | undefined } }, community: { id: string, roleSet: { memberUsers: Array<{ id: string }>, memberOrganizations: Array<{ id: string, nameID: string, profile?: { displayName: string, url: string, avatar?: { uri: string } | undefined, location?: { country?: string | undefined, city?: string | undefined, geoLocation: { latitude?: number | undefined, longitude?: number | undefined } } | undefined, tagsets?: Array<{ name: string, tags: Array<string>, type: TagsetType }> | undefined } | undefined }>, leadOrganizations: Array<{ id: string, nameID: string, profile?: { displayName: string, url: string, avatar?: { uri: string } | undefined, location?: { country?: string | undefined, city?: string | undefined, geoLocation: { latitude?: number | undefined, longitude?: number | undefined } } | undefined, tagsets?: Array<{ name: string, tags: Array<string>, type: TagsetType }> | undefined } | undefined }>, leadUsers: Array<{ id: string }>, adminUsers: Array<{ id: string }> } }, subspaces: Array<{ id: string, nameID: string, createdDate: Date, visibility: SpaceVisibility, about: { id: string, isContentPublic: boolean, membership: { myPrivileges?: Array<AuthorizationPrivilege> | undefined }, classifications: Array<{ id: string, displayLabel: string, cardinality: ClassificationCardinality, display: boolean, sortOrder: number, values: Array<{ id: string, label: string }>, selectedValues: Array<{ id: string, label: string }> }>, profile: { id: string, displayName: string, tagline?: string | undefined, url: string, location?: { country?: string | undefined, city?: string | undefined, geoLocation: { latitude?: number | undefined, longitude?: number | undefined } } | undefined, avatar?: { uri: string } | undefined, banner?: { uri: string } | undefined, bannerWide?: { uri: string } | undefined, tagsets?: Array<{ name: string, tags: Array<string>, type: TagsetType, allowedValues: Array<string> }> | undefined } } }> };
 
+export type UpdateClassificationSelectionMutationVariables = Exact<{
+  entryId: Scalars['UUID']['input'];
+  selectedValueIDs: Array<Scalars['String']['input']> | Scalars['String']['input'];
+}>;
+
+
+export type UpdateClassificationSelectionMutation = { updateClassificationEntrySelection: { id: string, selectedValueIDs: Array<string> } };
+
 export type AccessGateRolesFragment = { id: string, community: { roleSet: { myRoles: Array<RoleName> } } };
 
 export type AccessGateL0QueryVariables = Exact<{
@@ -18248,6 +18256,36 @@ export type ActivityFeedGroupedQuery = { activityFeedGrouped: Array<
     | { id: string, type: ActivityEventType, createdDate: Date, triggeredBy: { id: string }, space?: { id: string } | undefined }
     | { id: string, type: ActivityEventType, createdDate: Date, triggeredBy: { id: string }, space?: { id: string } | undefined }
   > };
+
+export type AdminSpaceClassificationsQueryVariables = Exact<{
+  nameId: Scalars['NameID']['input'];
+}>;
+
+
+export type AdminSpaceClassificationsQuery = { lookupByName: { space?: { id: string, nameID: string, level: SpaceLevel, about: { authorization?: { myPrivileges?: Array<AuthorizationPrivilege> | undefined } | undefined, profile: { displayName: string, url: string }, classifications: Array<{ id: string, displayLabel: string, cardinality: ClassificationCardinality, sortOrder: number, selectedValueIDs: Array<string>, values: Array<{ id: string, label: string }> }> } } | undefined } };
+
+export type AdminSpaceClassificationsByIdQueryVariables = Exact<{
+  id: Scalars['UUID']['input'];
+}>;
+
+
+export type AdminSpaceClassificationsByIdQuery = { lookup: { space?: { id: string, nameID: string, level: SpaceLevel, about: { authorization?: { myPrivileges?: Array<AuthorizationPrivilege> | undefined } | undefined, profile: { displayName: string, url: string }, classifications: Array<{ id: string, displayLabel: string, cardinality: ClassificationCardinality, sortOrder: number, selectedValueIDs: Array<string>, values: Array<{ id: string, label: string }> }> } } | undefined } };
+
+export type AdminSpaceSearchQueryVariables = Exact<{
+  terms: Array<Scalars['String']['input']> | Scalars['String']['input'];
+}>;
+
+
+export type AdminSpaceSearchQuery = { search: { spaceResults: { results: Array<
+        | { type: SearchResultType }
+        | { type: SearchResultType }
+        | { type: SearchResultType }
+        | { type: SearchResultType }
+        | { type: SearchResultType }
+        | { type: SearchResultType, space: { id: string, nameID: string, level: SpaceLevel, about: { profile: { displayName: string, url: string } } } }
+        | { type: SearchResultType }
+        | { type: SearchResultType }
+      > } } };
 
 export type GemeenteLocationsQueryVariables = Exact<{
   first: Scalars['Int']['input'];

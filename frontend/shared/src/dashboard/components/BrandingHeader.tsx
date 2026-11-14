@@ -1,7 +1,9 @@
 import { useTranslation } from 'react-i18next';
-import { Menu } from 'lucide-react';
+import { Menu, Settings } from 'lucide-react';
 import { cn, useAppConfig } from '@ea/shared';
 import { UserMenu } from './UserMenu.js';
+import { useAccessLevel } from '../hooks/AccessLevelContext.js';
+import { ADMIN_PATH, navigate } from '../../admin/navigation.js';
 
 /**
  * Persistent header (FR-025). Shows the app logo plus the title/subtitle on the
@@ -19,7 +21,10 @@ export function BrandingHeader({
   menuOpen?: boolean;
 }) {
   const { t } = useTranslation();
-  const { Logo } = useAppConfig();
+  const { Logo, flags } = useAppConfig();
+  // Feature 027: the settings entry, for Monitor Managers of a managed-scope dashboard.
+  const level = useAccessLevel();
+  const canManage = flags?.managedScope === true && level === 'manage';
   return (
     <header
       className={cn(
@@ -57,7 +62,26 @@ export function BrandingHeader({
           </span>
         </div>
       </div>
-      <UserMenu />
+      <div className="flex shrink-0 items-center gap-2">
+        {canManage && (
+          <button
+            type="button"
+            onClick={() => navigate(ADMIN_PATH)}
+            data-testid="admin-entry"
+            aria-label={t('admin.entry', { defaultValue: 'Monitor settings' })}
+            title={t('admin.entry', { defaultValue: 'Monitor settings' })}
+            data-touch-target
+            className={cn(
+              'inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-md border border-border bg-card text-foreground',
+              'transition-colors hover:bg-muted',
+              'focus:outline-none focus-visible:ring-2 focus-visible:ring-primary',
+            )}
+          >
+            <Settings className="h-5 w-5" aria-hidden />
+          </button>
+        )}
+        <UserMenu />
+      </div>
     </header>
   );
 }

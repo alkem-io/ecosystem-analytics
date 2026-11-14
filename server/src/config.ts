@@ -2,7 +2,13 @@ import dotenv from 'dotenv';
 import { existsSync, readFileSync } from 'fs';
 import { join } from 'path';
 import YAML from 'yaml';
-import { APP_IDS, parseGateRef, type AppId, type GateRef } from './access/policy.js';
+import {
+  APP_IDS,
+  parseGateList,
+  setKey,
+  type AccessSets,
+  type AppId,
+} from './access/policy.js';
 
 dotenv.config();
 
@@ -102,11 +108,22 @@ export type VngConfig = DashboardAppConfig;
 export type DashboardAppId = 'vng' | 'govtech';
 
 /**
- * The access gate (feature 026). Each application is gated by one Alkemio Space or
- * explicitly ungated — never by default (FR-001, FR-003).
+ * The access gate (feature 026, two sets since 027). Each application is gated by its
+ * viewer Spaces (and optionally admin Spaces) or explicitly ungated — never by default
+ * (FR-001, FR-003).
  */
+export interface AppAccessConfig {
+  /** `null` = explicitly ungated (`access.<app>: none`). */
+  sets: AccessSets | null;
+  /**
+   * Fallback display names for the viewer Spaces, by position: `<app>_display_name` for
+   * the first, `<app>_display_names` (comma-separated) for the rest. Empty = none.
+   */
+  displayNames: string[];
+}
+
 export interface AccessConfig {
-  apps: Record<AppId, { gate: GateRef | null; displayNameFallback: string }>;
+  apps: Record<AppId, AppAccessConfig>;
   /** Per-person privilege check timeout; a timeout is "could not verify" (fail closed). */
   checkTimeoutMs: number;
 }
@@ -138,6 +155,15 @@ export interface ServerConfig {
   vng: VngConfig;
   /** Per-application access gate (feature 026). */
   access: AccessConfig;
+  /** The monitor settings store (feature 027, `server/src/settings/`). */
+  settings: SettingsConfig;
+}
+
+/** Feature 027 — where the monitor settings DB is backed up, and how many backups to keep. */
+export interface SettingsConfig {
+  /** Empty = `data/backups/`. */
+  backupDir: string;
+  backupKeep: number;
 }
 
 /** Resolve the YAML config file path (check env override, cwd, then relative to dist) */
@@ -226,6 +252,7 @@ export function loadConfig(): ServerConfig {
     vng?: DashboardYamlBlock;
     govtech?: DashboardYamlBlock;
     access?: Record<string, unknown>;
+    settings?: { backup_dir?: unknown; backup_keep?: unknown };
   };
 
   const oidc = parseOidcConfig(yml.oidc);
@@ -269,6 +296,10 @@ export function loadConfig(): ServerConfig {
     dashboards: { vng, govtech },
     vng,
     access,
+    settings: {
+      backupDir: yml.settings?.backup_dir ? String(yml.settings.backup_dir).trim() : '',
+      backupKeep: Math.max(1, Number(yml.settings?.backup_keep) || 14),
+    },
   };
 
   return cachedConfig;
@@ -315,34 +346,55 @@ function parseDashboardConfig(raw?: DashboardYamlBlock): DashboardAppConfig {
 }
 
 /**
- * Parse + validate the `access:` block (feature 026, contracts/config-access.md).
- * Every application MUST be declared — a gate path/URL or the literal `none`. A
- * missing, empty or unparseable value throws, so start-up fails rather than leaving
- * an application open by accident (FR-003).
+ * Parse + validate the `access:` block (feature 026 contracts/config-access.md, extended by
+ * 027 contracts/api-access-sets.md §3). Every application MUST be declared — its viewer
+ * Spaces (comma-separated paths/URLs) or the literal `none`. `<app>_admin` optionally lists
+ * the admin Spaces. Start-up stops (this throws) when a viewer value is missing or empty,
+ * an item does not parse, an item is duplicated within a set, or `<app>_admin` is set
+ * while `<app>: none` — so a typo can never leave an application open (FR-003).
  */
 export function parseAccessConfig(raw: Record<string, unknown> | undefined): AccessConfig {
   const block = raw ?? {};
+  const text = (value: unknown) => (value === undefined || value === null ? '' : String(value).trim());
   const apps = {} as AccessConfig['apps'];
   for (const app of APP_IDS) {
-    const value = block[app];
-    if (value === undefined || value === null || String(value).trim() === '') {
+    const value = text(block[app]);
+    if (!value) {
       throw new Error(
-        `access.${app} is not set. Declare the gate Space (e.g. 'space/subspace') or ` +
+        `access.${app} is not set. Declare the viewer Space(s) (e.g. 'space/subspace') or ` +
           `'none' to run ${app} ungated on purpose (feature 026, FR-003).`,
       );
     }
-    let gate: GateRef | null;
-    try {
-      gate = parseGateRef(String(value));
-    } catch (err) {
-      throw new Error(`access.${app}: '${String(value)}' is not valid — ${(err as Error).message}.`);
+    const adminValue = text(block[`${app}_admin`]);
+    const displayNames = [
+      text(block[`${app}_display_name`]),
+      ...text(block[`${app}_display_names`])
+        .split(',')
+        .map((n) => n.trim()),
+    ];
+    while (displayNames.length && !displayNames[displayNames.length - 1]) displayNames.pop();
+
+    if (value.toLowerCase() === 'none') {
+      if (adminValue) {
+        throw new Error(
+          `access.${app}_admin is set while access.${app} is 'none'. An ungated application ` +
+            `cannot have admin Spaces — gate it, or remove access.${app}_admin.`,
+        );
+      }
+      apps[app] = { sets: null, displayNames: [] };
+      continue;
     }
-    const fallback = block[`${app}_display_name`];
-    apps[app] = {
-      gate,
-      displayNameFallback:
-        fallback === undefined || fallback === null ? '' : String(fallback).trim(),
+
+    const parse = (key: string, raw: string) => {
+      try {
+        return parseGateList(raw);
+      } catch (err) {
+        throw new Error(`access.${key}: '${raw}' is not valid — ${(err as Error).message}.`);
+      }
     };
+    const viewers = parse(app, value);
+    const admins = parse(`${app}_admin`, adminValue);
+    apps[app] = { sets: { viewers, admins, setKey: setKey(viewers, admins) }, displayNames };
   }
   return { apps, checkTimeoutMs: Number(block.check_timeout_ms) || 5000 };
 }

@@ -7,9 +7,15 @@
  * satisfies it (FR-018a–c). Nothing else in the codebase decides access.
  */
 
-import type { AccessLevel, AccessPolicy, AppId, GateRef } from '../types/access.js';
+import type {
+  AccessLevel,
+  AccessPolicy,
+  AccessSets,
+  AppId,
+  GateRef,
+} from '../types/access.js';
 
-export type { AccessLevel, AccessPolicy, AppId, GateRef };
+export type { AccessLevel, AccessPolicy, AccessSets, AppId, GateRef };
 
 /** Every application the BFF serves, one per listener (Explorer :4000, VNG :4001, GovTech :4002). */
 export const APP_IDS = ['explorer', 'vng', 'govtech'] as const satisfies readonly AppId[];
@@ -99,18 +105,60 @@ export function gateUrlPath(gate: GateRef): string {
 }
 
 /**
- * A person's level from their ROLES in the gate Space's community (FR-004): MEMBER →
- * Read, MEMBER + ADMIN → Manage. Manage requires Read — ADMIN without MEMBER is no
- * access — and no other role (LEAD, …) admits on its own.
+ * Parse a comma-separated list of gate references (feature 027, contracts/api-access-sets.md
+ * §3), e.g. `"a, b/c"`. Each item goes through {@link parseGateRef}; `none` is not allowed
+ * inside a list (ungating is the caller's decision), and neither is an empty item or the
+ * same Space twice. Throws with the offending item.
+ */
+export function parseGateList(value: string): GateRef[] {
+  if (typeof value !== 'string') throw new Error('expected a string');
+  const items = value.split(',').map((s) => s.trim());
+  if (items.length === 1 && items[0] === '') return [];
+  const refs: GateRef[] = [];
+  for (const item of items) {
+    if (!item) throw new Error('empty item in the list');
+    const ref = parseGateRef(item);
+    if (ref === null) throw new Error('`none` cannot be part of a list');
+    if (refs.some((r) => r.key === ref.key)) throw new Error(`'${ref.key}' is listed twice`);
+    refs.push(ref);
+  }
+  return refs;
+}
+
+/**
+ * The canonical key of both sets, stored as `access_decisions.gate_key`:
+ * `v:<sorted viewer keys>|a:<sorted admin keys>`. Order-independent.
+ */
+export function setKey(viewers: readonly GateRef[], admins: readonly GateRef[]): string {
+  const keys = (refs: readonly GateRef[]) =>
+    refs
+      .map((r) => r.key)
+      .sort()
+      .join(',');
+  return `v:${keys(viewers)}|a:${keys(admins)}`;
+}
+
+/** The roles a person holds per Space key (`null`: the Space could not be read). */
+export type RolesBySpace = ReadonlyMap<string, readonly string[] | null | undefined>;
+
+/**
+ * A person's level from their ROLES across the two sets (feature 027, FR-007):
+ * - `manage` if they are ADMIN of any admin Space — even without MEMBER;
+ * - else `read` if they are MEMBER of any viewer Space;
+ * - else `none`. No other role (LEAD, …) admits, and ADMIN of a viewer-only Space is none.
  *
  * Roles, not privileges: Alkemio grants the READ privilege on a public Space to
  * everyone, so a privilege check would admit every signed-in person; a role is held
  * only by the people actually given it, whatever the Space's visibility.
  */
-export function levelFromRoles(roles: readonly string[] | null | undefined): AccessLevel {
-  const set = new Set(roles ?? []);
-  if (!set.has('MEMBER')) return 'none';
-  return set.has('ADMIN') ? 'manage' : 'read';
+export function levelFromSets(
+  sets: Pick<AccessSets, 'viewers' | 'admins'>,
+  roles: RolesBySpace,
+): AccessLevel {
+  const has = (ref: GateRef, role: string) => (roles.get(ref.key) ?? []).includes(role);
+  if (sets.admins.some((ref) => has(ref, 'ADMIN'))) return 'manage';
+  if (sets.viewers.some((ref) => has(ref, 'MEMBER'))) return 'read';
+  return 'none';
 }
 
 /** Whether `level` satisfies `policy`. An ungated policy admits every signed-in person. */

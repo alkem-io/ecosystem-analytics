@@ -41,10 +41,11 @@ function sessionAuth(req: Request): AuthContext | null {
 async function firstRefusal(
   auth: AuthContext,
   policies: AccessPolicy[],
+  opts: { force?: boolean } = {},
 ): Promise<AccessDeniedBody | null> {
   for (const policy of policies) {
     if (policy.gate === null) continue;
-    const outcome = await decide(auth, policy.app);
+    const outcome = await decide(auth, policy.app, opts);
     if (outcome === 'unverified') {
       return {
         error: 'ACCESS_DENIED',
@@ -101,24 +102,44 @@ export const accessGate: RequestHandler = (req, res, next) => {
 };
 
 /**
- * Require a level of an application's gate on one router or route — the forthcoming
- * management area declares `requireAccess({ app: 'vng', required: 'manage' })` and gets
- * the same gate, the same held decision, the same "check again" and the same refusal
- * shape as the application gate (FR-018, FR-018b). Mount it after `authMiddleware`.
- * A decision records a LEVEL, so the held decision answers a Manage requirement without
- * asking Alkemio again. On an ungated application every signed-in person passes.
+ * Require a level of an application's access on one router or route — the management area
+ * declares `requireAccess({ app: 'vng', required: 'manage' })` and gets the same sets, the
+ * same held decision, the same "check again" and the same refusal shape as the
+ * application gate (026 FR-018, FR-018b). Mount it after `authMiddleware`. A decision
+ * records a LEVEL, so the held decision answers a Manage requirement without asking
+ * Alkemio again.
+ *
+ * `fresh: true` (feature 027, research R4) re-determines the level from Alkemio before
+ * comparing — for writes, so a manager whose ADMIN role was removed is refused at once
+ * (FR-009). The fresh decision replaces the held one.
+ *
+ * On an ungated application every signed-in person passes a Read requirement, but nobody
+ * passes Manage: an ungated app has no admin Spaces, so nobody can be a manager.
  */
-export function requireAccess(need: { app: AppId; required: 'read' | 'manage' }): RequestHandler {
+export function requireAccess(need: {
+  app: AppId;
+  required: 'read' | 'manage';
+  fresh?: boolean;
+}): RequestHandler {
   return (req: Request, res: Response, next: NextFunction) => {
-    const base = policyFor(need.app);
-    if (base.gate === null) return next();
-    const policy: AccessPolicy = { app: need.app, gate: base.gate, required: need.required };
     const auth = req.auth ?? sessionAuth(req);
     if (!auth) {
       res.status(401).json({ error: 'UNAUTHORIZED', message: 'Not authenticated' });
       return;
     }
-    firstRefusal(auth, [policy])
+    const base = policyFor(need.app);
+    if (base.gate === null) {
+      if (need.required === 'read') return next();
+      refuse(req, res, auth, {
+        error: 'ACCESS_DENIED',
+        reason: 'none',
+        app: need.app,
+        message: 'No access to this application',
+      });
+      return;
+    }
+    const policy: AccessPolicy = { app: need.app, gate: base.gate, required: need.required };
+    firstRefusal(auth, [policy], { force: need.fresh === true })
       .then((refusal) => (refusal ? refuse(req, res, auth, refusal) : next()))
       .catch((err) => (isAlkemioAuthError(err) ? rejectSession(res, auth) : next(err)));
   };

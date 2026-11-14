@@ -12,11 +12,14 @@
     "environment": "Environment",
     "envDetecting": "detecting…",
     "envUnknown": "not reported by server",
-    "disclaimer": "Prototype for exploration"
+    "disclaimer": "Prototype for exploration",
+    "accessHeading": "Members of these Spaces can use the monitor",
+    "accessGeneric": "Access is granted to members of designated Spaces on Alkemio."
   },
   "access": {
     "noAccessTitle": "You do not have access",
-    "noAccessBody": "Access to this monitor is granted to members of {{space}} on Alkemio. Ask to join it there, then check again.",
+    "noAccessBody": "Access to this monitor is granted to members of the Spaces below on Alkemio. Ask to join one of them there, then check again.",
+    "spacesHeading": "Members of these Spaces have access",
     "openSpace": "Open {{space}} on Alkemio",
     "checkAgain": "Check again",
     "checking": "Checking…",
@@ -104,7 +107,11 @@
     "added": "added",
     "empty": "No initiatives selected yet",
     "remove": "Remove",
-    "count": "{{count}} initiative(s)"
+    "count": "{{count}} initiative(s)",
+    "fromMonitor": "In the monitor",
+    "restoreAll": "Show all of the monitor’s spaces again",
+    "managedHint": "This monitor follows a fixed set of spaces. Remove spaces to narrow your view.",
+    "scopeError": "The monitor’s spaces could not be loaded."
   },
   "panel": {
     "refresh": "Refresh data",
@@ -408,7 +415,7 @@
       "builtInMissing": "The configured orchestrator was not found; showing the next best match."
     },
     "hint": {
-      "addSpace": "To choose a space that is not listed here, add it to your selection first."
+      "addSpace": "Is the space you want not listed? Only spaces this monitor follows can be the orchestrator — ask a monitor manager to add it."
     },
     "filter": {
       "orchestrator": "Linked to orchestrator",
@@ -473,5 +480,122 @@
     },
     "waitingFor": "Waiting for {{item}}…",
     "unavailable": "unavailable"
+  },
+  "admin": {
+    "access": {
+      "admins": "Admins of these Spaces can manage the monitor",
+      "description": "Set in the deployment configuration. Membership itself is managed on Alkemio.",
+      "none": "No Spaces configured.",
+      "notFound": "Not found on Alkemio",
+      "title": "Who can use the monitor",
+      "viewers": "Members of these Spaces can view the monitor",
+      "you": "You ({{name}})",
+      "youManage": "can manage the monitor",
+      "youNoManage": "cannot manage the monitor",
+      "youNoView": "cannot view the monitor",
+      "youView": "can view the monitor"
+    },
+    "back": "Back to the monitor",
+    "classifications": {
+      "changedOnAlkemio": "Changed on Alkemio meanwhile — not saved. The current value is shown; check and save again.",
+      "choose": "Choose an initiative to see its classifications.",
+      "description": "Changes are saved on Alkemio, as you; every dashboard reads them from there.",
+      "discard": "Discard changes",
+      "failed": "Could not be saved — try again.",
+      "gdPost": "This initiative is a GemeenteDelers post. Posts have no classifications of their own.",
+      "kindGdPost": "GemeenteDelers post",
+      "kindGdSubspace": "GemeenteDelers subspace",
+      "kindIncluded": "Space in the monitor",
+      "loadFailed": "This initiative could not be loaded.",
+      "noUpdateRight": "You may not change this Space on Alkemio, so its classifications are shown read-only.",
+      "none": "None",
+      "notPermitted": "Alkemio did not allow this change — not saved.",
+      "notReadable": "You cannot read this Space.",
+      "notSet": "Not set on this Space (added by the classification programme on Alkemio).",
+      "openOnAlkemio": "Open it on Alkemio",
+      "pick": "Choose an initiative",
+      "pickPlaceholder": "Search by name",
+      "save": "Save on Alkemio",
+      "saveFailed": "Saving failed. Your changes are kept — try again.",
+      "saved": "Saved",
+      "title": "Classifications of an initiative",
+      "valueRemoved": "A chosen value no longer exists — not saved."
+    },
+    "entry": "Monitor settings",
+    "gd": {
+      "ambiguous": "Matched several posts, so nothing was dropped for: {{list}}",
+      "description": "The initiatives the monitor adds from the GemeenteDelers Space.",
+      "loadFailed": "The GemeenteDelers source could not be read just now.",
+      "migrationComplete": "Migration to subspaces complete: no posts are read any more.",
+      "nextRefresh": "next refresh",
+      "perInitiative": "Each initiative and its source ({{count}})",
+      "readAt": "Last read",
+      "sourcePost": "post",
+      "sourceSubspace": "subspace",
+      "superseded": "Posts replaced by a subspace ({{count}})",
+      "title": "GemeenteDelers source",
+      "total": "Initiatives",
+      "unknown": "unknown",
+      "unreadable": "You cannot read the GemeenteDelers Space, so there is nothing to show.",
+      "viaPosts": "From posts",
+      "viaSubspaces": "From subspaces"
+    },
+    "included": {
+      "changedBy": "Last changed by {{name}} on {{when}}",
+      "colSpace": "Space",
+      "colStatus": "Classifications",
+      "description": "The monitor reports on exactly these Spaces, for every viewer.",
+      "edit": {
+        "add": "Add",
+        "addNamed": "Add {{name}}",
+        "close": "Close",
+        "confirmEmpty": "Remove every Space? The monitor will show no initiatives to anyone.",
+        "confirmEmptyYes": "Yes, remove all",
+        "conflictBody": "It now holds {{count}} Spaces. Load it to start again from the current list.",
+        "conflictTitle": "Someone else changed the list",
+        "discard": "Discard changes",
+        "duplicate": "Listed twice",
+        "emptyList": "No Spaces — the monitor would show nothing.",
+        "inList": "In the list",
+        "keepEditing": "Keep editing",
+        "link": "Or paste a Space link",
+        "list": "Spaces in the monitor ({{count}})",
+        "loadCurrent": "Load the current list",
+        "new": "new",
+        "noResults": "No Spaces found",
+        "notReadable": "You can only add Spaces you can see on Alkemio",
+        "notTopLevel": "Only top-level Spaces can be added",
+        "pending": "Not saved yet",
+        "removeNamed": "Remove {{name}}",
+        "save": "Save changes",
+        "saveFailed": "Saving failed. Your changes are kept — try again.",
+        "search": "Find a Space by name",
+        "searchPlaceholder": "At least 2 letters",
+        "start": "Change the list",
+        "tooMany": "Too many Spaces",
+        "undoRemovals": "Put back",
+        "unparseable": "That is not an Alkemio Space link or name"
+      },
+      "empty": "The monitor reports on no Spaces.",
+      "filter": "Filter",
+      "fromStartingSet": "From the starting set ({{when}})",
+      "history": "History of changes",
+      "notFound": "Not found on Alkemio",
+      "olderChanges": "Older changes",
+      "openClassifications": "Classifications",
+      "openClassificationsNamed": "Classifications of {{name}}",
+      "renamed": "{{note}} on Alkemio ({{when}})",
+      "status": "{{set}} of {{designated}} classifications set",
+      "title": "Spaces in the monitor",
+      "unreadable": "You cannot read this Space"
+    },
+    "loading": "Loading…",
+    "noAccess": {
+      "body": "Only admins of the monitor’s admin Spaces on Alkemio can change its settings.",
+      "title": "No access to the settings"
+    },
+    "retry": "Try again",
+    "sectionError": "This section could not be loaded.",
+    "title": "Monitor settings"
   }
 }

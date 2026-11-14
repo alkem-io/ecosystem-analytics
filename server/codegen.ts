@@ -5,7 +5,11 @@ dotenv.config();
 
 const config: CodegenConfig = {
   schema: process.env.ALKEMIO_GRAPHQL_ENDPOINT || 'http://localhost:3000/graphql',
-  documents: ['src/graphql/queries/**/*.graphql', 'src/graphql/fragments/**/*.graphql'],
+  documents: [
+    'src/graphql/queries/**/*.graphql',
+    'src/graphql/mutations/**/*.graphql',
+    'src/graphql/fragments/**/*.graphql',
+  ],
   generates: {
     'src/graphql/generated/alkemio-schema.ts': {
       plugins: [

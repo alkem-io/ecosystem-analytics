@@ -12,11 +12,14 @@
     "environment": "Omgeving",
     "envDetecting": "detecteren…",
     "envUnknown": "niet gemeld door server",
-    "disclaimer": "Prototype ter verkenning"
+    "disclaimer": "Prototype ter verkenning",
+    "accessHeading": "Leden van deze Spaces kunnen de monitor gebruiken",
+    "accessGeneric": "Toegang krijgen leden van aangewezen Spaces op Alkemio."
   },
   "access": {
     "noAccessTitle": "Je hebt geen toegang",
-    "noAccessBody": "Toegang tot deze monitor krijgen leden van {{space}} op Alkemio. Vraag daar om lid te worden en controleer het daarna opnieuw.",
+    "noAccessBody": "Toegang tot deze monitor krijgen leden van de Spaces hieronder op Alkemio. Vraag daar om lid te worden van een ervan en controleer het daarna opnieuw.",
+    "spacesHeading": "Leden van deze Spaces hebben toegang",
     "openSpace": "Open {{space}} op Alkemio",
     "checkAgain": "Opnieuw controleren",
     "checking": "Bezig met controleren…",
@@ -104,7 +107,11 @@
     "added": "toegevoegd",
     "empty": "Nog geen initiatieven geselecteerd",
     "remove": "Verwijderen",
-    "count": "{{count}} initiatieven"
+    "count": "{{count}} initiatieven",
+    "fromMonitor": "In de monitor",
+    "restoreAll": "Alle ruimtes van de monitor weer tonen",
+    "managedHint": "Deze monitor volgt een vaste set ruimtes. Haal ruimtes weg om je weergave te verkleinen.",
+    "scopeError": "De ruimtes van de monitor konden niet worden geladen."
   },
   "panel": {
     "refresh": "Gegevens vernieuwen",
@@ -408,7 +415,7 @@
       "builtInMissing": "De ingestelde orkestrator is niet gevonden; de eerstvolgende match wordt getoond."
     },
     "hint": {
-      "addSpace": "Staat de gewenste ruimte er niet bij? Voeg die eerst toe aan je selectie."
+      "addSpace": "Staat de gewenste ruimte er niet bij? Alleen ruimtes die deze monitor volgt, kunnen orchestrator zijn — vraag een beheerder van de monitor om haar toe te voegen."
     },
     "filter": {
       "orchestrator": "Verbonden met orkestrator",
@@ -473,5 +480,122 @@
     },
     "waitingFor": "Wachten op {{item}}…",
     "unavailable": "niet beschikbaar"
+  },
+  "admin": {
+    "access": {
+      "admins": "Beheerders van deze Spaces kunnen de monitor beheren",
+      "description": "Vastgelegd in de configuratie van de omgeving. Wie lid is, regel je op Alkemio.",
+      "none": "Geen Spaces ingesteld.",
+      "notFound": "Niet gevonden op Alkemio",
+      "title": "Wie de monitor kan gebruiken",
+      "viewers": "Leden van deze Spaces kunnen de monitor bekijken",
+      "you": "Jij ({{name}})",
+      "youManage": "kunt de monitor beheren",
+      "youNoManage": "kunt de monitor niet beheren",
+      "youNoView": "kunt de monitor niet bekijken",
+      "youView": "kunt de monitor bekijken"
+    },
+    "back": "Terug naar de monitor",
+    "classifications": {
+      "changedOnAlkemio": "Intussen op Alkemio gewijzigd — niet opgeslagen. De huidige waarde staat er nu; controleer en sla opnieuw op.",
+      "choose": "Kies een initiatief om de classificaties te zien.",
+      "description": "Wijzigingen worden op Alkemio opgeslagen, onder jouw naam; elk dashboard leest ze daar.",
+      "discard": "Wijzigingen weggooien",
+      "failed": "Kon niet worden opgeslagen — probeer het opnieuw.",
+      "gdPost": "Dit initiatief is een GemeenteDelers-bericht. Berichten hebben geen eigen classificaties.",
+      "kindGdPost": "GemeenteDelers-bericht",
+      "kindGdSubspace": "GemeenteDelers-subspace",
+      "kindIncluded": "Space in de monitor",
+      "loadFailed": "Dit initiatief kon niet worden geladen.",
+      "noUpdateRight": "Je mag deze Space op Alkemio niet wijzigen, dus de classificaties zijn alleen te bekijken.",
+      "none": "Geen",
+      "notPermitted": "Alkemio stond deze wijziging niet toe — niet opgeslagen.",
+      "notReadable": "Je kunt deze Space niet lezen.",
+      "notSet": "Niet ingesteld op deze Space (wordt op Alkemio toegevoegd door het classificatieprogramma).",
+      "openOnAlkemio": "Open op Alkemio",
+      "pick": "Kies een initiatief",
+      "pickPlaceholder": "Zoek op naam",
+      "save": "Opslaan op Alkemio",
+      "saveFailed": "Opslaan is mislukt. Je wijzigingen blijven staan — probeer het opnieuw.",
+      "saved": "Opgeslagen",
+      "title": "Classificaties van een initiatief",
+      "valueRemoved": "Een gekozen waarde bestaat niet meer — niet opgeslagen."
+    },
+    "entry": "Instellingen van de monitor",
+    "gd": {
+      "ambiguous": "Kwam overeen met meerdere berichten, dus er is niets weggelaten voor: {{list}}",
+      "description": "De initiatieven die de monitor uit de GemeenteDelers-Space toevoegt.",
+      "loadFailed": "De GemeenteDelers-bron kon nu niet worden gelezen.",
+      "migrationComplete": "Overstap naar subspaces voltooid: er worden geen berichten meer gelezen.",
+      "nextRefresh": "volgende verversing",
+      "perInitiative": "Elk initiatief en de bron ({{count}})",
+      "readAt": "Laatst gelezen",
+      "sourcePost": "bericht",
+      "sourceSubspace": "subspace",
+      "superseded": "Berichten vervangen door een subspace ({{count}})",
+      "title": "GemeenteDelers-bron",
+      "total": "Initiatieven",
+      "unknown": "onbekend",
+      "unreadable": "Je kunt de GemeenteDelers-Space niet lezen, dus er is niets te tonen.",
+      "viaPosts": "Uit berichten",
+      "viaSubspaces": "Uit subspaces"
+    },
+    "included": {
+      "changedBy": "Laatst gewijzigd door {{name}} op {{when}}",
+      "colSpace": "Space",
+      "colStatus": "Classificaties",
+      "description": "De monitor rapporteert over precies deze Spaces, voor iedere kijker.",
+      "edit": {
+        "add": "Toevoegen",
+        "addNamed": "{{name}} toevoegen",
+        "close": "Sluiten",
+        "confirmEmpty": "Alle Spaces verwijderen? De monitor toont dan voor niemand nog initiatieven.",
+        "confirmEmptyYes": "Ja, alles verwijderen",
+        "conflictBody": "De lijst bevat nu {{count}} Spaces. Laad hem om opnieuw te beginnen vanaf de huidige lijst.",
+        "conflictTitle": "Iemand anders heeft de lijst gewijzigd",
+        "discard": "Wijzigingen weggooien",
+        "duplicate": "Staat er twee keer in",
+        "emptyList": "Geen Spaces — de monitor zou niets tonen.",
+        "inList": "Staat in de lijst",
+        "keepEditing": "Verder bewerken",
+        "link": "Of plak een link naar een Space",
+        "list": "Spaces in de monitor ({{count}})",
+        "loadCurrent": "Huidige lijst laden",
+        "new": "nieuw",
+        "noResults": "Geen Spaces gevonden",
+        "notReadable": "Je kunt alleen Spaces toevoegen die je op Alkemio kunt zien",
+        "notTopLevel": "Alleen Spaces op het hoogste niveau kunnen worden toegevoegd",
+        "pending": "Nog niet opgeslagen",
+        "removeNamed": "{{name}} verwijderen",
+        "save": "Wijzigingen opslaan",
+        "saveFailed": "Opslaan is mislukt. Je wijzigingen blijven staan — probeer het opnieuw.",
+        "search": "Zoek een Space op naam",
+        "searchPlaceholder": "Minstens 2 letters",
+        "start": "Lijst aanpassen",
+        "tooMany": "Te veel Spaces",
+        "undoRemovals": "Terugzetten",
+        "unparseable": "Dat is geen link of naam van een Alkemio-Space"
+      },
+      "empty": "De monitor rapporteert over geen enkele Space.",
+      "filter": "Filteren",
+      "fromStartingSet": "Uit de startset ({{when}})",
+      "history": "Geschiedenis van wijzigingen",
+      "notFound": "Niet gevonden op Alkemio",
+      "olderChanges": "Oudere wijzigingen",
+      "openClassifications": "Classificaties",
+      "openClassificationsNamed": "Classificaties van {{name}}",
+      "renamed": "{{note}} op Alkemio ({{when}})",
+      "status": "{{set}} van {{designated}} classificaties ingesteld",
+      "title": "Spaces in de monitor",
+      "unreadable": "Je kunt deze Space niet lezen"
+    },
+    "loading": "Laden…",
+    "noAccess": {
+      "body": "Alleen beheerders van de beheer-Spaces van de monitor op Alkemio kunnen de instellingen wijzigen.",
+      "title": "Geen toegang tot de instellingen"
+    },
+    "retry": "Opnieuw proberen",
+    "sectionError": "Dit onderdeel kon niet worden geladen.",
+    "title": "Instellingen van de monitor"
   }
 }

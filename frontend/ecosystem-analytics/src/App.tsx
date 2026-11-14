@@ -46,10 +46,10 @@ export default function App() {
   const authed = auth === 'authed';
 
   if (authed && me && access.screen !== 'app') {
-    return access.screen === 'no-access' && access.access?.gate ? (
+    return access.screen === 'no-access' && access.access ? (
       <NoAccessScreen
         accountName={me.displayName}
-        gate={access.access.gate}
+        spaces={access.access.viewerSpaces ?? []}
         strings={ACCESS_STRINGS_EN}
         checking={access.checking}
         onCheckAgain={() => void access.recheck()}
