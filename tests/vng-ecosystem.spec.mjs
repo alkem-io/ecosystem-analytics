@@ -258,7 +258,7 @@ test('a built-in default that is not there falls through to the guess, with a no
 
 // ── US3: drilling into the detail tabs, and coming back ─────────────────────────
 
-test('clicking an initiative opens the space details tab, and coming back keeps the map as it was', async ({ page }) => {
+test('selecting an initiative then opening it reaches the space details tab, and coming back keeps the map as it was', async ({ page }) => {
   await boot(page);
   await map(page).locator('[data-ecosystem]').first().waitFor({ timeout: 10_000 });
 
@@ -266,7 +266,10 @@ test('clicking an initiative opens the space details tab, and coming back keeps 
   await page.getByTestId('ecosystem-filter-multi').check();
   await expect(page.getByTestId('ecosystem-filter-hidden')).toBeVisible();
 
+  // A click selects; only the panel navigates.
   await map(page).locator('[data-role="initiative"]').first().click();
+  await expect(page.getByTestId('ecosystem-details')).toBeVisible();
+  await page.getByTestId('ecosystem-details-open').click();
   await expect(page.getByRole('tab', { name: 'Initiatief informatie', exact: true })).toHaveAttribute(
     'aria-selected',
     'true',
@@ -281,7 +284,7 @@ test('clicking an initiative opens the space details tab, and coming back keeps 
   await expect(map(page).locator('[data-role="orchestrator"][data-space="programmagroei"]')).toHaveCount(1);
 });
 
-test('clicking a gemeente organisation opens the city tab', async ({ page }) => {
+test('selecting a gemeente organisation opens the city tab from its details panel', async ({ page }) => {
   await boot(page);
   await map(page).locator('[data-ecosystem]').first().waitFor({ timeout: 10_000 });
 
@@ -290,19 +293,88 @@ test('clicking a gemeente organisation opens the city tab', async ({ page }) => 
   await expect(gemeente).toHaveCount(1);
   await gemeente.click();
 
+  await expect(page.getByTestId('ecosystem-details')).toBeVisible();
+  await page.getByTestId('ecosystem-details-open').click();
   await expect(page.getByRole('tab', { name: 'Gemeente informatie', exact: true })).toHaveAttribute(
     'aria-selected',
     'true',
   );
 });
 
-test('clicking the orchestrator opens its own space details', async ({ page }) => {
+test('selecting the orchestrator opens its own space details', async ({ page }) => {
   await boot(page);
   await map(page).locator('[data-ecosystem]').first().waitFor({ timeout: 10_000 });
 
   await map(page).locator('[data-role="orchestrator"]').click();
+  await expect(page.getByTestId('ecosystem-details')).toBeVisible();
+  await page.getByTestId('ecosystem-details-open').click();
   await expect(page.getByRole('tab', { name: 'Initiatief informatie', exact: true })).toHaveAttribute(
     'aria-selected',
     'true',
   );
+});
+
+test('a selection is sticky, survives the pointer leaving, and clears on Escape', async ({ page }) => {
+  await boot(page);
+  await map(page).locator('[data-ecosystem]').first().waitFor({ timeout: 10_000 });
+
+  const connector = map(page).locator('[data-connector="true"]').first();
+  await connector.click();
+  await expect(page.getByTestId('ecosystem-details')).toBeVisible();
+
+  // The pointer wanders off; the focus stays put, unlike a hover.
+  await page.mouse.move(2, 2);
+  await expect(connector).toHaveAttribute('opacity', '1');
+  const dimmed = await page.evaluate(() => {
+    const nodes = [...document.querySelectorAll('[data-testid="ecosystem-map"] [data-org]')];
+    return nodes.filter((n) => Number(n.getAttribute('opacity')) < 0.5).length;
+  });
+  expect(dimmed).toBeGreaterThan(0);
+
+  await page.keyboard.press('Escape');
+  await expect(page.getByTestId('ecosystem-details')).toHaveCount(0);
+});
+
+// ── keyboard and rings of involvement ────────────────────────────────────────────
+
+test('the map is one Tab stop; arrows move along and between rings, with a visible focus', async ({ page }) => {
+  await boot(page);
+  await map(page).locator('[data-ecosystem]').first().waitFor({ timeout: 10_000 });
+
+  // Roving tabindex: exactly one node is in the Tab order, and it is the orchestrator.
+  await expect(map(page).locator('[data-nav-id][tabindex="0"]')).toHaveCount(1);
+  await expect(map(page).locator('[data-role="orchestrator"]')).toHaveAttribute('tabindex', '0');
+
+  await map(page).locator('[data-role="orchestrator"]').focus();
+  await page.keyboard.press('ArrowDown');
+  const first = await page.evaluate(() => document.activeElement?.getAttribute('data-role'));
+  expect(first).toBe('initiative');
+  await expect(map(page).locator('[data-focus-ring]')).toHaveCount(1);
+
+  const before = await page.evaluate(() => document.activeElement?.getAttribute('data-nav-id'));
+  await page.keyboard.press('ArrowRight');
+  const after = await page.evaluate(() => document.activeElement?.getAttribute('data-nav-id'));
+  expect(after).not.toBe(before);
+
+  await page.keyboard.press('Enter');
+  await expect(page.getByTestId('ecosystem-details')).toBeVisible();
+
+  await page.keyboard.press('ArrowUp');
+  expect(await page.evaluate(() => document.activeElement?.getAttribute('data-role'))).toBe('orchestrator');
+});
+
+test('rings of involvement are a view toggle: rings appear, nothing is hidden', async ({ page }) => {
+  await boot(page);
+  await map(page).locator('[data-ecosystem]').first().waitFor({ timeout: 10_000 });
+
+  const orgs = await map(page).locator('[data-org]').count();
+  await expect(map(page).locator('[data-tier]')).toHaveCount(0);
+
+  await page.getByTestId('ecosystem-rings').check();
+  await expect(map(page).locator('[data-tier]').first()).toBeVisible();
+  await expect(map(page).locator('[data-org]')).toHaveCount(orgs);
+  await expect(page.getByTestId('ecosystem-filter-hidden')).toHaveCount(0);
+
+  await page.getByTestId('ecosystem-rings').uncheck();
+  await expect(map(page).locator('[data-tier]')).toHaveCount(0);
 });

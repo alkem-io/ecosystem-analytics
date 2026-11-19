@@ -6,6 +6,8 @@ import type { MapTransform } from '../components/EcosystemMap.js';
 export interface EcosystemViewState {
   filters: EcosystemFilters;
   transform: MapTransform | null;
+  /** Organisations stacked into rings of involvement rather than one band. */
+  rings?: boolean;
   /**
    * Orchestrator choice held locally because the server refused to remember it — a
    * guest (feature 023). Signed-in viewers never use this: their choice lives server-side
@@ -23,6 +25,7 @@ export interface ViewStateStorage {
 export const EMPTY_VIEW_STATE: EcosystemViewState = {
   filters: { linkedToOrchestrator: false, multiMembership: false },
   transform: null,
+  rings: false,
   guestChoice: null,
 };
 
@@ -61,6 +64,7 @@ export function useEcosystemViewState(hubNameId: string | null) {
 
   const setFilters = useCallback((filters: EcosystemFilters) => update({ filters }), [update]);
   const setTransform = useCallback((transform: MapTransform) => update({ transform }), [update]);
+  const setRings = useCallback((rings: boolean) => update({ rings }), [update]);
   const setGuestChoice = useCallback(
     (guestChoice: string | null) => update({ guestChoice }),
     [update],
@@ -69,9 +73,11 @@ export function useEcosystemViewState(hubNameId: string | null) {
   return {
     filters: state.filters,
     transform: state.transform ?? null,
+    rings: state.rings === true,
     guestChoice: state.guestChoice ?? null,
     setFilters,
     setTransform,
+    setRings,
     setGuestChoice,
   };
 }
@@ -92,6 +98,7 @@ export function readViewState(storage: ViewStateStorage | null, key: string): Ec
         multiMembership: parsed.filters?.multiMembership === true,
       },
       transform: parsed.transform ?? null,
+      rings: parsed.rings === true,
       guestChoice: parsed.guestChoice ?? null,
     };
   } catch {

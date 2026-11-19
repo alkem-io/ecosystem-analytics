@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Loader2 } from 'lucide-react';
 import { useAppConfig } from '../../app/AppConfig.js';
+import { EcosystemDetailsPanel } from '../components/EcosystemDetailsPanel.js';
 import { EcosystemFilterBar } from '../components/EcosystemFilterBar.js';
 import { EcosystemMap } from '../components/EcosystemMap.js';
 import { OrchestratorControl } from '../components/OrchestratorControl.js';
@@ -36,7 +37,7 @@ export function EcosystemTab() {
   const { state, hubs, effectiveSpaceIds } = useSelectionContext();
   const hubNameId = state.activeHubNameId;
 
-  const { filters, transform, guestChoice, setFilters, setTransform, setGuestChoice } =
+  const { filters, transform, rings, guestChoice, setFilters, setTransform, setRings, setGuestChoice } =
     useEcosystemViewState(hubNameId);
   const { own, community, builtIn, choose, reset } = useOrchestratorChoice(hubNameId, {
     localChoice: guestChoice,
@@ -116,12 +117,24 @@ export function EcosystemTab() {
   }, []);
 
   const layout = useMemo(
-    () => (filtered && size.width > 0 ? layoutEcosystems(filtered.model, size) : null),
-    [filtered, size],
+    () => (filtered && size.width > 0 ? layoutEcosystems(filtered.model, size, { rings }) : null),
+    [filtered, size, rings],
   );
 
   const [hoverId, setHoverId] = useState<string | null>(null);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
   const [fitNonce, setFitNonce] = useState(0);
+
+  // A selection that survived a filter change would highlight a node no longer drawn.
+  useEffect(() => {
+    if (!selectedId || !filtered) return;
+    const present =
+      filtered.model.organisations.some((o) => o.id === selectedId) ||
+      filtered.model.ecosystems.some(
+        (eco) => eco.orchestrator?.id === selectedId || eco.initiatives.some((i) => i.id === selectedId),
+      );
+    if (!present) setSelectedId(null);
+  }, [filtered, selectedId]);
 
   const openSpace = useCallback(
     (nameId: string) => {
@@ -199,6 +212,12 @@ export function EcosystemTab() {
         onChange={setFilters}
         hiddenCount={filtered?.hiddenCount ?? 0}
         onFit={() => setFitNonce((n) => n + 1)}
+        rings={rings}
+        onRingsChange={(on) => {
+          setRings(on);
+          // The band's depth changes, so the old viewport no longer frames the map.
+          setFitNonce((n) => n + 1);
+        }}
       />
 
       <div ref={hostRef} className="relative min-h-0 flex-1" style={{ minHeight: MIN_HEIGHT }}>
@@ -228,19 +247,37 @@ export function EcosystemTab() {
             layout={layout}
             hoverId={hoverId}
             onHover={setHoverId}
-            onActivateSpace={openSpace}
-            onActivateOrg={openOrg}
+            selectedId={selectedId}
+            onSelect={setSelectedId}
             transform={transform}
             onTransformChange={setTransform}
             fitNonce={fitNonce}
             labels={{
+              title: t('ecosystem.title'),
               lead: t('ecosystem.legend.lead'),
               member: t('ecosystem.legend.member'),
               direct: t('ecosystem.legend.direct'),
               viaSubspace: t('ecosystem.legend.viaSubspace'),
               partOf: t('ecosystem.legend.partOf'),
               connector: t('ecosystem.legend.connector'),
+              keyboard: t('ecosystem.hint.keyboard'),
+              tiers: {
+                lead: t('ecosystem.rings.lead'),
+                member: t('ecosystem.rings.member'),
+                loose: t('ecosystem.rings.loose'),
+              },
             }}
+          />
+        )}
+
+        {hasSpaces && filtered && layout && (
+          <EcosystemDetailsPanel
+            model={filtered.model}
+            selectedId={selectedId}
+            onClose={() => setSelectedId(null)}
+            onOpenSpace={openSpace}
+            onOpenOrg={openOrg}
+            onHighlight={setHoverId}
           />
         )}
       </div>

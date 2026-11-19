@@ -59,6 +59,14 @@ describe('round trip', () => {
     expect(restored.transform).toEqual({ k: 1.75, x: -40, y: 12 });
   });
 
+  it('remembers rings of involvement, and only a real true turns them on', () => {
+    const storage = fakeStorage();
+    writeViewState(storage, KEY, { ...EMPTY_VIEW_STATE, rings: true });
+    expect(readViewState(storage, KEY).rings).toBe(true);
+    storage.data.set(KEY, JSON.stringify({ rings: 'yes' }));
+    expect(readViewState(storage, KEY).rings).toBe(false);
+  });
+
   it('remembers a guest’s orchestrator choice for the visit', () => {
     const storage = fakeStorage();
     writeViewState(storage, KEY, { ...EMPTY_VIEW_STATE, guestChoice: 'programmagroei' });
