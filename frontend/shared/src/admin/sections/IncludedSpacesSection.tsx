@@ -240,6 +240,8 @@ function Editor({
 
   return (
     <div className="space-y-5" data-testid="included-editor">
+      {/* No edits while a save is under way: it closes the editor and would drop them. */}
+      <fieldset disabled={saving} className="min-w-0 space-y-5">
       <div className="rounded-lg border border-border bg-muted/30 p-4" data-testid="included-add">
         <h3 className="flex items-center gap-2 text-sm font-semibold text-foreground">
           <Plus className="h-4 w-4" aria-hidden />
@@ -387,6 +389,8 @@ function Editor({
         </div>
       )}
 
+      </fieldset>
+
       {problems.length > 0 && (
         <ul role="alert" className="space-y-1 text-sm text-destructive" data-testid="included-problems">
           {problems.map((p) => (
@@ -459,7 +463,8 @@ function Editor({
         <button
           type="button"
           className={primarySmallButton}
-          disabled={!dirty || saving}
+          // A pasted link still being looked up would arrive too late for this save.
+          disabled={!dirty || saving || linkBusy}
           onClick={() => save()}
           data-testid="included-save"
         >

@@ -29,6 +29,13 @@ describe('managed scope (VNG)', () => {
     expect(state.directRemoved).toEqual([]);
   });
 
+  it('starts without the saved hub and its Spaces: only the scope says what to load', () => {
+    const state = parseSelectionState(legacy, { managedScope: true });
+    expect(state.hubSpaceIds).toEqual([]);
+    expect(state.activeHubNameId).toBeNull();
+    expect(parseSelectionState(legacy).hubSpaceIds).toEqual(['a', 'b', 'c']); // GovTech
+  });
+
   it('reports on exactly the monitor’s Spaces', () => {
     const state = parseSelectionState(legacy, { managedScope: true });
     const scoped = { ...state, hubSpaceIds: ['a', 'b', 'c', 'd'] };

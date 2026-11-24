@@ -10,6 +10,8 @@ vi.mock('dotenv', () => ({ default: { config: () => ({}) } }));
 vi.mock('./determine.js', () => ({ determineLevel: vi.fn() }));
 
 import { initDatabase } from '../cache/db.js';
+import { initSettingsStore } from '../settings/db.js';
+import { saveAccess } from '../settings/access-store.js';
 import { determineLevel } from './determine.js';
 import { decide, policyFor, report } from './access-service.js';
 import { getDecision } from './decision-store.js';
@@ -53,6 +55,20 @@ describe('decide', () => {
     expect(await decide(auth('s1'), 'vng')).toBe('read');
     expect(determine).toHaveBeenCalledTimes(1);
     expect(getDecision('s1', 'vng', VNG_SET_KEY)?.level).toBe('read');
+  });
+
+  it('does not join a check running under sets that were replaced meanwhile', async () => {
+    initSettingsStore();
+    let release!: (v: 'manage') => void;
+    determine.mockReturnValueOnce(new Promise((r) => (release = r)));
+    const old = decide(auth('s1'), 'vng');
+    const set = [{ key: 'other', displayName: 'Other' }];
+    saveAccess({ app: 'vng', baseRevision: 0, from: { viewers: [], admins: [] }, viewers: set, admins: set, actor: { userId: 'u', displayName: 'U' } });
+    determine.mockResolvedValue('none');
+    expect(await decide(auth('s1'), 'vng')).toBe('none');
+    release('manage');
+    expect(await old).toBe('manage');
+    expect(await decide(auth('s1'), 'vng')).toBe('none');
   });
 
   it('asks Alkemio once for a burst of parallel first requests', async () => {

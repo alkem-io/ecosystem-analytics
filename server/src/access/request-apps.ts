@@ -8,6 +8,13 @@ export interface RequestLike {
 }
 
 /**
+ * The apps a value names. An array counts too: `['vng']` used as a property key IS `vng`,
+ * so reading only strings here would let it past the gate.
+ */
+const namedApps = (value: unknown): AppId[] =>
+  (Array.isArray(value) ? value.flat(Infinity) : [value]).filter(isAppId);
+
+/**
  * Every application a request belongs to (research R1): the application whose
  * listener served it, plus any application whose own feature it names. Every one
  * of them must admit the person.
@@ -22,25 +29,25 @@ export interface RequestLike {
  */
 export function appsForRequest(listener: AppId, req: RequestLike): AppId[] {
   const apps = new Set<AppId>([listener]);
+  // Express matches routes case-insensitively: judge the path the way it will be routed.
+  const path = req.path.toLowerCase();
 
   // /api/<app>/… — the app-aware dashboard routes.
-  const segment = req.path.split('/')[2];
-  if (req.path.startsWith('/api/') && isAppId(segment) && segment !== 'explorer') {
+  const segment = path.split('/')[2];
+  if (path.startsWith('/api/') && isAppId(segment) && segment !== 'explorer') {
     apps.add(segment);
   }
 
   // /api/hubs?app=<app> — resolves that app's default hub.
-  if (req.path === '/api/hubs' || req.path.startsWith('/api/hubs/')) {
-    const named = req.query?.app;
-    if (isAppId(named)) apps.add(named);
+  if (path === '/api/hubs' || path.startsWith('/api/hubs/')) {
+    for (const named of namedApps(req.query?.app)) apps.add(named);
   }
 
   // /api/graph/* with body.app — a dashboard bundle (counts for that app's profile).
-  if (req.path.startsWith('/api/graph/')) {
+  if (path.startsWith('/api/graph/')) {
     const body = req.body;
     if (body && typeof body === 'object') {
-      const named = (body as { app?: unknown }).app;
-      if (isAppId(named)) apps.add(named);
+      for (const named of namedApps((body as { app?: unknown }).app)) apps.add(named);
     }
   }
 

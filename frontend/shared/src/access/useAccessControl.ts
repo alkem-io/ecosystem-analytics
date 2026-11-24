@@ -29,7 +29,7 @@ export function useAccessControl(me: MeResponse | null): AccessControl {
 
   useEffect(
     () =>
-      onAccessDenied((reason) => {
+      onAccessDenied(() => {
         void fetchMe().then((fresh) => {
           const next = fresh?.access;
           if (next && next.status !== 'admitted') {
@@ -42,9 +42,9 @@ export function useAccessControl(me: MeResponse | null): AccessControl {
             setAccess(next);
             resetAccessSignal();
           } else {
-            setAccess((prev) =>
-              prev ? { ...prev, status: reason === 'unverified' ? 'unverified' : 'none' } : prev,
-            );
+            // The identity could not be re-read, so whether the APPLICATION refuses is not
+            // known (the refusal may be the admin area's): "could not verify", with a retry.
+            setAccess((prev) => (prev ? { ...prev, status: 'unverified' } : prev));
           }
         });
       }),

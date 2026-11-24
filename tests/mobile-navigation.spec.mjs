@@ -324,6 +324,30 @@ test.describe('desktop (1440px)', () => {
     await expect(page.locator('main article')).toHaveCount(0);
     await expectNoHorizontalPageScroll(page, 'desktop Cities');
   });
+
+  test('the usage map follows a change of the window’s height alone', async ({ page }) => {
+    await boot(page);
+    // Registered last, so it wins over boot()'s catch-all.
+    await page.route('**/api/vng/gemeente-locations', (r) =>
+      r.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          locations: [
+            { nameId: 'gemeente-utrecht', title: 'Utrecht', cbsCode: 'GM0344', latitude: 52.09, longitude: 5.12, provinceCode: 'PV26', provinceName: 'Utrecht' },
+          ],
+          generatedAt: new Date().toISOString(),
+        }),
+      }),
+    );
+    await page.getByRole('tab', { name: 'Gebruiksverkenner', exact: true }).click();
+    const map = page.getByTestId('usage-map-box');
+    const height = async () => Math.round((await map.locator('svg').first().boundingBox()).height);
+    await expect(map.locator('svg').first()).toBeVisible({ timeout: 20_000 });
+    await expect.poll(height).toBeGreaterThan(600); // capped at 75% of 900
+    await page.setViewportSize({ width: 1440, height: 640 });
+    await expect.poll(height).toBeLessThanOrEqual(480);
+  });
 });
 
 // ───────────────────────────────────────────────────────────────────────────────

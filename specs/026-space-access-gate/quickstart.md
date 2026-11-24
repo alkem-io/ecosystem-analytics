@@ -58,5 +58,9 @@ pnpm -C server dev                          # logs: explorer UNGATED, vng gated 
 
 ## 4. Manage level (no UI)
 
-Sign in as an account with the Member and Admin roles on the gate Space and call `GET /api/auth/me` on :4101.
-Expected: `access.level === "manage"`. A Member-only account gets `"read"`; a Lead-only or Admin-only account gets `"none"`.
+Revised by feature 027: Manage comes from the **admin Spaces** (`VNG_ADMIN_GATE`), not from the gate (viewer) Space.
+
+Sign in as an account with the Admin role on a configured admin Space — with or without the Member role anywhere — and
+call `GET /api/auth/me` on :4101. Expected: `access.level === "manage"`. An account with only the Member role on a
+viewer Space gets `"read"`. An account that is Admin or Lead of a viewer Space which is not an admin Space, and not its
+Member, gets `"none"`.

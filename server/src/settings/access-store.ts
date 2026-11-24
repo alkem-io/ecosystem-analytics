@@ -110,7 +110,7 @@ export function saveAccess(input: {
       JSON.stringify({ viewers: input.viewers, admins: input.admins }),
     );
     return next;
-  })();
+  }).immediate(); // the write lock BEFORE the revision read, as in saveIncludedSpaces
   getLogger().info(
     `Access Spaces of ${input.app} changed by user ${input.actor.userId} (revision ${revision}): ` +
       `viewers [${input.viewers.map((s) => s.key).join(', ')}], admins [${input.admins.map((s) => s.key).join(', ')}]`,

@@ -213,3 +213,15 @@ describe('determineLevel — two sets (feature 027, research R1)', () => {
     ).rejects.toBe(unauth);
   });
 });
+
+describe('building the SDK (token refresh)', () => {
+  it('is held to the check deadline: a stalled token endpoint reads as "unverified"', async () => {
+    const started = Date.now();
+    const outcome = await determineLevel(AUTH, { viewers: [L0], admins: [] }, () => 'yes', {
+      sdkFor: () => new Promise<GateSdk>(() => {}),
+      timeoutMs: 30,
+    });
+    expect(outcome).toBe('unverified');
+    expect(Date.now() - started).toBeLessThan(2_000);
+  });
+});

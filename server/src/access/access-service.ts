@@ -75,7 +75,8 @@ export async function decide(
     if (held) return held.level;
   }
 
-  const flightKey = `${sessionId}\u0000${app}`;
+  // By set key too: a check running under sets a manager has since replaced is not shared.
+  const flightKey = `${sessionId}\u0000${app}\u0000${sets.setKey}`;
   const pending = inFlight.get(flightKey);
   if (pending) return pending;
 

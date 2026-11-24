@@ -188,13 +188,8 @@ adminRouter.put(
 
     const result = saveIncludedSpaces({ baseRevision, nameIds: next, actor: await actorOf(req) });
     if (!result.ok) return conflict();
-    const body: IncludedSpacesView = {
-      revision: result.revision,
-      designations: vngDesignations(),
-      spaces: await resolveIncludedSpaceViews(req.auth!),
-      lastChange: lastChange(),
-    };
-    res.json(body);
+    // Not `result.revision`: resolving may find a rename, which moves the revision on.
+    res.json(await includedSpacesView(req.auth!));
   }),
 );
 

@@ -36,7 +36,9 @@ import { getDatabase, initDatabase } from '../cache/db.js';
 import { GD_CACHE_SPACE_ID, getCacheEntry, setCacheEntry } from '../cache/cache-service.js';
 import { initSettingsStore } from '../settings/db.js';
 import { seedIfEmpty } from '../settings/seed.js';
-import { getScope, setSpaceId } from '../settings/store.js';
+import { saveAccess } from '../settings/access-store.js';
+import { getScope, saveIncludedSpaces, setSpaceId } from '../settings/store.js';
+import { createAlkemioSdk } from '../graphql/client.js';
 import { determineLevel } from '../access/determine.js';
 import { probeGate } from '../access/probe.js';
 import { HttpHarness } from '../testing/http-harness.js';
@@ -213,6 +215,61 @@ describe('Included Spaces — read (US3)', () => {
     const older = await http.call('vng', `/api/vng/admin/history?limit=1&before=${encodeURIComponent(h.json.next)}`, { cookie });
     expect(older.json.entries[0]).toMatchObject({ type: 'spaces', kind: 'seed' });
     expect(older.json.next).toBeNull();
+  });
+});
+
+describe('Included Spaces — consistent answers', () => {
+  it('does not show a Space that took over the nameID of an included one', async () => {
+    setSpaceId('gdc', 'id-gdc');
+    alkemio.spaces.delete('gdc');
+    alkemio.add({ id: 'id-other', nameID: 'gdc', displayName: 'Een andere Space' });
+    const r = await http.call('vng', '/api/vng/admin/included-spaces', { cookie: asManager() });
+    expect(r.json.spaces[1]).toMatchObject({ nameId: 'gdc', readable: false, found: false, displayName: null });
+  });
+
+  it('follows the stored UUID when its old nameID was reused by another Space', async () => {
+    setSpaceId('gdc', 'id-gdc');
+    const gdc = alkemio.spaces.get('gdc')!;
+    alkemio.spaces.delete('gdc');
+    alkemio.add({ ...gdc, nameID: 'gdc-nieuw' });
+    alkemio.add({ id: 'id-other', nameID: 'gdc', displayName: 'Een andere Space' });
+    const r = await http.call('vng', '/api/vng/admin/included-spaces', { cookie: asManager() });
+    expect(r.json.spaces[1]).toMatchObject({ nameId: 'gdc-nieuw', displayName: 'GDC', spaceId: 'id-gdc' });
+    expect(getScope().spaceNameIds).toEqual(['signalen', 'gdc-nieuw']);
+  });
+
+  it('returns rows and revision that belong together when someone saves meanwhile', async () => {
+    let raced = false;
+    const real = alkemio.sdk();
+    vi.mocked(createAlkemioSdk).mockResolvedValueOnce({
+      ...real,
+      AdminSpaceClassifications: async (vars: { nameId: string }) => {
+        if (!raced) {
+          raced = true;
+          saveIncludedSpaces({ baseRevision: 1, nameIds: ['openstad'], actor: { userId: 'u2', displayName: 'Sam' } });
+        }
+        return real.AdminSpaceClassifications(vars);
+      },
+    } as never);
+    const r = await http.call('vng', '/api/vng/admin/included-spaces', { cookie: asManager() });
+    expect(r.json.revision).toBe(2);
+    expect(r.json.spaces.map((s: { nameId: string }) => s.nameId)).toEqual(['openstad']);
+    expect(r.json.lastChange).toMatchObject({ actorName: 'Sam' });
+  });
+
+  it('answers a save with the revision after a rename it found, so the next save is no conflict', async () => {
+    setSpaceId('gdc', 'id-gdc');
+    const gdc = alkemio.spaces.get('gdc')!;
+    alkemio.spaces.delete('gdc');
+    alkemio.add({ ...gdc, nameID: 'gdc-nieuw' });
+    const cookie = asManager();
+    const put = (body: unknown) =>
+      http.call('vng', '/api/vng/admin/included-spaces', { method: 'PUT', body, cookie });
+    const first = await put({ baseRevision: 1, spaceNameIds: ['gdc', 'signalen'] });
+    expect(first.status).toBe(200);
+    expect(first.json.revision).toBe(getScope().revision);
+    const next = await put({ baseRevision: first.json.revision, spaceNameIds: ['signalen', 'gdc-nieuw'] });
+    expect(next.status).toBe(200);
   });
 });
 
@@ -443,6 +500,58 @@ describe('classifications (US5)', () => {
     expect(getCacheEntry('someone-else', 'signalen')).not.toBeNull();
   });
 
+  const editorId = () =>
+    (getDatabase().prepare('SELECT user_id FROM oidc_sessions ORDER BY created_at DESC LIMIT 1').get() as { user_id: string })
+      .user_id;
+
+  it('saves a GD subspace outside the Included Spaces, and still answers with its classifications', async () => {
+    alkemio.add({
+      id: 'id-gdsub',
+      nameID: 'gd-sub',
+      level: 'L1',
+      displayName: 'GD subspace',
+      privileges: ['READ', 'UPDATE'],
+      classifications: [entry('gdfase', 'Fase', 'SINGLE_SELECT')],
+    });
+    const cookie = asManager();
+    const editor = editorId();
+    setCacheEntry(editor, GD_CACHE_SPACE_ID, JSON.stringify({
+      nodes: [],
+      edges: [],
+      initiativeCount: 1,
+      callouts: [{ id: 'id-gdsub', nameId: 'gd-sub', displayName: 'GD subspace', source: 'subspace', tags: [], gemeenteCount: 0 }],
+    }), 1);
+    const w = await write(cookie, 'gd-sub', [{ entryId: 'gdfase', expectedSelectedValueIds: [], selectedValueIds: ['gdfase-2'] }]);
+    expect(w.status).toBe(200);
+    expect(w.json.results[0].outcome).toBe('SAVED');
+    expect(w.json.classifications.classifications.find((c: { key: string }) => c.key === 'phase').selectedValueIds).toEqual(['gdfase-2']);
+    expect(getCacheEntry(editor, GD_CACHE_SPACE_ID)).toBeNull();
+  });
+
+  it('invalidates the editor’s row, and reports what was saved, when a later re-read fails', async () => {
+    const cookie = asManager();
+    const editor = editorId();
+    setCacheEntry(editor, 'signalen', '{}');
+    const real = alkemio.sdk();
+    let reads = 0;
+    vi.mocked(createAlkemioSdk).mockResolvedValueOnce({
+      ...real,
+      // 1: validation, 2: before the first write — everything after that fails.
+      AdminSpaceClassifications: async (vars: { nameId: string }) => {
+        if (++reads > 2) throw new Error('socket hang up');
+        return real.AdminSpaceClassifications(vars);
+      },
+    } as never);
+    const w = await write(cookie, 'signalen', [
+      { entryId: 'fase', expectedSelectedValueIds: ['fase-1'], selectedValueIds: ['fase-2'] },
+      { entryId: 'nds', expectedSelectedValueIds: [], selectedValueIds: ['nds-1'] },
+    ]);
+    expect(w.status).toBe(200);
+    expect(w.json.results.map((r: { outcome: string }) => r.outcome)).toEqual(['SAVED', 'FAILED']);
+    expect(w.json.classifications.classifications.find((c: { key: string }) => c.key === 'phase').selectedValueIds).toEqual(['fase-2']);
+    expect(getCacheEntry(editor, 'signalen')).toBeNull();
+  });
+
   it('puts classification and Space-list edits in ONE audit log, newest first, by name', async () => {
     const cookie = asManager();
     await http.call('vng', '/api/vng/admin/included-spaces', { cookie }); // learns the names
@@ -544,6 +653,23 @@ describe('access Spaces — the "Toegang" tab', () => {
     // A stale revision is a conflict, and changes nothing.
     const stale = await put(cookie, { baseRevision: 0, viewers: ['programmagroei'], admins: ['beheer'] });
     expect(stale).toMatchObject({ status: 409, json: { error: 'CONFLICT', revision: 1 } });
+  });
+
+  it('reports a conflict, not success, when someone else saved while the checks ran', async () => {
+    const cookie = managerOfBeheer();
+    const mine = { viewers: ['programmagroei'], admins: ['beheer'] };
+    expect((await put(cookie, { baseRevision: 0, ...mine })).json.revision).toBe(1);
+    // The same sets again (a no-op) — but another manager saves during the probe.
+    let raced = false;
+    vi.mocked(probeGate).mockImplementation(async (gate) => {
+      if (!raced) {
+        raced = true;
+        const set = [{ key: 'beheer', displayName: 'beheer' }];
+        saveAccess({ app: 'vng', baseRevision: 1, from: { viewers: set, admins: set }, viewers: set, admins: set, actor: { userId: 'u2', displayName: 'Sam' } });
+      }
+      return { displayName: gate.key, url: `https://alkem.io/${gate.key}`, exists: 'yes' };
+    });
+    expect(await put(cookie, { baseRevision: 1, ...mine })).toMatchObject({ status: 409, json: { error: 'CONFLICT', revision: 2 } });
   });
 
   it('refuses sets that would lock the saving manager out, and stores nothing', async () => {

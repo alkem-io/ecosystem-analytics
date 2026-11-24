@@ -1,4 +1,5 @@
 import Database from 'better-sqlite3';
+import { randomUUID } from 'crypto';
 import fs from 'fs';
 import path from 'path';
 import { envSlug } from '../cache/db.js';
@@ -108,19 +109,26 @@ export function restoreSettingsFrom(file: string): number {
   }
   const db = getSettingsDatabase();
   db.prepare('ATTACH DATABASE ? AS backup').run(file);
+  let revision: number;
   try {
-    db.transaction(() => copyTables(db, 'backup', 'main')).immediate();
+    revision = db
+      .transaction(() => {
+        copyTables(db, 'backup', 'main');
+        // Inside the transaction: a file without a settings state rolls the copy back.
+        const row = db.prepare('SELECT revision FROM main.settings_state WHERE id = 1').get() as
+          | { revision: number }
+          | undefined;
+        if (!row) throw new Error(`settings: backup ${file} holds no settings state`);
+        return row.revision;
+      })
+      .immediate();
   } finally {
     db.exec('DETACH DATABASE backup');
   }
-  const row = db.prepare('SELECT revision FROM settings_state WHERE id = 1').get() as
-    | { revision: number }
-    | undefined;
-  if (!row) throw new Error(`settings: backup ${file} holds no settings state`);
-  getLogger().warn(`settings: RESTORED revision ${row.revision} from ${file}`, {
+  getLogger().warn(`settings: RESTORED revision ${revision} from ${file}`, {
     context: 'Settings',
   });
-  return row.revision;
+  return revision;
 }
 
 /**
@@ -138,8 +146,8 @@ export async function runBackupIfDue(opts: BackupOptions = {}): Promise<string |
     if (fs.existsSync(target)) return 'skipped';
 
     fs.mkdirSync(dir, { recursive: true });
-    const temp = `${target}.tmp-${process.pid}`;
-    fs.rmSync(temp, { force: true });
+    // Unique per attempt: replicas in containers share both the directory and the pid.
+    const temp = `${target}.tmp-${randomUUID()}`;
     try {
       writeSettingsSnapshot(temp);
       fs.renameSync(temp, target);

@@ -125,6 +125,24 @@ describe('restoreSettingsFrom', () => {
     );
   });
 
+  it('keeps the current settings when the backup holds no settings state', async () => {
+    const file = (await runBackupIfDue({ dir, slug: 'test', keep: 2, now: at('2026-11-14') })) as string;
+    const emptied = new Database(file);
+    emptied.exec('DELETE FROM settings_state');
+    emptied.close();
+    expect(() => restoreSettingsFrom(file)).toThrow(/no settings state/);
+    expect(getScope()).toEqual({ revision: 1, ecosystemKey: 'vih-test', spaceNameIds: ['a', 'b'] });
+    expect(history().changes.map((c) => c.revision)).toEqual([1]);
+  });
+
+  it('never touches another attempt’s temporary file', async () => {
+    fs.mkdirSync(dir, { recursive: true });
+    const other = path.join(dir, `settings.test.2026-11-14.sqlite.tmp-${process.pid}`);
+    fs.writeFileSync(other, 'another replica is writing this');
+    expect(await runBackupIfDue({ dir, slug: 'test', keep: 2, now: at('2026-11-14') })).toMatch(/2026-11-14\.sqlite$/);
+    expect(fs.readFileSync(other, 'utf8')).toBe('another replica is writing this');
+  });
+
   it('refuses a file that is not a settings backup', () => {
     const bogus = path.join(tmp, 'bogus.sqlite');
     new Database(bogus).close();

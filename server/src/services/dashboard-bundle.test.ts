@@ -181,6 +181,28 @@ describe('buildDashboardBundle (feature 025, FR-015)', () => {
   });
 });
 
+describe('vocabulary of a context-only Space', () => {
+  it('classifies a GD post by the same vocabulary as the graph, without counting the Space', () => {
+    const context = { id: 'kci', label: 'KCI', tags: [], entries: [NDS] };
+    const unclassified = { id: 'space-b', label: 'Space B', tags: [], entries: undefined };
+    const build = (vocabularySnapshots?: (typeof context)[]) =>
+      buildDashboardBundle({
+        dataset: dataset(true),
+        snapshots: [unclassified],
+        vocabularySnapshots: vocabularySnapshots as never,
+        unresolvedCount: 0,
+        gdCallouts: [{ id: 'init-1', displayName: 'Post', tags: ['Data'], gemeenteCount: 0 }],
+        municipalities,
+        profile: PROFILE,
+      }).categories.withGd!;
+    const items = (r: ReturnType<typeof build>) =>
+      r.dimensions.find((d) => d.key === 'nds')!.categories.find((c) => c.label === 'Data')?.items;
+    expect(items(build([context, unclassified as never]))).toEqual(['Post']);
+    expect(build([context, unclassified as never]).totalCounted).toBe(2); // Space B + the post, not KCI
+    expect(items(build())).toBeUndefined();
+  });
+});
+
 describe('withoutContextSpaces (feature 027: the orchestrator is drawn, never counted)', () => {
   it('drops a context L0 Space, its subspaces and their edges; keeps the rest', () => {
     const ds = dataset(false);

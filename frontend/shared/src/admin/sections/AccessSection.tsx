@@ -224,6 +224,7 @@ function SetEditor({
   icon: Icon,
   items,
   onChange,
+  disabled,
   testId,
 }: {
   title: string;
@@ -231,11 +232,13 @@ function SetEditor({
   icon: typeof Eye;
   items: Item[];
   onChange: (items: Item[]) => void;
+  /** While a save is under way: a later edit would be lost with it. */
+  disabled: boolean;
   testId: string;
 }) {
   const { t } = useTranslation();
   return (
-    <fieldset className="min-w-0 rounded-lg border border-border p-3" data-testid={testId}>
+    <fieldset disabled={disabled} className="min-w-0 rounded-lg border border-border p-3" data-testid={testId}>
       <legend className="flex items-center gap-2 px-1 text-sm font-medium text-foreground">
         <Icon className="h-4 w-4 text-muted-foreground" aria-hidden />
         {title}
@@ -315,6 +318,7 @@ function Editor({
           hint={t('admin.access.viewersHint', { defaultValue: 'Members of any of these Spaces can view the monitor.' })}
           items={viewers}
           onChange={setViewers}
+          disabled={saving}
         />
         <SetEditor
           testId="access-edit-admins"
@@ -325,6 +329,7 @@ function Editor({
           })}
           items={admins}
           onChange={setAdmins}
+          disabled={saving}
         />
       </div>
       <p className="text-xs text-muted-foreground">

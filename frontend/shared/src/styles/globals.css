@@ -105,13 +105,24 @@ body {
   display: none;
 }
 
+/* Room at the END of a tab's scrolling content for the floating LoadStrip, so its last row
+   can always be scrolled clear of it. Always there — never toggled with the strip — so the
+   strip coming and going cannot move anything. */
+.load-strip-clearance::after {
+  content: '';
+  display: block;
+  flex-shrink: 0;
+  height: 2.25rem;
+}
+
 /* MapLibre's "Ctrl/⌘ + scroll to zoom" hint for maps with cooperative gestures (the
    Usage Explorer). MapLibre's own stylesheet is deliberately NOT loaded — the overlay
    alignment (feature 021, §VII) is built without it — so only these rules are copied,
-   from maplibre-gl 5.x. Without them the hint text would show permanently. */
+   from maplibre-gl 5.x (with a darker background). Without them the hint text would show permanently. */
 .maplibregl-cooperative-gesture-screen {
   align-items: center;
-  background: rgba(0, 0, 0, 0.4);
+  /* Darker than MapLibre's 0.4: ≥ 4.5:1 for the white text, also over a white map. */
+  background: rgba(0, 0, 0, 0.65);
   color: #fff;
   display: flex;
   font-size: 1.1em;

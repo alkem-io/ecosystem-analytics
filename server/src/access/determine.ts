@@ -59,10 +59,20 @@ export async function determineLevel(
   for (const ref of [...sets.viewers, ...sets.admins]) spaces.set(ref.key, ref);
 
   let sdk: GateSdk;
+  let timer: NodeJS.Timeout | undefined;
   try {
-    sdk = await sdkFor(auth, deps.timeoutMs);
+    // Building the SDK may refresh the access token, which has no timeout of its own: hold
+    // it to the same deadline, so a stalled token endpoint reads as "could not verify".
+    sdk = await Promise.race([
+      sdkFor(auth, deps.timeoutMs),
+      new Promise<never>((_, reject) => {
+        timer = setTimeout(() => reject(new Error('timed out')), deps.timeoutMs);
+      }),
+    ]);
   } catch {
     return 'unverified';
+  } finally {
+    clearTimeout(timer);
   }
 
   const keys = [...spaces.keys()];

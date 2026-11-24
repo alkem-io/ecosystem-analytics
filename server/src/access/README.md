@@ -19,7 +19,8 @@ and never re-implement the rule (FR-018a). Specs, plans and contracts are in
 Files:
 
 - `policy.ts`: pure. Gate parsing (path, URL, list or `none`), `levelFromSets`, `setKey`, `admits()`.
-- `request-apps.ts`: pure. Which applications a request belongs to.
+- `request-apps.ts`: pure. Which applications a request belongs to — judged as Express routes it: the path
+  in any case, and an array-valued `app` as the app it names.
 - `determine.ts`: the per-person check — one role query per **distinct** Space, in parallel, combined.
 - `probe.ts`: anonymous start-up probe per Space key (name and link, not-found error).
 - `decision-store.ts`: held decisions (SQLite).

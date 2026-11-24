@@ -77,7 +77,8 @@ const view = (row: IncludedSpaceRow, space: AdminSpace | null, found: boolean): 
  * Resolve each Included Space with the MANAGER's token, at most 5 at a time (research R8):
  * by nameID; if not found and its UUID is known, by UUID — a hit under a new nameID is a
  * rename on Alkemio and is recorded, so the dashboard keeps loading it. A first sight of
- * a Space's UUID is remembered. A Space the manager cannot read reveals nothing but its
+ * a Space's UUID is remembered, and from then on decides: a nameID that now belongs to
+ * another Space is looked up by UUID instead. A Space the manager cannot read reveals nothing but its
  * nameID; one Alkemio no longer has is `found: false`.
  */
 export async function resolveIncludedSpaceViews(
@@ -88,7 +89,9 @@ export async function resolveIncludedSpaceViews(
   const client = sdk ?? (await adminSdkFor(auth));
   return mapLimit(rows, 5, async (row) => {
     let result = await lookupSpaceByName(client, row.nameId);
-    if (result.status === 'not-found' && row.spaceId) {
+    // A hit with another UUID is a DIFFERENT Space that took over a freed nameID.
+    const taken = result.status === 'ok' && !!row.spaceId && result.space.id !== row.spaceId;
+    if ((result.status === 'not-found' || taken) && row.spaceId) {
       const byId = await lookupSpaceById(client, row.spaceId);
       if (byId.status === 'ok' && byId.space.nameId !== row.nameId) {
         recordRename(row.nameId, byId.space.nameId, row.spaceId);
@@ -104,9 +107,20 @@ export async function resolveIncludedSpaceViews(
   });
 }
 
+const MAX_RESOLVE_ATTEMPTS = 3;
+
 /** `GET /api/vng/admin/included-spaces` (contracts/api-admin.md §3). */
 export async function includedSpacesView(auth: AuthContext, sdk?: AdminSdk): Promise<IncludedSpacesView> {
-  const spaces = await resolveIncludedSpaceViews(auth, getIncludedSpaces(), sdk);
-  // Read the revision AFTER resolving: a rename found just now bumps it.
-  return { revision: getState().revision, designations: vngDesignations(), spaces, lastChange: lastChange() };
+  // The rows and the revision must belong together: with another manager's newer revision
+  // on these rows, the next save would overwrite their change without a conflict. So
+  // resolve again when the settings moved meanwhile (a rename found just now counts too).
+  for (let attempt = 1; ; attempt++) {
+    const revision = getState().revision;
+    const change = lastChange();
+    const spaces = await resolveIncludedSpaceViews(auth, getIncludedSpaces(), sdk);
+    if (getState().revision === revision || attempt === MAX_RESOLVE_ATTEMPTS) {
+      // Still moving: the OLDER revision, which at worst costs a conflict dialog.
+      return { revision, designations: vngDesignations(), spaces, lastChange: change };
+    }
+  }
 }

@@ -88,8 +88,10 @@ const EMPTY_PLAN: LoadPlan = { loadKey: '', items: [], active: false, coreReady:
 
 /** Stable identity of a selection (data-model §1). `refreshNonce` is deliberately absent. */
 export function selectionLoadKey(sel: Selection): string {
-  const ids = [...new Set([...sel.spaceIds, ...sel.widenedSpaceIds])].sort();
-  return `${sel.app}|${ids.join(',')}|${sel.includeInitiatives ? 1 : 0}`;
+  // Selected and context-only Spaces apart: one that moves between them changes the counts.
+  const list = (ids: readonly string[]) => [...new Set(ids)].sort().join(',');
+  const gd = sel.includeInitiatives ? 1 : 0;
+  return `${sel.app}|${list(sel.spaceIds)}|${list(sel.widenedSpaceIds)}|${gd}`;
 }
 
 /** The Spaces part of a load key: everything but the trailing GemeenteDelers flag. */

@@ -13,6 +13,7 @@ import { readFileSync, writeFileSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { GraphQLClient } from 'graphql-request';
 import { getSdk } from '../src/graphql/generated/graphql.js';
+import { validateStartingSet } from '../src/settings/seed.js';
 
 const SEED = join(import.meta.dirname, '../src/data/vng/monitor-settings.seed.json');
 const args = process.argv.slice(2);
@@ -40,7 +41,8 @@ async function hubSpaces(): Promise<string[]> {
     data = (await sdk.InnovationHubById({ id })).data;
   } catch (err) {
     data = partial<Q>(err);
-    if (!data?.lookup?.innovationHub) throw err;
+    // A null list in a PARTIAL answer means the list itself failed — not an empty hub.
+    if (!data?.lookup?.innovationHub?.spaceListFilter) throw err;
     console.warn('warning: partial result — some listed Spaces were not readable');
   }
   return (data.lookup.innovationHub?.spaceListFilter ?? [])
@@ -51,7 +53,9 @@ async function hubSpaces(): Promise<string[]> {
 const live = await hubSpaces();
 
 if (write) {
-  const seed = { version: 1, ecosystemKey: hubNameId, includedSpaces: live };
+  // What start-up would refuse is never written (limits.max_spaces_per_request).
+  const max = Number(process.env.MAX_SPACES_PER_REQUEST) || 100;
+  const seed = validateStartingSet({ version: 1, ecosystemKey: hubNameId, includedSpaces: live }, max);
   writeFileSync(SEED, JSON.stringify(seed, null, 2) + '\n');
   console.log(`wrote ${SEED}: ${live.length} Spaces from '${hubNameId}'`);
   process.exit(0);

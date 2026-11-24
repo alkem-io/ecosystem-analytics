@@ -444,6 +444,58 @@ test('a pasted link to a Space the manager cannot see is refused with the reason
   await expect(page.getByTestId('included-link-error')).toContainText(/only add Spaces you can see|alleen Spaces toevoegen/);
 });
 
+test('the classification dialog keeps focus inside, and takes no edits while saving', async ({ page }) => {
+  let release;
+  const held = new Promise((r) => (release = r));
+  await boot(page, {
+    level: 'manage',
+    path: '/admin',
+    admin: {
+      'GET /initiatives/signalen/classifications': (route) => json(route, CLASSIFICATIONS(true)),
+      'PUT /initiatives/signalen/classifications': async (route) => {
+        await held;
+        return json(route, { results: [], classifications: CLASSIFICATIONS(true) });
+      },
+    },
+  });
+  await page.getByRole('button', { name: /Classificaties van Signalen bewerken|Edit the classifications of Signalen/ }).click();
+  const dialog = page.getByTestId('classification-editor');
+  const select = page.getByTestId('classification-phase').getByRole('combobox');
+  await expect(select).toBeVisible();
+  const inside = () => dialog.evaluate((d) => d.contains(document.activeElement));
+  for (const key of [...Array(8).fill('Tab'), ...Array(12).fill('Shift+Tab')]) {
+    await page.keyboard.press(key);
+    expect(await inside(), key).toBe(true);
+  }
+  await select.selectOption({ label: 'Pilot' });
+  await page.getByTestId('classification-save').click();
+  await expect(select).toBeDisabled();
+  release();
+  await expect(select).toBeEnabled();
+});
+
+test('dismissing a header panel or the user menu returns focus to its button', async ({ page }) => {
+  await boot(page, { level: 'manage' });
+  for (const id of ['scope-button', 'scope-info', 'gd-info']) {
+    const button = page.getByTestId(id);
+    await button.click();
+    await page.keyboard.press('Escape');
+    await expect(button).toBeFocused();
+  }
+  await page.getByTestId('scope-info').click();
+  await page.getByTestId('scope-info-panel').getByRole('button', { name: /Sluiten|Close/ }).click();
+  await expect(page.getByTestId('scope-info')).toBeFocused();
+
+  const menu = page.getByRole('button', { name: /Gebruikersmenu|User menu/ });
+  await page.setViewportSize({ width: 1280, height: 260 }); // too short for the whole menu
+  await menu.click();
+  const logout = page.getByRole('dialog').getByRole('button', { name: /uitloggen|log out|sign out/i });
+  await logout.scrollIntoViewIfNeeded();
+  await expect(logout).toBeInViewport();
+  await page.keyboard.press('Escape');
+  await expect(menu).toBeFocused();
+});
+
 test('classifications: an editable initiative saves; a read-only one shows why', async ({ page }) => {
   let editable = true;
   const calls = await boot(page, {
@@ -584,13 +636,15 @@ test('the change log is ONE list of every kind of edit, on its own tab', async (
 
 test('access: a manager changes who may view and manage; a lockout is refused with the reason', async ({ page }) => {
   let refuse = false;
+  let hold = null; // a save waits for it
   const calls = await boot(page, {
     level: 'manage',
     path: '/admin#access',
     admin: {
       'GET /space-search': (route) => json(route, { results: [{ nameId: 'innovatiemonitor', displayName: 'Innovatiemonitor', url: IM.url, included: false }] }),
-      'PUT /access': (route, req) =>
-        refuse
+      'PUT /access': async (route, req) => {
+        if (hold) await hold;
+        return refuse
           ? json(route, { error: 'WOULD_LOCK_OUT' }, 409)
           : json(route, {
               ...ACCESS,
@@ -599,7 +653,8 @@ test('access: a manager changes who may view and manage; a lockout is refused wi
               revision: 1,
               updatedAt: '2026-11-24T10:00:00Z',
               updatedByName: 'Mia Manager',
-            }),
+            });
+      },
     },
   });
   await expect(page.getByTestId('admin-section-access')).toBeVisible({ timeout: 15_000 });
@@ -617,9 +672,17 @@ test('access: a manager changes who may view and manage; a lockout is refused wi
   await admins.getByRole('textbox').fill('https://alkem.io/programmagroei');
   await admins.getByRole('button', { name: /Toevoegen|^Add$/ }).click();
 
-  // The server refuses a lockout: the reason is shown, nothing changes.
+  // The server refuses a lockout: the reason is shown, nothing changes. Nothing can be
+  // edited while the save is under way; afterwards it can be corrected.
   refuse = true;
+  let release;
+  hold = new Promise((r) => (release = r));
   await page.getByTestId('access-save').click();
+  await expect(viewers.getByRole('textbox')).toBeDisabled();
+  await expect(admins.getByRole('textbox')).toBeDisabled();
+  release();
+  hold = null;
+  await expect(viewers.getByRole('textbox')).toBeEnabled();
   await expect(page.getByTestId('access-error')).toContainText(/zelf niet meer kunnen beheren|no longer be able to manage/);
   refuse = false;
   await page.getByTestId('access-save').click();

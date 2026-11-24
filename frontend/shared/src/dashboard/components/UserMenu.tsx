@@ -26,6 +26,7 @@ export function UserMenu() {
   const [aboutOpen, setAboutOpen] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
+  const triggerRef = useRef<HTMLButtonElement>(null);
   // Feature 027: where this person's access comes from, and the way to the settings.
   // Also rendered in the settings area, where there is no selection — so no data actions.
   const access = useAccessReport();
@@ -51,7 +52,9 @@ export function UserMenu() {
       if (rootRef.current && !rootRef.current.contains(e.target as Node)) setOpen(false);
     };
     const onKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') setOpen(false);
+      if (e.key !== 'Escape') return;
+      setOpen(false);
+      triggerRef.current?.focus(); // not on an outside click: that has its own target
     };
     document.addEventListener('mousedown', onPointerDown);
     document.addEventListener('keydown', onKeyDown);
@@ -68,6 +71,7 @@ export function UserMenu() {
   return (
     <div className="relative" ref={rootRef}>
       <button
+        ref={triggerRef}
         type="button"
         onClick={() => setOpen((v) => !v)}
         aria-haspopup="dialog"
@@ -103,7 +107,7 @@ export function UserMenu() {
           role="dialog"
           tabIndex={-1}
           aria-label={t('user.menu')}
-          className="absolute right-0 z-50 mt-2 w-64 overflow-hidden rounded-lg border border-border bg-card shadow-lg"
+          className="absolute right-0 z-50 mt-2 max-h-[calc(100dvh-5rem)] w-64 overflow-y-auto overscroll-contain rounded-lg border border-border bg-card shadow-lg"
         >
           <div className="flex items-center gap-3 px-4 py-3">
             <Avatar.Root className="flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-full bg-primary/10">

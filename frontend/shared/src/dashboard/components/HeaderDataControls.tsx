@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ExternalLink, Info, Layers, RefreshCw, ShieldAlert, X } from 'lucide-react';
 import { cn, useAppConfig } from '@ea/shared';
@@ -33,12 +33,19 @@ const chip = cn(
   'focus:outline-none focus-visible:ring-2 focus-visible:ring-primary',
 );
 
-/** A chip that opens a small panel: outside click and Escape close it, focus moves in. */
+/**
+ * A chip that opens a small panel: outside click and Escape close it, focus moves in — and
+ * back to the chip when it is dismissed (not on an outside click, which has its own target).
+ */
 function usePopover() {
   const [open, setOpen] = useState(false);
   const [top, setTop] = useState(0);
   const rootRef = useRef<HTMLDivElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
+  const dismiss = useCallback(() => {
+    setOpen(false);
+    rootRef.current?.querySelector<HTMLElement>('[aria-haspopup="dialog"]')?.focus();
+  }, []);
   useLayoutEffect(() => {
     if (open && rootRef.current) setTop(Math.round(rootRef.current.getBoundingClientRect().bottom + 8));
   }, [open]);
@@ -48,15 +55,15 @@ function usePopover() {
     const onPointerDown = (e: MouseEvent) => {
       if (rootRef.current && !rootRef.current.contains(e.target as Node)) setOpen(false);
     };
-    const onKeyDown = (e: KeyboardEvent) => e.key === 'Escape' && setOpen(false);
+    const onKeyDown = (e: KeyboardEvent) => e.key === 'Escape' && dismiss();
     document.addEventListener('mousedown', onPointerDown);
     document.addEventListener('keydown', onKeyDown);
     return () => {
       document.removeEventListener('mousedown', onPointerDown);
       document.removeEventListener('keydown', onKeyDown);
     };
-  }, [open]);
-  return { open, setOpen, rootRef, panelRef, top };
+  }, [open, dismiss]);
+  return { open, setOpen, dismiss, rootRef, panelRef, top };
 }
 
 function Panel({
@@ -118,7 +125,7 @@ function MonitorScopeButton() {
   const { selectedSpaces, effectiveSpaceIds } = useSelectionContext();
   const access = useAccessReport();
   const loaded = useLoadedData();
-  const { open, setOpen, rootRef, panelRef, top } = usePopover();
+  const { open, setOpen, dismiss, rootRef, panelRef, top } = usePopover();
 
   // What the viewer's own loaded data holds: name and link per top-level Space.
   const inData = useMemo(() => {
@@ -166,7 +173,7 @@ function MonitorScopeButton() {
           testId="scope-panel"
           panelRef={panelRef}
           top={top}
-          onClose={() => setOpen(false)}
+          onClose={dismiss}
         >
           {missing > 0 && (
             <p className="mx-4 mt-3 rounded-md bg-warning/10 px-3 py-2 text-xs text-foreground" data-testid="scope-missing">
@@ -232,7 +239,7 @@ function MonitorScopeButton() {
 function GroeiInfo({ missing }: { missing: number }) {
   const { t } = useTranslation();
   const { prototypeInfoUrl } = useAppConfig();
-  const { open, setOpen, rootRef, panelRef, top } = usePopover();
+  const { open, setOpen, dismiss, rootRef, panelRef, top } = usePopover();
   const title = t('scope.infoTitle', { defaultValue: 'Groei initiatives' });
   return (
     <div ref={rootRef} className="relative -ml-px">
@@ -250,7 +257,7 @@ function GroeiInfo({ missing }: { missing: number }) {
         <Info className="h-4 w-4" aria-hidden />
       </button>
       {open && (
-        <Panel title={title} testId="scope-info-panel" panelRef={panelRef} top={top} onClose={() => setOpen(false)}>
+        <Panel title={title} testId="scope-info-panel" panelRef={panelRef} top={top} onClose={dismiss}>
           <div className="space-y-3 px-4 pb-4 pt-2 text-sm text-muted-foreground">
             <p>
               {t('scope.infoBody', {
@@ -322,7 +329,7 @@ function GdControl() {
   const { t } = useTranslation();
   const { state, setIncludeInitiatives } = useSelectionContext();
   const loaded = useLoadedData();
-  const { open, setOpen, rootRef, panelRef, top } = usePopover();
+  const { open, setOpen, dismiss, rootRef, panelRef, top } = usePopover();
   const on = state.includeInitiatives;
   const layer = loaded?.dataset.gdLayer;
   const title = t('header.gdTitle', { defaultValue: 'GemeenteDelers' });
@@ -364,7 +371,7 @@ function GdControl() {
       </button>
 
       {open && (
-        <Panel title={title} testId="gd-panel" panelRef={panelRef} top={top} onClose={() => setOpen(false)}>
+        <Panel title={title} testId="gd-panel" panelRef={panelRef} top={top} onClose={dismiss}>
           <div className="space-y-3 px-4 pb-4 pt-2 text-sm">
             <p className="text-muted-foreground">
               {t('provenance.gd')}{' '}

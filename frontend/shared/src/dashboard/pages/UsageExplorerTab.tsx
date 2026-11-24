@@ -1,4 +1,4 @@
-import { useCallback, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Loader2, MapPin, RotateCcw } from 'lucide-react';
 import { cn, useAppConfig } from '../../index.js';
@@ -102,17 +102,27 @@ export function UsageExplorerTab() {
   // returns early for its loading/empty states, so the box only exists on some renders.
   const [mapHeight, setMapHeight] = useState(MAP_HEIGHT);
   const observerRef = useRef<ResizeObserver | null>(null);
+  const boxWidthRef = useRef(0);
+  const updateMapHeight = useCallback(() => {
+    const next = mapHeightFor(boxWidthRef.current, window.innerHeight);
+    setMapHeight((prev) => (prev === next ? prev : next));
+  }, []);
+  // The height is capped by the WINDOW's height too, which the box observer cannot see.
+  useEffect(() => {
+    window.addEventListener('resize', updateMapHeight);
+    return () => window.removeEventListener('resize', updateMapHeight);
+  }, [updateMapHeight]);
   const mapBoxRef = useCallback((el: HTMLDivElement | null) => {
     observerRef.current?.disconnect();
     observerRef.current = null;
     if (!el) return;
     const observer = new ResizeObserver(([entry]) => {
-      const next = mapHeightFor(Math.floor(entry.contentRect.width), window.innerHeight);
-      setMapHeight((prev) => (prev === next ? prev : next));
+      boxWidthRef.current = Math.floor(entry.contentRect.width);
+      updateMapHeight();
     });
     observer.observe(el);
     observerRef.current = observer;
-  }, []);
+  }, [updateMapHeight]);
 
   const ranking = useMemo(
     () => (visibleArea ? buildAreaRanking(visibleArea, focused) : null),
@@ -175,7 +185,7 @@ export function UsageExplorerTab() {
   const locations = locationSet?.locations ?? [];
 
   return (
-    <div className="flex h-full flex-col gap-4 overflow-y-auto p-3 pb-[max(0.75rem,var(--safe-bottom))] sm:p-4">
+    <div className="load-strip-clearance flex h-full flex-col gap-4 overflow-y-auto p-3 pb-[max(0.75rem,var(--safe-bottom))] sm:p-4">
       {/* ── Controls ─────────────────────────────────────────────────────────── */}
       <div className="flex flex-wrap items-center gap-3">
         <label className="text-sm font-medium" htmlFor="usage-province">
@@ -220,7 +230,7 @@ export function UsageExplorerTab() {
       </div>
 
       {/* ── Map ──────────────────────────────────────────────────────────────── */}
-      <div className="relative" ref={mapBoxRef}>
+      <div className="relative" ref={mapBoxRef} data-testid="usage-map-box">
         <UsageMap
           height={mapHeight}
           locations={locations}

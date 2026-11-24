@@ -9,6 +9,7 @@ import type {
 } from '@server/types/admin.js';
 import { cn } from '../lib/cn.js';
 import { adminApi } from './api.js';
+import { containTab } from '../lib/focus.js';
 import { notifyAdminChange } from './changes.js';
 import { primarySmallButton, smallButton } from './Section.js';
 
@@ -217,7 +218,10 @@ export function ClassificationDialog({
   const onCloseRef = useRef(onClose);
   onCloseRef.current = onClose;
   useEffect(() => {
-    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && !savingRef.current && onCloseRef.current();
+    const onKey = (e: KeyboardEvent) => {
+      containTab(e, dialogRef.current);
+      if (e.key === 'Escape' && !savingRef.current) onCloseRef.current();
+    };
     document.addEventListener('keydown', onKey);
     return () => document.removeEventListener('keydown', onKey);
   }, []);
@@ -334,16 +338,19 @@ export function ClassificationDialog({
                   <span>{reasonText(t, data.reason)}</span>
                 </p>
               )}
-              {data.classifications.map((c) => (
-                <EntryRow
-                  key={c.key}
-                  entry={c}
-                  readOnly={readOnly}
-                  value={(c.entryId && edits[c.entryId]) || c.selectedValueIds}
-                  onChange={(ids) => c.entryId && setEdits((prev) => ({ ...prev, [c.entryId as string]: ids }))}
-                  result={c.entryId ? results[c.entryId] : undefined}
-                />
-              ))}
+              {/* No edits while a save is under way: its answer would undo them. */}
+              <fieldset disabled={saving} className="min-w-0">
+                {data.classifications.map((c) => (
+                  <EntryRow
+                    key={c.key}
+                    entry={c}
+                    readOnly={readOnly}
+                    value={(c.entryId && edits[c.entryId]) || c.selectedValueIds}
+                    onChange={(ids) => c.entryId && setEdits((prev) => ({ ...prev, [c.entryId as string]: ids }))}
+                    result={c.entryId ? results[c.entryId] : undefined}
+                  />
+                ))}
+              </fieldset>
             </>
           )}
         </div>

@@ -11,6 +11,11 @@ production; 4100/4101/4102 in dev) plus any application the request names (resea
 
 Unchanged: requires a session (401 without one) and is exempt from the gate.
 
+> **Superseded by feature 027**: `access.gate` (one Space) was replaced by `access.viewerSpaces`
+> (a list), and Manage now comes from the separate admin Spaces. The current shape is
+> [027 `contracts/api-access-sets.md`](../../027-vng-admin-area/contracts/api-access-sets.md) §2; the example and
+> table below are kept as 026 shipped them.
+
 **200** adds `access`:
 
 ```json

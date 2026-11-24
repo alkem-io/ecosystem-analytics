@@ -311,7 +311,7 @@ export function DashboardTab() {
 
   return (
     <div className="relative h-full">
-      <div className="h-full overflow-auto p-3 pb-[max(0.75rem,var(--safe-bottom))] sm:p-6">
+      <div className="load-strip-clearance h-full overflow-auto p-3 pb-[max(0.75rem,var(--safe-bottom))] sm:p-6">
       {/* A managed-scope dashboard (VNG) says this in its GemeenteDelers panel, with the
           switch — not here (feature 027). */}
       {state.includeInitiatives && !flags?.managedScope && (

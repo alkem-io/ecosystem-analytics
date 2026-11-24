@@ -74,8 +74,20 @@ describe('appsForRequest', () => {
     expect(appsForRequest('vng', req('/api/hubs', { app: 'vng' }))).toEqual(['vng']);
   });
 
-  it('ignores non-string app values', () => {
-    expect(appsForRequest('explorer', req('/api/hubs', { app: ['vng'] }))).toEqual(['explorer']);
+  it('reads an array-valued app too: as a property key it would name that app', () => {
+    expect(appsForRequest('explorer', req('/api/hubs', { app: ['vng'] }))).toEqual(['explorer', 'vng']);
+    expect(appsForRequest('explorer', req('/api/graph/generate', {}, { app: [['vng']] }))).toEqual([
+      'explorer',
+      'vng',
+    ]);
+  });
+
+  it('judges the path as Express routes it, whatever its case', () => {
+    expect(appsForRequest('explorer', req('/API/Vng/dashboard'))).toEqual(['explorer', 'vng']);
+    expect(appsForRequest('explorer', req('/Api/HUBS', { app: 'vng' }))).toEqual(['explorer', 'vng']);
+  });
+
+  it('ignores values that name no app', () => {
     expect(appsForRequest('explorer', req('/api/graph/generate', {}, { app: 1 }))).toEqual([
       'explorer',
     ]);

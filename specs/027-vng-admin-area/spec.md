@@ -188,7 +188,7 @@ The manager sees where the monitor's GemeenteDelers initiatives come from:
 - **FR-005**: The administration area and everything it loads or changes MUST be limited to Monitor Managers. Anyone else reaching it, by its address or by any other route, MUST get "no access" and receive none of its content.
 - **FR-006**: A person MUST be admitted to the monitor (**Read**) when they hold the Member role on **any** Viewer Space.
 - **FR-007**: A person MUST be a **Monitor Manager** (**Manage**) when they hold the Admin role on **any** Admin Space. Manage MUST include Read.
-- **FR-008**: Viewer Spaces and Admin Spaces MUST each be a non-empty set configured per deployment. A missing or invalid configuration MUST stop start-up, as in feature 026. In production both sets MUST default to the Programmagroei Space, so access is unchanged when this feature ships.
+- **FR-008**: Viewer Spaces and Admin Spaces are configured per deployment. A gated monitor MUST have at least one Viewer Space. Its Admin Spaces MAY be empty: then there are no Monitor Managers and the administration area is unreachable. An ungated application has neither, and configuring Admin Spaces for one is invalid. A missing Viewer configuration, or any invalid one, MUST stop start-up, as in feature 026. In production both sets default to the Programmagroei and Innovatiemonitor Spaces. Sets saved in the administration area (2026-11-24) MUST both be non-empty.
 - **FR-009**: Every change made through the area (stories 4 and 5) MUST re-verify, at the moment of saving, that the person is a Monitor Manager. It must not rely on a decision taken earlier in the session.
 
 **a, b. Viewer and Admin Spaces**

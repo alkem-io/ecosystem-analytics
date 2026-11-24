@@ -183,9 +183,10 @@ export async function createBasemap(options: BasemapOptions): Promise<BasemapHan
     return fallback(`map construction failed: ${(err as Error).message}`);
   }
 
-  // Fade the imagery so the overlay markers read as the foreground. Set on the container
-  // rather than in the style so it survives a style swap and stays one composite.
-  container.style.opacity = String(BASEMAP_OPACITY);
+  // Fade the imagery so the overlay markers read as the foreground. Set on the canvas
+  // rather than in the style so it survives a style swap and stays one composite — and not
+  // on the container, whose other child is the gesture hint: that text must stay readable.
+  map.getCanvas().style.opacity = String(BASEMAP_OPACITY);
 
   const handle: BasemapHandle = {
     destroy: () => {

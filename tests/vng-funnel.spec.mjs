@@ -238,6 +238,18 @@ test('the dots can be coloured by NDS or VNG 2030, with a legend that highlights
   expect(await colours()).toEqual(bySource);
 });
 
+test('a colouring whose values are gone falls back to the source', async ({ page }) => {
+  await boot(page);
+  await page.getByTestId('funnel-color-by').selectOption('nds');
+  await expect(page.getByTestId('funnel-category-legend')).toBeVisible();
+  // The next load carries no classification at all: the controls go, so the mode must too.
+  const bare = { ...dataset, nodes: dataset.nodes.map((n) => ({ ...n, ndsCategories: [], vng2030Categories: [] })) };
+  await page.route('**/api/graph/generate', (r) => generateJson(r, bare, dashboard));
+  await page.getByTestId('gd-switch').click();
+  await expect(page.getByTestId('funnel-color-by')).toHaveCount(0, { timeout: 15_000 });
+  await expect(page.getByTestId('funnel-source-legend')).toBeVisible();
+});
+
 /** One Space per status, in fixture order: active, quiet, dormant, none — the rest not visible. */
 const daysAgo = (n) => new Date(Date.now() - n * 86_400_000).toISOString();
 const LAST_AT = Object.fromEntries([daysAgo(5), daysAgo(60), daysAgo(200), null].map((at, i) => [L0[i].id, at]));

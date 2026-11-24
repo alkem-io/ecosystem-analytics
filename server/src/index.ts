@@ -65,9 +65,16 @@ await runBackupIfDue();
 scheduleDailyBackup();
 {
   const scope = getScope();
+  // An unreadable backup directory is reported, never a reason not to start.
+  let backup: string;
+  try {
+    backup = lastBackup() ?? '(none)';
+  } catch (err) {
+    backup = `(unavailable: ${(err as Error).message})`;
+  }
   logger.info(
     `[Settings] monitor scope revision ${scope.revision}, ${scope.spaceNameIds.length} Spaces; ` +
-      `last backup ${lastBackup() ?? '(none)'}`,
+      `last backup ${backup}`,
     { context: 'Bootstrap' },
   );
 }

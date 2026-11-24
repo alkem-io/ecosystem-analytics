@@ -184,6 +184,38 @@ describe('a refused person (VNG gated, Explorer ungated) — contracts §3', () 
     expect(r.json).toEqual(refused);
   });
 
+  // Express matches routes case-insensitively, so the gate must too.
+  it.each([
+    ['vng', '/API/vng/dashboard', { method: 'POST', body: {} }],
+    ['vng', '/Api/spaces', {}],
+    ['explorer', '/API/vng/dashboard', { method: 'POST', body: {} }],
+    ['explorer', '/api/VNG/dashboard', { method: 'POST', body: {} }],
+    ['explorer', '/api/Vng/scope', {}],
+    ['explorer', '/api/HUBS?app=vng', {}],
+    ['explorer', '/Api/Graph/generate', { method: 'POST', body: { app: 'vng', spaceIds: ['a'] } }],
+    // Array-valued app names, which a property lookup would read as `vng`.
+    ['explorer', '/api/graph/generate', { method: 'POST', body: { app: ['vng'], spaceIds: ['a'] } }],
+    ['explorer', '/api/graph/generate', { method: 'POST', body: { app: [['vng']], spaceIds: ['a'] } }],
+    ['explorer', '/api/hubs?app=vng&app=govtech', {}],
+  ])('is refused however the app is spelled: %s %s', async (listener, path, init) => {
+    const r = await call(listener, path, { ...(init as Call), cookie });
+    expect(r.status).toBe(403);
+    expect(r.json).toMatchObject({ error: 'ACCESS_DENIED', app: 'vng' });
+    expect(generateGraphBundle).not.toHaveBeenCalled();
+  });
+
+  it.each(['/%61pi/vng/scope', '/api/%76ng/scope', '//api/vng/scope', '/api//vng/scope'])(
+    'reaches no VNG route by another spelling: %s',
+    async (path) => {
+      expect([403, 404]).toContain((await call('explorer', path, { cookie })).status);
+    },
+  );
+
+  it('can still reach the exempt routes in any case', async () => {
+    expect((await call('vng', '/API/Auth/me', { cookie })).status).toBe(200);
+    expect((await call('vng', '/api/HEALTH', { cookie })).status).toBe(200);
+  });
+
   it('is refused /api/hubs?app=vng through the Explorer listener', async () => {
     expect((await call('explorer', '/api/hubs?app=vng', { cookie })).status).toBe(403);
   });

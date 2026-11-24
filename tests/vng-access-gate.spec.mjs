@@ -79,10 +79,15 @@ const DENIED = {
  * Mount the dashboard with the BFF mocked. `me` is a function so a spec can change the
  * report between calls; `deny` makes every data route answer 403 ACCESS_DENIED.
  */
-async function boot(page, { me, recheck, deny = false }) {
+/** `deny`: called when a data request is refused; every data route then answers 403. */
+async function boot(page, { me, recheck, deny = null }) {
   const calls = [];
   page.on('request', (req) => calls.push(new URL(req.url()).pathname));
-  const data = (handler) => (route) => (deny ? json(route, DENIED, 403) : handler(route));
+  const data = (handler) => (route) => {
+    if (!deny) return handler(route);
+    deny();
+    return json(route, DENIED, 403);
+  };
 
   await page.route('**/api/**', (r) => r.abort());
   await page.route('**/api/auth/me', (r) => json(r, { ...F.me, access: me() }));
@@ -191,10 +196,20 @@ test('a refusal mid-session switches to the no-access screen — no toast, no si
   page,
 }) => {
   let current = ADMITTED;
-  const calls = await boot(page, { me: () => current, recheck: () => current, deny: true });
-  // The dashboard renders for an admitted person; its first data request is refused.
-  current = REFUSED;
+  let refused = 0;
+  // Admitted until the first data request is refused — and only from then on. Switching
+  // here, after boot(), could refuse the very first /me and prove nothing about a refusal
+  // mid-session.
+  const calls = await boot(page, {
+    me: () => current,
+    recheck: () => current,
+    deny: () => {
+      refused += 1;
+      current = REFUSED;
+    },
+  });
   await expect(noAccessHeading(page)).toBeVisible({ timeout: 20_000 });
+  expect(refused).toBeGreaterThan(0);
   expect(calls.some((p) => p.startsWith('/api/auth/login'))).toBe(false);
   await expect(page.getByRole('alert')).toHaveCount(0);
 });

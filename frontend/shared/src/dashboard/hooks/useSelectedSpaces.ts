@@ -32,8 +32,9 @@ const DEFAULT_STATE: SelectionState = {
 
 /**
  * Parse a persisted selection. With `managedScope` (feature 027, FR-014) the monitor always
- * reports on ALL of its Spaces: any `directAdded` or `directRemoved` saved by an older
- * build is discarded, since viewers can no longer change the set in either direction.
+ * reports on ALL of its Spaces, as the scope gives them: any saved Spaces — the hub's, or
+ * `directAdded` / `directRemoved` from an older build — are discarded, since viewers can no
+ * longer change the set in either direction.
  */
 export function parseSelectionState(
   raw: string | null,
@@ -45,7 +46,9 @@ export function parseSelectionState(
     return {
       ...DEFAULT_STATE,
       ...parsed,
-      hubSpaceIds: parsed.hubSpaceIds ?? [],
+      // The scope supplies both; a saved one must not load while it is away or has failed.
+      ...(opts.managedScope ? { activeHubNameId: null } : {}),
+      hubSpaceIds: opts.managedScope ? [] : (parsed.hubSpaceIds ?? []),
       directAdded: opts.managedScope ? [] : (parsed.directAdded ?? []),
       directRemoved: opts.managedScope ? [] : (parsed.directRemoved ?? []),
     };

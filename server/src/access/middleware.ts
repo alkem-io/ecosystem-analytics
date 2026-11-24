@@ -19,7 +19,11 @@ import { appsForRequest } from './request-apps.js';
  */
 const EXEMPT = [/^\/api\/auth(\/|$)/, /^\/api\/health$/, /^\/api\/features$/, /^\/api\/meta(\/|$)/];
 
-const isExempt = (path: string) => !path.startsWith('/api/') || EXEMPT.some((re) => re.test(path));
+/** Express matches routes case-insensitively (`/API/…` reaches `/api/…`), so the gate must too. */
+const isExempt = (rawPath: string) => {
+  const path = rawPath.toLowerCase();
+  return !path.startsWith('/api/') || EXEMPT.some((re) => re.test(path));
+};
 
 /**
  * The session behind the request's cookie — read only; `authMiddleware` still owns

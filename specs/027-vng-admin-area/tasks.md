@@ -156,15 +156,14 @@ description: "Task list for 027-vng-admin-area"
     - take `hubSpaceIds` from the scope instead of `/api/hubs/:nameId/spaces`;
     - set `activeHubNameId = ecosystemKey`;
     - make `addSpace` a no-op;
-    - discard any persisted `directAdded` on load;
-    - keep `directRemoved` (narrowing).
+    - discard any persisted hub Spaces, `directAdded` and `directRemoved` on load (revised FR-014: no narrowing).
 - [X] T028 Hide the hub controls when `managedScope` is on.
-  - In `frontend/shared/src/dashboard/components/SelectedSpacesPanel.tsx`, don't render `HubSelector`, the "load all hub initiatives" button or `SpacePicker`. Keep the checkboxes, select-all, remove and the GD section.
+  - In `frontend/shared/src/dashboard/components/SelectedSpacesPanel.tsx`, don't render `HubSelector`, the "load all hub initiatives" button or `SpacePicker`. (Revised FR-014: on VNG the panel and its drawer are not rendered at all; the GD switch and refresh are in the data-controls row.)
   - In `frontend/shared/src/dashboard/pages/EcosystemTab.tsx`, take the hub display name from the app title when there is no hub entry.
   - Reword `ecosystem.hint.addSpace` in `frontend/vng/src/i18n/{nl,en}.json`, because viewers can no longer add Spaces.
 - [X] T029 [P] Write `frontend/vng/src/dashboard/managed-scope.test.ts`.
-  - With `managedScope`, the effective set equals the scope minus `directRemoved`.
-  - A legacy `vng_selection` that contains `directAdded` loads without those Spaces.
+  - With `managedScope`, the effective set equals the complete Included Spaces set.
+  - A legacy `vng_selection` that contains hub Spaces, `directAdded` or `directRemoved` loads without them.
   - `addSpace` changes nothing.
   - Without the flag (GovTech), behaviour is unchanged.
 

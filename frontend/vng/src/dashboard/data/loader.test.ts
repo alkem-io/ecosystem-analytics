@@ -142,6 +142,34 @@ describe('DashboardLoader (feature 025)', () => {
     expect(loader.store.getSnapshot().data?.extras.activity).toBeDefined();
   });
 
+  it('an explicit retry runs although an earlier value is still held', async () => {
+    const g = fakeGraph();
+    const x = extras();
+    const loader = new DashboardLoader(new DashboardStore(), g.loadGraph, x);
+    const sel = selection(['a']);
+    loader.setSelection(sel, selectionLoadKey(sel));
+    loader.declare('activity', 'tab:initiatives');
+    g.calls[0].resolve(dataset('a'));
+    await tick();
+    x.activity.mockRejectedValueOnce(new Error('feed down'));
+    loader.refresh();
+    g.calls[1].resolve(dataset('a2'));
+    await tick();
+    const item = () => loader.store.getSnapshot().plan.items.find((i) => i.key === 'activity');
+    expect(item()?.stage).toBe('failed');
+    expect(loader.store.getSnapshot().data?.extras.activity).toBeDefined(); // the earlier one
+    loader.retry('activity');
+    await tick();
+    expect(item()?.stage).toBe('done');
+  });
+
+  it('reloads when a context-only Space becomes a selected one (it is counted from then on)', () => {
+    const before = { ...selection(['a']), widenedSpaceIds: ['b'] };
+    const after = { ...selection(['a', 'b']), widenedSpaceIds: [] };
+    expect(selectionLoadKey(before)).not.toBe(selectionLoadKey(after));
+    expect(selectionLoadKey({ ...after, spaceIds: ['b', 'a'] })).toBe(selectionLoadKey(after));
+  });
+
   it('the GemeenteDelers switch keeps loaded extras on screen and does not re-request them', async () => {
     const g = fakeGraph();
     const x = extras();

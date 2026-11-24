@@ -186,7 +186,8 @@ const sameSet = (a: readonly string[], b: readonly string[]) =>
  *    manager saw is `CHANGED_ON_ALKEMIO`, a vanished vocabulary id is `VALUE_REMOVED`;
  *    otherwise write it. FORBIDDEN is `NOT_PERMITTED`, anything else `FAILED`.
  * 3. Each `SAVED` entry is recorded; after any, the EDITOR's cached rows for that Space
- *    are invalidated so their dashboard shows the change on return (FR-025).
+ *    are invalidated so their dashboard shows the change on return (FR-025) — also when a
+ *    later step fails, since the change is on Alkemio by then.
  */
 export async function applyClassificationChanges(
   auth: AuthContext,
@@ -198,7 +199,8 @@ export async function applyClassificationChanges(
   const client = sdk ?? (await adminSdkFor(auth));
   const reread = () => resolveInitiative(auth, nameId, client);
 
-  let resolved = await reread();
+  const resolved = await reread();
+  const kind = resolved.ref.kind;
   const before = viewOf(resolved);
   const byEntry = new Map(
     before.classifications.filter((c) => c.present && c.entryId).map((c) => [c.entryId as string, c]),
@@ -228,64 +230,85 @@ export async function applyClassificationChanges(
     return { results, classifications: before };
   }
 
-  let saved = 0;
-  for (const change of changes) {
-    resolved = await reread();
-    let current: DesignatedClassificationView | null;
-    try {
-      current = viewOf(resolved).classifications.find((c) => c.entryId === change.entryId) ?? null;
-    } catch {
-      current = null;
-    }
-    if (!current) {
-      results.push({ entryId: change.entryId, outcome: 'FAILED', current: null });
-      continue;
-    }
-    if (!sameSet(current.selectedValueIds, change.expectedSelectedValueIds)) {
-      results.push({ entryId: change.entryId, outcome: 'CHANGED_ON_ALKEMIO', current });
-      continue;
-    }
-    if (!change.selectedValueIds.every((id) => current!.values.some((v) => v.id === id))) {
-      results.push({ entryId: change.entryId, outcome: 'VALUE_REMOVED', current });
-      continue;
-    }
-    try {
-      await client.UpdateClassificationSelection({
-        entryId: change.entryId,
-        selectedValueIDs: change.selectedValueIds,
-      });
-    } catch (err) {
-      if (isForbidden(err)) {
-        results.push({ entryId: change.entryId, outcome: 'NOT_PERMITTED', current });
+  let written = false;
+  try {
+    for (const change of changes) {
+      let current: DesignatedClassificationView | null;
+      try {
+        current = viewOf(await reread()).classifications.find((c) => c.entryId === change.entryId) ?? null;
+      } catch (err) {
+        if (isAlkemioAuthError(err)) throw err;
+        current = null; // this entry could not be re-read; the others still get their turn
+      }
+      if (!current) {
+        results.push({ entryId: change.entryId, outcome: 'FAILED', current: null });
         continue;
       }
-      if (isAlkemioAuthError(err)) throw err;
-      results.push({ entryId: change.entryId, outcome: 'FAILED', current });
-      continue;
+      if (!sameSet(current.selectedValueIds, change.expectedSelectedValueIds)) {
+        results.push({ entryId: change.entryId, outcome: 'CHANGED_ON_ALKEMIO', current });
+        continue;
+      }
+      if (!change.selectedValueIds.every((id) => current!.values.some((v) => v.id === id))) {
+        results.push({ entryId: change.entryId, outcome: 'VALUE_REMOVED', current });
+        continue;
+      }
+      try {
+        await client.UpdateClassificationSelection({
+          entryId: change.entryId,
+          selectedValueIDs: change.selectedValueIds,
+        });
+      } catch (err) {
+        if (isForbidden(err)) {
+          results.push({ entryId: change.entryId, outcome: 'NOT_PERMITTED', current });
+          continue;
+        }
+        if (isAlkemioAuthError(err)) throw err;
+        results.push({ entryId: change.entryId, outcome: 'FAILED', current });
+        continue;
+      }
+      written = true;
+      const label = (id: string) => current!.values.find((v) => v.id === id)?.label ?? id;
+      recordClassificationChange({
+        actor,
+        spaceNameId: nameId,
+        entryId: change.entryId,
+        entryLabel: current.label,
+        from: current.selectedValueIds.map((id) => ({ id, label: label(id) })),
+        to: change.selectedValueIds.map((id) => ({ id, label: label(id) })),
+      });
+      results.push({
+        entryId: change.entryId,
+        outcome: 'SAVED',
+        current: { ...current, selectedValueIds: change.selectedValueIds },
+      });
     }
-    const label = (id: string) => current!.values.find((v) => v.id === id)?.label ?? id;
-    recordClassificationChange({
-      actor,
-      spaceNameId: nameId,
-      entryId: change.entryId,
-      entryLabel: current.label,
-      from: current.selectedValueIds.map((id) => ({ id, label: label(id) })),
-      to: change.selectedValueIds.map((id) => ({ id, label: label(id) })),
-    });
-    saved += 1;
-    results.push({
-      entryId: change.entryId,
-      outcome: 'SAVED',
-      current: { ...current, selectedValueIds: change.selectedValueIds },
-    });
-  }
 
-  if (saved > 0) {
-    // FR-025: only the editor's own rows. Other viewers see the change within their TTL.
-    if (resolved.ref.kind === 'gd-subspace') invalidateCache(auth.userId, [GD_CACHE_SPACE_ID]);
-    else invalidateCache(auth.userId, [nameId]);
-    invalidateDatasetMemo(auth.userId);
+    // Before the invalidation below: a GD subspace is FOUND through the row it removes.
+    return { results, classifications: await finalView(reread, before, results) };
+  } finally {
+    if (written) {
+      // FR-025: only the editor's own rows. Other viewers see the change within their TTL.
+      if (kind === 'gd-subspace') invalidateCache(auth.userId, [GD_CACHE_SPACE_ID]);
+      else invalidateCache(auth.userId, [nameId]);
+      invalidateDatasetMemo(auth.userId);
+    }
   }
+}
 
-  return { results, classifications: viewOf(await reread()) };
+/** The state after the writes; if it cannot be re-read, what the writes left behind. */
+async function finalView(
+  reread: () => Promise<Resolved>,
+  before: InitiativeClassificationsView,
+  results: ClassificationChangeResult[],
+): Promise<InitiativeClassificationsView> {
+  try {
+    return viewOf(await reread());
+  } catch (err) {
+    if (isAlkemioAuthError(err)) throw err;
+    const known = new Map(results.map((r) => [r.entryId, r.current]));
+    return {
+      ...before,
+      classifications: before.classifications.map((c) => (c.entryId && known.get(c.entryId)) || c),
+    };
+  }
 }

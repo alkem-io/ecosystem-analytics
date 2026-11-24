@@ -114,6 +114,15 @@ export function FunnelTab() {
     if (vngFilter !== FILTER_ALL && !vngOptions.includes(vngFilter)) setVngFilter(FILTER_ALL);
   }, [ndsOptions, vngOptions, ndsFilter, vngFilter]);
 
+  // The same for the colouring: without any value its option is gone (and with neither
+  // classification the whole row of controls), so it must not stay selected. Not while the
+  // data is away — that is no statement about the values.
+  useEffect(() => {
+    if (!dataset) return;
+    if (colorBy === 'nds' && ndsOptions.length === 0) setColorBy('source');
+    if (colorBy === 'vng2030' && vngOptions.length === 0) setColorBy('source');
+  }, [dataset, colorBy, ndsOptions, vngOptions]);
+
   // A filtered-out initiative leaves the funnel entirely — including the stage counts in
   // the header boxes, which is the point: the funnel re-reads as that theme's pipeline.
   const rows = useMemo(
@@ -318,7 +327,7 @@ export function FunnelTab() {
         />
       )}
       {/* Measured here, not on the page: this is the box the funnel actually gets. */}
-      <div ref={hostRef} className="mt-2 min-h-0 flex-1 overflow-y-auto overscroll-contain">
+      <div ref={hostRef} className="load-strip-clearance mt-2 min-h-0 flex-1 overflow-y-auto overscroll-contain">
         {body()}
       </div>
       {/* The stage set and its order come from Alkemio's authored vocabulary, so a drift

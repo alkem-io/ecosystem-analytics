@@ -429,6 +429,7 @@ async function buildGraph(
   const dashboard = buildDashboardBundle({
     dataset: counted,
     snapshots: snapshots.filter((s) => countedIds.has(s.id)),
+    vocabularySnapshots: snapshots,
     unresolvedCount: spaceIds.filter((id) => !context.has(id) && !presentL0.has(id)).length,
     gdCallouts,
     municipalities: registry.municipalities(),

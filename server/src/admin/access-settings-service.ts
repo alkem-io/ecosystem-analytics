@@ -106,8 +106,13 @@ export async function saveAccessSettings(
     refs.map((r) => ({ key: r.key, displayName: infos.get(r.key)!.displayName }));
   const asStored = (links: Array<{ key: string; displayName: string }>): StoredSpace[] =>
     links.map((l) => ({ key: l.key, displayName: l.displayName }));
-  if (setKey(viewers, admins) === eff.sets.setKey && eff.source === 'settings') {
-    return { revision: eff.revision }; // nothing changed
+  // Re-read: another manager may have saved while the checks above waited on Alkemio.
+  const now = effectiveAccess('vng');
+  if (now.revision !== body.baseRevision) {
+    throw new AdminRequestError(409, 'CONFLICT', { revision: now.revision });
+  }
+  if (now.source === 'settings' && setKey(viewers, admins) === now.sets?.setKey) {
+    return { revision: now.revision }; // nothing changed
   }
   try {
     const revision = saveAccess({
