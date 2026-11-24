@@ -124,7 +124,7 @@ export async function mockBff(page, F, opts = {}) {
 
   await page.route('**/api/graph/activity', (r) => {
     if (opts.activityFail) return json(r, { error: 'ACTIVITY_FAILED', message: 'nope' }, 502);
-    return json(r, F.activity ?? { bySpace: {}, fetchedAt: new Date().toISOString(), unavailable: [] });
+    return json(r, F.activity ?? { bySpace: {}, lastAt: {}, fetchedAt: new Date().toISOString(), unavailable: [] });
   });
   await page.route('**/api/graph/organizations', (r) =>
     json(r, F.organizations ?? { organizations: {}, missing: [] }),
@@ -156,7 +156,7 @@ export function activityOf(dataset) {
     const p = n.activityByPeriod;
     bySpace[n.id] = { day: p.day ?? 0, week: p.week ?? 0, month: p.month ?? 0, total: n.totalActivityCount ?? p.allTime ?? 0, tier: n.spaceActivityTier ?? 'INACTIVE' };
   }
-  return { bySpace, fetchedAt: new Date().toISOString(), unavailable: [] };
+  return { bySpace, lastAt: dataset.lastAt ?? {}, fetchedAt: new Date().toISOString(), unavailable: [] };
 }
 
 /** The counts bundle: `F.bundle` if the fixture has one, else derived from `F.dashboard`. */

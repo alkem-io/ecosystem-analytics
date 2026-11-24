@@ -142,6 +142,8 @@ graphRouter.post('/activity', async (req: Request, res: Response) => {
     const spaces: ActivitySpace[] = [];
     const spaceIdToL0 = new Map<string, string>();
     const unavailable: string[] = [];
+    // An about-only Space shows the viewer no content, so an empty feed proves nothing.
+    const aboutOnly = new Set<string>();
     for (const nameId of body.spaceIds) {
       const row = getCacheEntry(userId, nameId);
       if (!row) {
@@ -155,10 +157,13 @@ graphRouter.post('/activity', async (req: Request, res: Response) => {
         continue;
       }
       spaces.push({ nameId, id: l0.id });
+      if (l0.restricted) aboutOnly.add(nameId);
       for (const n of nodes) spaceIdToL0.set(n.id, l0.id);
     }
     const loaded = await loadActivityEntries(userId, req.auth!, spaces, spaceIdToL0, body.forceRefresh ?? false);
-    res.json(toActivityItem(loaded.entries, [...unavailable, ...loaded.unavailable]));
+    const failed = new Set(loaded.unavailable);
+    const readable = spaces.filter((s) => !failed.has(s.nameId) && !aboutOnly.has(s.nameId));
+    res.json(toActivityItem(loaded.entries, [...unavailable, ...loaded.unavailable], readable, spaceIdToL0));
   } catch (err) {
     if (isAlkemioAuthError(err)) return invalidateAndReject(req, res);
     logger.error(`Activity load failed: ${(err as Error).message}`, { context: 'Graph', stack: (err as Error).stack });

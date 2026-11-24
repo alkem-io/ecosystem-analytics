@@ -1,16 +1,18 @@
 import { useEffect, useRef, useState, type KeyboardEvent } from 'react';
 import { useTranslation } from 'react-i18next';
-import { ArrowLeft, History, KeyRound, Layers, ScrollText, ShieldX } from 'lucide-react';
+import { ArrowLeft, History, Inbox, KeyRound, Layers, ScrollText, ShieldX } from 'lucide-react';
 import { cn } from '../lib/cn.js';
 import { BrandingHeader } from '../dashboard/components/BrandingHeader.js';
 import { leaveAdmin } from './navigation.js';
 import { AccessSection } from './sections/AccessSection.js';
 import { IncludedSpacesSection } from './sections/IncludedSpacesSection.js';
 import { GdSourceSection } from './sections/GdSourceSection.js';
+import { IntakeSection } from './sections/IntakeSection.js';
 import { AuditLogSection } from './sections/AuditLogSection.js';
 import { smallButton } from './Section.js';
 
-const TABS = ['included', 'gd', 'access', 'audit'] as const;
+// The change log stays last.
+const TABS = ['included', 'gd', 'intake', 'access', 'audit'] as const;
 type AdminTab = (typeof TABS)[number];
 
 /** The tab named in the URL hash (`#gd`), so a reload or a shared link keeps it. */
@@ -20,13 +22,20 @@ const tabFromHash = (): AdminTab => {
 };
 
 /**
- * The settings in four tabs: the Groei initiatives in the monitor, GemeenteDelers, access,
- * and the change log — every edit of the other three, in one list.
+ * The administration side in five tabs: the Groei initiatives in the monitor,
+ * GemeenteDelers, intake (a placeholder), access, and the change log — every edit made in
+ * the others, in one list.
  */
 function AdminTabs() {
   const { t } = useTranslation();
   const [tab, setTab] = useState<AdminTab>(tabFromHash);
-  const refs = useRef<Record<AdminTab, HTMLButtonElement | null>>({ included: null, gd: null, access: null, audit: null });
+  const refs = useRef<Record<AdminTab, HTMLButtonElement | null>>({
+    included: null,
+    gd: null,
+    intake: null,
+    access: null,
+    audit: null,
+  });
   useEffect(() => {
     const onHash = () => setTab(tabFromHash());
     window.addEventListener('hashchange', onHash);
@@ -50,10 +59,11 @@ function AdminTabs() {
   const label: Record<AdminTab, string> = {
     included: t('admin.tabs.included', { defaultValue: 'Initiatives in the monitor' }),
     gd: t('admin.tabs.gd', { defaultValue: 'GemeenteDelers' }),
+    intake: t('admin.tabs.intake', { defaultValue: 'Intake' }),
     access: t('admin.tabs.access', { defaultValue: 'Access' }),
     audit: t('admin.tabs.audit', { defaultValue: 'Change log' }),
   };
-  const icon = { included: Layers, gd: History, access: KeyRound, audit: ScrollText } as const;
+  const icon = { included: Layers, gd: History, intake: Inbox, access: KeyRound, audit: ScrollText } as const;
 
   return (
     <>
@@ -98,6 +108,7 @@ function AdminTabs() {
       <div role="tabpanel" id={`admin-panel-${tab}`} aria-labelledby={`admin-tab-${tab}`} className="min-w-0">
         {tab === 'included' && <IncludedSpacesSection />}
         {tab === 'gd' && <GdSourceSection />}
+        {tab === 'intake' && <IntakeSection />}
         {tab === 'access' && <AccessSection />}
         {tab === 'audit' && <AuditLogSection />}
       </div>

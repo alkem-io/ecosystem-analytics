@@ -11,6 +11,7 @@ import {
   rowKeys,
   type FunnelColorBy,
 } from '../utils/funnel-colors.js';
+import { HANDELEN_COLOR, HANDELEN_ORDER, handelenLabel } from '../utils/handelen.js';
 import { GD_COLOR, GROEI_COLOR, slicePath } from '../utils/pie.js';
 import { FunnelHoverCard } from './FunnelHoverCard.js';
 
@@ -22,11 +23,11 @@ const HEADER_HEIGHT = 46;
 const HEADER_GUTTER = 3;
 const RAMP_BAND = 46; // px reserved at the bottom for the money/effort ramp
 /**
- * Vertical space the chart adds AROUND the funnel itself (labels + ramp), plus the
- * legend below the SVG. The tab subtracts this from the measured box before asking for a
+ * Vertical space the chart adds AROUND the funnel itself (labels + ramp), plus a little
+ * slack (the legend now sits above the panel, outside the measured box). The tab subtracts this from the measured box before asking for a
  * funnel height, so the whole thing fits without scrolling (FR-006).
  */
-export const FUNNEL_CHROME = LABEL_BAND + RAMP_BAND + 56;
+export const FUNNEL_CHROME = LABEL_BAND + RAMP_BAND + 8;
 
 interface Props {
   layout: FunnelLayout;
@@ -40,6 +41,163 @@ interface Props {
   colorBy?: FunnelColorBy;
   /** The chosen classification's values in authored order — fixes each value's colour. */
   vocabulary?: readonly string[];
+  /** The legend entry being highlighted (its dots stay, the rest fade), or null. */
+  focusKey?: string | null;
+}
+
+/** GemeenteDelers in the handelen colouring: recognisably its green, but receding. */
+const GD_FADED = `color-mix(in srgb, ${GD_COLOR} 35%, var(--surface-raised))`;
+/** A Groei dot whose handelen has not loaded. */
+const HANDELEN_PENDING = 'pending';
+
+/** A legend entry: a source (Groei / GemeenteDelers), a handelen status or a classification value. */
+interface LegendEntry {
+  key: string;
+  label: string;
+  color: string;
+  count: number;
+}
+
+/**
+ * How the dots are coloured, shared by the chart and its legend: each dot's legend keys
+ * and colours, and the legend entries with their counts. By source the keys are the row
+ * kinds; by classification, the values (utils/funnel-colors.ts).
+ */
+function funnelColoring(
+  layout: FunnelLayout,
+  colorBy: FunnelColorBy,
+  vocabulary: readonly string[],
+  t: ReturnType<typeof useTranslation>['t'],
+) {
+  const allDots = [...layout.stages.flatMap((s) => s.dots), ...(layout.holding?.dots ?? [])];
+  const byHandelen = colorBy === 'handelen';
+  const byCategory = colorBy === 'nds' || colorBy === 'vng2030' ? colorBy : null;
+  const scale = categoryScale(vocabulary);
+  // By handelen: a Groei dot wears its status. GemeenteDelers has none (a completed
+  // programme), so it keeps a faded version of its own green. Until the item has loaded,
+  // Groei dots are neutral and have no legend entry of their own.
+  const handelenKey = (dot: FunnelDot) =>
+    dot.row.kind === 'gd' ? 'gd' : (dot.row.handelen?.status ?? HANDELEN_PENDING);
+  const handelenColor = (key: string) =>
+    key === 'gd'
+      ? GD_FADED
+      : key === HANDELEN_PENDING
+        ? 'var(--cat-none)'
+        : HANDELEN_COLOR[key as keyof typeof HANDELEN_COLOR];
+  const keysOf = (dot: FunnelDot): string[] =>
+    byHandelen ? [handelenKey(dot)] : byCategory ? rowKeys(dot.row, byCategory, scale, vocabulary) : [dot.row.kind === 'gd' ? 'gd' : 'groei'];
+  const colorsOf = (dot: FunnelDot): string[] =>
+    byHandelen ? [handelenColor(handelenKey(dot))] : byCategory ? keysOf(dot).map((k) => colorOfKey(k, scale)) : [dot.row.kind === 'gd' ? GD_COLOR : GROEI_COLOR];
+  let legend: LegendEntry[];
+  if (byHandelen) {
+    const counts = new Map<string, number>();
+    for (const d of allDots) counts.set(handelenKey(d), (counts.get(handelenKey(d)) ?? 0) + 1);
+    legend = [
+      ...HANDELEN_ORDER.map((s) => ({ key: s as string, label: handelenLabel(t, s) })),
+      { key: 'gd', label: t('handelen.gd', { defaultValue: 'GemeenteDelers (no activity tracked)' }) },
+    ].flatMap((e) => {
+      const count = counts.get(e.key) ?? 0;
+      return count > 0 ? [{ ...e, color: handelenColor(e.key), count }] : [];
+    });
+  } else if (byCategory) {
+    legend = categoryLegend(
+      allDots.map((d) => d.row),
+      byCategory,
+      vocabulary,
+    ).map((e) => ({
+      key: e.key,
+      color: e.color,
+      count: e.count,
+      label:
+        e.label ??
+        (e.key === NONE_KEY
+          ? t('funnel.legendNone', { defaultValue: 'No classification' })
+          : t('funnel.legendOther', { defaultValue: 'Other' })),
+    }));
+  } else {
+    const gd = allDots.filter((d) => d.row.kind === 'gd').length;
+    legend = [
+      { key: 'groei', label: t('funnel.legendGroei', { defaultValue: 'Groei' }), color: GROEI_COLOR, count: allDots.length - gd },
+      { key: 'gd', label: t('funnel.legendGd', { defaultValue: 'GemeenteDelers' }), color: GD_COLOR, count: gd },
+    ].filter((e) => e.count > 0);
+  }
+  const anySplit = byCategory !== null && allDots.some((d) => keysOf(d).length > 1);
+  return { legend, keysOf, colorsOf, anySplit };
+}
+
+/**
+ * What the colours mean, for whichever colouring is chosen — placed by the tab ABOVE the
+ * funnel, outside its scrolling area, so it is always beside the dots it explains. Each
+ * entry is a button: click to highlight its initiatives (colour alone cannot carry eight
+ * values on scattered dots).
+ */
+export function FunnelLegend({
+  layout,
+  colorBy = 'source',
+  vocabulary = [],
+  focusKey,
+  onFocusKey,
+}: {
+  layout: FunnelLayout;
+  colorBy?: FunnelColorBy;
+  vocabulary?: readonly string[];
+  focusKey: string | null;
+  onFocusKey: (key: string | null) => void;
+}) {
+  const { t } = useTranslation();
+  const { legend, anySplit } = funnelColoring(layout, colorBy, vocabulary, t);
+  const focus = legend.some((e) => e.key === focusKey) ? focusKey : null;
+  if (legend.length === 0) return null;
+  return (
+    <div className="mt-2" data-testid={
+        colorBy === 'source'
+          ? 'funnel-source-legend'
+          : colorBy === 'handelen'
+            ? 'funnel-handelen-legend'
+            : 'funnel-category-legend'
+      }>
+      <div className="flex flex-wrap items-center gap-1.5">
+        {legend.map((entry) => {
+          const active = focus === entry.key;
+          return (
+            <button
+              key={entry.key}
+              type="button"
+              aria-pressed={active}
+              onClick={() => onFocusKey(active ? null : entry.key)}
+              data-testid="funnel-legend-item"
+              className={cn(
+                'inline-flex items-center gap-1.5 rounded-full border px-2 py-0.5 text-xs transition-colors',
+                'focus:outline-none focus-visible:ring-2 focus-visible:ring-primary',
+                active
+                  ? 'border-foreground/40 bg-muted text-foreground'
+                  : 'border-border text-foreground hover:bg-muted',
+                focus !== null && !active && 'opacity-50',
+              )}
+            >
+              <span aria-hidden className="inline-block h-2.5 w-2.5 shrink-0 rounded-full" style={{ background: entry.color }} />
+              <span>{entry.label}</span>
+              <span className="tabular-nums text-muted-foreground">{entry.count}</span>
+            </button>
+          );
+        })}
+      </div>
+      <p className="mt-1 flex flex-wrap items-center gap-x-4 gap-y-0.5 text-xs text-muted-foreground">
+        <span>
+          {t('funnel.legendFocusHint', { defaultValue: 'Click a value to highlight its initiatives.' })}
+          {colorBy === 'handelen' &&
+            ` ${t('handelen.hint', { defaultValue: 'Since the last recorded event in the Space or its subspaces; new members count.' })}`}
+          {anySplit && ` ${t('funnel.legendSplit', { defaultValue: 'A dot in several colours has several values.' })}`}
+        </span>
+        <span>{t('funnel.legendSize', { defaultValue: 'Dot size = number of participating municipalities' })}</span>
+        <span className="flex items-center gap-1">
+          <Euro className="h-3 w-3" aria-hidden />
+          <Clock className="h-3 w-3" aria-hidden />
+          {t('funnel.rampHint', { defaultValue: 'Each phase costs more money and more time than the one before it' })}
+        </span>
+      </p>
+    </div>
+  );
 }
 
 /** A small swatch for one or more colours (equal shares, clockwise from the top). */
@@ -67,12 +225,15 @@ function pathOf(points: [number, number][], yOffset: number): string {
  * The whole funnel is drawn in a single viewBox-scaled SVG, which is what keeps every
  * stage, both bars and every label visible at any width without scrolling (FR-006).
  */
-export function FunnelChart({ layout, showLabels = false, colorBy = 'source', vocabulary = [] }: Props) {
+export function FunnelChart({
+  layout,
+  showLabels = false,
+  colorBy = 'source',
+  vocabulary = [],
+  focusKey = null,
+}: Props) {
   const { t } = useTranslation();
   const [hovered, setHovered] = useState<FunnelDot | null>(null);
-  // A legend entry the viewer clicked: its dots stay, the rest fade (secondary encoding —
-  // eight hues on scattered dots cannot all be told apart by colour alone).
-  const [focusKey, setFocusKey] = useState<string | null>(null);
 
   const { width, height, stages, holding, upper, lower } = layout;
   const upperPath = useMemo(() => pathOf(upper, LABEL_BAND), [upper]);
@@ -108,21 +269,11 @@ export function FunnelChart({ layout, showLabels = false, colorBy = 'source', vo
   };
 
   const totalHeight = height + LABEL_BAND + RAMP_BAND;
-  const byCategory = colorBy !== 'source' ? colorBy : null;
-  const scale = categoryScale(vocabulary);
-  const allDots = [...stages.flatMap((s) => s.dots), ...(holding?.dots ?? [])];
-  const legend = byCategory ? categoryLegend(allDots.map((d) => d.row), byCategory, vocabulary) : [];
+  const { legend, keysOf, colorsOf } = funnelColoring(layout, colorBy, vocabulary, t);
   // A focus whose value has left the funnel (filter, other colouring) is simply off.
-  const focus = byCategory && legend.some((e) => e.key === focusKey) ? focusKey : null;
-  const keysOf = (dot: FunnelDot): string[] =>
-    byCategory ? rowKeys(dot.row, byCategory, scale, vocabulary) : [dot.row.kind];
-  const colorsOf = (dot: FunnelDot): string[] =>
-    byCategory
-      ? keysOf(dot).map((k) => colorOfKey(k, scale))
-      : [dot.row.kind === 'gd' ? GD_COLOR : GROEI_COLOR];
+  const focus = legend.some((e) => e.key === focusKey) ? focusKey : null;
   const dotColor = (dot: FunnelDot) => colorsOf(dot)[0];
   const outOfFocus = (dot: FunnelDot) => focus !== null && !keysOf(dot).includes(focus);
-  const anySplit = byCategory !== null && allDots.some((d) => keysOf(d).length > 1);
 
   const renderDot = (dot: FunnelDot, yOffset: number) => {
     const colors = colorsOf(dot);
@@ -389,6 +540,9 @@ export function FunnelChart({ layout, showLabels = false, colorBy = 'source', vo
                 className="pointer-events-none fill-foreground text-[10px]"
                 stroke="var(--surface-raised)"
                 strokeWidth={2.5}
+                // A name fades with its dot, so a highlighted value's names stand out.
+                opacity={outOfFocus(dot) ? 0.25 : 1}
+                data-funnel-name={dot.id}
                 style={{ paintOrder: 'stroke' }}
               >
                 {name}
@@ -475,69 +629,7 @@ export function FunnelChart({ layout, showLabels = false, colorBy = 'source', vo
         </div>
       </div>
 
-      {/* Legend: both source colours named, and what dot size means (FR-015). */}
-      {byCategory && legend.length > 0 && (
-        <div className="mt-2" data-testid="funnel-category-legend">
-          <div className="flex flex-wrap items-center gap-1.5">
-            {legend.map((entry) => {
-              const label =
-                entry.label ??
-                (entry.key === NONE_KEY
-                  ? t('funnel.legendNone', { defaultValue: 'No classification' })
-                  : t('funnel.legendOther', { defaultValue: 'Other' }));
-              const active = focus === entry.key;
-              return (
-                <button
-                  key={entry.key}
-                  type="button"
-                  aria-pressed={active}
-                  onClick={() => setFocusKey(active ? null : entry.key)}
-                  data-testid="funnel-legend-item"
-                  className={cn(
-                    'inline-flex items-center gap-1.5 rounded-full border px-2 py-0.5 text-xs transition-colors',
-                    'focus:outline-none focus-visible:ring-2 focus-visible:ring-primary',
-                    active
-                      ? 'border-foreground/40 bg-muted text-foreground'
-                      : 'border-border text-muted-foreground hover:bg-muted hover:text-foreground',
-                    focus !== null && !active && 'opacity-50',
-                  )}
-                >
-                  <span aria-hidden className="inline-block h-2.5 w-2.5 shrink-0 rounded-full" style={{ background: entry.color }} />
-                  <span>{label}</span>
-                  <span className="tabular-nums text-muted-foreground">{entry.count}</span>
-                </button>
-              );
-            })}
-          </div>
-          <p className="mt-1 text-xs text-muted-foreground">
-            {t('funnel.legendFocusHint', { defaultValue: 'Click a value to highlight its initiatives.' })}
-            {anySplit && ` ${t('funnel.legendSplit', { defaultValue: 'A dot in several colours has several values.' })}`}
-          </p>
-        </div>
-      )}
-      <div className="mt-2 flex flex-wrap items-center gap-x-5 gap-y-1 text-xs text-muted-foreground">
-        {!byCategory && (
-          <>
-            <span className="flex items-center gap-1.5">
-              <span className="inline-block h-2.5 w-2.5 rounded-full" style={{ background: GROEI_COLOR }} />
-              {t('funnel.legendGroei', { defaultValue: 'Groei' })}
-            </span>
-            <span className="flex items-center gap-1.5">
-              <span className="inline-block h-2.5 w-2.5 rounded-full" style={{ background: GD_COLOR }} />
-              {t('funnel.legendGd', { defaultValue: 'GemeenteDelers' })}
-            </span>
-          </>
-        )}
-        <span>{t('funnel.legendSize', { defaultValue: 'Dot size = number of participating municipalities' })}</span>
-        <span className="flex items-center gap-1.5">
-          <Euro className="h-3 w-3" />
-          <Clock className="h-3 w-3" />
-          {t('funnel.rampHint', {
-            defaultValue: 'Each phase costs more money and more time than the one before it',
-          })}
-        </span>
-      </div>
-
+      {/* The legend is rendered by the tab, above the funnel (FunnelLegend). */}
     </div>
   );
 }

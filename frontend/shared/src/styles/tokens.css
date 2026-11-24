@@ -95,6 +95,16 @@
   --cat-8: #e34948;
   --cat-other: #8c8c87;
   --cat-none: #c9c8c2;
+
+  /* Handelen, an ordered ramp (recent → long ago); "none" / "not visible" wear --cat-none /
+     --cat-other. Validated: one hue, monotone, and ≥ 15 ΔE from both greys. */
+  --handelen-active: #0d366b;
+  --handelen-quiet: #2a78d6;
+  --handelen-dormant: #74acf0;
+  --handelen-active-ink: #ffffff;
+  --handelen-quiet-ink: #ffffff;
+  --handelen-dormant-ink: #0f172a;
+  --handelen-unknown-ink: #0f172a;
 }
 
 /* ─── Dark Theme Override ─── */
@@ -143,6 +153,14 @@
   --cat-8: #e66767;
   --cat-other: #8a8a85;
   --cat-none: #4b5563;
+
+  --handelen-active: #cde2fb;
+  --handelen-quiet: #6da7ec;
+  --handelen-dormant: #2a6fc4;
+  --handelen-active-ink: #0f172a;
+  --handelen-quiet-ink: #0f172a;
+  --handelen-dormant-ink: #ffffff;
+  --handelen-unknown-ink: #0f172a;
 }
 
 /* Base reset — MUST be inside @layer base. Tailwind v4 puts utilities in

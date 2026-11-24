@@ -33,12 +33,7 @@ export interface AppConfig {
    */
   funnel?: boolean;
   /**
-   * Show the Intake tab. Opt-in like the two above; currently a placeholder, so a
-   * dashboard opts in only once it wants the step visible in its navigation.
-   */
-  intake?: boolean;
-  /**
-   * Show the Ecosystem map tab (feature 024). Opt-in like the three above — the map
+   * Show the Ecosystem map tab (feature 024). Opt-in like the two above — the map
    * draws the selected innovation hub as orchestrator + initiatives + the organisations
    * around them, so a dashboard whose hubs have no orchestrator would see only the
    * guess, and simply leaves this off.

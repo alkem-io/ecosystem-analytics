@@ -46,7 +46,6 @@ const TAB_NAMES = [
   'Gemeenten',
   'Gebruiksverkenner',
   'Funnel',
-  'Intake',
   'Ecosysteem',
   'Graph',
 ];

@@ -126,6 +126,12 @@ export interface ActivityPeriodCountsItem {
 export interface ActivityItem {
   /** Keyed by Space id (L0/L1/L2). */
   bySpace: Record<string, ActivityPeriodCountsItem>;
+  /**
+   * Per L0 Space id: when the last recorded event in the Space OR any of its subspaces
+   * happened; `null` when its feed was read and holds none. A Space whose feed (or
+   * content) the viewer could not read has NO entry — nothing may be claimed about it.
+   */
+  lastAt: Record<string, string | null>;
   fetchedAt: string;
   /** Spaces whose activity feed could not be read (rendered as "unavailable"). */
   unavailable: string[];

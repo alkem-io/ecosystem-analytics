@@ -3,7 +3,9 @@ import { useTranslation } from 'react-i18next';
 import { Download, Loader2 } from 'lucide-react';
 import { cn, useAppConfig } from '@ea/shared';
 import { useSelectionContext } from '../hooks/SelectionContext.js';
-import { useCoreLoadState, useCounts, useCityRows } from '../data/derive/index.js';
+import { useCoreLoadState, useCounts, useCityRows, useInitiativeRows } from '../data/derive/index.js';
+import { useExtraItem } from '../data/hooks.js';
+import { HANDELEN_ORDER, handelenLabel, phaseHandelen } from '../utils/handelen.js';
 import { NdsChart } from '../components/charts/NdsChart.js';
 import { Vng2030Chart } from '../components/charts/Vng2030Chart.js';
 import { GemeenteDistributionChart } from '../components/charts/GemeenteDistributionChart.js';
@@ -42,6 +44,16 @@ export function DashboardTab() {
   const vng2030Dimension = data?.dimensions.find((d) => d.key === 'vng2030');
   const gdIncluded = data?.gdIncluded ?? false;
 
+  // The phase chart's handelen split: off by default, and only then asked for.
+  const [showHandelen, setShowHandelen] = useState(false);
+  const handelen = useExtraItem('activity', 'tab:dashboard', undefined, showHandelen);
+  const initiativeRows = useInitiativeRows();
+  const phases = data?.phaseDistribution?.phases;
+  const phaseSplit = useMemo(
+    () => (showHandelen && phases ? phaseHandelen(phases, initiativeRows) : null),
+    [showHandelen, phases, initiativeRows],
+  );
+
   const phaseRef = useRef<HTMLDivElement>(null);
   const ndsRef = useRef<HTMLDivElement>(null);
   const vngRef = useRef<HTMLDivElement>(null);
@@ -76,10 +88,16 @@ export function DashboardTab() {
     const pd = data?.phaseDistribution;
     if (!pd) return null;
     return {
-      columns: [t('export.phase'), t('export.count'), t('export.initiatives')],
-      rows: pd.phases.map((p) => [
+      columns: [
+        t('export.phase'),
+        t('export.count'),
+        ...(phaseSplit ? HANDELEN_ORDER.map((s) => handelenLabel(t, s)) : []),
+        t('export.initiatives'),
+      ],
+      rows: pd.phases.map((p, i) => [
         p.label ?? t('categories.phase.unknown', { defaultValue: 'No phase' }),
         p.count,
+        ...(phaseSplit ? HANDELEN_ORDER.map((s) => phaseSplit[i][s].length) : []),
         p.items.join(', '),
       ]),
     };
@@ -184,9 +202,12 @@ export function DashboardTab() {
     tableFn: () => ChartTable | null,
     className: string | undefined,
     children: ReactNode,
+    /** A control for the chart, beside its download button (outside the captured card). */
+    control?: ReactNode,
   ) => (
     <div className={className}>
-      <div className="mb-1 flex justify-end">
+      <div className="mb-1 flex flex-wrap items-center justify-end gap-x-4 gap-y-1">
+        {control}
         <button
           type="button"
           title={t('export.downloadChart', { defaultValue: 'Download chart' })}
@@ -354,7 +375,28 @@ export function DashboardTab() {
               distribution={data.phaseDistribution}
               emptyLabel={t('dashboard.noData')}
               drift={driftFor('phase')}
+              split={phaseSplit}
+              splitStatus={
+                !showHandelen
+                  ? null
+                  : handelen.failed
+                    ? t('handelen.failed', { defaultValue: 'Activity is not available.' })
+                    : t('handelen.loading', { defaultValue: 'Loading activity…' })
+              }
             />,
+            <label className="flex cursor-pointer items-center gap-2 text-xs text-muted-foreground">
+              <input
+                type="checkbox"
+                checked={showHandelen}
+                onChange={(e) => setShowHandelen(e.target.checked)}
+                data-testid="phase-handelen-toggle"
+                className={cn(
+                  'h-4 w-4 shrink-0 cursor-pointer rounded border-border text-primary',
+                  'focus:outline-none focus-visible:ring-2 focus-visible:ring-primary',
+                )}
+              />
+              {t('handelen.show', { defaultValue: 'Show activity' })}
+            </label>,
           )}
         {frame(
           'nds',

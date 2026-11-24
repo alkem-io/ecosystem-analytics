@@ -39,13 +39,24 @@ export function classificationStatus(entries: readonly AdminEntry[]): { set: num
   return { set, designated: designations.length };
 }
 
+/** The lowest position of a selected value in the classification's own order. */
+function selectedRank(entry: AdminEntry): number | null {
+  const at = entry.values.findIndex((v) => entry.selectedValueIDs.includes(v.id));
+  return at === -1 ? null : at;
+}
+
 /** The selected value labels of each designated classification, in designation order. */
 export function designatedValues(entries: readonly AdminEntry[]): DesignatedValues[] {
   return vngDesignations().map(({ key, label }) => {
     const entry = resolveDesignated(entries, label) as AdminEntry | null;
-    if (!entry) return { key, present: false, values: [] };
+    if (!entry) return { key, present: false, values: [], rank: null };
     const byId = new Map(entry.values.map((v) => [v.id, v.label]));
-    return { key, present: true, values: entry.selectedValueIDs.map((id) => byId.get(id) ?? id) };
+    return {
+      key,
+      present: true,
+      values: entry.selectedValueIDs.map((id) => byId.get(id) ?? id),
+      rank: selectedRank(entry),
+    };
   });
 }
 

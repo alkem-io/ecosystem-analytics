@@ -2,10 +2,11 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Loader2 } from 'lucide-react';
 import { cn } from '@ea/shared';
-import { FunnelChart, FUNNEL_CHROME } from '../components/FunnelChart.js';
+import { FunnelChart, FunnelLegend, FUNNEL_CHROME } from '../components/FunnelChart.js';
 import { VocabularyDriftNotice } from '../components/charts/VocabularyDriftNotice.js';
 import { useSelectionContext } from '../hooks/SelectionContext.js';
 import { useCoreLoadState, useCounts, useGraphDataset, useInitiativeRows } from '../data/derive/index.js';
+import { useExtraItem } from '../data/hooks.js';
 import { layoutFunnel } from '../utils/funnel.js';
 import { FILTER_ALL } from '../components/TableFilterBar.js';
 import type { FunnelColorBy } from '../utils/funnel-colors.js';
@@ -90,6 +91,11 @@ export function FunnelTab() {
   const [showLabels, setShowLabels] = useState(false);
   // What the dots are coloured by: source (Groei / GemeenteDelers) or one classification.
   const [colorBy, setColorBy] = useState<FunnelColorBy>('source');
+  // The legend entry being highlighted; a new colouring starts with none.
+  const [focusKey, setFocusKey] = useState<string | null>(null);
+  useEffect(() => setFocusKey(null), [colorBy]);
+  // Asked for only once someone colours by it; the rows then carry each status.
+  const handelen = useExtraItem('activity', 'tab:funnel', undefined, colorBy === 'handelen');
 
   /** Distinct values actually present on the rows, so no option can select nothing. */
   const optionsFor = (pick: (r: (typeof allRows)[number]) => string[]): string[] => {
@@ -143,7 +149,7 @@ export function FunnelTab() {
   // label from another template version) is appended, sorted, rather than lumped into
   // "other". Read from ALL rows, not the filtered ones, so a filter never repaints.
   const vocabulary = useMemo(() => {
-    if (colorBy === 'source') return [];
+    if (colorBy !== 'nds' && colorBy !== 'vng2030') return [];
     const dim = data?.dimensions.find((d) => d.key === colorBy);
     const authored = (dim?.categories ?? []).flatMap((c) => (c.label ? [c.label] : []));
     const known = new Set(authored);
@@ -192,7 +198,15 @@ export function FunnelTab() {
         </Centered>
       );
     }
-    return <FunnelChart layout={layout} showLabels={showLabels} colorBy={colorBy} vocabulary={vocabulary} />;
+    return (
+      <FunnelChart
+        layout={layout}
+        showLabels={showLabels}
+        colorBy={colorBy}
+        vocabulary={vocabulary}
+        focusKey={focusKey}
+      />
+    );
   };
 
   return (
@@ -264,6 +278,7 @@ export function FunnelTab() {
               )}
             >
               <option value="source">{t('funnel.colorBySource', { defaultValue: 'Source (Groei / GemeenteDelers)' })}</option>
+              <option value="handelen">{t('handelen.name', { defaultValue: 'Activity' })}</option>
               {ndsOptions.length > 0 && <option value="nds">{t('citiesTab.filterNds')}</option>}
               {vngOptions.length > 0 && <option value="vng2030">{t('citiesTab.filterVng2030')}</option>}
             </select>
@@ -282,6 +297,25 @@ export function FunnelTab() {
             {t('funnel.showNames', { defaultValue: 'Show names' })}
           </label>
         </div>
+      )}
+      {colorBy === 'handelen' && (handelen.loading || handelen.failed) && (
+        <p className="mt-2 flex items-center gap-2 text-xs text-muted-foreground" role="status" data-testid="funnel-handelen-status">
+          {handelen.loading && <Loader2 className="h-3 w-3 animate-spin" aria-hidden />}
+          {handelen.failed
+            ? t('handelen.failed', { defaultValue: 'Activity is not available.' })
+            : t('handelen.loading', { defaultValue: 'Loading activity…' })}
+        </p>
+      )}
+      {/* What the colours mean — above the funnel and outside its scrolling area, so it is
+          always beside the dots, whichever colouring is chosen. */}
+      {dataset && data && phases.length > 0 && effectiveSpaceIds.length > 0 && !error && (
+        <FunnelLegend
+          layout={layout}
+          colorBy={colorBy}
+          vocabulary={vocabulary}
+          focusKey={focusKey}
+          onFocusKey={setFocusKey}
+        />
       )}
       {/* Measured here, not on the page: this is the box the funnel actually gets. */}
       <div ref={hostRef} className="mt-2 min-h-0 flex-1 overflow-y-auto overscroll-contain">

@@ -158,7 +158,7 @@ async function boot(page, { level, path = '/', admin = {}, scope }) {
   await page.route('**/api/vng/scope', (r) => (scope ? scope(r) : json(r, scopeOf(F))));
   await page.route('**/api/graph/generate', (r) => generateJson(r, F.dataset, F.dashboard));
   await page.route('**/api/graph/activity', (r) =>
-    json(r, { bySpace: {}, fetchedAt: new Date().toISOString(), unavailable: [] }),
+    json(r, { bySpace: {}, lastAt: {}, fetchedAt: new Date().toISOString(), unavailable: [] }),
   );
   await page.route('**/api/vng/initiatives', (r) => json(r, []));
   await page.route('**/api/vng/dashboard', (r) => json(r, F.dashboard ?? {}));
@@ -267,17 +267,20 @@ test('the GemeenteDelers switch in the header reloads the data with the historic
 
 test('a manager reaches every section from the header and can go back', async ({ page }) => {
   await boot(page, { level: 'manage' });
+  // Intake is on the administration side only, not among the dashboard's tabs.
+  await expect(page.getByRole('tab', { name: 'Funnel', exact: true })).toBeVisible();
+  await expect(page.getByRole('tab', { name: 'Intake', exact: true })).toHaveCount(0);
   await page.getByTestId('admin-entry').click();
   await expect(page).toHaveURL(/\/admin$/);
-  // Four tabs — Spaces in the monitor, GemeenteDelers, Access, and the change log last.
+  // Five tabs — Spaces in the monitor, GemeenteDelers, Intake, Access, and the change log last.
   await expect(page.getByTestId('admin-section-included')).toBeVisible({ timeout: 15_000 });
   await expect(page.getByTestId('admin-section-audit')).toHaveCount(0); // only on its own tab
-  for (const id of ['gd', 'audit', 'access']) {
+  for (const id of ['gd', 'intake', 'audit', 'access']) {
     await page.getByTestId(`admin-tab-${id}`).click();
     await expect(page.getByTestId(`admin-tab-${id}`)).toHaveAttribute('aria-selected', 'true');
     await expect(page.getByTestId(`admin-section-${id}`)).toBeVisible({ timeout: 15_000 });
   }
-  await expect(page.getByRole('tab')).toHaveText([/Spaces/, /GemeenteDelers/, /Toegang|Access/, /Wijzigingslog|Change log/]);
+  await expect(page.getByRole('tab')).toHaveText([/Spaces/, /GemeenteDelers/, /Intake/, /Toegang|Access/, /Wijzigingslog|Change log/]);
   await expect(page).toHaveURL(/\/admin#access$/);
   // The same header as the dashboard, with the user menu, naming the settings area.
   await expect(page.getByTestId('header-area')).toBeVisible();
@@ -298,6 +301,63 @@ test('a manager reaches every section from the header and can go back', async ({
 
   await page.getByTestId('admin-back').click();
   await expect(page.getByRole('tablist')).toBeVisible({ timeout: 20_000 });
+});
+
+test('the tables sort per column, by phase order, with rows without a value last', async ({ page }) => {
+  const withPhase = (nameId, name, phase, rank) =>
+    space(nameId, name, {
+      visibility: { contentPublic: name !== 'Alfa', status: 'ACTIVE' },
+      classifications: [
+        { key: 'nds', present: true, values: ['Data'], rank: 0 },
+        { key: 'vng2030', present: true, values: [], rank: null },
+        { key: 'phase', present: true, values: phase ? [phase] : [], rank },
+        { key: 'trl', present: false, values: [], rank: null },
+      ],
+    });
+  await boot(page, {
+    level: 'manage',
+    path: '/admin#included',
+    admin: {
+      'GET /included-spaces': (route) =>
+        json(route, {
+          ...INCLUDED,
+          // "Idee" comes before "Afgerond" on Alkemio, though not by letter.
+          spaces: [
+            INCLUDED.spaces[1],
+            withPhase('gamma', 'Gamma', 'Idee', 0),
+            withPhase('beta', 'Beta', null, null),
+            withPhase('alfa', 'Alfa', 'Afgerond', 1),
+          ],
+        }),
+    },
+  });
+  const table = page.getByTestId('included-table');
+  const names = async () =>
+    (await table.getByTestId('included-row').locator('td:first-child').allInnerTexts()).map((n) => n.trim().split(/\s/)[0]);
+  const header = (column) => table.getByTestId(`sort-${column}`);
+  await expect(header('space')).toHaveAttribute('aria-sort', 'ascending');
+  expect(await names()).toEqual(['Alfa', 'Beta', 'Gamma', 'geheim']);
+
+  await header('space').getByRole('button').click();
+  await expect(header('space')).toHaveAttribute('aria-sort', 'descending');
+  expect(await names()).toEqual(['Gamma', 'Beta', 'Alfa', 'geheim']);
+
+  await header('phase').getByRole('button').click();
+  await expect(header('phase')).toHaveAttribute('aria-sort', 'ascending');
+  await expect(header('space')).not.toHaveAttribute('aria-sort', /.+/);
+  expect(await names()).toEqual(['Gamma', 'Alfa', 'Beta', 'geheim']);
+  await header('phase').getByRole('button').click();
+  expect(await names()).toEqual(['Alfa', 'Gamma', 'Beta', 'geheim']);
+
+  await header('visibility').getByRole('button').click();
+  expect(await names()).toEqual(['Beta', 'Gamma', 'Alfa', 'geheim']);
+
+  await page.getByTestId('admin-tab-gd').click();
+  const gd = page.getByTestId('gd-initiatives');
+  await expect(gd.getByTestId('gd-row').first()).toContainText('Oud bericht');
+  await gd.getByTestId('sort-vng2030').getByRole('button').click();
+  await gd.getByTestId('sort-vng2030').getByRole('button').click();
+  await expect(gd.getByTestId('gd-row').first()).toContainText('Slim parkeren');
 });
 
 test('one failing section does not take down the others, and can be retried', async ({ page }) => {

@@ -38,7 +38,6 @@ import { CitiesTab } from './pages/CitiesTab.js';
 import { CityDetailsTab } from './pages/CityDetailsTab.js';
 import { UsageExplorerTab } from './pages/UsageExplorerTab.js';
 import { FunnelTab } from './pages/FunnelTab.js';
-import { IntakeTab } from './pages/IntakeTab.js';
 import { EcosystemTab } from './pages/EcosystemTab.js';
 
 type TabKey =
@@ -49,7 +48,6 @@ type TabKey =
   | 'cities'
   | 'usage'
   | 'funnel'
-  | 'intake'
   | 'ecosystem'
   | 'graph';
 const BASE_TABS: TabKey[] = ['dashboard', 'details', 'initiatives', 'cityDetails', 'cities'];
@@ -98,7 +96,6 @@ function AppShell() {
     ...BASE_TABS,
     ...(cfg.usageExplorer ? (['usage'] as TabKey[]) : []),
     ...(cfg.funnel ? (['funnel'] as TabKey[]) : []),
-    ...(cfg.intake ? (['intake'] as TabKey[]) : []),
     ...(cfg.ecosystem ? (['ecosystem'] as TabKey[]) : []),
     'graph',
   ];
@@ -284,7 +281,6 @@ function AppShell() {
               {active === 'cities' && <CitiesTab />}
               {active === 'usage' && <UsageExplorerTab />}
               {active === 'funnel' && <FunnelTab />}
-              {active === 'intake' && <IntakeTab />}
               {active === 'ecosystem' && <EcosystemTab />}
               {active === 'dashboard' && <DashboardTab />}
             </ErrorBoundary>

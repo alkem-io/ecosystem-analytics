@@ -54,6 +54,7 @@ function row(
     commonGround: false,
     activity: null,
     tier: null,
+    handelen: null,
     phase: kind === 'gd' ? null : phase,
     trl: null,
     classifications: [],

@@ -30,7 +30,9 @@ const activity = useExtraItem('activity', 'tab:initiatives');
 // activity.value | activity.loading | activity.failed (strip shows Retry)
 ```
 
-Items today: `activity` (Initiatives), `gemeente-locations` (Usage Explorer), `organizations` (extended profiles; pass the ids you opened). Adding one: a key in `LoadItemKey` (`server/src/types/api.ts`), a fetcher in `loader.ts` `extraFetchers`, an i18n `load.item.<key>` label.
+Pass `enabled: false` (fourth argument) while an option that needs the item is off: nothing is requested.
+
+Items today: `activity` (Initiatives; Funnel and the Dashboard's phase chart when showing handelen), `gemeente-locations` (Usage Explorer), `organizations` (extended profiles; pass the ids you opened). Adding one: a key in `LoadItemKey` (`server/src/types/api.ts`), a fetcher in `loader.ts` `extraFetchers`, an i18n `load.item.<key>` label.
 
 ## Adding a derivation
 

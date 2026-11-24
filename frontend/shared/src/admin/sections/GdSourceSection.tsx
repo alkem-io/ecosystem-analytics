@@ -4,6 +4,8 @@ import { CheckCircle2, ExternalLink, Pencil } from 'lucide-react';
 import { cn } from '../../lib/cn.js';
 import { adminApi } from '../api.js';
 import { ClassificationDialog, toDesignatedValues } from '../ClassificationDialog.js';
+import { SortableTh } from '../SortableTh.js';
+import { sortRows, valuesSortValue, type TableSort } from '../tableSort.js';
 import { Section, formatWhen, smallButton, textInput, useSectionData } from '../Section.js';
 
 const chips = (values: string[]) =>
@@ -32,11 +34,19 @@ export function GdSourceSection() {
   const { data, setData, error, loading, retry } = useSectionData(() => adminApi.gdSource());
   const [filter, setFilter] = useState('');
   const [open, setOpen] = useState<{ nameId: string; name: string } | null>(null);
+  const [sort, setSort] = useState<TableSort<'space' | 'nds' | 'vng2030'>>({ key: 'space', dir: 'asc' });
   const shown = useMemo(() => {
     const f = filter.trim().toLowerCase();
     const all = data?.initiatives ?? [];
-    return f ? all.filter((i) => i.displayName.toLowerCase().includes(f)) : all;
-  }, [data, filter]);
+    const rows = f ? all.filter((i) => i.displayName.toLowerCase().includes(f)) : all;
+    return sortRows(
+      rows,
+      (i) => (sort.key === 'space' ? i.displayName : valuesSortValue(i[sort.key] ?? [])),
+      (i) => i.displayName,
+      sort.dir,
+      i18n.language,
+    );
+  }, [data, filter, sort, i18n.language]);
   const stat = (label: string, value: number, testId: string) => (
     <div className="rounded-lg bg-muted/50 px-4 py-3">
       <p className="text-xs uppercase tracking-wide text-muted-foreground">{label}</p>
@@ -106,9 +116,9 @@ export function GdSourceSection() {
               <table className="w-full text-left text-sm" data-testid="gd-initiatives">
                 <thead className="sticky top-0 bg-card text-xs text-muted-foreground">
                   <tr className="border-b border-border">
-                    <th className="px-3 py-2 font-medium">{t('admin.gd.colInitiative', { defaultValue: 'Initiative' })}</th>
-                    <th className="hidden px-3 py-2 font-medium md:table-cell">{t('admin.gd.colNds', { defaultValue: 'NDS priority' })}</th>
-                    <th className="hidden px-3 py-2 font-medium md:table-cell">{t('admin.gd.colVng', { defaultValue: 'VNG 2030 theme' })}</th>
+                    <SortableTh column="space" label={t('admin.gd.colInitiative', { defaultValue: 'Initiative' })} sort={sort} onSort={setSort} className="px-3" />
+                    <SortableTh column="nds" label={t('admin.gd.colNds', { defaultValue: 'NDS priority' })} sort={sort} onSort={setSort} className="hidden px-3 md:table-cell" />
+                    <SortableTh column="vng2030" label={t('admin.gd.colVng', { defaultValue: 'VNG 2030 theme' })} sort={sort} onSort={setSort} className="hidden px-3 md:table-cell" />
                     <th className="px-3 py-2">
                       <span className="sr-only">{t('admin.included.colActions', { defaultValue: 'Actions' })}</span>
                     </th>

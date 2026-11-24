@@ -45,11 +45,15 @@ const same = (a: readonly string[], b: readonly string[]) =>
 
 /** The selected labels per designation, as the tables show them. */
 export function toDesignatedValues(view: InitiativeClassificationsView): DesignatedValues[] {
-  return view.classifications.map((c) => ({
-    key: c.key,
-    present: c.present,
-    values: c.selectedValueIds.map((id) => c.values.find((v) => v.id === id)?.label ?? id),
-  }));
+  return view.classifications.map((c) => {
+    const at = c.values.findIndex((v) => c.selectedValueIds.includes(v.id));
+    return {
+      key: c.key,
+      present: c.present,
+      values: c.selectedValueIds.map((id) => c.values.find((v) => v.id === id)?.label ?? id),
+      rank: at === -1 ? null : at,
+    };
+  });
 }
 
 /** One classification: a select for single choice, toggle chips for multiple. */

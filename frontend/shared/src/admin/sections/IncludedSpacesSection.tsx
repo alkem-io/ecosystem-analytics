@@ -2,6 +2,7 @@ import { Fragment, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ExternalLink, Globe, Loader2, Lock, Pencil, Plus, Search, Undo2, X } from 'lucide-react';
 import type {
+  DesignatedKey,
   DesignatedValues,
   Designation,
   IncludedSpaceView,
@@ -15,6 +16,16 @@ import { markMonitorScopeStale } from '../../dashboard/hooks/useMonitorScope.js'
 import { AdminApiError, adminApi } from '../api.js';
 import { ClassificationDialog, toDesignatedValues } from '../ClassificationDialog.js';
 import { notifyAdminChange } from '../changes.js';
+import { RecordSortControl } from '../../dashboard/components/RecordCards.js';
+import { SortableTh } from '../SortableTh.js';
+import {
+  classificationSortValue,
+  nextSort,
+  sortRows,
+  visibilitySortValue,
+  type SortValue,
+  type TableSort,
+} from '../tableSort.js';
 import {
   Section,
   formatWhen,
@@ -514,6 +525,16 @@ function headers(designations: Designation[]) {
   return designations.map((d) => ({ key: d.key, label: d.label }));
 }
 
+type SortColumn = 'space' | 'visibility' | DesignatedKey;
+
+/** What a column sorts on. A Space you cannot read has nothing to sort on: it stays last. */
+function sortValue(space: IncludedSpaceView, column: SortColumn): SortValue {
+  if (!space.readable) return null;
+  if (column === 'space') return space.displayName ?? space.nameId;
+  if (column === 'visibility') return visibilitySortValue(space);
+  return classificationSortValue(space.classifications?.find((c) => c.key === column));
+}
+
 /**
  * The Groei initiatives: the Spaces the monitor reports on (US3: view; US4: edit), each
  * resolved with the manager's own token (FR-013), with the values of every classification
@@ -526,18 +547,31 @@ export function IncludedSpacesSection() {
   const [filter, setFilter] = useState('');
   const [editing, setEditing] = useState(false);
   const [open, setOpen] = useState<{ nameId: string; name: string } | null>(null);
+  const [sort, setSort] = useState<TableSort<SortColumn>>({ key: 'space', dir: 'asc' });
 
   const shown = useMemo(() => {
     const f = filter.trim().toLowerCase();
     if (!data) return [];
-    return f
+    const rows = f
       ? data.spaces.filter(
           (s) => s.nameId.toLowerCase().includes(f) || (s.displayName ?? '').toLowerCase().includes(f),
         )
       : data.spaces;
-  }, [data, filter]);
+    return sortRows(
+      rows,
+      (s) => sortValue(s, sort.key),
+      (s) => s.displayName ?? s.nameId,
+      sort.dir,
+      i18n.language,
+    );
+  }, [data, filter, sort, i18n.language]);
 
   const cols = headers(data?.designations ?? []);
+  const sortColumns: { key: SortColumn; label: string }[] = [
+    { key: 'space', label: t('admin.included.colSpace', { defaultValue: 'Space' }) },
+    { key: 'visibility', label: t('admin.included.colVisibility', { defaultValue: 'Visibility on Alkemio' }) },
+    ...cols,
+  ];
   const valueOf = (s: IncludedSpaceView, key: string) => s.classifications?.find((c) => c.key === key);
 
   const editButton = (s: IncludedSpaceView) =>
@@ -608,6 +642,16 @@ export function IncludedSpacesSection() {
                 {t('admin.included.empty', { defaultValue: 'The monitor reports on no Spaces.' })}
               </p>
             ) : compact ? (
+              <>
+              <div className="mt-3 flex" data-testid="included-sort">
+                <RecordSortControl
+                  options={sortColumns}
+                  sortKey={sort.key}
+                  sortDir={sort.dir}
+                  onSortKey={(key) => setSort({ key, dir: 'asc' })}
+                  onToggleDir={() => setSort((s) => nextSort(s, s.key))}
+                />
+              </div>
               <ul className="mt-3 space-y-2" data-testid="included-cards">
                 {shown.map((s) => (
                   <li key={s.nameId} className="space-y-2 rounded-lg border border-border p-3" data-testid="included-row">
@@ -636,19 +680,14 @@ export function IncludedSpacesSection() {
                   </li>
                 ))}
               </ul>
+              </>
             ) : (
               <div className="mt-3 overflow-x-auto">
                 <table className="w-full text-left text-sm" data-testid="included-table">
                   <thead className="text-xs text-muted-foreground">
                     <tr className="border-b border-border">
-                      <th className="py-2 pr-3 font-medium">{t('admin.included.colSpace', { defaultValue: 'Space' })}</th>
-                      <th className="py-2 pr-3 font-medium">
-                        {t('admin.included.colVisibility', { defaultValue: 'Visibility on Alkemio' })}
-                      </th>
-                      {cols.map((c) => (
-                        <th key={c.key} className="py-2 pr-3 font-medium">
-                          {c.label}
-                        </th>
+                      {sortColumns.map((c) => (
+                        <SortableTh key={c.key} column={c.key} label={c.label} sort={sort} onSort={setSort} className="pr-3" />
                       ))}
                       <th className="py-2">
                         <span className="sr-only">{t('admin.included.colActions', { defaultValue: 'Actions' })}</span>

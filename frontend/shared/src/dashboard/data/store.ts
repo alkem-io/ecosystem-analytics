@@ -30,6 +30,8 @@ export type LoadRequester =
   | 'option:gd'
   | 'tab:initiatives'
   | 'tab:usage'
+  | 'tab:funnel'
+  | 'tab:dashboard'
   | 'tab:details'
   | 'tab:explorer';
 

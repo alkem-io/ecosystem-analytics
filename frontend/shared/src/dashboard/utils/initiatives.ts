@@ -17,6 +17,7 @@
  * server/src/services/vng-dashboard-service.ts — the same discipline `utils/cities.ts`
  * already uses for the city rule.
  */
+import type { HandelenStatus } from './handelen.js';
 import { ActivityTier, type GraphDataset, type NodePhase } from '@server/types/graph.js';
 
 /** Groei initiatives are top-level spaces only — subspaces (L1/L2) are not initiatives. */
@@ -44,6 +45,11 @@ export interface InitiativeRow {
   /** Activity counts per period — only meaningful for Groei rows. */
   activity: { day: number; week: number; month: number; total: number } | null;
   tier: ActivityTier | null;
+  /**
+   * How recently something happened (Space and subspaces; utils/handelen.ts). Null until
+   * the activity item has loaded, and always null for GD rows.
+   */
+  handelen: { status: HandelenStatus; lastAt: string | null } | null;
   /**
    * Growth phase reached, from `GraphNode.phase` (feature 022). Always null for GD rows:
    * GemeenteDelers is a completed programme and carries no phase (spec A-005).
@@ -140,6 +146,7 @@ export function buildInitiativeRows(dataset: GraphDataset | null | undefined): I
           }
         : null,
       tier: isSpace ? (n.spaceActivityTier ?? ActivityTier.INACTIVE) : null,
+      handelen: null,
       // GD initiatives never carry a phase, whatever the node happens to hold.
       phase: isSpace ? (n.phase ?? null) : null,
       trl: isSpace ? (n.trl ?? null) : null,

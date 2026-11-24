@@ -1,7 +1,7 @@
 /**
  * What the funnel's dots are coloured by: their source (Groei / GemeenteDelers — the
- * default, matching every other dashboard chart) or one classification (NDS priority or
- * VNG 2030 theme).
+ * default, matching every other dashboard chart), their handelen (utils/handelen.ts), or
+ * one classification (NDS priority or VNG 2030 theme).
  *
  * A classification value's colour follows the VALUE, never its rank: slot n goes to the
  * n-th value of the authored Alkemio vocabulary, so filtering the funnel never repaints
@@ -12,7 +12,9 @@
  */
 import type { InitiativeRow } from './initiatives.js';
 
-export type FunnelColorBy = 'source' | 'nds' | 'vng2030';
+/** The classifications the dots can be coloured by. */
+export type FunnelCategory = 'nds' | 'vng2030';
+export type FunnelColorBy = 'source' | 'handelen' | FunnelCategory;
 
 export const CATEGORY_SLOTS = 8;
 export const OTHER_COLOR = 'var(--cat-other)';
@@ -59,7 +61,7 @@ export function categoryScale(vocabulary: readonly string[]): CategoryScale {
 }
 
 /** The values of a row in the chosen classification. */
-export function valuesOf(row: InitiativeRow, by: Exclude<FunnelColorBy, 'source'>): string[] {
+export function valuesOf(row: InitiativeRow, by: FunnelCategory): string[] {
   return by === 'nds' ? row.nds : row.vng2030;
 }
 
@@ -69,7 +71,7 @@ export function valuesOf(row: InitiativeRow, by: Exclude<FunnelColorBy, 'source'
  */
 export function rowKeys(
   row: InitiativeRow,
-  by: Exclude<FunnelColorBy, 'source'>,
+  by: FunnelCategory,
   scale: CategoryScale,
   vocabulary: readonly string[],
 ): string[] {
@@ -100,7 +102,7 @@ export function colorOfKey(key: string, scale: CategoryScale): string {
  */
 export function categoryLegend(
   rows: readonly InitiativeRow[],
-  by: Exclude<FunnelColorBy, 'source'>,
+  by: FunnelCategory,
   vocabulary: readonly string[],
 ): CategoryLegendEntry[] {
   const scale = categoryScale(vocabulary);

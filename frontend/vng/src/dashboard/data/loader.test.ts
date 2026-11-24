@@ -38,7 +38,7 @@ function extras() {
     activityCalls: 0,
     activity: vi.fn<ExtraTransport['activity']>(async () => {
       t.activityCalls += 1;
-      return { bySpace: {}, fetchedAt: 'now', unavailable: [] };
+      return { bySpace: {}, lastAt: {}, fetchedAt: 'now', unavailable: [] };
     }),
     organizations: vi.fn<ExtraTransport['organizations']>(async (ids) => ({
       organizations: Object.fromEntries(

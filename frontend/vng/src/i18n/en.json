@@ -43,7 +43,6 @@
     "cityDetails": "City information",
     "usage": "Usage explorer",
     "funnel": "Funnel",
-    "intake": "Intake",
     "ecosystem": "Ecosystem"
   },
   "initiativesTab": {
@@ -392,6 +391,22 @@
     "zoomHintMac": "Use ⌘ + scroll to zoom the map",
     "zoomHintMobile": "Use two fingers to move the map"
   },
+  "handelen": {
+    "name": "Activity",
+    "show": "Show activity",
+    "last": "Last activity",
+    "gd": "GemeenteDelers (activity not tracked)",
+    "hint": "Time since the last recorded event in the Space or a subspace; new members count.",
+    "loading": "Loading activity…",
+    "failed": "Activity is not available.",
+    "status": {
+      "active": "Active (≤ {{active}} days)",
+      "quiet": "Quiet ({{from}}–{{quiet}} days)",
+      "dormant": "Dormant (> {{quiet}} days)",
+      "none": "No activity recorded",
+      "unknown": "Activity not visible"
+    }
+  },
   "funnel": {
     "title": "Innovation funnel",
     "subtitle": "Where are the initiatives in the funnel?",
@@ -431,10 +446,6 @@
     "sortAsc": "Sorted ascending — tap to reverse",
     "sortDesc": "Sorted descending — tap to reverse",
     "filters": "Filters"
-  },
-  "intake": {
-    "notImplemented": "Not yet implemented — this view is still being built.",
-    "workInProgress": "Work in progress"
   },
   "ecosystem": {
     "title": "Ecosystem map",
@@ -497,6 +508,8 @@
       "core": "",
       "option:gd": "for the GemeenteDelers option",
       "tab:initiatives": "requested by Initiatives",
+      "tab:funnel": "requested by Funnel",
+      "tab:dashboard": "requested by Dashboard",
       "tab:usage": "requested by Usage Explorer",
       "tab:details": "requested by Details",
       "tab:explorer": "requested by Explorer"
@@ -667,10 +680,15 @@
     "retry": "Try again",
     "sectionError": "This section could not be loaded.",
     "title": "Monitor settings",
+    "intake": {
+      "notImplemented": "Not yet implemented — this view is still being built.",
+      "workInProgress": "Work in progress"
+    },
     "tabs": {
       "label": "Settings",
       "included": "Spaces in the monitor",
       "gd": "GemeenteDelers",
+      "intake": "Intake",
       "access": "Access",
       "audit": "Change log"
     },

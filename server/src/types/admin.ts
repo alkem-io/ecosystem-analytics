@@ -46,6 +46,11 @@ export interface DesignatedValues {
   key: DesignatedKey;
   present: boolean;
   values: string[];
+  /**
+   * Where the (first) selected value stands in the classification's own order on Alkemio,
+   * for sorting ordered levels (phase, TRL); `null` when nothing is selected.
+   */
+  rank: number | null;
 }
 
 /** One classification the monitor reads, and the Alkemio label it is matched on. */

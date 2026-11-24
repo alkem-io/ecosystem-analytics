@@ -43,7 +43,6 @@
     "cityDetails": "Gemeente informatie",
     "usage": "Gebruiksverkenner",
     "funnel": "Funnel",
-    "intake": "Intake",
     "ecosystem": "Ecosysteem"
   },
   "initiativesTab": {
@@ -392,6 +391,22 @@
     "zoomHintMac": "Gebruik ⌘ + scrollen om in te zoomen op de kaart",
     "zoomHintMobile": "Gebruik twee vingers om de kaart te verschuiven"
   },
+  "handelen": {
+    "name": "Handelen",
+    "show": "Handelen tonen",
+    "last": "Laatste handeling",
+    "gd": "GemeenteDelers (handelen niet bijgehouden)",
+    "hint": "Tijd sinds de laatste handeling in de Space of een subspace; nieuwe leden tellen mee.",
+    "loading": "Handelen laden…",
+    "failed": "Handelen zijn niet beschikbaar.",
+    "status": {
+      "active": "Actief (≤ {{active}} dagen)",
+      "quiet": "Stil ({{from}}–{{quiet}} dagen)",
+      "dormant": "Slapend (> {{quiet}} dagen)",
+      "none": "Geen handelen bekend",
+      "unknown": "Handelen niet zichtbaar"
+    }
+  },
   "funnel": {
     "title": "Innovatiefunnel",
     "subtitle": "Waar bevinden de initiatieven zich in de funnel?",
@@ -431,10 +446,6 @@
     "sortAsc": "Oplopend gesorteerd — tik om om te keren",
     "sortDesc": "Aflopend gesorteerd — tik om om te keren",
     "filters": "Filters"
-  },
-  "intake": {
-    "notImplemented": "Nog niet geïmplementeerd — deze weergave wordt nog gebouwd.",
-    "workInProgress": "Werk in uitvoering"
   },
   "ecosystem": {
     "title": "Ecosysteemkaart",
@@ -482,7 +493,7 @@
     "item": {
       "spaces": "Initiatieven",
       "gd-initiatives": "GemeenteDelers-initiatieven",
-      "activity": "Activiteit",
+      "activity": "Handelen",
       "organizations": "Organisatieprofielen",
       "gemeente-locations": "Gemeentelocaties"
     },
@@ -497,6 +508,8 @@
       "core": "",
       "option:gd": "voor de GemeenteDelers-optie",
       "tab:initiatives": "gevraagd door Initiatieven",
+      "tab:funnel": "gevraagd door Funnel",
+      "tab:dashboard": "gevraagd door Dashboard",
       "tab:usage": "gevraagd door Gebruiksverkenner",
       "tab:details": "gevraagd door Details",
       "tab:explorer": "gevraagd door Explorer"
@@ -508,7 +521,7 @@
     "failed": {
       "spaces": "De initiatieven konden niet worden geladen.",
       "gd-initiatives": "De GemeenteDelers-laag kon niet worden geladen.",
-      "activity": "Activiteit is niet beschikbaar.",
+      "activity": "Handelen zijn niet beschikbaar.",
       "organizations": "Organisatieprofielen zijn niet beschikbaar.",
       "gemeente-locations": "Gemeentelocaties zijn niet beschikbaar.",
       "generic": "Er ging iets mis bij het laden."
@@ -667,10 +680,15 @@
     "retry": "Opnieuw proberen",
     "sectionError": "Dit onderdeel kon niet worden geladen.",
     "title": "Instellingen van de monitor",
+    "intake": {
+      "notImplemented": "Nog niet geïmplementeerd — deze weergave wordt nog gebouwd.",
+      "workInProgress": "Werk in uitvoering"
+    },
     "tabs": {
       "label": "Instellingen",
       "included": "Spaces in de monitor",
       "gd": "GemeenteDelers",
+      "intake": "Intake",
       "access": "Toegang",
       "audit": "Wijzigingslog"
     },

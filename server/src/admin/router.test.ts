@@ -171,10 +171,10 @@ describe('Included Spaces — read (US3)', () => {
     expect(r.json.spaces[1].visibility).toEqual({ contentPublic: false, status: 'ARCHIVED' });
     expect(r.json.designations.map((d: { key: string }) => d.key)).toEqual(['nds', 'vng2030', 'phase', 'trl']);
     expect(r.json.spaces[0].classifications).toEqual([
-      { key: 'nds', present: true, values: [] },
-      { key: 'vng2030', present: false, values: [] },
-      { key: 'phase', present: true, values: ['Fase één'] },
-      { key: 'trl', present: false, values: [] },
+      { key: 'nds', present: true, values: [], rank: null },
+      { key: 'vng2030', present: false, values: [], rank: null },
+      { key: 'phase', present: true, values: ['Fase één'], rank: 0 },
+      { key: 'trl', present: false, values: [], rank: null },
     ]);
   });
 

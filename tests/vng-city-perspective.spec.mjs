@@ -114,7 +114,6 @@ test('tab order: initiative pair, then city pair, optional tabs, Graph last', as
     'Gemeenten',
     'Gebruiksverkenner',
     'Funnel',
-    'Intake',
     'Ecosysteem',
     'Graph',
   ]);
@@ -217,7 +216,6 @@ test('English locale translates every new string', async ({ page }) => {
     'Cities',
     'Usage explorer',
     'Funnel',
-    'Intake',
     'Ecosystem',
     'Graph',
   ]);

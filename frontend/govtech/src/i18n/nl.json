@@ -39,8 +39,7 @@
     "initiatives": "Initiatieven",
     "cities": "Gemeenten",
     "cityDetails": "Gemeente informatie",
-    "funnel": "Funnel",
-    "intake": "Intake"
+    "funnel": "Funnel"
   },
   "initiativesTab": {
     "search": "Zoek initiatieven…",
@@ -356,6 +355,22 @@
     "noCities": "Geen gemeenten in de huidige selectie",
     "loading": "Gemeenten laden…"
   },
+  "handelen": {
+    "name": "Handelen",
+    "show": "Handelen tonen",
+    "last": "Laatste handeling",
+    "gd": "GemeenteDelers (handelen niet bijgehouden)",
+    "hint": "Tijd sinds de laatste handeling in de Space of een subspace; nieuwe leden tellen mee.",
+    "loading": "Handelen laden…",
+    "failed": "Handelen zijn niet beschikbaar.",
+    "status": {
+      "active": "Actief (≤ {{active}} dagen)",
+      "quiet": "Stil ({{from}}–{{quiet}} dagen)",
+      "dormant": "Slapend (> {{quiet}} dagen)",
+      "none": "Geen handelen bekend",
+      "unknown": "Handelen niet zichtbaar"
+    }
+  },
   "funnel": {
     "title": "Innovatiefunnel",
     "subtitle": "Waar bevinden de initiatieven zich in de funnel?",
@@ -396,15 +411,11 @@
     "sortDesc": "Aflopend gesorteerd — tik om om te keren",
     "filters": "Filters"
   },
-  "intake": {
-    "notImplemented": "Nog niet geïmplementeerd — deze weergave wordt nog gebouwd.",
-    "workInProgress": "Werk in uitvoering"
-  },
   "load": {
     "item": {
       "spaces": "Initiatieven",
       "gd-initiatives": "GemeenteDelers-initiatieven",
-      "activity": "Activiteit",
+      "activity": "Handelen",
       "organizations": "Organisatieprofielen",
       "gemeente-locations": "Gemeentelocaties"
     },
@@ -419,6 +430,8 @@
       "core": "",
       "option:gd": "voor de GemeenteDelers-optie",
       "tab:initiatives": "gevraagd door Initiatieven",
+      "tab:funnel": "gevraagd door Funnel",
+      "tab:dashboard": "gevraagd door Dashboard",
       "tab:usage": "gevraagd door Gebruiksverkenner",
       "tab:details": "gevraagd door Details",
       "tab:explorer": "gevraagd door Explorer"
@@ -430,7 +443,7 @@
     "failed": {
       "spaces": "De initiatieven konden niet worden geladen.",
       "gd-initiatives": "De GemeenteDelers-laag kon niet worden geladen.",
-      "activity": "Activiteit is niet beschikbaar.",
+      "activity": "Handelen zijn niet beschikbaar.",
       "organizations": "Organisatieprofielen zijn niet beschikbaar.",
       "gemeente-locations": "Gemeentelocaties zijn niet beschikbaar.",
       "generic": "Er ging iets mis bij het laden."
