@@ -1,6 +1,7 @@
 import { api } from './api.js';
 import { redirectToLogin } from './auth.js';
 import type { StreamEvent, SessionResponse } from '../types/query.js';
+import { throwIfAccessDenied } from '@ea/shared';
 
 const API_BASE = import.meta.env.VITE_API_URL || '';
 
@@ -30,6 +31,8 @@ export async function* askQuery(
     redirectToLogin(window.location.pathname + window.location.search);
     throw new Error('Session expired');
   }
+  // Feature 026: refused by an access gate → the shell's "no access" screen, not an error.
+  await throwIfAccessDenied(response);
 
   if (!response.ok) {
     const errorBody = await response.json().catch(() => ({ error: `HTTP ${response.status}` }));

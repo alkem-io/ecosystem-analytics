@@ -88,8 +88,16 @@ export async function loadActivityEntries(
   return { entries, unavailable };
 }
 
-/** The on-demand item: per Space (L0/L1/L2) the counts and tier the Initiatives table shows. */
-export function toActivityItem(entries: RawActivityEntry[], unavailable: string[]): ActivityItem {
+/**
+ * The on-demand item: per Space (L0/L1/L2) the counts and tier the Initiatives table
+ * shows, and per L0 Space when something last happened in its subtree.
+ */
+export function toActivityItem(
+  entries: RawActivityEntry[],
+  unavailable: string[],
+  readable: ActivitySpace[],
+  spaceIdToL0: Map<string, string>,
+): ActivityItem {
   const spaceCounts = aggregateSpaceActivityCounts(aggregateActivityCounts(entries));
   const spacePeriods = aggregateSpacePeriodCounts(aggregateActivityCountsByPeriod(entries));
   const tiers = computeActivityTiers(spaceCounts);
@@ -104,5 +112,14 @@ export function toActivityItem(entries: RawActivityEntry[], unavailable: string[
       tier: tiers.get(spaceId) ?? ActivityTier.INACTIVE,
     };
   }
-  return { bySpace, fetchedAt: new Date().toISOString(), unavailable };
+  const lastAt: ActivityItem['lastAt'] = Object.fromEntries(readable.map((s) => [s.id, null]));
+  for (const e of entries) {
+    const l0 = e.space?.id ? spaceIdToL0.get(e.space.id) : undefined;
+    if (!l0 || !(l0 in lastAt)) continue;
+    const time = new Date(e.createdDate).getTime();
+    if (Number.isNaN(time)) continue;
+    const at = new Date(time).toISOString();
+    if (lastAt[l0] === null || at > lastAt[l0]!) lastAt[l0] = at;
+  }
+  return { bySpace, lastAt, fetchedAt: new Date().toISOString(), unavailable };
 }

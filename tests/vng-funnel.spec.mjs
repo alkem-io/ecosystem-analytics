@@ -19,7 +19,7 @@
  * frontend/vng/src/dashboard/funnel.test.ts.
  */
 import { test, expect } from '@playwright/test';
-import { generateJson, activityJson } from './fixtures/bff-mock.mjs';
+import { generateJson, activityJson, scopeOf } from './fixtures/bff-mock.mjs';
 import { readFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -94,6 +94,8 @@ async function boot(page, { withPhases = true, dashboardDelayMs = 0 } = {}) {
   await page.route('**/api/auth/me', (r) => json(r, F.me));
   await page.route('**/api/hubs?*', (r) => json(r, F.hubs));
   await page.route('**/api/hubs/*/spaces', (r) => json(r, F.hubSpaces));
+  // Feature 027: VNG reads its Spaces from the monitor scope, not a hub.
+  await page.route('**/api/vng/scope', (r) => json(r, scopeOf(F)));
   // Feature 025: the counts (phase vocabulary) travel WITH the dataset; the two sources
   // can no longer land in either order, so `dashboardDelayMs` just delays the one load.
   await page.route('**/api/graph/generate', async (r) => {
@@ -113,7 +115,8 @@ async function boot(page, { withPhases = true, dashboardDelayMs = 0 } = {}) {
   await page.getByRole('tablist').waitFor({ timeout: 20_000 });
   await page.getByRole('tab', { name: 'Funnel', exact: true }).click();
   // With no phase vocabulary there is deliberately no funnel to wait for (FR-025).
-  if (withPhases) await page.locator('main svg').first().waitFor({ timeout: 25_000 });
+  // The funnel itself: the first `main svg` can be an icon in the legend above it.
+  if (withPhases) await page.locator('main svg[role="group"]').waitFor({ timeout: 25_000 });
 }
 
 test('the funnel tab is reachable and draws the whole frame', async ({ page }) => {
@@ -134,7 +137,7 @@ test('the funnel tab is reachable and draws the whole frame', async ({ page }) =
   // still hold is that the funnel is fully drawn and that the PAGE never scrolls — a
   // page-level scrollbar means the panel failed to contain it.
   const geometry = await page.evaluate(() => {
-    const svg = document.querySelector('main svg');
+    const svg = document.querySelector('main svg[role="group"]'); // the funnel, not a legend icon
     const box = svg.getBoundingClientRect();
     const panel = svg.closest('[class*="overflow-y-auto"]');
     return {
@@ -173,6 +176,160 @@ test('the NDS and VNG-2030 filters narrow the funnel to one classification', asy
   await nds.selectOption('__all__');
   await page.waitForTimeout(400);
   expect(await countsNow()).toEqual(before);
+});
+
+test('the dots can be coloured by NDS or VNG 2030, with a legend that highlights one value', async ({ page }) => {
+  await boot(page);
+  const colours = () =>
+    page.evaluate(() => [...document.querySelectorAll('[data-funnel-dot]')].map((c) => c.getAttribute('data-funnel-colors')));
+  const bySource = await colours();
+  expect(bySource.length).toBeGreaterThan(0);
+  await expect(page.getByTestId('funnel-category-legend')).toHaveCount(0);
+  // Every colouring has a legend — by source too — ABOVE the funnel, on screen without
+  // scrolling past the dots and the list of names.
+  const sourceLegend = page.getByTestId('funnel-source-legend');
+  await expect(sourceLegend).toBeVisible();
+  await expect(sourceLegend.getByTestId('funnel-legend-item').first()).toContainText('Groei');
+  await expect(sourceLegend).toBeInViewport();
+  const legendBox = await sourceLegend.boundingBox();
+  const svgBox = await page.locator('svg[role="group"]').boundingBox();
+  expect(legendBox.y + legendBox.height).toBeLessThanOrEqual(svgBox.y);
+
+  const colorBy = page.getByTestId('funnel-color-by');
+  await expect(colorBy).toHaveValue('source');
+  await colorBy.selectOption('nds');
+  const legend = page.getByTestId('funnel-category-legend');
+  await expect(legend).toBeVisible();
+  await expect(legend).toBeInViewport();
+  const items = legend.getByTestId('funnel-legend-item');
+  expect(await items.count()).toBeGreaterThan(0);
+  // Every dot now wears category colours (or the "other"/"none" greys), not the source hues.
+  const byNds = await colours();
+  expect(byNds).toHaveLength(bySource.length);
+  expect(byNds.every((c) => /var\(--cat-/.test(c))).toBe(true);
+  // The legend counts add up to at least one per dot (a dot with two values counts twice).
+  const counts = await items.evaluateAll((els) => els.map((e) => Number(e.lastElementChild.textContent)));
+  expect(counts.reduce((a, b) => a + b, 0)).toBeGreaterThanOrEqual(byNds.length);
+
+  // Clicking a value highlights it: its dots stay, the others fade.
+  await items.first().click();
+  await expect(items.first()).toHaveAttribute('aria-pressed', 'true');
+  const opacities = await page.evaluate(() =>
+    [...document.querySelectorAll('[data-funnel-dot]')].map((c) => Number(c.getAttribute('fill-opacity'))),
+  );
+  expect(opacities.some((o) => o > 0.5)).toBe(true);
+  // With names shown, each name fades or stays with its own dot.
+  const showNames = page.getByRole('checkbox', { name: /Namen tonen|Show names/ });
+  await showNames.check();
+  const paired = await page.evaluate(() =>
+    [...document.querySelectorAll('[data-funnel-name]')].map((n) => {
+      const dot = document.querySelector(`[data-funnel-dot="${n.getAttribute('data-funnel-name')}"]`);
+      return { dotFaded: Number(dot.getAttribute('fill-opacity')) < 0.2, nameFaded: Number(n.getAttribute('opacity')) < 0.5 };
+    }),
+  );
+  expect(paired).toHaveLength(opacities.length);
+  expect(paired.some((p) => p.nameFaded)).toBe(true);
+  expect(paired.every((p) => p.dotFaded === p.nameFaded)).toBe(true);
+  await showNames.uncheck();
+  await items.first().click();
+  await expect(items.first()).toHaveAttribute('aria-pressed', 'false');
+
+  await colorBy.selectOption('source');
+  expect(await colours()).toEqual(bySource);
+});
+
+test('a colouring whose values are gone falls back to the source', async ({ page }) => {
+  await boot(page);
+  await page.getByTestId('funnel-color-by').selectOption('nds');
+  await expect(page.getByTestId('funnel-category-legend')).toBeVisible();
+  // The next load carries no classification at all: the controls go, so the mode must too.
+  const bare = { ...dataset, nodes: dataset.nodes.map((n) => ({ ...n, ndsCategories: [], vng2030Categories: [] })) };
+  await page.route('**/api/graph/generate', (r) => generateJson(r, bare, dashboard));
+  await page.getByTestId('gd-switch').click();
+  await expect(page.getByTestId('funnel-color-by')).toHaveCount(0, { timeout: 15_000 });
+  await expect(page.getByTestId('funnel-source-legend')).toBeVisible();
+});
+
+/** One Space per status, in fixture order: active, quiet, dormant, none — the rest not visible. */
+const daysAgo = (n) => new Date(Date.now() - n * 86_400_000).toISOString();
+const LAST_AT = Object.fromEntries([daysAgo(5), daysAgo(60), daysAgo(200), null].map((at, i) => [L0[i].id, at]));
+
+async function bootWithHandelen(page) {
+  const calls = [];
+  await boot(page);
+  // Registered last, so it wins over boot()'s mock.
+  await page.route('**/api/graph/activity', (r) => {
+    calls.push(1);
+    return activityJson(r, { ...dataset, lastAt: LAST_AT });
+  });
+  return calls;
+}
+
+test('the dots can be coloured by handelen, which is only asked for then', async ({ page }) => {
+  const calls = await bootWithHandelen(page);
+  expect(calls).toHaveLength(0);
+  await page.getByTestId('funnel-color-by').selectOption('handelen');
+  const legend = page.getByTestId('funnel-handelen-legend');
+  await expect(legend).toBeInViewport();
+  const items = legend.getByTestId('funnel-legend-item');
+  const text = await items.allInnerTexts();
+  expect(text[0]).toMatch(/^(Actief|Active) \(≤ 30/);
+  expect(text[1]).toMatch(/^(Stil|Quiet) \(31–90/);
+  expect(text[2]).toMatch(/^(Slapend|Dormant) \(> 90/);
+  expect(text[3]).toMatch(/^(Geen handelen bekend|No activity recorded)/);
+  expect(text[4]).toMatch(/^(Handelen niet zichtbaar|Activity not visible)/);
+  expect(calls).toHaveLength(1);
+  const dots = await page.locator('[data-funnel-dot]').count();
+  const counts = await items.evaluateAll((els) => els.map((e) => Number(e.lastElementChild.textContent)));
+  expect(counts.reduce((a, b) => a + b, 0)).toBe(dots); // one status per dot
+  await expect(page.locator(`[data-funnel-dot="${L0[0].id}"]`)).toHaveAttribute('data-funnel-colors', 'var(--handelen-active)');
+  await page.locator(`[data-funnel-dot="${L0[0].id}"]`).focus();
+  await expect(page.getByRole('tooltip')).toContainText(/Laatste handeling|Last activity/);
+  // Back and again: no second request.
+  await page.getByTestId('funnel-color-by').selectOption('source');
+  await page.getByTestId('funnel-color-by').selectOption('handelen');
+  await expect(legend).toBeVisible();
+  expect(calls).toHaveLength(1);
+});
+
+test('a failed handelen load says so and claims nothing', async ({ page }) => {
+  await boot(page);
+  await page.route('**/api/graph/activity', (r) => r.fulfill({ status: 502, contentType: 'application/json', body: '{"error":"ACTIVITY_FAILED","message":"x"}' }));
+  await page.getByTestId('funnel-color-by').selectOption('handelen');
+  await expect(page.getByTestId('funnel-handelen-status')).toContainText(/niet beschikbaar|not available/);
+  expect(await page.locator('[data-funnel-colors^="var(--handelen"]').count()).toBe(0);
+});
+
+test('the phase chart splits by handelen only when its checkbox is on (default off)', async ({ page }) => {
+  const calls = await bootWithHandelen(page);
+  // Two initiatives (one active, one quiet) in the same phase, so their segments stack.
+  const stacked = {
+    ...dataset,
+    nodes: dataset.nodes.map((n) => (n.id === L0[1].id ? { ...n, phase: { ...PHASES[0], nr: 0 } } : n)),
+  };
+  await page.route('**/api/graph/generate', (r) => generateJson(r, stacked, dashboard));
+  await page.reload({ waitUntil: 'domcontentloaded' });
+  await page.getByRole('tab', { name: 'Dashboard', exact: true }).click();
+  const toggle = page.getByTestId('phase-handelen-toggle');
+  await expect(toggle).not.toBeChecked();
+  await expect(page.getByTestId('phase-handelen-legend')).toHaveCount(0);
+  expect(calls).toHaveLength(0);
+
+  await toggle.check();
+  const legend = page.getByTestId('phase-handelen-legend');
+  await expect(legend.getByRole('listitem')).toHaveCount(5);
+  expect(calls).toHaveLength(1);
+  // The segments of a status stack to its legend count; the phase totals stay labelled.
+  await expect(page.locator('.phase-handelen-active path').first()).toBeVisible();
+  await expect(page.locator('.phase-handelen-quiet path').first()).toBeVisible();
+  // Each segment is labelled with its OWN count (1), not the stack's running total.
+  const labels = await page.locator('[data-segment]').allTextContents();
+  expect(labels.length).toBeGreaterThan(0);
+  expect(labels.every((l) => l === '1')).toBe(true);
+
+  await toggle.uncheck();
+  await expect(legend).toHaveCount(0);
+  await expect(page.locator('[class*="phase-handelen-"]')).toHaveCount(0);
 });
 
 test('one dot per initiative, and the unphased one is held outside the funnel', async ({ page }) => {

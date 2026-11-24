@@ -21,10 +21,16 @@ import type {
 } from '@server/types/api.js';
 import { API_BASE, apiStream, NetworkError, StreamNotSupportedError } from './api.js';
 import { redirectToLogin } from './auth.js';
+import { throwIfAccessDenied } from '../access/access-signal.js';
 
 export interface LoadGraphRequest {
   app: string;
   spaceIds: string[];
+  /**
+   * Of `spaceIds`, the ones loaded only as context (the Ecosystem tab's orchestrator
+   * candidates): in the dataset, never in the dashboard counts.
+   */
+  contextSpaceIds?: string[];
   includeInitiatives: boolean;
   forceRefresh: boolean;
 }
@@ -43,6 +49,7 @@ export type LoadGraphFn = (
 function toBody(request: LoadGraphRequest): GraphGenerationRequest {
   return {
     spaceIds: request.spaceIds,
+    ...(request.contextSpaceIds?.length ? { contextSpaceIds: request.contextSpaceIds } : {}),
     app: request.app,
     includeInitiatives: request.includeInitiatives,
     forceRefresh: request.forceRefresh,
@@ -75,6 +82,8 @@ export async function loadGraphJson(
     redirectToLogin(window.location.origin + window.location.pathname + window.location.search);
     throw new Error('Session expired');
   }
+  // Feature 026: refused by an access gate → the shell's "no access" screen, not an error.
+  await throwIfAccessDenied(response);
   if (!response.ok) {
     const err = await response.json().catch(() => ({ message: `HTTP ${response.status}` }));
     throw new Error((err as { message?: string }).message ?? `HTTP ${response.status}`);

@@ -46,22 +46,24 @@ export function useExtraItem<K extends keyof LoadedData['extras']>(
   key: K,
   requester: LoadRequester,
   ids?: string[],
+  /** `false` = not needed (yet): nothing is declared, so nothing is requested. */
+  enabled = true,
 ): ExtraItemState<NonNullable<LoadedData['extras'][K]>> {
   const { declare } = useDashboardData();
   const state = useStoreState();
   const idsKey = ids ? ids.join(',') : '';
   const dataKey = state.data?.loadKey ?? '';
   useEffect(() => {
-    declare(key as LoadItemKey, requester, ids);
+    if (enabled) declare(key as LoadItemKey, requester, ids);
     // Re-declare when the loaded data changes key (new selection) or more ids are wanted.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [declare, key, requester, idsKey, dataKey]);
+  }, [declare, key, requester, idsKey, dataKey, enabled]);
   const item = state.plan.items.find((i) => i.key === key);
   const value = state.data?.extras[key] as NonNullable<LoadedData['extras'][K]> | undefined;
   return {
     value,
     item,
-    loading: value === undefined && item?.stage !== 'failed',
+    loading: enabled && value === undefined && item?.stage !== 'failed',
     failed: item?.stage === 'failed',
   };
 }

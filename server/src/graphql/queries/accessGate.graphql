@@ -1,0 +1,48 @@
+# Feature 026 — the access gate's per-person check, authorized with the person's own
+# session token. Selects ONLY the gate Space's id and the caller's ROLES in its community
+# (MEMBER / LEAD / ADMIN …). Access follows roles, not privileges: Alkemio grants READ on a
+# public Space to everyone, so a privilege check would admit every signed-in person.
+# One query per depth because GraphQL cannot recurse: the gate is an L0 Space, or an
+# L1/L2 subspace reached by nameID from its L0.
+
+fragment AccessGateRoles on Space {
+  id
+  community {
+    roleSet {
+      myRoles
+    }
+  }
+}
+
+query accessGateL0($space: NameID!) {
+  lookupByName {
+    space(NAMEID: $space) {
+      ...AccessGateRoles
+    }
+  }
+}
+
+query accessGateL1($space: NameID!, $sub: NameID!) {
+  lookupByName {
+    space(NAMEID: $space) {
+      id
+      subspaceByNameID(NAMEID: $sub) {
+        ...AccessGateRoles
+      }
+    }
+  }
+}
+
+query accessGateL2($space: NameID!, $sub: NameID!, $subsub: NameID!) {
+  lookupByName {
+    space(NAMEID: $space) {
+      id
+      subspaceByNameID(NAMEID: $sub) {
+        id
+        subspaceByNameID(NAMEID: $subsub) {
+          ...AccessGateRoles
+        }
+      }
+    }
+  }
+}

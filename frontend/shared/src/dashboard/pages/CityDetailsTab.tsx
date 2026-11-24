@@ -107,7 +107,7 @@ export function CityDetailsTab({ openCityId, openCitySeq }: CityDetailsTabProps 
   }
 
   return (
-    <div className="h-full overflow-auto">
+    <div className="load-strip-clearance h-full overflow-auto">
       <div className="mx-auto max-w-5xl space-y-6 p-3 pb-[max(0.75rem,var(--safe-bottom))] sm:space-y-8 sm:p-6">
         {/* Picker */}
         <div className="flex flex-wrap items-center gap-3">

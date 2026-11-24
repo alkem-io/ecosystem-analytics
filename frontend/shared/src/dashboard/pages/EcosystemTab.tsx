@@ -32,7 +32,8 @@ const MIN_HEIGHT = 480;
  */
 export function EcosystemTab() {
   const { t } = useTranslation();
-  const { eventPrefix } = useAppConfig();
+  const { eventPrefix, flags } = useAppConfig();
+  const managedScope = flags?.managedScope === true;
   const { state, hubs, effectiveSpaceIds } = useSelectionContext();
   const hubNameId = state.activeHubNameId;
 
@@ -78,7 +79,9 @@ export function EcosystemTab() {
     return buildEcosystemModel(dataset, [
       {
         hubNameId,
-        hubDisplayName: hub?.displayName ?? hubNameId,
+        // Feature 027: a managed-scope dashboard has no hub entry — its ecosystem is the
+        // monitor itself, so it takes the app's title.
+        hubDisplayName: hub?.displayName ?? (managedScope ? t('app.title') : hubNameId),
         listedSpaceNameIds: state.hubSpaceIds,
         // `spaceIds`, not `effectiveSpaceIds`: a Space fetched only because it is an
         // orchestrator CANDIDATE stays in the picture when it is not the one chosen —
@@ -90,7 +93,7 @@ export function EcosystemTab() {
         orchestratorSource: resolution.source,
       },
     ]);
-  }, [dataset, hubNameId, hubs, state.hubSpaceIds, effectiveSpaceIds, resolution]);
+  }, [dataset, hubNameId, hubs, state.hubSpaceIds, effectiveSpaceIds, resolution, managedScope, t]);
 
   const filtered = useMemo(
     () => (model ? applyFilters(model, filters) : null),

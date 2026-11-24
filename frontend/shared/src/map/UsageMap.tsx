@@ -1,6 +1,8 @@
 import { useEffect, useRef, useCallback, useState } from 'react';
 import * as d3 from 'd3';
-import { renderNlBasemap, type NlBasemap } from './nl-basemap.js';
+import { useTranslation } from 'react-i18next';
+import { geoPath } from 'd3-geo';
+import { buildComplementPath, renderNlBasemap, type NlBasemap } from './nl-basemap.js';
 import type { OverlayTransform } from './overlay-transform.js';
 import { MapAttribution } from './MapAttribution.js';
 import { MapFallback } from './MapFallback.js';
@@ -34,9 +36,10 @@ import type { CityRow } from '../dashboard/utils/cities.js';
  *
  * TWO DIFFERENT BOUNDARIES — do not conflate them:
  *  • The NETHERLANDS outer boundary is always masked (§VII).
- *  • PROVINCE selection only reframes; other provinces stay visible and counted, because
- *    a gemeente over a provincial border is exactly the neighbour this feature exists to
- *    reveal (FR-013a). Hence the basemap region is ALWAYS 'netherlands' — province
+ *  • PROVINCE selection reframes and puts the rest of the country in the background (a
+ *    translucent white veil, faded markers) — but other provinces stay VISIBLE and
+ *    counted, because a gemeente over a provincial border is exactly the neighbour this
+ *    feature exists to reveal (FR-013a). Hence the basemap region is ALWAYS 'netherlands' — province
  *    basemaps would mask their surroundings, which is the wrong behaviour here.
  */
 
@@ -52,6 +55,27 @@ import type { CityRow } from '../dashboard/utils/cities.js';
  */
 export const USAGE_MAP_BASEMAP_REGION = 'netherlands' as const;
 const NL_REGION = USAGE_MAP_BASEMAP_REGION;
+
+/** A province's outline, fetched once per page. */
+const provinceShapes = new Map<ProvinceRegion, Promise<unknown[]>>();
+function provinceFeatures(province: ProvinceRegion): Promise<unknown[]> {
+  let hit = provinceShapes.get(province);
+  if (!hit) {
+    hit = fetch(PROVINCE_BASEMAPS[province].url)
+      .then((res) => {
+        if (!res.ok) throw new Error(`province outline ${res.status}`);
+        return res.json();
+      })
+      .then((geojson: { features?: unknown[] }) => geojson.features ?? [geojson]);
+    hit.catch(() => provinceShapes.delete(province)); // let a later selection retry
+    provinceShapes.set(province, hit);
+  }
+  return hit;
+}
+
+/** How strongly the rest of the country recedes while a province is selected. */
+export const PROVINCE_VEIL_OPACITY = 0.6;
+export const OUTSIDE_MARKER_OPACITY = 0.3;
 
 /**
  * The zoom transform that frames `province` on the NATIONAL basemap.
@@ -118,6 +142,7 @@ export function UsageMap({
   onHover,
   height = 520,
 }: UsageMapProps) {
+  const { t } = useTranslation();
   const svgRef = useRef<SVGSVGElement | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
   /** Where the basemap canvas mounts, beneath the SVG (feature 021). */
@@ -184,6 +209,20 @@ export function UsageMap({
       // Province framing is a ratio to the CONFIGURED scale, so it tracks this untouched.
       scale: fitScaleForViewport(width, h),
       container: mapLayerRef.current,
+      // The map sits in a scrolling tab with the ranking below it: the wheel must scroll
+      // the page (Ctrl/⌘ + wheel zooms), or nobody gets past the map.
+      cooperativeGestures: true,
+      locale: {
+        'CooperativeGesturesHandler.WindowsHelpText': t('usageExplorer.zoomHintWindows', {
+          defaultValue: 'Use Ctrl + scroll to zoom the map',
+        }),
+        'CooperativeGesturesHandler.MacHelpText': t('usageExplorer.zoomHintMac', {
+          defaultValue: 'Use ⌘ + scroll to zoom the map',
+        }),
+        'CooperativeGesturesHandler.MobileHelpText': t('usageExplorer.zoomHintMobile', {
+          defaultValue: 'Use two fingers to move the map',
+        }),
+      },
       onBasemapFallback: (reason) => {
         console.warn(`[UsageMap] basemap unavailable: ${reason}`);
         setBasemapFailed(true);
@@ -341,6 +380,56 @@ export function UsageMap({
     if (!framed) return;
     basemap.zoomTo(framed, 500);
   }, [province, resetNonce, height]);
+
+  /**
+   * A selected province is the subject; the rest of the country recedes. Its neighbours
+   * stay visible and their markers interactive (FR-013a) — the veil is translucent, never
+   * the opaque §VII complement — so a gemeente just over the border still reads as such.
+   * Re-applied whenever the map is rebuilt (new data, new height), since that clears it.
+   */
+  useEffect(() => {
+    const svgEl = svgRef.current;
+    const projection = projectionRef.current;
+    if (!svgEl || !projection) return;
+    const group = d3.select(svgEl).select<SVGGElement>('g.usage-zoom-group');
+    const markers = d3.select(svgEl).selectAll<SVGGElement, UsageMarker>('g.usage-marker');
+    const clear = () => {
+      group.selectAll('path.province-veil').remove();
+      markers.style('opacity', null);
+    };
+    if (!province) {
+      clear();
+      return;
+    }
+    const code = PROVINCE_BASEMAPS[province].code;
+    markers.style('opacity', (d) => (d.provinceCode === code ? null : String(OUTSIDE_MARKER_OPACITY)));
+    let cancelled = false;
+    provinceFeatures(province)
+      .then((features) => {
+        if (cancelled) return;
+        // The province's complement, as nl-basemap builds the §VII one — but translucent.
+        // Drawn over the imagery and borders, under the markers.
+        group
+          .selectAll('path.province-veil')
+          .data([0])
+          .join((enter) => enter.insert('path', 'g.usage-markers'))
+          .attr('class', 'province-veil')
+          .attr('d', buildComplementPath(features, geoPath().projection(projection)))
+          .attr('fill', '#ffffff')
+          .attr('fill-opacity', PROVINCE_VEIL_OPACITY)
+          .attr('fill-rule', 'evenodd')
+          .style('fill-rule', 'evenodd')
+          .style('pointer-events', 'none');
+      })
+      .catch((err: unknown) => {
+        // Only an emphasis is lost; the framing and the faded markers still say it.
+        console.warn(`[UsageMap] province outline unavailable: ${(err as Error).message}`);
+      });
+    return () => {
+      cancelled = true;
+      clear();
+    };
+  }, [province, locations, cityRows, height]);
 
   /** Focused-marker treatment, applied without rebuilding the map. */
   useEffect(() => {

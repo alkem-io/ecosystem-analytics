@@ -4,6 +4,13 @@ import { createLogger } from './logging/logger.js';
 import { initDatabase } from './cache/db.js';
 import { purgeExpired, runDeploymentCacheMaintenance } from './cache/cache-service.js';
 import { LEGACY_GD_POSTS_NOTICE } from './transform/gd-initiative-sources.js';
+import { APP_IDS, type GateRef } from './access/policy.js';
+import { startGateProbes } from './access/probe.js';
+import { effectiveAccess } from './access/effective-sets.js';
+import { initSettingsStore, settingsCreatedNow } from './settings/db.js';
+import { loadStartingSet, seedIfEmpty } from './settings/seed.js';
+import { getScope } from './settings/store.js';
+import { lastBackup, runBackupIfDue, scheduleDailyBackup } from './settings/backup.js';
 
 const config = loadConfig();
 const logger = createLogger(config.logging);
@@ -25,9 +32,9 @@ logger.warn(LEGACY_GD_POSTS_NOTICE, { context: 'Bootstrap' });
 //  - the GovTech Netherlands SPA on `config.govtechPort` (feature 017)
 // In production each serves its own static build; the shared `ea_session` cookie
 // (parent-domain scoped) means signing in on any subdomain works on all of them.
-const app = createApp('../frontend/dist');
-const vngApp = createApp('../frontend-vng/dist');
-const govtechApp = createApp('../frontend-govtech/dist');
+const app = createApp('explorer', '../frontend/dist');
+const vngApp = createApp('vng', '../frontend-vng/dist');
+const govtechApp = createApp('govtech', '../frontend-govtech/dist');
 // Namespace the default DB file per environment (issuer) so switching between
 // e.g. production and acceptance can't reuse another env's cache/session rows.
 initDatabase(config.oidc.issuer);
@@ -41,6 +48,63 @@ if (maintenance.gdRowsCleared > 0) {
     `One-time cache refresh: cleared ${maintenance.gdRowsCleared} GD initiative cache row(s)`,
     { context: 'Bootstrap' },
   );
+}
+
+// Feature 027 — the monitor's own settings (server/src/settings/README.md): their own tables
+// in this same SQLite file, which no cache operation touches. Created, seeded from the
+// build's starting set if empty, and backed up BEFORE any listener starts. An invalid
+// starting set stops start-up.
+try {
+  const settingsDb = initSettingsStore();
+  seedIfEmpty(settingsDb, loadStartingSet(), { createdNow: settingsCreatedNow() });
+} catch (err) {
+  logger.error((err as Error).message, { context: 'Bootstrap' });
+  process.exit(1);
+}
+await runBackupIfDue();
+scheduleDailyBackup();
+{
+  const scope = getScope();
+  // An unreadable backup directory is reported, never a reason not to start.
+  let backup: string;
+  try {
+    backup = lastBackup() ?? '(none)';
+  } catch (err) {
+    backup = `(unavailable: ${(err as Error).message})`;
+  }
+  logger.info(
+    `[Settings] monitor scope revision ${scope.revision}, ${scope.spaceNameIds.length} Spaces; ` +
+      `last backup ${backup}`,
+    { context: 'Bootstrap' },
+  );
+}
+
+// Features 026 + 027 — each application's access: its viewer Spaces (MEMBER → read) and
+// admin Spaces (ADMIN → manage). `loadConfig()` has already refused to start if any app
+// is undeclared or misconfigured (FR-003). The sets IN FORCE are the configured ones or
+// those a Monitor Manager saved in the admin area (access/effective-sets.ts) — so this
+// runs after the settings tables exist. State each plainly, then probe every distinct
+// Space anonymously in the background (names/links for the sign-in and "no access"
+// pages). Listeners do not wait.
+{
+  const gateProbes: Array<{ gate: GateRef; displayNameFallback: string }> = [];
+  for (const appId of APP_IDS) {
+    const { sets, names, source } = effectiveAccess(appId);
+    const keys = (refs: GateRef[]) => refs.map((r) => r.key).join(', ') || '(none)';
+    logger.info(
+      sets
+        ? `[Access] ${appId}: viewers ${keys(sets.viewers)}; admins ${keys(sets.admins)} (${source === 'settings' ? 'set in the admin area' : 'configuration'})`
+        : `[Access] ${appId}: UNGATED (explicit)`,
+      { context: 'Bootstrap' },
+    );
+    for (const gate of [...(sets?.viewers ?? []), ...(sets?.admins ?? [])]) {
+      gateProbes.push({ gate, displayNameFallback: names.get(gate.key) ?? '' });
+    }
+  }
+  startGateProbes(gateProbes, {
+    alkemioServerUrl: config.alkemioServerUrl,
+    timeoutMs: config.access.checkTimeoutMs,
+  });
 }
 
 // Housekeeping: sweep expired cache entries, spent pre-auth records, and

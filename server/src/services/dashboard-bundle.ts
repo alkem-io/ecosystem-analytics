@@ -76,8 +76,15 @@ export function countFromSnapshots(
   /** Selected nameIds that resolved to no Space at all (diagnostics only). */
   unresolvedCount: number,
   profile: VngConfig,
+  /**
+   * The Spaces whose vocabularies make up the categories — the same ones the graph labels
+   * its nodes with, so a GD post is classified alike in both. Includes context-only Spaces,
+   * which are never counted themselves.
+   */
+  vocabularySpaces: SpaceClassificationSnapshot[] = spaces,
 ): VngDashboardResponse {
   const designations = profile.classifications;
+  const vocabularyReads = vocabularySpaces.map((s) => readSpaceClassifications(s.entries, designations));
   const perSpace = spaces.map((s) => {
     const read = readSpaceClassifications(s.entries, designations);
     return {
@@ -90,19 +97,17 @@ export function countFromSnapshots(
         hasClassifications: (s.entries?.length ?? 0) > 0,
         source: 'spaces' as const,
       } satisfies DashboardCountable,
-      vocabularies: read.vocabularies,
-      phaseVocabulary: read.phaseVocabulary,
     };
   });
 
   const vocabularies: DashboardVocabularies = {
-    nds: stripNoClassificationValues(unionVocabularies(perSpace.map((p) => p.vocabularies.nds))),
+    nds: stripNoClassificationValues(unionVocabularies(vocabularyReads.map((r) => r.vocabularies.nds))),
     vng2030: stripNoClassificationValues(
-      unionVocabularies(perSpace.map((p) => p.vocabularies.vng2030)),
+      unionVocabularies(vocabularyReads.map((r) => r.vocabularies.vng2030)),
     ),
   };
   const phaseVocabulary = stripNoClassificationValues(
-    unionVocabularies(perSpace.map((p) => p.phaseVocabulary)),
+    unionVocabularies(vocabularyReads.map((r) => r.phaseVocabulary)),
   );
 
   warnOnUnmatchedDesignations(designations, vocabularies, phaseVocabulary, [
@@ -176,6 +181,8 @@ export function stripGdLayer(dataset: GraphDataset): GraphDataset {
 export interface BuildBundleInput {
   dataset: GraphDataset;
   snapshots: SpaceClassificationSnapshot[];
+  /** See `countFromSnapshots`; defaults to `snapshots`. */
+  vocabularySnapshots?: SpaceClassificationSnapshot[];
   unresolvedCount: number;
   /** Present iff the GD layer was loaded into `dataset`. */
   gdCallouts: GdCountableCallout[] | null;
@@ -183,14 +190,46 @@ export interface BuildBundleInput {
   profile: VngConfig;
 }
 
+/**
+ * The dataset without its CONTEXT-only L0 Spaces (`GraphGenerationRequest.contextSpaceIds`),
+ * their subspaces, and every edge touching them — what the counts are computed from.
+ * Organisations stay (they count only through edges). Same object when nothing is dropped.
+ */
+export function withoutContextSpaces(dataset: GraphDataset, contextNameIds: ReadonlySet<string>): GraphDataset {
+  if (contextNameIds.size === 0) return dataset;
+  const dropped = new Set(
+    dataset.nodes
+      .filter((n) => n.type === NodeType.SPACE_L0 && n.nameId && contextNameIds.has(n.nameId))
+      .map((n) => n.id),
+  );
+  if (dropped.size === 0) return dataset;
+  // Subspaces hang off their parent; walk until stable (L1 → L2).
+  let grew = true;
+  while (grew) {
+    grew = false;
+    for (const n of dataset.nodes) {
+      if (!dropped.has(n.id) && n.parentSpaceId && dropped.has(n.parentSpaceId)) {
+        dropped.add(n.id);
+        grew = true;
+      }
+    }
+  }
+  return {
+    ...dataset,
+    spaces: dataset.spaces.filter((s) => !contextNameIds.has(s)),
+    nodes: dataset.nodes.filter((n) => !dropped.has(n.id)),
+    edges: dataset.edges.filter((e) => !dropped.has(e.sourceId) && !dropped.has(e.targetId)),
+  };
+}
+
 /** Assemble both variants of every dashboard panel from one dataset. */
 export function buildDashboardBundle(input: BuildBundleInput): DashboardCountsBundle {
-  const { dataset, snapshots, unresolvedCount, gdCallouts, municipalities, profile } = input;
+  const { dataset, snapshots, vocabularySnapshots, unresolvedCount, gdCallouts, municipalities, profile } = input;
   const base = stripGdLayer(dataset);
   const groeiCounts: InitiativeGemeenteCount[] = countSpaceGemeentes(base);
 
   const bundle: DashboardCountsBundle = {
-    categories: { base: countFromSnapshots(snapshots, null, unresolvedCount, profile) },
+    categories: { base: countFromSnapshots(snapshots, null, unresolvedCount, profile, vocabularySnapshots) },
     distribution: {
       base: {
         gemeenteDistribution: bucketGemeenteDistribution(groeiCounts, [], false),
@@ -199,7 +238,13 @@ export function buildDashboardBundle(input: BuildBundleInput): DashboardCountsBu
     },
   };
   if (gdCallouts) {
-    bundle.categories.withGd = countFromSnapshots(snapshots, gdCallouts, unresolvedCount, profile);
+    bundle.categories.withGd = countFromSnapshots(
+      snapshots,
+      gdCallouts,
+      unresolvedCount,
+      profile,
+      vocabularySnapshots,
+    );
     bundle.distribution.withGd = {
       gemeenteDistribution: bucketGemeenteDistribution(
         groeiCounts,

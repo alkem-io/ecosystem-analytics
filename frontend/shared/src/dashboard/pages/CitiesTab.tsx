@@ -347,7 +347,7 @@ export function CitiesTab() {
         />
 
         {/* Table */}
-        <div className="min-h-0 flex-1 overflow-auto">
+        <div className="load-strip-clearance min-h-0 flex-1 overflow-auto">
           {loading && !dataset ? (
             <div className="flex h-full flex-col items-center justify-center gap-2 text-sm text-muted-foreground">
               <div className="flex items-center gap-2">

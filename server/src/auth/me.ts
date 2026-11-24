@@ -3,6 +3,10 @@ import { loadConfig } from '../config.js';
 import { createAlkemioSdk, isAlkemioAuthError } from '../graphql/client.js';
 import { invalidateAndReject } from './middleware.js';
 import { getLogger } from '../logging/logger.js';
+import { report } from '../access/access-service.js';
+import { updateSessionDisplayName } from '../cache/session-store.js';
+import type { AccessReport } from '../types/access.js';
+import type { AppId } from '../access/policy.js';
 
 /**
  * GET /api/auth/me — returns the current signed-in identity plus the Alkemio
@@ -28,7 +32,13 @@ export async function meHandler(req: Request, res: Response): Promise<void> {
     const sdk = await createAlkemioSdk(req.auth);
     const { data } = await sdk.me();
     const profile = data.me.user?.profile;
-    if (profile?.displayName) displayName = profile.displayName;
+    if (profile?.displayName) {
+      displayName = profile.displayName;
+      // Keep it on the session, so other requests (e.g. the admin change log) can use it.
+      if (req.auth.session.displayName !== displayName) {
+        updateSessionDisplayName(req.auth.session.sessionId, displayName);
+      }
+    }
     if (profile?.avatar?.uri) avatarUrl = profile.avatar.uri;
   } catch (err) {
     if (isAlkemioAuthError(err)) {
@@ -40,10 +50,24 @@ export async function meHandler(req: Request, res: Response): Promise<void> {
     });
   }
 
+  // Feature 026: where this person stands with the application that served the
+  // request. Never an HTTP error — "could not verify" is reported in `access`.
+  let access: AccessReport;
+  try {
+    access = await report(req.auth, res.locals.appId as AppId);
+  } catch (err) {
+    if (isAlkemioAuthError(err)) {
+      invalidateAndReject(req, res);
+      return;
+    }
+    throw err;
+  }
+
   res.json({
     userId: req.auth.userId,
     displayName: displayName ?? 'Unknown',
     avatarUrl,
     alkemioServerUrl,
+    access,
   });
 }

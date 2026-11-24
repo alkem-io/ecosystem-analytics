@@ -79,10 +79,30 @@ describe('loadActivityEntries', () => {
 
 describe('toActivityItem', () => {
   it('yields per-Space period counts, totals and a tier', () => {
-    const item = toActivityItem([entry('s-a', 0), entry('s-a', 3), entry('s-a', 20), entry('s-b', 100)], ['c']);
+    const item = toActivityItem([entry('s-a', 0), entry('s-a', 3), entry('s-a', 20), entry('s-b', 100)], ['c'], [], new Map());
     expect(item.bySpace['s-a']).toMatchObject({ day: 1, week: 2, month: 3, total: 3 });
     expect(item.bySpace['s-a'].tier).toBeDefined();
     expect(item.bySpace['s-b']).toMatchObject({ day: 0, week: 0, month: 0, total: 1 });
     expect(item.unavailable).toEqual(['c']);
+  });
+
+  it('says when each readable L0 Space last saw something — subspaces included, unreadable ones absent', () => {
+    const l0 = new Map([
+      ['s-a', 's-a'],
+      ['s-a-sub', 's-a'],
+      ['s-b', 's-b'],
+      ['s-c', 's-c'],
+    ]);
+    const recent = entry('s-a-sub', 2);
+    const item = toActivityItem(
+      [entry('s-a', 100), recent, entry('s-c', 1), { ...entry('s-a', 0), createdDate: 'not a date' } as never],
+      [],
+      [
+        { nameId: 'a', id: 's-a' },
+        { nameId: 'b', id: 's-b' },
+      ],
+      l0,
+    );
+    expect(item.lastAt).toEqual({ 's-a': new Date(recent.createdDate).toISOString(), 's-b': null });
   });
 });

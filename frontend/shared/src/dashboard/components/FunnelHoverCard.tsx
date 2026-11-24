@@ -1,4 +1,5 @@
 import { useTranslation } from 'react-i18next';
+import { handelenLabel } from '../utils/handelen.js';
 import type { FunnelDot } from '../utils/funnel.js';
 
 interface Props {
@@ -30,7 +31,7 @@ function Field({ label, value }: { label: string; value: string }) {
  * "not applicable", which is a different claim from "nothing selected".
  */
 export function FunnelHoverCard({ dot, color, x, y, containerWidth }: Props) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const { row } = dot;
   const none = t('funnel.hover.none', { defaultValue: 'None' });
 
@@ -70,6 +71,16 @@ export function FunnelHoverCard({ dot, color, x, y, containerWidth }: Props) {
           label={t('funnel.hover.phase', { defaultValue: 'Phase' })}
           value={row.phase?.label ?? t('funnel.hover.noPhase', { defaultValue: 'No phase yet' })}
         />
+        {row.handelen && (
+          <Field
+            label={t('handelen.last', { defaultValue: 'Last activity' })}
+            value={
+              row.handelen.lastAt
+                ? new Date(row.handelen.lastAt).toLocaleDateString(i18n.language, { day: 'numeric', month: 'long', year: 'numeric' })
+                : handelenLabel(t, row.handelen.status)
+            }
+          />
+        )}
       </div>
 
       {/* Classifications. Groei initiatives carry the authored groups; GD initiatives are

@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Loader2, LogIn } from 'lucide-react';
-import { cn, login, useAppConfig } from '@ea/shared';
+import { AccessSpaceList, cn, login, useAppConfig } from '@ea/shared';
 
 // Full Alkemio logo (symbol + wordmark), bundled as an asset and shown small in the
 // login footer to indicate the sign-in identity provider.
@@ -37,6 +37,35 @@ function deriveEnvironmentName(url: string | null): string | null {
   return null;
 }
 
+interface AccessSpaces {
+  /** `null` while loading. */
+  gated: boolean | null;
+  spaces: Array<{ key: string; displayName: string; url: string }>;
+  error: boolean;
+}
+
+/**
+ * Feature 027 (FR-001/FR-002): who can use this monitor, before sign-in — the public
+ * `GET /api/auth/access/spaces`. Fetched like `/api/features`; never blocks sign-in.
+ */
+function useAccessSpaces(): AccessSpaces {
+  const [state, setState] = useState<AccessSpaces>({ gated: null, spaces: [], error: false });
+  useEffect(() => {
+    let active = true;
+    fetch('/api/auth/access/spaces')
+      .then((r) => (r.ok ? r.json() : Promise.reject(new Error(`HTTP ${r.status}`))))
+      .then(
+        (data: { gated?: boolean; spaces?: AccessSpaces['spaces'] }) =>
+          active && setState({ gated: !!data.gated, spaces: data.spaces ?? [], error: false }),
+      )
+      .catch(() => active && setState({ gated: null, spaces: [], error: true }));
+    return () => {
+      active = false;
+    };
+  }, []);
+  return state;
+}
+
 const hostOf = (url: string) => url.replace(/^https?:\/\//, '').replace(/\/$/, '');
 
 /** Read the `?error=` code the BFF sets on a cancelled/failed OIDC sign-in. */
@@ -55,6 +84,7 @@ export function LoginScreen() {
   const { url, loading } = useEnvironment();
   const name = useMemo(() => deriveEnvironmentName(url), [url]);
   const authError = useAuthError();
+  const access = useAccessSpaces();
   const authErrorMessage = authError
     ? authError === 'cancelled'
       ? t('login.errorCancelled', {
@@ -157,6 +187,28 @@ export function LoginScreen() {
             ? t('states.redirecting', { defaultValue: 'Redirecting to Alkemio…' })
             : t('login.cta', { defaultValue: 'Sign in' })}
         </button>
+
+        {/* Who can use this monitor (feature 027). An ungated app shows nothing; a failed
+            lookup shows a generic line instead of a list. */}
+        {access.gated && access.spaces.length > 0 && (
+          <div className="mt-6 rounded-lg border border-border px-4 py-3 text-left" data-testid="login-access">
+            <AccessSpaceList
+              heading={t('login.accessHeading', {
+                defaultValue: 'Members of these Spaces can use the monitor',
+              })}
+              spaces={access.spaces}
+              testId="login-access-link"
+              className=""
+            />
+          </div>
+        )}
+        {access.error && (
+          <p className="mt-6 text-left text-xs text-muted-foreground" data-testid="login-access-generic">
+            {t('login.accessGeneric', {
+              defaultValue: 'Access is granted to members of designated Spaces on Alkemio.',
+            })}
+          </p>
+        )}
 
         {/* Environment */}
         <div className="mt-8 rounded-lg bg-muted/50 px-4 py-3 text-left">

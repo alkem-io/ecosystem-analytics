@@ -74,6 +74,8 @@ export async function mockBff(page, F, opts = {}) {
   await page.route('**/api/auth/me', (r) => json(r, F.me));
   await page.route('**/api/hubs?*', (r) => json(r, F.hubs));
   await page.route('**/api/hubs/*/spaces', (r) => json(r, F.hubSpaces));
+  // Feature 027: VNG reads its Spaces from the monitor scope, not a hub.
+  await page.route('**/api/vng/scope', (r) => json(r, scopeOf(F)));
   await page.route('**/api/features', (r) => json(r, {}));
   await page.route('**/api/meta', (r) => json(r, { environment: 'test' }));
   await page.route('**/api/image-proxy*', (r) => r.abort());
@@ -122,7 +124,7 @@ export async function mockBff(page, F, opts = {}) {
 
   await page.route('**/api/graph/activity', (r) => {
     if (opts.activityFail) return json(r, { error: 'ACTIVITY_FAILED', message: 'nope' }, 502);
-    return json(r, F.activity ?? { bySpace: {}, fetchedAt: new Date().toISOString(), unavailable: [] });
+    return json(r, F.activity ?? { bySpace: {}, lastAt: {}, fetchedAt: new Date().toISOString(), unavailable: [] });
   });
   await page.route('**/api/graph/organizations', (r) =>
     json(r, F.organizations ?? { organizations: {}, missing: [] }),
@@ -154,7 +156,7 @@ export function activityOf(dataset) {
     const p = n.activityByPeriod;
     bySpace[n.id] = { day: p.day ?? 0, week: p.week ?? 0, month: p.month ?? 0, total: n.totalActivityCount ?? p.allTime ?? 0, tier: n.spaceActivityTier ?? 'INACTIVE' };
   }
-  return { bySpace, fetchedAt: new Date().toISOString(), unavailable: [] };
+  return { bySpace, lastAt: dataset.lastAt ?? {}, fetchedAt: new Date().toISOString(), unavailable: [] };
 }
 
 /** The counts bundle: `F.bundle` if the fixture has one, else derived from `F.dashboard`. */
@@ -173,3 +175,15 @@ export function bundleOf(F) {
 
 /** Count recorded calls whose path ends with `suffix` (e.g. '/api/graph/generate'). */
 export const countCalls = (calls, suffix) => calls.filter((c) => c.path.endsWith(suffix)).length;
+
+/**
+ * Feature 027 — the VNG monitor scope (`GET /api/vng/scope`) equivalent to a fixture's hub:
+ * the hub's Spaces in order, keyed by the hub nameID so orchestrator fixtures still match.
+ */
+export function scopeOf(F) {
+  return {
+    revision: 1,
+    ecosystemKey: F.hubs?.defaultHubNameId ?? F.hubSpaces?.nameId ?? 'vih-test',
+    spaceNameIds: (F.hubSpaces?.spaces ?? []).map((s) => s.nameId),
+  };
+}

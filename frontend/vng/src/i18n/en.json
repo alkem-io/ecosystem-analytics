@@ -12,7 +12,26 @@
     "environment": "Environment",
     "envDetecting": "detecting…",
     "envUnknown": "not reported by server",
-    "disclaimer": "Prototype for exploration"
+    "disclaimer": "Prototype for exploration",
+    "accessHeading": "Members of these Spaces can use the monitor",
+    "accessGeneric": "Access is granted to members of designated Spaces on Alkemio.",
+    "errorCancelled": "Your sign-in was cancelled before it completed. You can try again below.",
+    "errorExpired": "That sign-in request is no longer valid — it took too long, or it was already completed in another tab. Please sign in again.",
+    "errorFailed": "We couldn't complete sign-in with Alkemio. This is usually a temporary problem with the sign-in service rather than your account. Please try again — if it keeps happening, contact your Alkemio administrator.",
+    "poweredBy": "Powered by"
+  },
+  "access": {
+    "noAccessTitle": "You do not have access",
+    "noAccessBody": "Access to this monitor is granted to members of the Spaces below on Alkemio. Ask to join one of them there, then check again.",
+    "spacesHeading": "Members of these Spaces have access",
+    "openSpace": "Open {{space}} on Alkemio",
+    "checkAgain": "Check again",
+    "checking": "Checking…",
+    "signOut": "Sign out",
+    "signedInAs": "Signed in as",
+    "unverifiedTitle": "We could not verify your access",
+    "unverifiedBody": "Alkemio did not answer in time, so we could not confirm your access. This is usually temporary — please try again.",
+    "tryAgain": "Try again"
   },
   "tabs": {
     "label": "Views",
@@ -24,7 +43,6 @@
     "cityDetails": "City information",
     "usage": "Usage explorer",
     "funnel": "Funnel",
-    "intake": "Intake",
     "ecosystem": "Ecosystem"
   },
   "initiativesTab": {
@@ -78,7 +96,12 @@
   "user": {
     "menu": "User menu",
     "signedIn": "Signed in",
-    "logout": "Sign out"
+    "logout": "Sign out",
+    "accessViewer": "User",
+    "accessManager": "Monitor manager",
+    "accessVia": "Members of these Spaces have access:",
+    "accessManagerVia": "You can manage the monitor as an admin of one of its admin Spaces.",
+    "accessOpen": "Open to every signed-in Alkemio user."
   },
   "hub": {
     "label": "Innovation hub",
@@ -146,9 +169,9 @@
   "dashboard": {
     "nds": "Initiatives by NDS",
     "vng2030": "Number of initiatives by VNG-2030",
-    "sourceSpaces": "Based on selected spaces",
+    "sourceSpaces": "Based on the spaces in the monitor",
     "sourceInitiatives": "Based on GemeenteDelers initiatives",
-    "sourceSpacesGd": "Based on selected spaces + GemeenteDelers initiatives",
+    "sourceSpacesGd": "Based on the spaces in the monitor + GemeenteDelers initiatives",
     "uncategorised": "No classification",
     "noData": "No data available",
     "totalCounted": "{{count}} counted",
@@ -189,7 +212,9 @@
     "unclassifiedCount": "{{count}} not yet classified",
     "classificationsHeading": "Classifications",
     "driftUnexpected": "Unexpected in Alkemio and not reviewed for this dashboard: {{labels}}. They are still shown and still counted.",
-    "driftMissing": "Expected by this dashboard but no longer in Alkemio: {{labels}}. Possibly renamed."
+    "driftMissing": "Expected by this dashboard but no longer in Alkemio: {{labels}}. Possibly renamed.",
+    "ndsAxis": "NDS",
+    "vng2030Axis": "VNG 2030"
   },
   "categories": {
     "phase": {
@@ -198,7 +223,14 @@
   },
   "warning": {
     "authTitle": "Please note",
-    "authBody": "You only see data you are authorised to access. Seeing limited data? Check your authorisation on the underlying spaces."
+    "authBody": "you only see data you yourself have access to on Alkemio.",
+    "accessViaPrefix": "You have access to this monitor as a member of",
+    "or": "or",
+    "expand": "Show more",
+    "collapse": "Show less",
+    "prototypeTitle": "Prototype",
+    "prototypeBody": "this monitor is still a prototype, shared to gather wider feedback. More information:",
+    "prototypeLink": "the Innovation monitor Space"
   },
   "provenance": {
     "gd": "GemeenteDelers was a VNG programme (2021–2025) with around 305 initiatives, originally published at vng.nl/praktijkvoorbeelden."
@@ -235,7 +267,19 @@
     "offMapSpacesL1": "Subspaces (L1) with no location ({{count}})",
     "offMapSpacesL2": "Subspaces (L2) with no location ({{count}})",
     "region": "Region",
-    "regionNetherlands": "Whole Netherlands"
+    "regionNetherlands": "Whole Netherlands",
+    "metrics": {
+      "avgDegree": "Avg. connections",
+      "density": "Density",
+      "edges": "Connections",
+      "initiatives": "Initiatives",
+      "nodes": "Nodes",
+      "orgs": "Organisations",
+      "spaces": "Spaces"
+    },
+    "noParticipatingGemeentes": "No participating municipalities in the current data.",
+    "participatingGemeentes": "Participating municipalities",
+    "showMap": "Show map"
   },
   "export": {
     "downloadXlsx": "Download XLSX",
@@ -342,7 +386,26 @@
     "openCity": "Open city profile",
     "clearFocus": "Clear",
     "focusNoInitiatives": "This municipality takes part in no initiatives in the current selection.",
-    "moreInitiatives": "+{{count}} more"
+    "moreInitiatives": "+{{count}} more",
+    "zoomHintWindows": "Use Ctrl + scroll to zoom the map",
+    "zoomHintMac": "Use ⌘ + scroll to zoom the map",
+    "zoomHintMobile": "Use two fingers to move the map"
+  },
+  "handelen": {
+    "name": "Activity",
+    "show": "Show activity",
+    "last": "Last activity",
+    "gd": "GemeenteDelers (activity not tracked)",
+    "hint": "Time since the last recorded event in the Space or a subspace; new members count.",
+    "loading": "Loading activity…",
+    "failed": "Activity is not available.",
+    "status": {
+      "active": "Active (≤ {{active}} days)",
+      "quiet": "Quiet ({{from}}–{{quiet}} days)",
+      "dormant": "Dormant (> {{quiet}} days)",
+      "none": "No activity recorded",
+      "unknown": "Activity not visible"
+    }
   },
   "funnel": {
     "title": "Innovation funnel",
@@ -370,17 +433,19 @@
       "noPhase": "No phase yet"
     },
     "showNames": "Show names",
-    "inFunnel": "Initiatives in the funnel"
+    "inFunnel": "Initiatives in the funnel",
+    "colorBy": "Colour by",
+    "colorBySource": "Source (Groei / GemeenteDelers)",
+    "legendNone": "No classification",
+    "legendOther": "Other",
+    "legendFocusHint": "Click a value to highlight its initiatives.",
+    "legendSplit": "A dot in several colours has several values."
   },
   "table": {
     "sortBy": "Sort",
     "sortAsc": "Sorted ascending — tap to reverse",
     "sortDesc": "Sorted descending — tap to reverse",
     "filters": "Filters"
-  },
-  "intake": {
-    "notImplemented": "Not yet implemented — this view is still being built.",
-    "workInProgress": "Work in progress"
   },
   "ecosystem": {
     "title": "Ecosystem map",
@@ -396,7 +461,7 @@
       "builtInMissing": "The configured orchestrator was not found; showing the next best match."
     },
     "hint": {
-      "addSpace": "To choose a space that is not listed here, add it to your selection first."
+      "addSpace": "Is the space you want not listed? Only spaces this monitor follows can be the orchestrator — ask a monitor manager to add it."
     },
     "filter": {
       "orchestrator": "Linked to orchestrator",
@@ -443,6 +508,8 @@
       "core": "",
       "option:gd": "for the GemeenteDelers option",
       "tab:initiatives": "requested by Initiatives",
+      "tab:funnel": "requested by Funnel",
+      "tab:dashboard": "requested by Dashboard",
       "tab:usage": "requested by Usage Explorer",
       "tab:details": "requested by Details",
       "tab:explorer": "requested by Explorer"
@@ -461,5 +528,209 @@
     },
     "waitingFor": "Waiting for {{item}}…",
     "unavailable": "unavailable"
+  },
+  "admin": {
+    "access": {
+      "none": "no Space configured",
+      "notFound": "not found on Alkemio",
+      "title": "Access",
+      "viewersLabel": "View",
+      "adminsLabel": "Manage",
+      "youCanManage": "you can view and manage the monitor.",
+      "youCanView": "you can view the monitor, but not manage it.",
+      "youCannot": "you cannot view the monitor.",
+      "edit": "Change",
+      "save": "Save",
+      "cancel": "Cancel",
+      "reload": "Load the current settings",
+      "remove": "Remove {{name}}",
+      "needOne": "At least one Space is needed.",
+      "addTo": "Add a Space to “{{set}}”",
+      "addPlaceholder": "Search by name, or paste a link",
+      "addLink": "Add",
+      "viewersHint": "Members of any of these Spaces can view the monitor.",
+      "adminsHint": "Admins of any of these Spaces can also change the settings.",
+      "saveNote": "Applies straight away, to everyone. You must remain a manager yourself: a change that would take that away is not saved.",
+      "notEditable": "This deployment leaves the monitor open to everyone; that cannot be changed here.",
+      "fromSettings": "Set here in the settings (who and when: see the change log). Who is a member or admin of these Spaces is managed on Alkemio.",
+      "fromConfig": "From the deployment configuration until changed here. Who is a member or admin of these Spaces is managed on Alkemio.",
+      "error": {
+        "lockOut": "Not saved: you would no longer be able to manage the monitor yourself. Keep a Space among “Manage” of which you are an admin.",
+        "empty": "“{{role}}” needs at least one Space.",
+        "notFound": "{{item}} was not found on Alkemio.",
+        "duplicate": "{{item}} is listed twice.",
+        "unparseable": "“{{item}}” is not an Alkemio Space link or name.",
+        "tooMany": "Too many Spaces for “{{role}}”.",
+        "conflict": "Someone else changed the access meanwhile. Load the current settings and try again.",
+        "unverified": "Alkemio could not be reached to check this. Try again in a moment.",
+        "generic": "The change could not be saved."
+      },
+      "roleManager": "Manager",
+      "roleViewer": "User",
+      "open": "Open {{name}} on Alkemio"
+    },
+    "back": "Back to the monitor",
+    "classifications": {
+      "changedOnAlkemio": "Changed on Alkemio meanwhile — not saved. The current value is shown; check and save again.",
+      "failed": "Could not be saved — try again.",
+      "gdPost": "This initiative is a GemeenteDelers post. Posts have no classifications of their own.",
+      "loadFailed": "This initiative could not be loaded.",
+      "noUpdateRight": "You may not change this Space on Alkemio, so its classifications are shown read-only.",
+      "notPermitted": "Alkemio did not allow this change — not saved.",
+      "notReadable": "You cannot read this Space.",
+      "save": "Save on Alkemio",
+      "saveFailed": "Saving failed. Your changes are kept — try again.",
+      "saved": "Saved",
+      "title": "Classifications",
+      "valueRemoved": "A chosen value no longer exists — not saved.",
+      "cancel": "Cancel",
+      "empty": "— not filled in —",
+      "missingOnSpace": "This Space does not have this classification.",
+      "multi": "more than one possible",
+      "savesOnAlkemio": "Saved on Alkemio, as you. Every dashboard reads it from there."
+    },
+    "entry": "Monitor settings",
+    "gd": {
+      "ambiguous": "Matched several posts, so nothing was dropped for: {{list}}",
+      "description": "The historical initiatives (2021–2025) the monitor adds from the GemeenteDelers Space when a user switches them on. Separate from the Groei initiatives.",
+      "loadFailed": "The GemeenteDelers source could not be read just now.",
+      "migrationComplete": "Migration to subspaces complete: no posts are read any more.",
+      "nextRefresh": "next refresh",
+      "perInitiative": "Initiatives ({{count}})",
+      "readAt": "Last read",
+      "sourcePost": "post",
+      "sourceSubspace": "subspace",
+      "superseded": "Posts replaced by a subspace ({{count}})",
+      "title": "GemeenteDelers initiatives",
+      "total": "Initiatives",
+      "unknown": "unknown",
+      "unreadable": "You cannot read the GemeenteDelers Space, so there is nothing to show.",
+      "viaPosts": "From posts",
+      "viaSubspaces": "From subspaces",
+      "colInitiative": "Initiative",
+      "colNds": "NDS priority",
+      "colVng": "VNG 2030 theme",
+      "postsNote": "Initiatives that are still a post have no classifications of their own: their NDS and VNG 2030 values are read from their tags, as on the dashboard. They become editable once moved to a subspace."
+    },
+    "included": {
+      "changedBy": "Last changed by {{name}} on {{when}}",
+      "colSpace": "Space",
+      "description": "The Spaces the monitor reports on, for every user, with their classifications on Alkemio.",
+      "edit": {
+        "add": "Add",
+        "addNamed": "Add {{name}}",
+        "close": "Close",
+        "confirmEmpty": "Remove every Space? The monitor will show no initiatives to anyone.",
+        "confirmEmptyYes": "Yes, remove all",
+        "conflictBody": "It now holds {{count}} Spaces. Load it to start again from the current list.",
+        "conflictTitle": "Someone else changed the list",
+        "discard": "Discard changes",
+        "duplicate": "Listed twice",
+        "emptyList": "No Spaces — the monitor would show nothing.",
+        "inList": "In the monitor",
+        "keepEditing": "Keep editing",
+        "list": "Spaces in the monitor ({{count}})",
+        "loadCurrent": "Load the current list",
+        "new": "new",
+        "noResults": "No Spaces found. Try a whole word from the name — or paste the link of the Space.",
+        "notReadable": "You can only add Spaces you can see on Alkemio",
+        "notTopLevel": "Only top-level Spaces can be added",
+        "pending": "Not saved yet",
+        "removeNamed": "Remove {{name}}",
+        "save": "Save changes",
+        "saveFailed": "Saving failed. Your changes are kept — try again.",
+        "searchPlaceholder": "Name of a Space, or https://alkem.io/…",
+        "start": "Add or remove Spaces",
+        "tooMany": "Too many Spaces",
+        "undoRemovals": "Put back",
+        "unparseable": "That is not an Alkemio Space link or name",
+        "addTitle": "Add a Space",
+        "addHelp": "Your own Spaces are found on any part of their name. Other Spaces you can see on Alkemio are found on a whole word from their name, or on their exact short name. Or paste the link of the Space.",
+        "searchFailed": "Searching Alkemio failed just now. Try again, or paste the link of the Space."
+      },
+      "empty": "The monitor reports on no Spaces.",
+      "filter": "Filter this list",
+      "fromStartingSet": "From the starting set ({{when}})",
+      "notFound": "Not found on Alkemio",
+      "olderChanges": "Older changes",
+      "openClassifications": "Edit",
+      "openClassificationsNamed": "Edit the classifications of {{name}}",
+      "renamed": "{{note}} on Alkemio ({{when}})",
+      "title": "Groei initiatives",
+      "unreadable": "You cannot read this Space",
+      "count_one": "{{count}} Space",
+      "count_other": "{{count}} Spaces",
+      "added": "added",
+      "removed": "removed",
+      "missing": "missing",
+      "colActions": "Actions",
+      "designations": "The columns are the classifications the monitor reads ({{list}}), fixed in its configuration. Their possible values come from Alkemio.",
+      "colVisibility": "Visibility on Alkemio",
+      "public": "Public",
+      "private": "Private",
+      "statusArchived": "archived",
+      "statusDemo": "demo",
+      "statusInactive": "inactive"
+    },
+    "loading": "Loading…",
+    "noAccess": {
+      "body": "Only admins of the monitor’s admin Spaces on Alkemio can change its settings.",
+      "title": "No access to the settings"
+    },
+    "retry": "Try again",
+    "sectionError": "This section could not be loaded.",
+    "title": "Monitor settings",
+    "intake": {
+      "notImplemented": "Not yet implemented — this view is still being built.",
+      "workInProgress": "Work in progress"
+    },
+    "tabs": {
+      "label": "Settings",
+      "included": "Spaces in the monitor",
+      "gd": "GemeenteDelers",
+      "intake": "Intake",
+      "access": "Access",
+      "audit": "Change log"
+    },
+    "audit": {
+      "title": "Change log",
+      "description": "Every change made to the monitor’s settings, newest first.",
+      "empty": "No changes yet.",
+      "system": "the system",
+      "seed": "Initiatives in the monitor: the starting set",
+      "rename": "Renamed on Alkemio: {{note}}",
+      "spaces": "{{who}} changed the initiatives in the monitor",
+      "classification": "{{who}} changed {{label}} of {{space}}",
+      "none": "(none)",
+      "access": "{{who}} changed who has access"
+    }
+  },
+  "header": {
+    "gdHint": "Include the historical GemeenteDelers initiatives (2021–2025) in every view",
+    "gdTitle": "GemeenteDelers",
+    "gdOn": "included",
+    "gdOff": "not included",
+    "gdLoaded": "{{count}} initiatives loaded from the GemeenteDelers Space.",
+    "gdUnavailable": "The GemeenteDelers initiatives could not be loaded for you.",
+    "gdInfo": "About GemeenteDelers",
+    "gdIncludedNote": "They are now included in every view. Turn them off with the GemeenteDelers switch.",
+    "gdExcludedNote": "They are now left out. Turn them on with the GemeenteDelers switch."
+  },
+  "scope": {
+    "loading": "Loading the monitor’s initiatives…",
+    "error": "The monitor’s initiatives could not be loaded.",
+    "retry": "Try again",
+    "empty": "The monitor’s managers have not chosen any initiatives yet.",
+    "title": "In this monitor",
+    "spaces": "Spaces",
+    "description": "The monitor reports on these Spaces. Its managers choose them.",
+    "close": "Close",
+    "missing": "{{count}} of these Spaces are not in your data. Usually you have no read rights on them, so the figures you see are incomplete.",
+    "notInData": "not in your data",
+    "infoTitle": "Groei initiatives",
+    "info": "About the Groei initiatives",
+    "infoBody": "The Groei initiatives are the Spaces this monitor reports on: initiatives of the Groei programme of Kenniscentrum Innovatie. The managers of the monitor choose which Spaces count, in the monitor settings.",
+    "infoOwnData": "The figures are built from what you yourself may see.",
+    "infoMore": "More information:"
   }
 }

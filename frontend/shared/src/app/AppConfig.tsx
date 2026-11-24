@@ -33,17 +33,28 @@ export interface AppConfig {
    */
   funnel?: boolean;
   /**
-   * Show the Intake tab. Opt-in like the two above; currently a placeholder, so a
-   * dashboard opts in only once it wants the step visible in its navigation.
-   */
-  intake?: boolean;
-  /**
-   * Show the Ecosystem map tab (feature 024). Opt-in like the three above — the map
+   * Show the Ecosystem map tab (feature 024). Opt-in like the two above — the map
    * draws the selected innovation hub as orchestrator + initiatives + the organisations
    * around them, so a dashboard whose hubs have no orchestrator would see only the
    * guess, and simply leaves this off.
    */
   ecosystem?: boolean;
+  /**
+   * Feature 027 — dashboard-level behaviour switches. VNG turns these on; GovTech does not.
+   */
+  flags?: {
+    /**
+     * The dashboard reports on the Spaces its managers chose (`GET /api/vng/scope`, the
+     * monitor's own settings store) instead of an innovation hub. No Space selection
+     * at all for viewers. Also enables the `/admin` area for Monitor Managers.
+     */
+    managedScope?: boolean;
+  };
+  /**
+   * The dashboard is a prototype shared for feedback: the notice under the header says
+   * so and links here for more information. Absent: no prototype line.
+   */
+  prototypeInfoUrl?: string;
 }
 
 const AppConfigContext = createContext<AppConfig | null>(null);
