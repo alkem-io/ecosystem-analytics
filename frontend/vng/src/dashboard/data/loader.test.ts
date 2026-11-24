@@ -38,7 +38,7 @@ function extras() {
     activityCalls: 0,
     activity: vi.fn<ExtraTransport['activity']>(async () => {
       t.activityCalls += 1;
-      return { bySpace: {}, fetchedAt: 'now', unavailable: [] };
+      return { bySpace: {}, lastAt: {}, fetchedAt: 'now', unavailable: [] };
     }),
     organizations: vi.fn<ExtraTransport['organizations']>(async (ids) => ({
       organizations: Object.fromEntries(
@@ -140,6 +140,67 @@ describe('DashboardLoader (feature 025)', () => {
     await tick();
     expect(loader.store.getSnapshot().plan.items.find((i) => i.key === 'activity')?.stage).toBe('done');
     expect(loader.store.getSnapshot().data?.extras.activity).toBeDefined();
+  });
+
+  it('an explicit retry runs although an earlier value is still held', async () => {
+    const g = fakeGraph();
+    const x = extras();
+    const loader = new DashboardLoader(new DashboardStore(), g.loadGraph, x);
+    const sel = selection(['a']);
+    loader.setSelection(sel, selectionLoadKey(sel));
+    loader.declare('activity', 'tab:initiatives');
+    g.calls[0].resolve(dataset('a'));
+    await tick();
+    x.activity.mockRejectedValueOnce(new Error('feed down'));
+    loader.refresh();
+    g.calls[1].resolve(dataset('a2'));
+    await tick();
+    const item = () => loader.store.getSnapshot().plan.items.find((i) => i.key === 'activity');
+    expect(item()?.stage).toBe('failed');
+    expect(loader.store.getSnapshot().data?.extras.activity).toBeDefined(); // the earlier one
+    loader.retry('activity');
+    await tick();
+    expect(item()?.stage).toBe('done');
+  });
+
+  it('reloads when a context-only Space becomes a selected one (it is counted from then on)', () => {
+    const before = { ...selection(['a']), widenedSpaceIds: ['b'] };
+    const after = { ...selection(['a', 'b']), widenedSpaceIds: [] };
+    expect(selectionLoadKey(before)).not.toBe(selectionLoadKey(after));
+    expect(selectionLoadKey({ ...after, spaceIds: ['b', 'a'] })).toBe(selectionLoadKey(after));
+  });
+
+  it('the GemeenteDelers switch keeps loaded extras on screen and does not re-request them', async () => {
+    const g = fakeGraph();
+    const x = extras();
+    const loader = new DashboardLoader(new DashboardStore(), g.loadGraph, x);
+    const off = selection(['a']);
+    loader.setSelection(off, selectionLoadKey(off));
+    loader.declare('activity', 'tab:initiatives');
+    loader.declare('gemeente-locations', 'tab:usage');
+    g.calls[0].resolve(dataset('a'));
+    await tick();
+    const activity = loader.store.getSnapshot().data?.extras.activity;
+    expect(activity).toBeDefined();
+
+    const on = selection(['a'], true);
+    loader.setSelection(on, selectionLoadKey(on));
+    g.calls[1].resolve(dataset('a+gd'));
+    await tick();
+    const snap = loader.store.getSnapshot();
+    expect(snap.data?.dataset.spaces).toEqual(['a+gd']);
+    expect(snap.data?.extras.activity).toBe(activity); // same object: nothing flashed
+    expect(x.activityCalls).toBe(1);
+    expect(x.gemeenteLocations).toHaveBeenCalledTimes(1);
+    expect(snap.plan.items.some((i) => i.key === 'activity')).toBe(false); // no strip entry
+
+    // Other Spaces: activity is for different Spaces → fetched again; locations stay.
+    const ab = selection(['a', 'b'], true);
+    loader.setSelection(ab, selectionLoadKey(ab));
+    g.calls[2].resolve(dataset('ab+gd'));
+    await tick();
+    expect(x.activityCalls).toBe(2);
+    expect(x.gemeenteLocations).toHaveBeenCalledTimes(1);
   });
 
   it('streams server stages into the plan and marks the core done on result', async () => {

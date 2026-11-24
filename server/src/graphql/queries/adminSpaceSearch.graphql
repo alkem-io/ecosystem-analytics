@@ -1,0 +1,27 @@
+# Feature 027 — find a top-level Space to add to the monitor (research R14). `SPACE` (not
+# `SUBSPACE`) results are top-level Spaces; run with the manager's token, so only Spaces
+# they can see come back.
+query AdminSpaceSearch($terms: [String!]!) {
+  search(
+    searchData: { terms: $terms, filters: [{ category: SPACES, types: [SPACE], size: 20 }] }
+  ) {
+    spaceResults {
+      results {
+        type
+        ... on SearchResultSpace {
+          space {
+            id
+            nameID
+            level
+            about {
+              profile {
+                displayName
+                url
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

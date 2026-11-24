@@ -30,6 +30,8 @@ export type LoadRequester =
   | 'option:gd'
   | 'tab:initiatives'
   | 'tab:usage'
+  | 'tab:funnel'
+  | 'tab:dashboard'
   | 'tab:details'
   | 'tab:explorer';
 
@@ -86,8 +88,29 @@ const EMPTY_PLAN: LoadPlan = { loadKey: '', items: [], active: false, coreReady:
 
 /** Stable identity of a selection (data-model §1). `refreshNonce` is deliberately absent. */
 export function selectionLoadKey(sel: Selection): string {
-  const ids = [...new Set([...sel.spaceIds, ...sel.widenedSpaceIds])].sort();
-  return `${sel.app}|${ids.join(',')}|${sel.includeInitiatives ? 1 : 0}`;
+  // Selected and context-only Spaces apart: one that moves between them changes the counts.
+  const list = (ids: readonly string[]) => [...new Set(ids)].sort().join(',');
+  const gd = sel.includeInitiatives ? 1 : 0;
+  return `${sel.app}|${list(sel.spaceIds)}|${list(sel.widenedSpaceIds)}|${gd}`;
+}
+
+/** The Spaces part of a load key: everything but the trailing GemeenteDelers flag. */
+function spacesPart(loadKey: string): string {
+  return loadKey.slice(0, loadKey.lastIndexOf('|'));
+}
+
+/**
+ * Which already-loaded extras stay valid for the data landing under `nextKey`, so a view
+ * that shows them (the Initiatives activity column, the Usage map) does not drop back to
+ * its loading state and jump. The gemeente locations never depend on the selection.
+ * Activity and organisation profiles depend on the Spaces only, so they survive a
+ * GemeenteDelers on/off switch; the loader still fetches any profile still missing.
+ */
+export function carriedExtras(prev: LoadedData | null, nextKey: string): LoadedExtras {
+  if (!prev) return {};
+  if (spacesPart(prev.loadKey) === spacesPart(nextKey)) return { ...prev.extras };
+  const locations = prev.extras['gemeente-locations'];
+  return locations ? { 'gemeente-locations': locations } : {};
 }
 
 function finalise(plan: LoadPlan): LoadPlan {
@@ -196,7 +219,12 @@ export class DashboardStore {
         : i,
     );
     this.set({
-      data: { loadKey, dataset: result.dataset, dashboard: result.dashboard, extras: {} },
+      data: {
+        loadKey,
+        dataset: result.dataset,
+        dashboard: result.dashboard,
+        extras: carriedExtras(this.state.data, loadKey),
+      },
       plan: finalise({ ...this.state.plan, items }),
     });
   }

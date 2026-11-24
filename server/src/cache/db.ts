@@ -9,7 +9,7 @@ let db: DatabaseType;
  * Turn an environment discriminator (an OIDC issuer or Alkemio server URL) into a
  * filesystem-safe slug, e.g. `https://identity.acc-alkem.io/` -> `identity-acc-alkem-io`.
  */
-function envSlug(discriminator?: string): string {
+export function envSlug(discriminator?: string): string {
   if (!discriminator) return '';
   let host = discriminator;
   try {
@@ -151,6 +151,21 @@ export function initDatabase(envDiscriminator?: string): void {
   db.exec(
     `CREATE INDEX IF NOT EXISTS idx_oidc_sessions_refresh_exp ON oidc_sessions (refresh_expires_at)`,
   );
+
+  // Feature 026 — the access gate's decision per session per application, held for the
+  // life of the session (FR-006). `gate_key` is the gate it was decided against, so a
+  // reconfigured gate is re-decided. "Could not verify" is never stored. Rows are
+  // deleted with their session and swept by purgeExpired if orphaned.
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS access_decisions (
+      session_id  TEXT NOT NULL,
+      app_id      TEXT NOT NULL,
+      gate_key    TEXT NOT NULL,
+      level       TEXT NOT NULL CHECK (level IN ('none', 'read', 'manage')),
+      decided_at  INTEGER NOT NULL,
+      PRIMARY KEY (session_id, app_id)
+    )
+  `);
 }
 
 export function getDatabase(): DatabaseType {

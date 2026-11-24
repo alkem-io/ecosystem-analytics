@@ -15,6 +15,14 @@ export interface SpaceSelectionItem {
 /** Request body for graph generation */
 export interface GraphGenerationRequest {
   spaceIds: string[];
+  /**
+   * Of `spaceIds`, the Spaces loaded only as CONTEXT — the VNG Ecosystem tab's
+   * orchestrator candidates (e.g. `programmagroei`), which the monitor does not report
+   * on. They are in the dataset (the Ecosystem map draws them) but the dashboard counts
+   * bundle leaves them out: no phase / NDS / VNG-2030 bar, gemeente distribution or city
+   * series counts them. Feature 027 fix.
+   */
+  contextSpaceIds?: string[];
   forceRefresh?: boolean;
   /**
    * Which dashboard is asking (feature 020). Selects that app's classification
@@ -118,6 +126,12 @@ export interface ActivityPeriodCountsItem {
 export interface ActivityItem {
   /** Keyed by Space id (L0/L1/L2). */
   bySpace: Record<string, ActivityPeriodCountsItem>;
+  /**
+   * Per L0 Space id: when the last recorded event in the Space OR any of its subspaces
+   * happened; `null` when its feed was read and holds none. A Space whose feed (or
+   * content) the viewer could not read has NO entry — nothing may be claimed about it.
+   */
+  lastAt: Record<string, string | null>;
   fetchedAt: string;
   /** Spaces whose activity feed could not be read (rendered as "unavailable"). */
   unavailable: string[];

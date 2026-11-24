@@ -5,14 +5,33 @@
   },
   "login": {
     "dashboardLabel": "Analytics-dashboard",
-    "signInHeading": "Aanmelden",
-    "prompt": "Meld u aan met uw Alkemio-account om door te gaan.",
-    "heroDescription": "Verken het innovatie-ecosysteem van Nederlandse gemeenten — het netwerk van ruimtes, organisaties en GemeenteDelers-initiatieven.",
-    "cta": "Aanmelden",
+    "signInHeading": "Inloggen",
+    "prompt": "Log in met je Alkemio-account om verder te gaan.",
+    "heroDescription": "Verken het innovatie-ecosysteem van Nederlandse gemeenten — het netwerk van Spaces, organisaties en GemeenteDelers-initiatieven.",
+    "cta": "Inloggen",
     "environment": "Omgeving",
     "envDetecting": "detecteren…",
     "envUnknown": "niet gemeld door server",
-    "disclaimer": "Prototype ter verkenning"
+    "disclaimer": "Prototype ter verkenning",
+    "accessHeading": "Leden van deze Spaces kunnen de monitor gebruiken",
+    "accessGeneric": "Toegang krijgen leden van aangewezen Spaces op Alkemio.",
+    "errorCancelled": "Je inlogpoging is afgebroken voordat die klaar was. Je kunt het hieronder opnieuw proberen.",
+    "errorExpired": "Die inlogpoging is niet meer geldig: het duurde te lang, of je bent al ingelogd in een ander tabblad. Log opnieuw in.",
+    "errorFailed": "Inloggen via Alkemio is niet gelukt. Meestal is dat een tijdelijk probleem met de inlogdienst, niet met je account. Probeer het opnieuw; blijft het gebeuren, neem dan contact op met je Alkemio-beheerder.",
+    "poweredBy": "Mogelijk gemaakt door"
+  },
+  "access": {
+    "noAccessTitle": "Je hebt geen toegang",
+    "noAccessBody": "Toegang tot deze monitor krijgen leden van de Spaces hieronder op Alkemio. Vraag daar om lid te worden van een ervan en controleer het daarna opnieuw.",
+    "spacesHeading": "Leden van deze Spaces hebben toegang",
+    "openSpace": "Open {{space}} op Alkemio",
+    "checkAgain": "Opnieuw controleren",
+    "checking": "Bezig met controleren…",
+    "signOut": "Uitloggen",
+    "signedInAs": "Ingelogd als",
+    "unverifiedTitle": "We konden je toegang niet controleren",
+    "unverifiedBody": "Alkemio reageerde niet op tijd, waardoor we je toegang niet konden bevestigen. Dit is meestal tijdelijk — probeer het opnieuw.",
+    "tryAgain": "Opnieuw proberen"
   },
   "tabs": {
     "label": "Weergaven",
@@ -24,7 +43,6 @@
     "cityDetails": "Gemeente informatie",
     "usage": "Gebruiksverkenner",
     "funnel": "Funnel",
-    "intake": "Intake",
     "ecosystem": "Ecosysteem"
   },
   "initiativesTab": {
@@ -77,8 +95,13 @@
   },
   "user": {
     "menu": "Gebruikersmenu",
-    "signedIn": "Aangemeld",
-    "logout": "Afmelden"
+    "signedIn": "Ingelogd",
+    "logout": "Uitloggen",
+    "accessViewer": "Gebruiker",
+    "accessManager": "Beheerder van de monitor",
+    "accessVia": "Toegang hebben leden van:",
+    "accessManagerVia": "Je kunt de monitor beheren als beheerder van een van de beheer-Spaces.",
+    "accessOpen": "Open voor iedere aangemelde Alkemio-gebruiker."
   },
   "hub": {
     "label": "Innovation hub",
@@ -127,7 +150,7 @@
     "pickSpace": "Kies een initiatief",
     "nameId": "NameID",
     "origin": "Herkomst",
-    "placeholderNote": "Uitgebreide ruimtedetails volgen zodra het gedeelde detailpaneel beschikbaar is.",
+    "placeholderNote": "Uitgebreide Space-details volgen zodra het gedeelde detailpaneel beschikbaar is.",
     "connectedGemeentes": "Deelnemende gemeenten",
     "noGemeentes": "Geen gemeenten gekoppeld aan dit initiatief.",
     "loading": "Gemeenten laden…",
@@ -146,9 +169,9 @@
   "dashboard": {
     "nds": "Initiatieven volgens NDS",
     "vng2030": "Aantal initiatieven volgens VNG-2030",
-    "sourceSpaces": "Op basis van geselecteerde ruimtes",
+    "sourceSpaces": "Op basis van de Spaces in de monitor",
     "sourceInitiatives": "Op basis van GemeenteDelers-initiatieven",
-    "sourceSpacesGd": "Op basis van geselecteerde ruimtes + GemeenteDelers-initiatieven",
+    "sourceSpacesGd": "Op basis van de Spaces in de monitor + GemeenteDelers-initiatieven",
     "uncategorised": "Geen classificatie",
     "noData": "Geen gegevens beschikbaar",
     "totalCounted": "{{count}} geteld",
@@ -189,7 +212,9 @@
     "unclassifiedCount": "{{count}} nog niet geclassificeerd",
     "classificationsHeading": "Classificaties",
     "driftUnexpected": "Onverwacht in Alkemio en niet beoordeeld voor dit dashboard: {{labels}}. Ze worden wel getoond en meegeteld.",
-    "driftMissing": "Door dit dashboard verwacht, maar niet meer aanwezig in Alkemio: {{labels}}. Mogelijk hernoemd."
+    "driftMissing": "Door dit dashboard verwacht, maar niet meer aanwezig in Alkemio: {{labels}}. Mogelijk hernoemd.",
+    "ndsAxis": "NDS",
+    "vng2030Axis": "VNG 2030"
   },
   "categories": {
     "phase": {
@@ -198,7 +223,14 @@
   },
   "warning": {
     "authTitle": "Let op",
-    "authBody": "U ziet alleen gegevens waartoe u geautoriseerd bent. Ziet u beperkte gegevens? Controleer dan uw autorisatie op de onderliggende ruimtes."
+    "authBody": "je ziet alleen gegevens waartoe je zelf toegang hebt op Alkemio.",
+    "accessViaPrefix": "Je hebt toegang tot deze monitor als lid van",
+    "or": "of",
+    "expand": "Meer tonen",
+    "collapse": "Minder tonen",
+    "prototypeTitle": "Prototype",
+    "prototypeBody": "deze monitor is nog een prototype, gedeeld om bredere feedback op te halen. Meer informatie:",
+    "prototypeLink": "de Innovatiemonitor-Space"
   },
   "provenance": {
     "gd": "GemeenteDelers was een VNG-programma (2021–2025) met circa 305 initiatieven, oorspronkelijk gepubliceerd op vng.nl/praktijkvoorbeelden."
@@ -213,7 +245,7 @@
     "loadingData": "Gegevens laden…",
     "emptyGraph": "Geen initiatieven om te tonen",
     "error": "Er is iets misgegaan",
-    "authenticating": "Bezig met aanmelden…",
+    "authenticating": "Bezig met inloggen…",
     "connecting": "Verbinding maken met Alkemio…",
     "redirecting": "Doorsturen naar Alkemio…",
     "loadingHubSpaces": "Initiatieven uit hub laden…",
@@ -223,7 +255,7 @@
     "graphTransforming": "Netwerk opbouwen…",
     "graphAcquiring": "Initiatieven ophalen",
     "graphBuilding": "Netwerk",
-    "networkError": "Kan de server niet bereiken. Controleer uw verbinding en probeer het opnieuw."
+    "networkError": "Kan de server niet bereiken. Controleer je verbinding en probeer het opnieuw."
   },
   "graph": {
     "offMapTitle": "{{count}} knooppunten worden niet op de kaart weergegeven",
@@ -232,10 +264,22 @@
     "offMapOrganisations": "Organisaties zonder locatie ({{count}})",
     "offMapOther": "Overig zonder locatie ({{count}})",
     "offMapSpacesL0": "Ruimtes (L0) zonder locatie ({{count}})",
-    "offMapSpacesL1": "Subruimtes (L1) zonder locatie ({{count}})",
-    "offMapSpacesL2": "Subruimtes (L2) zonder locatie ({{count}})",
+    "offMapSpacesL1": "Subspaces (L1) zonder locatie ({{count}})",
+    "offMapSpacesL2": "Subspaces (L2) zonder locatie ({{count}})",
     "region": "Regio",
-    "regionNetherlands": "Heel Nederland"
+    "regionNetherlands": "Heel Nederland",
+    "metrics": {
+      "avgDegree": "Gem. aantal verbindingen",
+      "density": "Dichtheid",
+      "edges": "Verbindingen",
+      "initiatives": "Initiatieven",
+      "nodes": "Knooppunten",
+      "orgs": "Organisaties",
+      "spaces": "Spaces"
+    },
+    "noParticipatingGemeentes": "Geen deelnemende gemeenten in de huidige gegevens.",
+    "participatingGemeentes": "Deelnemende gemeenten",
+    "showMap": "Kaart tonen"
   },
   "export": {
     "downloadXlsx": "Download XLSX",
@@ -271,8 +315,8 @@
     "on": "Aan",
     "off": "Uit",
     "settings": {
-      "maxSpacesPerRequest": "Max. ruimtes per verzoek",
-      "activitySpacesPerQuery": "Activiteitsruimtes per query",
+      "maxSpacesPerRequest": "Max. Spaces per verzoek",
+      "activitySpacesPerQuery": "Activiteit-Spaces per query",
       "cacheTtlHours": "Cache-TTL (uren)",
       "gdCacheTtlHours": "GD-cache-TTL (uren)",
       "aiQueryEnabled": "AI-query ingeschakeld",
@@ -342,7 +386,26 @@
     "openCity": "Gemeenteprofiel openen",
     "clearFocus": "Wissen",
     "focusNoInitiatives": "Deze gemeente doet in de huidige selectie aan geen enkel initiatief mee.",
-    "moreInitiatives": "+{{count}} meer"
+    "moreInitiatives": "+{{count}} meer",
+    "zoomHintWindows": "Gebruik Ctrl + scrollen om in te zoomen op de kaart",
+    "zoomHintMac": "Gebruik ⌘ + scrollen om in te zoomen op de kaart",
+    "zoomHintMobile": "Gebruik twee vingers om de kaart te verschuiven"
+  },
+  "handelen": {
+    "name": "Handelen",
+    "show": "Handelen tonen",
+    "last": "Laatste handeling",
+    "gd": "GemeenteDelers (handelen niet bijgehouden)",
+    "hint": "Tijd sinds de laatste handeling in de Space of een subspace; nieuwe leden tellen mee.",
+    "loading": "Handelen laden…",
+    "failed": "Handelen zijn niet beschikbaar.",
+    "status": {
+      "active": "Actief (≤ {{active}} dagen)",
+      "quiet": "Stil ({{from}}–{{quiet}} dagen)",
+      "dormant": "Slapend (> {{quiet}} dagen)",
+      "none": "Geen handelen bekend",
+      "unknown": "Handelen niet zichtbaar"
+    }
   },
   "funnel": {
     "title": "Innovatiefunnel",
@@ -370,17 +433,19 @@
       "noPhase": "Nog geen fase"
     },
     "showNames": "Namen tonen",
-    "inFunnel": "Initiatieven in de funnel"
+    "inFunnel": "Initiatieven in de funnel",
+    "colorBy": "Kleur op",
+    "colorBySource": "Bron (Groei / GemeenteDelers)",
+    "legendNone": "Geen classificatie",
+    "legendOther": "Overig",
+    "legendFocusHint": "Klik op een waarde om de initiatieven ervan te markeren.",
+    "legendSplit": "Een stip in meerdere kleuren heeft meerdere waarden."
   },
   "table": {
     "sortBy": "Sorteer",
     "sortAsc": "Oplopend gesorteerd — tik om om te keren",
     "sortDesc": "Aflopend gesorteerd — tik om om te keren",
     "filters": "Filters"
-  },
-  "intake": {
-    "notImplemented": "Nog niet geïmplementeerd — deze weergave wordt nog gebouwd.",
-    "workInProgress": "Werk in uitvoering"
   },
   "ecosystem": {
     "title": "Ecosysteemkaart",
@@ -396,7 +461,7 @@
       "builtInMissing": "De ingestelde orkestrator is niet gevonden; de eerstvolgende match wordt getoond."
     },
     "hint": {
-      "addSpace": "Staat de gewenste ruimte er niet bij? Voeg die eerst toe aan je selectie."
+      "addSpace": "Staat de gewenste Space er niet bij? Alleen Spaces die deze monitor volgt, kunnen orchestrator zijn — vraag een beheerder van de monitor om de Space toe te voegen."
     },
     "filter": {
       "orchestrator": "Verbonden met orkestrator",
@@ -409,7 +474,7 @@
       "lead": "Trekker",
       "member": "Deelnemer",
       "direct": "Directe rol",
-      "viaSubspace": "Via subruimte",
+      "viaSubspace": "Via subspace",
       "partOf": "Onderdeel van ecosysteem",
       "connector": "Verbinder"
     },
@@ -428,7 +493,7 @@
     "item": {
       "spaces": "Initiatieven",
       "gd-initiatives": "GemeenteDelers-initiatieven",
-      "activity": "Activiteit",
+      "activity": "Handelen",
       "organizations": "Organisatieprofielen",
       "gemeente-locations": "Gemeentelocaties"
     },
@@ -443,6 +508,8 @@
       "core": "",
       "option:gd": "voor de GemeenteDelers-optie",
       "tab:initiatives": "gevraagd door Initiatieven",
+      "tab:funnel": "gevraagd door Funnel",
+      "tab:dashboard": "gevraagd door Dashboard",
       "tab:usage": "gevraagd door Gebruiksverkenner",
       "tab:details": "gevraagd door Details",
       "tab:explorer": "gevraagd door Explorer"
@@ -454,12 +521,216 @@
     "failed": {
       "spaces": "De initiatieven konden niet worden geladen.",
       "gd-initiatives": "De GemeenteDelers-laag kon niet worden geladen.",
-      "activity": "Activiteit is niet beschikbaar.",
+      "activity": "Handelen zijn niet beschikbaar.",
       "organizations": "Organisatieprofielen zijn niet beschikbaar.",
       "gemeente-locations": "Gemeentelocaties zijn niet beschikbaar.",
       "generic": "Er ging iets mis bij het laden."
     },
     "waitingFor": "Wachten op {{item}}…",
     "unavailable": "niet beschikbaar"
+  },
+  "admin": {
+    "access": {
+      "none": "geen Space ingesteld",
+      "notFound": "niet gevonden op Alkemio",
+      "title": "Toegang",
+      "viewersLabel": "Bekijken",
+      "adminsLabel": "Beheren",
+      "youCanManage": "je kunt de monitor bekijken en beheren.",
+      "youCanView": "je kunt de monitor bekijken, maar niet beheren.",
+      "youCannot": "je kunt de monitor niet bekijken.",
+      "edit": "Wijzigen",
+      "save": "Opslaan",
+      "cancel": "Annuleren",
+      "reload": "Huidige instellingen laden",
+      "remove": "{{name}} verwijderen",
+      "needOne": "Er is minstens één Space nodig.",
+      "addTo": "Space toevoegen aan “{{set}}”",
+      "addPlaceholder": "Zoek op naam, of plak een link",
+      "addLink": "Toevoegen",
+      "viewersHint": "Leden van een van deze Spaces kunnen de monitor bekijken.",
+      "adminsHint": "Beheerders van een van deze Spaces kunnen ook de instellingen wijzigen.",
+      "saveNote": "Geldt meteen, voor iedereen. Je moet zelf beheerder blijven: een wijziging waardoor je dat niet meer bent, wordt niet opgeslagen.",
+      "notEditable": "Deze omgeving laat de monitor voor iedereen open; dat kun je hier niet wijzigen.",
+      "fromSettings": "Hier in de instellingen ingesteld (wie en wanneer: zie Wijzigingslog). Wie lid of beheerder van deze Spaces is, regel je op Alkemio.",
+      "fromConfig": "Uit de configuratie van de omgeving, tot je het hier wijzigt. Wie lid of beheerder van deze Spaces is, regel je op Alkemio.",
+      "error": {
+        "lockOut": "Niet opgeslagen: je zou de monitor dan zelf niet meer kunnen beheren. Houd bij “Beheren” een Space waarvan je beheerder bent.",
+        "empty": "“{{role}}” heeft minstens één Space nodig.",
+        "notFound": "{{item}} is niet gevonden op Alkemio.",
+        "duplicate": "{{item}} staat er twee keer in.",
+        "unparseable": "“{{item}}” is geen link of naam van een Alkemio-Space.",
+        "tooMany": "Te veel Spaces bij “{{role}}”.",
+        "conflict": "Iemand anders heeft de toegang intussen gewijzigd. Laad de huidige instellingen en probeer het opnieuw.",
+        "unverified": "Alkemio was niet bereikbaar om dit te controleren. Probeer het zo opnieuw.",
+        "generic": "De wijziging kon niet worden opgeslagen."
+      },
+      "roleManager": "Beheerder",
+      "roleViewer": "Gebruiker",
+      "open": "Open {{name}} op Alkemio"
+    },
+    "back": "Terug naar de monitor",
+    "classifications": {
+      "changedOnAlkemio": "Intussen op Alkemio gewijzigd — niet opgeslagen. De huidige waarde staat er nu; controleer en sla opnieuw op.",
+      "failed": "Kon niet worden opgeslagen — probeer het opnieuw.",
+      "gdPost": "Dit initiatief is een GemeenteDelers-bericht. Berichten hebben geen eigen classificaties.",
+      "loadFailed": "Dit initiatief kon niet worden geladen.",
+      "noUpdateRight": "Je mag deze Space op Alkemio niet wijzigen, dus de classificaties zijn alleen te bekijken.",
+      "notPermitted": "Alkemio stond deze wijziging niet toe — niet opgeslagen.",
+      "notReadable": "Je kunt deze Space niet lezen.",
+      "save": "Opslaan op Alkemio",
+      "saveFailed": "Opslaan is mislukt. Je wijzigingen blijven staan — probeer het opnieuw.",
+      "saved": "Opgeslagen",
+      "title": "Classificaties",
+      "valueRemoved": "Een gekozen waarde bestaat niet meer — niet opgeslagen.",
+      "cancel": "Annuleren",
+      "empty": "— niet ingevuld —",
+      "missingOnSpace": "Deze Space heeft deze classificatie niet.",
+      "multi": "meer dan één mogelijk",
+      "savesOnAlkemio": "Wordt op Alkemio opgeslagen, onder jouw naam. Elk dashboard leest het daar."
+    },
+    "entry": "Instellingen van de monitor",
+    "gd": {
+      "ambiguous": "Kwam overeen met meerdere berichten, dus er is niets weggelaten voor: {{list}}",
+      "description": "De historische initiatieven (2021–2025) die de monitor uit de GemeenteDelers-Space toevoegt als een gebruiker ze aanzet. Los van de Groei-initiatieven.",
+      "loadFailed": "De GemeenteDelers-bron kon nu niet worden gelezen.",
+      "migrationComplete": "Overstap naar subspaces voltooid: er worden geen berichten meer gelezen.",
+      "nextRefresh": "volgende verversing",
+      "perInitiative": "Initiatieven ({{count}})",
+      "readAt": "Laatst gelezen",
+      "sourcePost": "bericht",
+      "sourceSubspace": "subspace",
+      "superseded": "Berichten vervangen door een subspace ({{count}})",
+      "title": "GemeenteDelers-initiatieven",
+      "total": "Initiatieven",
+      "unknown": "onbekend",
+      "unreadable": "Je kunt de GemeenteDelers-Space niet lezen, dus er is niets te tonen.",
+      "viaPosts": "Uit berichten",
+      "viaSubspaces": "Uit subspaces",
+      "colInitiative": "Initiatief",
+      "colNds": "NDS-prioriteit",
+      "colVng": "VNG 2030 thema",
+      "postsNote": "Initiatieven die nog een bericht zijn, hebben geen eigen classificaties: hun NDS- en VNG 2030-waarden worden uit hun tags gelezen, net als op het dashboard. Ze zijn te bewerken zodra ze naar een subspace zijn verhuisd."
+    },
+    "included": {
+      "changedBy": "Laatst gewijzigd door {{name}} op {{when}}",
+      "colSpace": "Space",
+      "description": "De Spaces waarover de monitor rapporteert, voor iedere gebruiker, met hun classificaties op Alkemio.",
+      "edit": {
+        "add": "Toevoegen",
+        "addNamed": "{{name}} toevoegen",
+        "close": "Sluiten",
+        "confirmEmpty": "Alle Spaces verwijderen? De monitor toont dan voor niemand nog initiatieven.",
+        "confirmEmptyYes": "Ja, alles verwijderen",
+        "conflictBody": "De lijst bevat nu {{count}} Spaces. Laad hem om opnieuw te beginnen vanaf de huidige lijst.",
+        "conflictTitle": "Iemand anders heeft de lijst gewijzigd",
+        "discard": "Wijzigingen weggooien",
+        "duplicate": "Staat er twee keer in",
+        "emptyList": "Geen Spaces — de monitor zou niets tonen.",
+        "inList": "Staat in de monitor",
+        "keepEditing": "Verder bewerken",
+        "list": "Spaces in de monitor ({{count}})",
+        "loadCurrent": "Huidige lijst laden",
+        "new": "nieuw",
+        "noResults": "Geen Spaces gevonden. Probeer een heel woord uit de naam — of plak de link van de Space.",
+        "notReadable": "Je kunt alleen Spaces toevoegen die je op Alkemio kunt zien",
+        "notTopLevel": "Alleen Spaces op het hoogste niveau kunnen worden toegevoegd",
+        "pending": "Nog niet opgeslagen",
+        "removeNamed": "{{name}} verwijderen",
+        "save": "Wijzigingen opslaan",
+        "saveFailed": "Opslaan is mislukt. Je wijzigingen blijven staan — probeer het opnieuw.",
+        "searchPlaceholder": "Naam van een Space, of https://alkem.io/…",
+        "start": "Spaces toevoegen of verwijderen",
+        "tooMany": "Te veel Spaces",
+        "undoRemovals": "Terugzetten",
+        "unparseable": "Dat is geen link of naam van een Alkemio-Space",
+        "addTitle": "Space toevoegen",
+        "addHelp": "Je eigen Spaces vind je op elk deel van hun naam. Andere Spaces die je op Alkemio kunt zien, vind je op een heel woord uit hun naam of op hun exacte korte naam. Of plak de link van de Space.",
+        "searchFailed": "Zoeken op Alkemio lukte nu niet. Probeer het opnieuw, of plak de link van de Space."
+      },
+      "empty": "De monitor rapporteert over geen enkele Space.",
+      "filter": "Deze lijst filteren",
+      "fromStartingSet": "Uit de startset ({{when}})",
+      "notFound": "Niet gevonden op Alkemio",
+      "olderChanges": "Oudere wijzigingen",
+      "openClassifications": "Bewerken",
+      "openClassificationsNamed": "Classificaties van {{name}} bewerken",
+      "renamed": "{{note}} op Alkemio ({{when}})",
+      "title": "Groei-initiatieven",
+      "unreadable": "Je kunt deze Space niet lezen",
+      "count_one": "{{count}} Space",
+      "count_other": "{{count}} Spaces",
+      "added": "toegevoegd",
+      "removed": "verwijderd",
+      "missing": "ontbreekt",
+      "colActions": "Acties",
+      "designations": "De kolommen zijn de classificaties die de monitor leest ({{list}}); die liggen vast in de configuratie van de monitor. De mogelijke waarden komen uit Alkemio.",
+      "colVisibility": "Zichtbaarheid op Alkemio",
+      "public": "Openbaar",
+      "private": "Besloten",
+      "statusArchived": "gearchiveerd",
+      "statusDemo": "demo",
+      "statusInactive": "inactief"
+    },
+    "loading": "Laden…",
+    "noAccess": {
+      "body": "Alleen beheerders van de beheer-Spaces van de monitor op Alkemio kunnen de instellingen wijzigen.",
+      "title": "Geen toegang tot de instellingen"
+    },
+    "retry": "Opnieuw proberen",
+    "sectionError": "Dit onderdeel kon niet worden geladen.",
+    "title": "Instellingen van de monitor",
+    "intake": {
+      "notImplemented": "Nog niet geïmplementeerd — deze weergave wordt nog gebouwd.",
+      "workInProgress": "Werk in uitvoering"
+    },
+    "tabs": {
+      "label": "Instellingen",
+      "included": "Spaces in de monitor",
+      "gd": "GemeenteDelers",
+      "intake": "Intake",
+      "access": "Toegang",
+      "audit": "Wijzigingslog"
+    },
+    "audit": {
+      "title": "Wijzigingslog",
+      "description": "Elke wijziging in de instellingen van de monitor, nieuwste eerst.",
+      "empty": "Nog geen wijzigingen.",
+      "system": "het systeem",
+      "seed": "Initiatieven in de monitor: de startset",
+      "rename": "Hernoemd op Alkemio: {{note}}",
+      "spaces": "{{who}} wijzigde de initiatieven in de monitor",
+      "classification": "{{who}} wijzigde {{label}} van {{space}}",
+      "none": "(geen)",
+      "access": "{{who}} wijzigde wie toegang heeft"
+    }
+  },
+  "header": {
+    "gdHint": "Neem de historische GemeenteDelers-initiatieven (2021–2025) mee in elke weergave",
+    "gdTitle": "GemeenteDelers",
+    "gdOn": "meegenomen",
+    "gdOff": "niet meegenomen",
+    "gdLoaded": "{{count}} initiatieven geladen uit de GemeenteDelers-Space.",
+    "gdUnavailable": "De GemeenteDelers-initiatieven konden voor jou niet worden geladen.",
+    "gdInfo": "Over GemeenteDelers",
+    "gdIncludedNote": "Ze worden nu in elke weergave meegenomen. Zet ze uit met de GemeenteDelers-schakelaar.",
+    "gdExcludedNote": "Ze worden nu niet meegenomen. Zet ze aan met de GemeenteDelers-schakelaar."
+  },
+  "scope": {
+    "loading": "De initiatieven van de monitor worden geladen…",
+    "error": "De initiatieven van de monitor konden niet worden geladen.",
+    "retry": "Opnieuw proberen",
+    "empty": "De beheerders van de monitor hebben nog geen initiatieven gekozen.",
+    "title": "In deze monitor",
+    "spaces": "Spaces",
+    "description": "De monitor rapporteert over deze Spaces. De beheerders van de monitor kiezen ze.",
+    "close": "Sluiten",
+    "missing": "{{count}} van deze Spaces zitten niet in jouw gegevens. Meestal heb je geen leesrechten op die Spaces, dus de cijfers die je ziet zijn onvolledig.",
+    "notInData": "niet in jouw gegevens",
+    "infoTitle": "Groei-initiatieven",
+    "info": "Over de Groei-initiatieven",
+    "infoBody": "De Groei-initiatieven zijn de Spaces waarover deze monitor rapporteert: initiatieven van het programma Groei van Kenniscentrum Innovatie. De beheerders van de monitor kiezen welke Spaces meetellen, in de instellingen van de monitor.",
+    "infoOwnData": "De cijfers zijn opgebouwd uit wat je zelf mag zien.",
+    "infoMore": "Meer informatie:"
   }
 }

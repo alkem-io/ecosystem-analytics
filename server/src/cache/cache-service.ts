@@ -1,4 +1,5 @@
 import { getDatabase } from './db.js';
+import { purgeOrphanDecisions } from '../access/decision-store.js';
 import { loadConfig } from '../config.js';
 
 export interface CachedDataset {
@@ -258,4 +259,6 @@ export function purgeExpired(): void {
   db.prepare(
     'DELETE FROM oidc_sessions WHERE refresh_expires_at < ? OR last_seen_at < ?',
   ).run(now, idleCutoff);
+  // Feature 026: access decisions whose session was just swept (or is otherwise gone).
+  purgeOrphanDecisions();
 }

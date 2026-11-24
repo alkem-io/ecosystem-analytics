@@ -1,0 +1,69 @@
+# Feature 027 — one Space as the admin area shows it: name, link, level, the manager's own
+# privileges on its About (UPDATE ⇒ may edit classifications, research R12) and its
+# classification entries with their vocabularies, and how visible it is on Alkemio
+# (`isContentPublic`: public/private; `visibility`: active/archived/demo). Run with the MANAGER's token, so a
+# Space they cannot read comes back null or refused.
+query AdminSpaceClassifications($nameId: NameID!) {
+  lookupByName {
+    space(NAMEID: $nameId) {
+      id
+      nameID
+      level
+      visibility
+      about {
+        isContentPublic
+        authorization {
+          myPrivileges
+        }
+        profile {
+          displayName
+          url
+        }
+        classifications {
+          id
+          displayLabel
+          cardinality
+          sortOrder
+          values {
+            id
+            label
+          }
+          selectedValueIDs
+        }
+      }
+    }
+  }
+}
+
+# The same, by UUID — finds an Included Space that was renamed on Alkemio (research R8).
+query AdminSpaceClassificationsById($id: UUID!) {
+  lookup {
+    space(ID: $id) {
+      id
+      nameID
+      level
+      visibility
+      about {
+        isContentPublic
+        authorization {
+          myPrivileges
+        }
+        profile {
+          displayName
+          url
+        }
+        classifications {
+          id
+          displayLabel
+          cardinality
+          sortOrder
+          values {
+            id
+            label
+          }
+          selectedValueIDs
+        }
+      }
+    }
+  }
+}

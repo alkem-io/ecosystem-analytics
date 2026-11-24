@@ -2,12 +2,14 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Loader2 } from 'lucide-react';
 import { cn } from '@ea/shared';
-import { FunnelChart, FUNNEL_CHROME } from '../components/FunnelChart.js';
+import { FunnelChart, FunnelLegend, FUNNEL_CHROME } from '../components/FunnelChart.js';
 import { VocabularyDriftNotice } from '../components/charts/VocabularyDriftNotice.js';
 import { useSelectionContext } from '../hooks/SelectionContext.js';
 import { useCoreLoadState, useCounts, useGraphDataset, useInitiativeRows } from '../data/derive/index.js';
+import { useExtraItem } from '../data/hooks.js';
 import { layoutFunnel } from '../utils/funnel.js';
 import { FILTER_ALL } from '../components/TableFilterBar.js';
+import type { FunnelColorBy } from '../utils/funnel-colors.js';
 
 /** Vertical space the funnel gets, clamped so it stays whole on short windows. */
 const MIN_FUNNEL_HEIGHT = 220;
@@ -87,6 +89,13 @@ export function FunnelTab() {
   // Names beside the dots. Off by default — see the prop's note in FunnelChart — but the
   // natural next move after narrowing with the filters above, so it sits beside them.
   const [showLabels, setShowLabels] = useState(false);
+  // What the dots are coloured by: source (Groei / GemeenteDelers) or one classification.
+  const [colorBy, setColorBy] = useState<FunnelColorBy>('source');
+  // The legend entry being highlighted; a new colouring starts with none.
+  const [focusKey, setFocusKey] = useState<string | null>(null);
+  useEffect(() => setFocusKey(null), [colorBy]);
+  // Asked for only once someone colours by it; the rows then carry each status.
+  const handelen = useExtraItem('activity', 'tab:funnel', undefined, colorBy === 'handelen');
 
   /** Distinct values actually present on the rows, so no option can select nothing. */
   const optionsFor = (pick: (r: (typeof allRows)[number]) => string[]): string[] => {
@@ -104,6 +113,15 @@ export function FunnelTab() {
     if (ndsFilter !== FILTER_ALL && !ndsOptions.includes(ndsFilter)) setNdsFilter(FILTER_ALL);
     if (vngFilter !== FILTER_ALL && !vngOptions.includes(vngFilter)) setVngFilter(FILTER_ALL);
   }, [ndsOptions, vngOptions, ndsFilter, vngFilter]);
+
+  // The same for the colouring: without any value its option is gone (and with neither
+  // classification the whole row of controls), so it must not stay selected. Not while the
+  // data is away — that is no statement about the values.
+  useEffect(() => {
+    if (!dataset) return;
+    if (colorBy === 'nds' && ndsOptions.length === 0) setColorBy('source');
+    if (colorBy === 'vng2030' && vngOptions.length === 0) setColorBy('source');
+  }, [dataset, colorBy, ndsOptions, vngOptions]);
 
   // A filtered-out initiative leaves the funnel entirely — including the stage counts in
   // the header boxes, which is the point: the funnel re-reads as that theme's pipeline.
@@ -133,6 +151,20 @@ export function FunnelTab() {
   );
 
   const phaseDrift = data?.vocabularyDrift?.find((d) => d.dimension === 'phase');
+
+  // The chosen classification's values in AUTHORED order (the dashboard dimensions carry
+  // the vocabulary in that order) — this is what fixes each value's colour. A value an
+  // initiative carries that the vocabulary does not list (e.g. a GemeenteDelers post's
+  // label from another template version) is appended, sorted, rather than lumped into
+  // "other". Read from ALL rows, not the filtered ones, so a filter never repaints.
+  const vocabulary = useMemo(() => {
+    if (colorBy !== 'nds' && colorBy !== 'vng2030') return [];
+    const dim = data?.dimensions.find((d) => d.key === colorBy);
+    const authored = (dim?.categories ?? []).flatMap((c) => (c.label ? [c.label] : []));
+    const known = new Set(authored);
+    const extra = (colorBy === 'nds' ? ndsOptions : vngOptions).filter((v) => !known.has(v));
+    return [...authored, ...extra];
+  }, [data, colorBy, ndsOptions, vngOptions]);
 
   const body = () => {
     if (effectiveSpaceIds.length === 0) {
@@ -175,7 +207,15 @@ export function FunnelTab() {
         </Centered>
       );
     }
-    return <FunnelChart layout={layout} showLabels={showLabels} />;
+    return (
+      <FunnelChart
+        layout={layout}
+        showLabels={showLabels}
+        colorBy={colorBy}
+        vocabulary={vocabulary}
+        focusKey={focusKey}
+      />
+    );
   };
 
   return (
@@ -234,6 +274,25 @@ export function FunnelTab() {
               </label>
             ))}
 
+          <label className="flex min-w-0 flex-1 items-center gap-1.5 text-sm text-muted-foreground sm:flex-none">
+            {t('funnel.colorBy', { defaultValue: 'Colour by' })}
+            <select
+              value={colorBy}
+              onChange={(e) => setColorBy(e.target.value as FunnelColorBy)}
+              data-testid="funnel-color-by"
+              className={cn(
+                'min-w-0 flex-1 rounded-md border border-border bg-card px-2.5 py-1.5 text-sm text-foreground',
+                'sm:max-w-56 sm:flex-none',
+                'focus:outline-none focus-visible:ring-2 focus-visible:ring-primary',
+              )}
+            >
+              <option value="source">{t('funnel.colorBySource', { defaultValue: 'Source (Groei / GemeenteDelers)' })}</option>
+              <option value="handelen">{t('handelen.name', { defaultValue: 'Activity' })}</option>
+              {ndsOptions.length > 0 && <option value="nds">{t('citiesTab.filterNds')}</option>}
+              {vngOptions.length > 0 && <option value="vng2030">{t('citiesTab.filterVng2030')}</option>}
+            </select>
+          </label>
+
           <label className="flex cursor-pointer items-center gap-2 text-sm text-muted-foreground">
             <input
               type="checkbox"
@@ -248,8 +307,27 @@ export function FunnelTab() {
           </label>
         </div>
       )}
+      {colorBy === 'handelen' && (handelen.loading || handelen.failed) && (
+        <p className="mt-2 flex items-center gap-2 text-xs text-muted-foreground" role="status" data-testid="funnel-handelen-status">
+          {handelen.loading && <Loader2 className="h-3 w-3 animate-spin" aria-hidden />}
+          {handelen.failed
+            ? t('handelen.failed', { defaultValue: 'Activity is not available.' })
+            : t('handelen.loading', { defaultValue: 'Loading activity…' })}
+        </p>
+      )}
+      {/* What the colours mean — above the funnel and outside its scrolling area, so it is
+          always beside the dots, whichever colouring is chosen. */}
+      {dataset && data && phases.length > 0 && effectiveSpaceIds.length > 0 && !error && (
+        <FunnelLegend
+          layout={layout}
+          colorBy={colorBy}
+          vocabulary={vocabulary}
+          focusKey={focusKey}
+          onFocusKey={setFocusKey}
+        />
+      )}
       {/* Measured here, not on the page: this is the box the funnel actually gets. */}
-      <div ref={hostRef} className="mt-2 min-h-0 flex-1 overflow-y-auto overscroll-contain">
+      <div ref={hostRef} className="load-strip-clearance mt-2 min-h-0 flex-1 overflow-y-auto overscroll-contain">
         {body()}
       </div>
       {/* The stage set and its order come from Alkemio's authored vocabulary, so a drift

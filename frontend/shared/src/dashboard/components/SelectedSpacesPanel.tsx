@@ -8,7 +8,9 @@ import { SpacePicker } from './SpacePicker.js';
 import { GdInitiativesSection } from './GdInitiativesSection.js';
 
 /**
- * Persistent selected-space list, visible regardless of the active tab (FR-008).
+ * Persistent selected-space list, visible regardless of the active tab (FR-008). Used by
+ * hub-based dashboards (GovTech); a managed-scope dashboard (VNG, feature 027) has no
+ * selection and does not render it.
  * Shows each space's provenance — from the hub vs added directly (FR-013) — and
  * lets the user remove spaces and add new ones (US2).
  *

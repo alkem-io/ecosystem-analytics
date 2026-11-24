@@ -5,6 +5,7 @@
  * the BFF. `login()` redirects to the BFF (which 302s to Alkemio), `fetchMe()`
  * reads the current identity, `logout()` ends the session.
  */
+import type { AccessReport } from '@server/types/access.js';
 import { scopeImageCacheBustToUser } from '../lib/imageCacheBust.js';
 
 export interface MeResponse {
@@ -12,6 +13,11 @@ export interface MeResponse {
   displayName: string;
   avatarUrl: string | null;
   alkemioServerUrl: string;
+  /**
+   * Where this person stands with the application that served the request (feature
+   * 026). Optional only so a shell still renders against an older BFF.
+   */
+  access?: AccessReport;
 }
 
 let loginRedirectStarted = false;
@@ -52,6 +58,20 @@ export async function fetchMe(): Promise<MeResponse | null> {
   } catch {
     return null;
   }
+}
+
+/**
+ * "Check again" (feature 026): ask the BFF to re-decide this person's access to the
+ * current application from Alkemio, now. A `401` means the session itself is gone.
+ */
+export async function recheckAccess(): Promise<AccessReport> {
+  const res = await fetch('/api/auth/access/recheck', { method: 'POST', credentials: 'include' });
+  if (res.status === 401) {
+    redirectToLogin(window.location.origin + window.location.pathname + window.location.search);
+    throw new Error('Session expired');
+  }
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  return ((await res.json()) as { access: AccessReport }).access;
 }
 
 /** End the EA session, then return to the login screen. */

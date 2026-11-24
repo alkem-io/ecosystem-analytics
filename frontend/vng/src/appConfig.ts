@@ -18,8 +18,10 @@ export const appConfig: AppConfig = {
   usageExplorer: true,
   // Feature 022 — the innovation funnel. VNG-only for now.
   funnel: true,
-  // Intake — placeholder tab, VNG-only for now.
-  intake: true,
   // Feature 024 — the ecosystem map. VNG-only for now.
   ecosystem: true,
+  // Feature 027 — the monitor's own Spaces (no hub picker) and the /admin area.
+  flags: { managedScope: true },
+  // The monitor is a prototype for wider feedback; more information on this Space.
+  prototypeInfoUrl: 'https://alkem.io/innovatiemonitor',
 };

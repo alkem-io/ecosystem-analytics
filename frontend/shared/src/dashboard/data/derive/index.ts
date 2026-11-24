@@ -13,6 +13,7 @@ import type { GraphDataset, GraphNode } from '@server/types/graph.js';
 import type { ActivityItem, GraphProgress, VngDashboardResponse } from '@server/types/api.js';
 import { useSelectionContext } from '../../hooks/SelectionContext.js';
 import { buildInitiativeRows, type InitiativeRow } from '../../utils/initiatives.js';
+import { handelenOf } from '../../utils/handelen.js';
 import { buildCityRows, type CityRow } from '../../utils/cities.js';
 import { useLoadedData, useLoadPlan } from '../hooks.js';
 import type { LoadItem } from '../store.js';
@@ -183,8 +184,9 @@ const mergeActivity = memoiseRows(
     rows.map((r) => {
       if (r.kind !== 'groei') return r;
       const a = activity?.bySpace[r.id];
-      if (a) return { ...r, activity: { day: a.day, week: a.week, month: a.month, total: a.total }, tier: a.tier };
-      return { ...r, activity: null, tier: null };
+      const handelen = activity ? handelenOf(r.id, activity) : null;
+      if (a) return { ...r, activity: { day: a.day, week: a.week, month: a.month, total: a.total }, tier: a.tier, handelen };
+      return { ...r, activity: null, tier: null, handelen };
     }),
 );
 

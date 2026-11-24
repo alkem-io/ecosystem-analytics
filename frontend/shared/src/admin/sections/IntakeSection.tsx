@@ -3,8 +3,8 @@ import { useTranslation } from 'react-i18next';
 /**
  * Intake — placeholder.
  *
- * The tab exists so the intake step has a visible home in the navigation while the
- * feature behind it is built. It says so plainly rather than showing an empty frame,
+ * A tab of the administration area (intake is a manager's step, not a viewer's). It exists
+ * so the step has a visible home while the feature behind it is built. It says so plainly rather than showing an empty frame,
  * which reads as a broken tab rather than an unbuilt one.
  *
  * The illustration is inline SVG rather than an asset: it costs no request, scales at
@@ -12,12 +12,15 @@ import { useTranslation } from 'react-i18next';
  * The subject is deliberately this feature — a funnel drawn solid on the left and left
  * unfinished on the right — rather than a generic construction sign.
  */
-export function IntakeTab() {
+export function IntakeSection() {
   const { t } = useTranslation();
-  const wip = t('intake.workInProgress', { defaultValue: 'Work in progress' });
+  const wip = t('admin.intake.workInProgress', { defaultValue: 'Work in progress' });
 
   return (
-    <div className="flex h-full items-center justify-center overflow-auto p-6">
+    <section
+      className="flex items-center justify-center rounded-xl border border-border bg-card p-6 sm:p-10"
+      data-testid="admin-section-intake"
+    >
       <div className="max-w-sm text-center">
         <svg
           viewBox="0 0 320 190"
@@ -103,11 +106,11 @@ export function IntakeTab() {
           <rect x="8" y="162" width="304" height="18" rx="4" fill="url(#intake-hazard)" />
         </svg>
 
-        <h2 className="mt-5 text-base font-semibold text-foreground">{t('tabs.intake')}</h2>
+        <h2 className="mt-5 text-base font-semibold text-foreground">{t('admin.tabs.intake', { defaultValue: 'Intake' })}</h2>
         <p className="mt-1 text-sm text-muted-foreground">
-          {t('intake.notImplemented', { defaultValue: 'Not yet implemented.' })}
+          {t('admin.intake.notImplemented', { defaultValue: 'Not yet implemented.' })}
         </p>
       </div>
-    </div>
+    </section>
   );
 }

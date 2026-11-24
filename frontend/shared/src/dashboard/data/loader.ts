@@ -86,7 +86,7 @@ export class DashboardLoader {
     }
     const decl = this.declared.get(item);
     if (decl) decl.requestedFor = null;
-    this.runExtra(item, false);
+    this.runExtra(item, false, true);
   }
 
   /** A tab declares an extra item (idempotent). */
@@ -136,6 +136,8 @@ export class DashboardLoader {
       {
         app: sel.app,
         spaceIds: this.allSpaceIds,
+        // Widened Spaces are context for the Ecosystem map — never counted (feature 027).
+        contextSpaceIds: sel.widenedSpaceIds,
         includeInitiatives: sel.includeInitiatives,
         forceRefresh: force,
       },
@@ -155,7 +157,8 @@ export class DashboardLoader {
       });
   }
 
-  private runExtra(key: LoadItemKey, force: boolean): void {
+  /** @param retry an explicit retry: it runs even when an earlier value is still held. */
+  private runExtra(key: LoadItemKey, force: boolean, retry = false): void {
     const snap = this.store.getSnapshot();
     const loadKey = snap.plan.loadKey;
     if (!loadKey || snap.data?.loadKey !== loadKey) return; // core not here yet
@@ -163,6 +166,13 @@ export class DashboardLoader {
     if (!decl || decl.inFlight) return;
     const loaded = snap.data.extras[key as keyof LoadedExtras] !== undefined;
     if (!force && decl.requestedFor === loadKey && loaded) return;
+    // Carried over from the previous data (`carriedExtras`: same Spaces, only the
+    // GemeenteDelers switch changed) — still valid, so no request and no strip entry.
+    // Organisations still run: their fetcher asks only for profiles not yet loaded.
+    if (!force && !retry && loaded && key !== 'organizations') {
+      decl.requestedFor = loadKey;
+      return;
+    }
 
     const fetch = this.extraFetchers[key];
     if (!fetch) return;

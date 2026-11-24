@@ -89,11 +89,15 @@ test('the dashboards ask for relational data only', async ({ page }) => {
 
 test('toggling the GemeenteDelers layer on/off/on loads exactly once more', async ({ page }) => {
   const mock = await boot(page);
-  const gd = page.getByRole('checkbox', { name: /GemeenteDelers/i }).first();
-  await gd.check();
+  // VNG (feature 027): the switch chip in the data-controls row.
+  const gd = page.getByRole('switch', { name: /GemeenteDelers/i });
+  await gd.click();
+  await expect(gd).toHaveAttribute('aria-checked', 'true');
   await expect.poll(() => countCalls(mock.calls, '/api/graph/generate')).toBe(2);
-  await gd.uncheck();
-  await gd.check();
+  await gd.click();
+  await expect(gd).toHaveAttribute('aria-checked', 'false');
+  await gd.click();
+  await expect(gd).toHaveAttribute('aria-checked', 'true');
   await page.waitForTimeout(300);
   // The provider re-loads on every key change (off is a different key than on), but
   // never twice for the same key without a refresh: on → off → on is 3 keys seen, 2 new.

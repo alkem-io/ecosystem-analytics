@@ -1,0 +1,29 @@
+{
+  "version": 1,
+  "ecosystemKey": "vih-test",
+  "includedSpaces": [
+    "signalen",
+    "gdc",
+    "virtuele-assistent",
+    "freewhelen",
+    "dook",
+    "gem",
+    "ai-haaglanden",
+    "atlas",
+    "datadreamteam",
+    "gbi",
+    "kiss",
+    "landelijke-erfgoedregistr",
+    "maatschappelijke-pas",
+    "marktplaats-verduurzaming",
+    "open-formulieren",
+    "opensource-overheid",
+    "openstad",
+    "ondernemer-centraal",
+    "polis",
+    "proactieve-dienst",
+    "vakantieverhuur",
+    "tina",
+    "waardescanner"
+  ]
+}

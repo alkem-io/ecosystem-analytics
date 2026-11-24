@@ -1,0 +1,11 @@
+# Feature 027 — replace one classification entry's selection on a Space (research R12).
+# `selectedValueIDs` is the COMPLETE set; an empty list clears it. Alkemio is the judge of
+# whether the caller may: FORBIDDEN is reported as NOT_PERMITTED.
+mutation UpdateClassificationSelection($entryId: UUID!, $selectedValueIDs: [String!]!) {
+  updateClassificationEntrySelection(
+    classificationData: { classificationEntryID: $entryId, selectedValueIDs: $selectedValueIDs }
+  ) {
+    id
+    selectedValueIDs
+  }
+}
