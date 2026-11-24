@@ -694,6 +694,22 @@ export type AdminCommunicationReconcileForumHierarchyInput = {
   repairRoomParentPointers?: Scalars['Boolean']['input'];
 };
 
+export type AdminResetUserSecondFactorInput = {
+  /** True whenever anyone else may hold the member's password: the password is then replaced with a secret nobody holds. Other first factors (a passkey, a linked social sign-in) and the identity's addresses are not touched and must be checked separately. No default. */
+  invalidatePassword: Scalars['Boolean']['input'];
+  /** The user whose second factor is reset. */
+  userID: Scalars['UUID']['input'];
+};
+
+export type AdminResetUserSecondFactorResult = {
+  /** False when it was not asked, or the identity holds no password. */
+  passwordInvalidated: Scalars['Boolean']['output'];
+  /** The second-factor credential types that were removed (totp, webauthn, lookup_secret). */
+  removedCredentialTypes: Array<Scalars['String']['output']>;
+  /** How many application sessions of the user were ended. */
+  sessionsRevoked: Scalars['Int']['output'];
+};
+
 export type AdminRevokeMcpApiKeyInput = {
   keyID: Scalars['UUID']['input'];
   /** Owner of the key. Required — it scopes the revoke and the audit subject. */
@@ -1157,6 +1173,7 @@ export type AuthorizationPrivilege =
   | 'PLATFORM_PROMOTE_MANAGE'
   | 'PLATFORM_ROLES_ASSIGN'
   | 'PLATFORM_ROLE_HOLDERS_READ'
+  | 'PLATFORM_SECOND_FACTOR_RESET'
   | 'PLATFORM_SETTINGS_ADMIN'
   | 'PLATFORM_SUPPORT_LISTS_READ'
   | 'PLATFORM_SUPPORT_ORG_MEMBERSHIP'
@@ -5255,6 +5272,8 @@ export type MeQueryResults = {
   organizationInvitations: Array<OrganizationInvitationResult>;
   /** The number of the current authenticated user's own pending organization invitations. */
   organizationInvitationsCount: Scalars['Float']['output'];
+  /** Whether a second-factor rule covers the current user, its deadline, whether this session meets it, and whether the account needs a second way to pass the second step. */
+  secondFactorRequirement: MeSecondFactorRequirement;
   /** The Spaces the current user is a member of as a flat list. */
   spaceMembershipsFlat: Array<CommunityMembershipResult>;
   /** The hierarchy of the Spaces the current user is a member. */
@@ -5310,6 +5329,17 @@ export type MeQueryResultsOrganizationInvitationsCountArgs = {
 
 export type MeQueryResultsSpaceMembershipsHierarchicalArgs = {
   limit?: InputMaybe<Scalars['Float']['input']>;
+};
+
+export type MeSecondFactorRequirement = {
+  /** False for any caller whose credential is not a person's sign-in (API key, delegation token, non-interactive token, service account), whatever its roles. A cookie session and a Hydra bearer read their real coverage. */
+  covered: Scalars['Boolean']['output'];
+  /** When a covering rule starts refusing a sign-in that does not meet it; the earliest of the rules that cover the user. */
+  deadline?: Maybe<Scalars['DateTime']['output']>;
+  /** Whether this session's sign-in meets a second-factor rule: it completed a second factor, and the account held at least two ways to pass the second step when they were counted at sign-in. A sign-in whose ways were not counted (a bearer token, or a session from before they were recorded) needs only the second factor. */
+  satisfied: Scalars['Boolean']['output'];
+  /** True when a covering rule applies and this session signed in with a second factor, but the count of ways to pass the second step recorded at sign-in is below two. An authenticator app, each security key used as a second step, and recovery codes count one each; a passkey, including a security key registered for passwordless sign-in, does not count. A sign-in whose ways were not counted (a bearer token, or a session from before they were recorded) returns false. Signing in again after adding a way updates it. */
+  secondWayNeeded: Scalars['Boolean']['output'];
 };
 
 export type MediaGallery = {
@@ -5634,6 +5664,8 @@ export type Mutation = {
   adminLicensePolicyUpdateCredentialRule: LicensingCredentialBasedPolicyCredentialRule;
   /** Lists, and on request copies, the files templates reference but do not store. A file is copied only when the template's owner can read it. A dry run by default. */
   adminRepairTemplateFiles: AdminTemplateFileRepairResult;
+  /** Platform Support or Platform Users Admin: remove a user's second factor (authenticator app, security keys, recovery codes) and end their identity-provider sessions and their platform sign-in sessions. A bearer token issued to an application outside the platform's own sign-in is not ended and stays valid until it expires. Audited fail-closed. Refuses self-targeting. */
+  adminResetUserSecondFactor: AdminResetUserSecondFactorResult;
   /** Platform Users Admin: revoke a named user's MCP API key. Idempotent. */
   adminRevokeMcpApiKey: McpApiKey;
   /** Ingests new data into Elasticsearch from scratch. This will delete all existing data and ingest new data from the source. This is an admin only operation. */
@@ -5924,6 +5956,8 @@ export type Mutation = {
   resetConversationVc: Conversation;
   /** Reset all license plans on Accounts */
   resetLicenseOnAccounts: Scalars['Boolean']['output'];
+  /** Reset the current user’s app icon badge counter to zero. Called by the iOS app when it is opened. */
+  resetPushBadgeCount: Scalars['Boolean']['output'];
   /** Revoke a credential from an Actor. */
   revokeCredentialFromActor: Scalars['Boolean']['output'];
   /** Revokes the specified LicensePlan on an Account. */
@@ -6177,6 +6211,11 @@ export type MutationAdminLicensePolicyUpdateCredentialRuleArgs = {
 
 export type MutationAdminRepairTemplateFilesArgs = {
   repairData: AdminTemplateFileRepairInput;
+};
+
+
+export type MutationAdminResetUserSecondFactorArgs = {
+  resetData: AdminResetUserSecondFactorInput;
 };
 
 
@@ -7356,6 +7395,7 @@ export type NotificationEvent =
   | 'USER_ORGANIZATION_ASSOCIATE_APPLICATION_DECLINED'
   | 'USER_ORGANIZATION_ASSOCIATE_INVITATION'
   | 'USER_PASSWORD_CHANGE_SECURITY_SIGNAL'
+  | 'USER_SECOND_FACTOR_CHANGE_SECURITY_SIGNAL'
   | 'USER_SIGN_UP_WELCOME'
   | 'USER_SPACE_COMMUNITY_APPLICATION_DECLINED'
   | 'USER_SPACE_COMMUNITY_INVITATION'
@@ -7576,6 +7616,8 @@ export type OrganizationSettings = {
   membership: OrganizationSettingsMembership;
   /** The privacy settings for this Organization */
   privacy: OrganizationSettingsPrivacy;
+  /** The security settings for this Organization. */
+  security: OrganizationSettingsSecurity;
 };
 
 export type OrganizationSettingsMembership = {
@@ -7590,6 +7632,11 @@ export type OrganizationSettingsMembership = {
 export type OrganizationSettingsPrivacy = {
   /** Allow contribution roles (membership, lead etc) in Spaces to be visible. */
   contributionRolesPubliclyVisible: Scalars['Boolean']['output'];
+};
+
+export type OrganizationSettingsSecurity = {
+  /** Holders of an organization role (owner, admin, associate) must use a second factor. */
+  secondFactorRequired: Scalars['Boolean']['output'];
 };
 
 export type OrganizationVerification = {
@@ -7964,6 +8011,15 @@ export type PlatformRolesAccess = {
 export type PlatformSettings = {
   /** The integration settings for this Platform */
   integration: PlatformIntegrationSettings;
+  /** The second-factor rule for platform roles. Null unless the reader holds the platform-settings privilege. */
+  security?: Maybe<PlatformSettingsSecurity>;
+};
+
+export type PlatformSettingsSecurity = {
+  /** Holders of a Platform … role must use a second factor. */
+  secondFactorRequiredForPlatformRoles: Scalars['Boolean']['output'];
+  /** When the rule was last switched on; null while it has never been on. */
+  secondFactorRequiredForPlatformRolesSince?: Maybe<Scalars['DateTime']['output']>;
 };
 
 export type PlatformWellKnownVirtualContributorMapping = {
@@ -10757,6 +10813,8 @@ export type UpdateOrganizationInput = {
 export type UpdateOrganizationSettingsEntityInput = {
   membership?: InputMaybe<UpdateOrganizationSettingsMembershipInput>;
   privacy?: InputMaybe<UpdateOrganizationSettingsPrivacyInput>;
+  /** The second-factor rule for the members of this Organization. */
+  security?: InputMaybe<UpdateOrganizationSettingsSecurityInput>;
 };
 
 export type UpdateOrganizationSettingsInput = {
@@ -10780,8 +10838,15 @@ export type UpdateOrganizationSettingsPrivacyInput = {
   contributionRolesPubliclyVisible: Scalars['Boolean']['input'];
 };
 
+export type UpdateOrganizationSettingsSecurityInput = {
+  /** Require holders of an organization role (owner, admin, associate) to use a second factor. Switching it on starts a fourteen-day grace. */
+  secondFactorRequired?: InputMaybe<Scalars['Boolean']['input']>;
+};
+
 export type UpdatePlatformSettingsInput = {
   integration?: InputMaybe<UpdatePlatformSettingsIntegrationInput>;
+  /** The second-factor rule for platform roles. */
+  security?: InputMaybe<UpdatePlatformSettingsSecurityInput>;
 };
 
 export type UpdatePlatformSettingsIntegrationInput = {
@@ -10789,6 +10854,11 @@ export type UpdatePlatformSettingsIntegrationInput = {
   iframeAllowedUrls: Array<Scalars['String']['input']>;
   /** Update the list of email addresses blocked from receiving notifications. */
   notificationEmailBlacklist?: InputMaybe<Array<Scalars['String']['input']>>;
+};
+
+export type UpdatePlatformSettingsSecurityInput = {
+  /** Require holders of a Platform … role to use a second factor. Switching it on starts a fourteen-day grace. */
+  secondFactorRequiredForPlatformRoles?: InputMaybe<Scalars['Boolean']['input']>;
 };
 
 export type UpdatePollInput = {
@@ -12261,6 +12331,8 @@ export type ResolversTypes = {
   AddReactionToCalloutInput: SchemaTypes.AddReactionToCalloutInput;
   AddVisualToMediaGalleryInput: SchemaTypes.AddVisualToMediaGalleryInput;
   AdminCommunicationReconcileForumHierarchyInput: SchemaTypes.AdminCommunicationReconcileForumHierarchyInput;
+  AdminResetUserSecondFactorInput: SchemaTypes.AdminResetUserSecondFactorInput;
+  AdminResetUserSecondFactorResult: ResolverTypeWrapper<SchemaTypes.AdminResetUserSecondFactorResult>;
   AdminRevokeMcpApiKeyInput: SchemaTypes.AdminRevokeMcpApiKeyInput;
   AdminTemplateFileRepairInput: SchemaTypes.AdminTemplateFileRepairInput;
   AdminTemplateFileRepairIssue: ResolverTypeWrapper<SchemaTypes.AdminTemplateFileRepairIssue>;
@@ -12652,6 +12724,7 @@ export type ResolversTypes = {
   MeAccountDeletionStatus: ResolverTypeWrapper<SchemaTypes.MeAccountDeletionStatus>;
   MeConversationsResult: ResolverTypeWrapper<Omit<SchemaTypes.MeConversationsResult, 'conversations'> & { conversations: Array<ResolversTypes['Conversation']> }>;
   MeQueryResults: ResolverTypeWrapper<Omit<SchemaTypes.MeQueryResults, 'communityApplications' | 'communityInvitations' | 'conversations' | 'mySpaces' | 'notifications' | 'organizationApplications' | 'organizationInvitations' | 'spaceMembershipsFlat' | 'spaceMembershipsHierarchical' | 'user'> & { communityApplications: Array<ResolversTypes['CommunityApplicationResult']>, communityInvitations: Array<ResolversTypes['CommunityInvitationResult']>, conversations: ResolversTypes['MeConversationsResult'], mySpaces: Array<ResolversTypes['MySpaceResults']>, notifications: ResolversTypes['PaginatedInAppNotifications'], organizationApplications: Array<ResolversTypes['OrganizationApplicationResult']>, organizationInvitations: Array<ResolversTypes['OrganizationInvitationResult']>, spaceMembershipsFlat: Array<ResolversTypes['CommunityMembershipResult']>, spaceMembershipsHierarchical: Array<ResolversTypes['CommunityMembershipResult']>, user?: SchemaTypes.Maybe<ResolversTypes['User']> }>;
+  MeSecondFactorRequirement: ResolverTypeWrapper<SchemaTypes.MeSecondFactorRequirement>;
   MediaGallery: ResolverTypeWrapper<Omit<SchemaTypes.MediaGallery, 'storageBucket'> & { storageBucket?: SchemaTypes.Maybe<ResolversTypes['StorageBucket']> }>;
   Memo: ResolverTypeWrapper<Omit<SchemaTypes.Memo, 'createdBy' | 'profile'> & { createdBy?: SchemaTypes.Maybe<ResolversTypes['User']>, profile: ResolversTypes['Profile'] }>;
   MemoSignature: ResolverTypeWrapper<Omit<SchemaTypes.MemoSignature, 'actor' | 'document'> & { actor?: SchemaTypes.Maybe<ResolversTypes['User']>, document?: SchemaTypes.Maybe<ResolversTypes['Document']> }>;
@@ -12704,6 +12777,7 @@ export type ResolversTypes = {
   OrganizationSettings: ResolverTypeWrapper<SchemaTypes.OrganizationSettings>;
   OrganizationSettingsMembership: ResolverTypeWrapper<SchemaTypes.OrganizationSettingsMembership>;
   OrganizationSettingsPrivacy: ResolverTypeWrapper<SchemaTypes.OrganizationSettingsPrivacy>;
+  OrganizationSettingsSecurity: ResolverTypeWrapper<SchemaTypes.OrganizationSettingsSecurity>;
   OrganizationVerification: ResolverTypeWrapper<SchemaTypes.OrganizationVerification>;
   OrganizationVerificationEnum: SchemaTypes.OrganizationVerificationEnum;
   OrganizationVerificationEventInput: SchemaTypes.OrganizationVerificationEventInput;
@@ -12730,6 +12804,7 @@ export type ResolversTypes = {
   PlatformLocations: ResolverTypeWrapper<SchemaTypes.PlatformLocations>;
   PlatformRolesAccess: ResolverTypeWrapper<SchemaTypes.PlatformRolesAccess>;
   PlatformSettings: ResolverTypeWrapper<SchemaTypes.PlatformSettings>;
+  PlatformSettingsSecurity: ResolverTypeWrapper<SchemaTypes.PlatformSettingsSecurity>;
   PlatformWellKnownVirtualContributorMapping: ResolverTypeWrapper<SchemaTypes.PlatformWellKnownVirtualContributorMapping>;
   PlatformWellKnownVirtualContributors: ResolverTypeWrapper<SchemaTypes.PlatformWellKnownVirtualContributors>;
   Poll: ResolverTypeWrapper<SchemaTypes.Poll>;
@@ -12952,8 +13027,10 @@ export type ResolversTypes = {
   UpdateOrganizationSettingsInput: SchemaTypes.UpdateOrganizationSettingsInput;
   UpdateOrganizationSettingsMembershipInput: SchemaTypes.UpdateOrganizationSettingsMembershipInput;
   UpdateOrganizationSettingsPrivacyInput: SchemaTypes.UpdateOrganizationSettingsPrivacyInput;
+  UpdateOrganizationSettingsSecurityInput: SchemaTypes.UpdateOrganizationSettingsSecurityInput;
   UpdatePlatformSettingsInput: SchemaTypes.UpdatePlatformSettingsInput;
   UpdatePlatformSettingsIntegrationInput: SchemaTypes.UpdatePlatformSettingsIntegrationInput;
+  UpdatePlatformSettingsSecurityInput: SchemaTypes.UpdatePlatformSettingsSecurityInput;
   UpdatePollInput: SchemaTypes.UpdatePollInput;
   UpdatePollOptionInput: SchemaTypes.UpdatePollOptionInput;
   UpdatePollStatusInput: SchemaTypes.UpdatePollStatusInput;
@@ -13123,6 +13200,8 @@ export type ResolversParentTypes = {
   AddReactionToCalloutInput: SchemaTypes.AddReactionToCalloutInput;
   AddVisualToMediaGalleryInput: SchemaTypes.AddVisualToMediaGalleryInput;
   AdminCommunicationReconcileForumHierarchyInput: SchemaTypes.AdminCommunicationReconcileForumHierarchyInput;
+  AdminResetUserSecondFactorInput: SchemaTypes.AdminResetUserSecondFactorInput;
+  AdminResetUserSecondFactorResult: SchemaTypes.AdminResetUserSecondFactorResult;
   AdminRevokeMcpApiKeyInput: SchemaTypes.AdminRevokeMcpApiKeyInput;
   AdminTemplateFileRepairInput: SchemaTypes.AdminTemplateFileRepairInput;
   AdminTemplateFileRepairIssue: SchemaTypes.AdminTemplateFileRepairIssue;
@@ -13473,6 +13552,7 @@ export type ResolversParentTypes = {
   MeAccountDeletionStatus: SchemaTypes.MeAccountDeletionStatus;
   MeConversationsResult: Omit<SchemaTypes.MeConversationsResult, 'conversations'> & { conversations: Array<ResolversParentTypes['Conversation']> };
   MeQueryResults: Omit<SchemaTypes.MeQueryResults, 'communityApplications' | 'communityInvitations' | 'conversations' | 'mySpaces' | 'notifications' | 'organizationApplications' | 'organizationInvitations' | 'spaceMembershipsFlat' | 'spaceMembershipsHierarchical' | 'user'> & { communityApplications: Array<ResolversParentTypes['CommunityApplicationResult']>, communityInvitations: Array<ResolversParentTypes['CommunityInvitationResult']>, conversations: ResolversParentTypes['MeConversationsResult'], mySpaces: Array<ResolversParentTypes['MySpaceResults']>, notifications: ResolversParentTypes['PaginatedInAppNotifications'], organizationApplications: Array<ResolversParentTypes['OrganizationApplicationResult']>, organizationInvitations: Array<ResolversParentTypes['OrganizationInvitationResult']>, spaceMembershipsFlat: Array<ResolversParentTypes['CommunityMembershipResult']>, spaceMembershipsHierarchical: Array<ResolversParentTypes['CommunityMembershipResult']>, user?: SchemaTypes.Maybe<ResolversParentTypes['User']> };
+  MeSecondFactorRequirement: SchemaTypes.MeSecondFactorRequirement;
   MediaGallery: Omit<SchemaTypes.MediaGallery, 'storageBucket'> & { storageBucket?: SchemaTypes.Maybe<ResolversParentTypes['StorageBucket']> };
   Memo: Omit<SchemaTypes.Memo, 'createdBy' | 'profile'> & { createdBy?: SchemaTypes.Maybe<ResolversParentTypes['User']>, profile: ResolversParentTypes['Profile'] };
   MemoSignature: Omit<SchemaTypes.MemoSignature, 'actor' | 'document'> & { actor?: SchemaTypes.Maybe<ResolversParentTypes['User']>, document?: SchemaTypes.Maybe<ResolversParentTypes['Document']> };
@@ -13516,6 +13596,7 @@ export type ResolversParentTypes = {
   OrganizationSettings: SchemaTypes.OrganizationSettings;
   OrganizationSettingsMembership: SchemaTypes.OrganizationSettingsMembership;
   OrganizationSettingsPrivacy: SchemaTypes.OrganizationSettingsPrivacy;
+  OrganizationSettingsSecurity: SchemaTypes.OrganizationSettingsSecurity;
   OrganizationVerification: SchemaTypes.OrganizationVerification;
   OrganizationVerificationEventInput: SchemaTypes.OrganizationVerificationEventInput;
   OrganizationsInRolesResponse: Omit<SchemaTypes.OrganizationsInRolesResponse, 'organizations'> & { organizations: Array<ResolversParentTypes['Organization']> };
@@ -13540,6 +13621,7 @@ export type ResolversParentTypes = {
   PlatformLocations: SchemaTypes.PlatformLocations;
   PlatformRolesAccess: SchemaTypes.PlatformRolesAccess;
   PlatformSettings: SchemaTypes.PlatformSettings;
+  PlatformSettingsSecurity: SchemaTypes.PlatformSettingsSecurity;
   PlatformWellKnownVirtualContributorMapping: SchemaTypes.PlatformWellKnownVirtualContributorMapping;
   PlatformWellKnownVirtualContributors: SchemaTypes.PlatformWellKnownVirtualContributors;
   Poll: SchemaTypes.Poll;
@@ -13733,8 +13815,10 @@ export type ResolversParentTypes = {
   UpdateOrganizationSettingsInput: SchemaTypes.UpdateOrganizationSettingsInput;
   UpdateOrganizationSettingsMembershipInput: SchemaTypes.UpdateOrganizationSettingsMembershipInput;
   UpdateOrganizationSettingsPrivacyInput: SchemaTypes.UpdateOrganizationSettingsPrivacyInput;
+  UpdateOrganizationSettingsSecurityInput: SchemaTypes.UpdateOrganizationSettingsSecurityInput;
   UpdatePlatformSettingsInput: SchemaTypes.UpdatePlatformSettingsInput;
   UpdatePlatformSettingsIntegrationInput: SchemaTypes.UpdatePlatformSettingsIntegrationInput;
+  UpdatePlatformSettingsSecurityInput: SchemaTypes.UpdatePlatformSettingsSecurityInput;
   UpdatePollInput: SchemaTypes.UpdatePollInput;
   UpdatePollOptionInput: SchemaTypes.UpdatePollOptionInput;
   UpdatePollStatusInput: SchemaTypes.UpdatePollStatusInput;
@@ -14140,6 +14224,12 @@ export type ActorRolesResolvers<ContextType = any, ParentType extends ResolversP
   invitations?: Resolver<Array<ResolversTypes['CommunityInvitationForRoleResult']>, ParentType, ContextType, Partial<SchemaTypes.ActorRolesInvitationsArgs>>;
   organizations?: Resolver<Array<ResolversTypes['RolesResultOrganization']>, ParentType, ContextType>;
   spaces?: Resolver<Array<ResolversTypes['RolesResultSpace']>, ParentType, ContextType>;
+};
+
+export type AdminResetUserSecondFactorResultResolvers<ContextType = any, ParentType extends ResolversParentTypes['AdminResetUserSecondFactorResult'] = ResolversParentTypes['AdminResetUserSecondFactorResult']> = {
+  passwordInvalidated?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
+  removedCredentialTypes?: Resolver<Array<ResolversTypes['String']>, ParentType, ContextType>;
+  sessionsRevoked?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
 };
 
 export type AdminTemplateFileRepairIssueResolvers<ContextType = any, ParentType extends ResolversParentTypes['AdminTemplateFileRepairIssue'] = ResolversParentTypes['AdminTemplateFileRepairIssue']> = {
@@ -15730,9 +15820,17 @@ export type MeQueryResultsResolvers<ContextType = any, ParentType extends Resolv
   organizationApplications?: Resolver<Array<ResolversTypes['OrganizationApplicationResult']>, ParentType, ContextType, Partial<SchemaTypes.MeQueryResultsOrganizationApplicationsArgs>>;
   organizationInvitations?: Resolver<Array<ResolversTypes['OrganizationInvitationResult']>, ParentType, ContextType, Partial<SchemaTypes.MeQueryResultsOrganizationInvitationsArgs>>;
   organizationInvitationsCount?: Resolver<ResolversTypes['Float'], ParentType, ContextType, Partial<SchemaTypes.MeQueryResultsOrganizationInvitationsCountArgs>>;
+  secondFactorRequirement?: Resolver<ResolversTypes['MeSecondFactorRequirement'], ParentType, ContextType>;
   spaceMembershipsFlat?: Resolver<Array<ResolversTypes['CommunityMembershipResult']>, ParentType, ContextType>;
   spaceMembershipsHierarchical?: Resolver<Array<ResolversTypes['CommunityMembershipResult']>, ParentType, ContextType, Partial<SchemaTypes.MeQueryResultsSpaceMembershipsHierarchicalArgs>>;
   user?: Resolver<SchemaTypes.Maybe<ResolversTypes['User']>, ParentType, ContextType>;
+};
+
+export type MeSecondFactorRequirementResolvers<ContextType = any, ParentType extends ResolversParentTypes['MeSecondFactorRequirement'] = ResolversParentTypes['MeSecondFactorRequirement']> = {
+  covered?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
+  deadline?: Resolver<SchemaTypes.Maybe<ResolversTypes['DateTime']>, ParentType, ContextType>;
+  satisfied?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
+  secondWayNeeded?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
 };
 
 export type MediaGalleryResolvers<ContextType = any, ParentType extends ResolversParentTypes['MediaGallery'] = ResolversParentTypes['MediaGallery']> = {
@@ -15867,6 +15965,7 @@ export type MutationResolvers<ContextType = any, ParentType extends ResolversPar
   adminLicensePolicyDeleteCredentialRule?: Resolver<ResolversTypes['LicensingCredentialBasedPolicyCredentialRule'], ParentType, ContextType, RequireFields<SchemaTypes.MutationAdminLicensePolicyDeleteCredentialRuleArgs, 'deleteData'>>;
   adminLicensePolicyUpdateCredentialRule?: Resolver<ResolversTypes['LicensingCredentialBasedPolicyCredentialRule'], ParentType, ContextType, RequireFields<SchemaTypes.MutationAdminLicensePolicyUpdateCredentialRuleArgs, 'updateData'>>;
   adminRepairTemplateFiles?: Resolver<ResolversTypes['AdminTemplateFileRepairResult'], ParentType, ContextType, RequireFields<SchemaTypes.MutationAdminRepairTemplateFilesArgs, 'repairData'>>;
+  adminResetUserSecondFactor?: Resolver<ResolversTypes['AdminResetUserSecondFactorResult'], ParentType, ContextType, RequireFields<SchemaTypes.MutationAdminResetUserSecondFactorArgs, 'resetData'>>;
   adminRevokeMcpApiKey?: Resolver<ResolversTypes['McpApiKey'], ParentType, ContextType, RequireFields<SchemaTypes.MutationAdminRevokeMcpApiKeyArgs, 'revokeData'>>;
   adminSearchIngestFromScratch?: Resolver<ResolversTypes['String'], ParentType, ContextType>;
   adminUpdateContributorAvatars?: Resolver<ResolversTypes['Profile'], ParentType, ContextType, RequireFields<SchemaTypes.MutationAdminUpdateContributorAvatarsArgs, 'profileID'>>;
@@ -16012,6 +16111,7 @@ export type MutationResolvers<ContextType = any, ParentType extends ResolversPar
   resendPlatformInvitation?: Resolver<ResolversTypes['PlatformInvitation'], ParentType, ContextType, RequireFields<SchemaTypes.MutationResendPlatformInvitationArgs, 'resendData'>>;
   resetConversationVc?: Resolver<ResolversTypes['Conversation'], ParentType, ContextType, RequireFields<SchemaTypes.MutationResetConversationVcArgs, 'input'>>;
   resetLicenseOnAccounts?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
+  resetPushBadgeCount?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   revokeCredentialFromActor?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType, RequireFields<SchemaTypes.MutationRevokeCredentialFromActorArgs, 'actorID' | 'credentialType'>>;
   revokeLicensePlanFromAccount?: Resolver<ResolversTypes['Account'], ParentType, ContextType, RequireFields<SchemaTypes.MutationRevokeLicensePlanFromAccountArgs, 'planData'>>;
   revokeLicensePlanFromSpace?: Resolver<ResolversTypes['Space'], ParentType, ContextType, RequireFields<SchemaTypes.MutationRevokeLicensePlanFromSpaceArgs, 'planData'>>;
@@ -16170,6 +16270,7 @@ export type OrganizationInvitationResultResolvers<ContextType = any, ParentType 
 export type OrganizationSettingsResolvers<ContextType = any, ParentType extends ResolversParentTypes['OrganizationSettings'] = ResolversParentTypes['OrganizationSettings']> = {
   membership?: Resolver<ResolversTypes['OrganizationSettingsMembership'], ParentType, ContextType>;
   privacy?: Resolver<ResolversTypes['OrganizationSettingsPrivacy'], ParentType, ContextType>;
+  security?: Resolver<ResolversTypes['OrganizationSettingsSecurity'], ParentType, ContextType>;
 };
 
 export type OrganizationSettingsMembershipResolvers<ContextType = any, ParentType extends ResolversParentTypes['OrganizationSettingsMembership'] = ResolversParentTypes['OrganizationSettingsMembership']> = {
@@ -16180,6 +16281,10 @@ export type OrganizationSettingsMembershipResolvers<ContextType = any, ParentTyp
 
 export type OrganizationSettingsPrivacyResolvers<ContextType = any, ParentType extends ResolversParentTypes['OrganizationSettingsPrivacy'] = ResolversParentTypes['OrganizationSettingsPrivacy']> = {
   contributionRolesPubliclyVisible?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
+};
+
+export type OrganizationSettingsSecurityResolvers<ContextType = any, ParentType extends ResolversParentTypes['OrganizationSettingsSecurity'] = ResolversParentTypes['OrganizationSettingsSecurity']> = {
+  secondFactorRequired?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
 };
 
 export type OrganizationVerificationResolvers<ContextType = any, ParentType extends ResolversParentTypes['OrganizationVerification'] = ResolversParentTypes['OrganizationVerification']> = {
@@ -16372,6 +16477,12 @@ export type PlatformRolesAccessResolvers<ContextType = any, ParentType extends R
 
 export type PlatformSettingsResolvers<ContextType = any, ParentType extends ResolversParentTypes['PlatformSettings'] = ResolversParentTypes['PlatformSettings']> = {
   integration?: Resolver<ResolversTypes['PlatformIntegrationSettings'], ParentType, ContextType>;
+  security?: Resolver<SchemaTypes.Maybe<ResolversTypes['PlatformSettingsSecurity']>, ParentType, ContextType>;
+};
+
+export type PlatformSettingsSecurityResolvers<ContextType = any, ParentType extends ResolversParentTypes['PlatformSettingsSecurity'] = ResolversParentTypes['PlatformSettingsSecurity']> = {
+  secondFactorRequiredForPlatformRoles?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
+  secondFactorRequiredForPlatformRolesSince?: Resolver<SchemaTypes.Maybe<ResolversTypes['DateTime']>, ParentType, ContextType>;
 };
 
 export type PlatformWellKnownVirtualContributorMappingResolvers<ContextType = any, ParentType extends ResolversParentTypes['PlatformWellKnownVirtualContributorMapping'] = ResolversParentTypes['PlatformWellKnownVirtualContributorMapping']> = {
@@ -17686,6 +17797,7 @@ export type Resolvers<ContextType = any> = {
   ActorFull?: ActorFullResolvers<ContextType>;
   ActorRolePolicy?: ActorRolePolicyResolvers<ContextType>;
   ActorRoles?: ActorRolesResolvers<ContextType>;
+  AdminResetUserSecondFactorResult?: AdminResetUserSecondFactorResultResolvers<ContextType>;
   AdminTemplateFileRepairIssue?: AdminTemplateFileRepairIssueResolvers<ContextType>;
   AdminTemplateFileRepairResult?: AdminTemplateFileRepairResultResolvers<ContextType>;
   AdminTemplateForeignFileReference?: AdminTemplateForeignFileReferenceResolvers<ContextType>;
@@ -17879,6 +17991,7 @@ export type Resolvers<ContextType = any> = {
   MeAccountDeletionStatus?: MeAccountDeletionStatusResolvers<ContextType>;
   MeConversationsResult?: MeConversationsResultResolvers<ContextType>;
   MeQueryResults?: MeQueryResultsResolvers<ContextType>;
+  MeSecondFactorRequirement?: MeSecondFactorRequirementResolvers<ContextType>;
   MediaGallery?: MediaGalleryResolvers<ContextType>;
   Memo?: MemoResolvers<ContextType>;
   MemoSignature?: MemoSignatureResolvers<ContextType>;
@@ -17907,6 +18020,7 @@ export type Resolvers<ContextType = any> = {
   OrganizationSettings?: OrganizationSettingsResolvers<ContextType>;
   OrganizationSettingsMembership?: OrganizationSettingsMembershipResolvers<ContextType>;
   OrganizationSettingsPrivacy?: OrganizationSettingsPrivacyResolvers<ContextType>;
+  OrganizationSettingsSecurity?: OrganizationSettingsSecurityResolvers<ContextType>;
   OrganizationVerification?: OrganizationVerificationResolvers<ContextType>;
   OrganizationsInRolesResponse?: OrganizationsInRolesResponseResolvers<ContextType>;
   OryConfig?: OryConfigResolvers<ContextType>;
@@ -17930,6 +18044,7 @@ export type Resolvers<ContextType = any> = {
   PlatformLocations?: PlatformLocationsResolvers<ContextType>;
   PlatformRolesAccess?: PlatformRolesAccessResolvers<ContextType>;
   PlatformSettings?: PlatformSettingsResolvers<ContextType>;
+  PlatformSettingsSecurity?: PlatformSettingsSecurityResolvers<ContextType>;
   PlatformWellKnownVirtualContributorMapping?: PlatformWellKnownVirtualContributorMappingResolvers<ContextType>;
   PlatformWellKnownVirtualContributors?: PlatformWellKnownVirtualContributorsResolvers<ContextType>;
   Poll?: PollResolvers<ContextType>;
@@ -18168,14 +18283,14 @@ export type AdminSpaceClassificationsQueryVariables = SchemaTypes.Exact<{
 }>;
 
 
-export type AdminSpaceClassificationsQuery = { lookupByName: { space?: { id: string, nameID: string, level: SchemaTypes.SpaceLevel, about: { authorization?: { myPrivileges?: Array<SchemaTypes.AuthorizationPrivilege> | undefined } | undefined, profile: { displayName: string, url: string }, classifications: Array<{ id: string, displayLabel: string, cardinality: SchemaTypes.ClassificationCardinality, sortOrder: number, selectedValueIDs: Array<string>, values: Array<{ id: string, label: string }> }> } } | undefined } };
+export type AdminSpaceClassificationsQuery = { lookupByName: { space?: { id: string, nameID: string, level: SchemaTypes.SpaceLevel, visibility: SchemaTypes.SpaceVisibility, about: { isContentPublic: boolean, authorization?: { myPrivileges?: Array<SchemaTypes.AuthorizationPrivilege> | undefined } | undefined, profile: { displayName: string, url: string }, classifications: Array<{ id: string, displayLabel: string, cardinality: SchemaTypes.ClassificationCardinality, sortOrder: number, selectedValueIDs: Array<string>, values: Array<{ id: string, label: string }> }> } } | undefined } };
 
 export type AdminSpaceClassificationsByIdQueryVariables = SchemaTypes.Exact<{
   id: SchemaTypes.Scalars['UUID']['input'];
 }>;
 
 
-export type AdminSpaceClassificationsByIdQuery = { lookup: { space?: { id: string, nameID: string, level: SchemaTypes.SpaceLevel, about: { authorization?: { myPrivileges?: Array<SchemaTypes.AuthorizationPrivilege> | undefined } | undefined, profile: { displayName: string, url: string }, classifications: Array<{ id: string, displayLabel: string, cardinality: SchemaTypes.ClassificationCardinality, sortOrder: number, selectedValueIDs: Array<string>, values: Array<{ id: string, label: string }> }> } } | undefined } };
+export type AdminSpaceClassificationsByIdQuery = { lookup: { space?: { id: string, nameID: string, level: SchemaTypes.SpaceLevel, visibility: SchemaTypes.SpaceVisibility, about: { isContentPublic: boolean, authorization?: { myPrivileges?: Array<SchemaTypes.AuthorizationPrivilege> | undefined } | undefined, profile: { displayName: string, url: string }, classifications: Array<{ id: string, displayLabel: string, cardinality: SchemaTypes.ClassificationCardinality, sortOrder: number, selectedValueIDs: Array<string>, values: Array<{ id: string, label: string }> }> } } | undefined } };
 
 export type AdminSpaceSearchQueryVariables = SchemaTypes.Exact<{
   terms: Array<SchemaTypes.Scalars['String']['input']> | SchemaTypes.Scalars['String']['input'];
@@ -18558,7 +18673,9 @@ export const AdminSpaceClassificationsDocument = gql`
       id
       nameID
       level
+      visibility
       about {
+        isContentPublic
         authorization {
           myPrivileges
         }
@@ -18589,7 +18706,9 @@ export const AdminSpaceClassificationsByIdDocument = gql`
       id
       nameID
       level
+      visibility
       about {
+        isContentPublic
         authorization {
           myPrivileges
         }

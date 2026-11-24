@@ -3,11 +3,16 @@ import { useTranslation } from 'react-i18next';
 import { Clock, Euro } from 'lucide-react';
 import { cn } from '@ea/shared';
 import type { FunnelDot, FunnelLayout } from '../utils/funnel.js';
+import {
+  NONE_KEY,
+  categoryLegend,
+  categoryScale,
+  colorOfKey,
+  rowKeys,
+  type FunnelColorBy,
+} from '../utils/funnel-colors.js';
+import { GD_COLOR, GROEI_COLOR, slicePath } from '../utils/pie.js';
 import { FunnelHoverCard } from './FunnelHoverCard.js';
-
-/** Source colours, matching the dashboard's existing stacked charts (spec A-007). */
-const GROEI_COLOR = 'var(--primary)';
-const GD_COLOR = '#16a34a';
 
 const LABEL_BAND = 68; // px reserved at the top for the stage header boxes
 /** Geometry of one stage header box inside that band. */
@@ -31,6 +36,17 @@ interface Props {
    * earns its keep once a classification filter has cut the set down.
    */
   showLabels?: boolean;
+  /** What the dots are coloured by (default: their source, Groei / GemeenteDelers). */
+  colorBy?: FunnelColorBy;
+  /** The chosen classification's values in authored order — fixes each value's colour. */
+  vocabulary?: readonly string[];
+}
+
+/** A small swatch for one or more colours (equal shares, clockwise from the top). */
+function swatchBackground(colors: string[]): string {
+  if (colors.length <= 1) return colors[0];
+  const step = 360 / colors.length;
+  return `conic-gradient(${colors.map((c, i) => `${c} ${i * step}deg ${(i + 1) * step}deg`).join(', ')})`;
 }
 
 /** Rough advance width per character at the label's 10px size — SVG cannot measure. */
@@ -51,9 +67,12 @@ function pathOf(points: [number, number][], yOffset: number): string {
  * The whole funnel is drawn in a single viewBox-scaled SVG, which is what keeps every
  * stage, both bars and every label visible at any width without scrolling (FR-006).
  */
-export function FunnelChart({ layout, showLabels = false }: Props) {
+export function FunnelChart({ layout, showLabels = false, colorBy = 'source', vocabulary = [] }: Props) {
   const { t } = useTranslation();
   const [hovered, setHovered] = useState<FunnelDot | null>(null);
+  // A legend entry the viewer clicked: its dots stay, the rest fade (secondary encoding —
+  // eight hues on scattered dots cannot all be told apart by colour alone).
+  const [focusKey, setFocusKey] = useState<string | null>(null);
 
   const { width, height, stages, holding, upper, lower } = layout;
   const upperPath = useMemo(() => pathOf(upper, LABEL_BAND), [upper]);
@@ -89,16 +108,36 @@ export function FunnelChart({ layout, showLabels = false }: Props) {
   };
 
   const totalHeight = height + LABEL_BAND + RAMP_BAND;
-  const dotColor = (dot: FunnelDot) => (dot.row.kind === 'gd' ? GD_COLOR : GROEI_COLOR);
+  const byCategory = colorBy !== 'source' ? colorBy : null;
+  const scale = categoryScale(vocabulary);
+  const allDots = [...stages.flatMap((s) => s.dots), ...(holding?.dots ?? [])];
+  const legend = byCategory ? categoryLegend(allDots.map((d) => d.row), byCategory, vocabulary) : [];
+  // A focus whose value has left the funnel (filter, other colouring) is simply off.
+  const focus = byCategory && legend.some((e) => e.key === focusKey) ? focusKey : null;
+  const keysOf = (dot: FunnelDot): string[] =>
+    byCategory ? rowKeys(dot.row, byCategory, scale, vocabulary) : [dot.row.kind];
+  const colorsOf = (dot: FunnelDot): string[] =>
+    byCategory
+      ? keysOf(dot).map((k) => colorOfKey(k, scale))
+      : [dot.row.kind === 'gd' ? GD_COLOR : GROEI_COLOR];
+  const dotColor = (dot: FunnelDot) => colorsOf(dot)[0];
+  const outOfFocus = (dot: FunnelDot) => focus !== null && !keysOf(dot).includes(focus);
+  const anySplit = byCategory !== null && allDots.some((d) => keysOf(d).length > 1);
 
-  const renderDot = (dot: FunnelDot, yOffset: number) => (
+  const renderDot = (dot: FunnelDot, yOffset: number) => {
+    const colors = colorsOf(dot);
+    const opacity = outOfFocus(dot) ? 0.12 : hovered && hovered.id !== dot.id ? 0.35 : 0.85;
+    const cy = dot.y + yOffset;
+    const step = 360 / colors.length;
+    return (
+    <g key={dot.id}>
     <circle
-      key={dot.id}
       cx={dot.x}
-      cy={dot.y + yOffset}
+      cy={cy}
       r={dot.r}
-      fill={dotColor(dot)}
-      fillOpacity={hovered && hovered.id !== dot.id ? 0.35 : 0.85}
+      fill={colors[0]}
+      fillOpacity={opacity}
+      data-funnel-colors={colors.join(' ')}
       // Marks the dot LAYER: the ramp's icons are circles too, so tests and any
       // frame-only screenshot need a way to address exactly the initiative dots.
       data-funnel-dot={dot.id}
@@ -113,7 +152,21 @@ export function FunnelChart({ layout, showLabels = false }: Props) {
       onFocus={() => setHovered(dot)}
       onBlur={() => setHovered((h) => (h?.id === dot.id ? null : h))}
     />
-  );
+    {/* Several values: equal wedges over the disc, clockwise from the top. Inside the
+        disc's surface ring, and never in the way of its hover. */}
+    {colors.length > 1 &&
+      colors.map((c, i) => (
+        <path
+          key={i}
+          d={slicePath(dot.x, cy, Math.max(0, dot.r - 0.6), i * step, (i + 1) * step)}
+          fill={c}
+          fillOpacity={opacity}
+          className="pointer-events-none"
+        />
+      ))}
+    </g>
+    );
+  };
 
   return (
     <div className="relative w-full">
@@ -371,11 +424,11 @@ export function FunnelChart({ layout, showLabels = false }: Props) {
                   )}
                 >
                   {group.dots.map((dot) => (
-                    <div key={dot.id} className="flex items-start gap-1.5 text-xs">
+                    <div key={dot.id} className={cn('flex items-start gap-1.5 text-xs', outOfFocus(dot) && 'opacity-30')}>
                       <span
                         aria-hidden
                         className="mt-1 inline-block h-2 w-2 shrink-0 rounded-full"
-                        style={{ background: dotColor(dot) }}
+                        style={{ background: swatchBackground(colorsOf(dot)) }}
                       />
                       <span className="min-w-0 break-words text-muted-foreground">
                         {dot.row.name}
@@ -395,11 +448,11 @@ export function FunnelChart({ layout, showLabels = false }: Props) {
               </p>
               <div className="flex flex-wrap gap-x-4 gap-y-0.5">
                 {roster.holding.dots.map((dot) => (
-                  <span key={dot.id} className="flex items-center gap-1.5 text-xs">
+                  <span key={dot.id} className={cn('flex items-center gap-1.5 text-xs', outOfFocus(dot) && 'opacity-30')}>
                     <span
                       aria-hidden
                       className="inline-block h-2 w-2 shrink-0 rounded-full"
-                      style={{ background: dotColor(dot) }}
+                      style={{ background: swatchBackground(colorsOf(dot)) }}
                     />
                     <span className="text-muted-foreground">{dot.row.name}</span>
                   </span>
@@ -423,15 +476,58 @@ export function FunnelChart({ layout, showLabels = false }: Props) {
       </div>
 
       {/* Legend: both source colours named, and what dot size means (FR-015). */}
+      {byCategory && legend.length > 0 && (
+        <div className="mt-2" data-testid="funnel-category-legend">
+          <div className="flex flex-wrap items-center gap-1.5">
+            {legend.map((entry) => {
+              const label =
+                entry.label ??
+                (entry.key === NONE_KEY
+                  ? t('funnel.legendNone', { defaultValue: 'No classification' })
+                  : t('funnel.legendOther', { defaultValue: 'Other' }));
+              const active = focus === entry.key;
+              return (
+                <button
+                  key={entry.key}
+                  type="button"
+                  aria-pressed={active}
+                  onClick={() => setFocusKey(active ? null : entry.key)}
+                  data-testid="funnel-legend-item"
+                  className={cn(
+                    'inline-flex items-center gap-1.5 rounded-full border px-2 py-0.5 text-xs transition-colors',
+                    'focus:outline-none focus-visible:ring-2 focus-visible:ring-primary',
+                    active
+                      ? 'border-foreground/40 bg-muted text-foreground'
+                      : 'border-border text-muted-foreground hover:bg-muted hover:text-foreground',
+                    focus !== null && !active && 'opacity-50',
+                  )}
+                >
+                  <span aria-hidden className="inline-block h-2.5 w-2.5 shrink-0 rounded-full" style={{ background: entry.color }} />
+                  <span>{label}</span>
+                  <span className="tabular-nums text-muted-foreground">{entry.count}</span>
+                </button>
+              );
+            })}
+          </div>
+          <p className="mt-1 text-xs text-muted-foreground">
+            {t('funnel.legendFocusHint', { defaultValue: 'Click a value to highlight its initiatives.' })}
+            {anySplit && ` ${t('funnel.legendSplit', { defaultValue: 'A dot in several colours has several values.' })}`}
+          </p>
+        </div>
+      )}
       <div className="mt-2 flex flex-wrap items-center gap-x-5 gap-y-1 text-xs text-muted-foreground">
-        <span className="flex items-center gap-1.5">
-          <span className="inline-block h-2.5 w-2.5 rounded-full" style={{ background: GROEI_COLOR }} />
-          {t('funnel.legendGroei', { defaultValue: 'Groei' })}
-        </span>
-        <span className="flex items-center gap-1.5">
-          <span className="inline-block h-2.5 w-2.5 rounded-full" style={{ background: GD_COLOR }} />
-          {t('funnel.legendGd', { defaultValue: 'GemeenteDelers' })}
-        </span>
+        {!byCategory && (
+          <>
+            <span className="flex items-center gap-1.5">
+              <span className="inline-block h-2.5 w-2.5 rounded-full" style={{ background: GROEI_COLOR }} />
+              {t('funnel.legendGroei', { defaultValue: 'Groei' })}
+            </span>
+            <span className="flex items-center gap-1.5">
+              <span className="inline-block h-2.5 w-2.5 rounded-full" style={{ background: GD_COLOR }} />
+              {t('funnel.legendGd', { defaultValue: 'GemeenteDelers' })}
+            </span>
+          </>
+        )}
         <span>{t('funnel.legendSize', { defaultValue: 'Dot size = number of participating municipalities' })}</span>
         <span className="flex items-center gap-1.5">
           <Euro className="h-3 w-3" />

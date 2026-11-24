@@ -174,7 +174,7 @@ test.describe('phone (390px)', () => {
     expect(main.width).toBeGreaterThan(viewport.width * 0.9);
   });
 
-  test('has no Space selection; the GemeenteDelers switch sits in the header (feature 027)', async ({
+  test('has no Space selection; the data controls sit under the header (feature 027)', async ({
     page,
   }) => {
     await boot(page);
@@ -188,10 +188,18 @@ test.describe('phone (390px)', () => {
     await gd.click();
     await expect(gd).toHaveAttribute('aria-checked', 'true');
 
-    // Refresh moved into the user menu on a phone.
-    await expect(page.getByTestId('header-refresh')).toBeHidden();
-    await page.getByRole('button', { name: 'Gebruikersmenu' }).click();
-    await expect(page.getByRole('dialog').getByRole('button', { name: /vernieuwen/i })).toBeVisible();
+    // The data controls are in their own row under the tabs, refresh included; the
+    // header above them is the same on every screen.
+    await expect(page.getByTestId('header-refresh')).toBeVisible();
+    const header = await page.locator('header').boundingBox();
+    const controls = await page.getByTestId('data-controls').boundingBox();
+    expect(controls.y).toBeGreaterThanOrEqual(header.y + header.height);
+    // The GemeenteDelers info opens on screen, not off its edge.
+    await page.getByTestId('gd-info').click();
+    const panel = await page.getByTestId('gd-panel').boundingBox();
+    expect(panel.x).toBeGreaterThanOrEqual(0);
+    expect(panel.x + panel.width).toBeLessThanOrEqual(page.viewportSize().width);
+    await page.keyboard.press('Escape');
     await expectNoHorizontalPageScroll(page, 'phone header');
   });
 
@@ -299,15 +307,18 @@ test.describe('tablet (820px)', () => {
 test.describe('desktop (1440px)', () => {
   test.use({ viewport: { width: 1440, height: 900 } });
 
-  test('has no selection column, the data controls in the header, the inline tabs and the real tables', async ({
+  test('has no selection column, the data controls in their own row, every tab in view, and the real tables', async ({
     page,
   }) => {
     await boot(page);
-    // Feature 027: no selection column or drawer; GD switch and refresh are in the header.
+    // Feature 027: no selection column or drawer; GD switch and refresh have their own row.
     await expect(page.getByRole('button', { name: 'Selectie' })).toHaveCount(0);
     await expect(page.getByText('Geselecteerde initiatieven')).toHaveCount(0);
     await expect(page.getByRole('button', { name: 'Vernieuwen' })).toBeVisible();
     await expect(page.getByRole('switch', { name: /GemeenteDelers/ })).toBeVisible();
+    // The data controls do not share the tab row, so every tab fits at desktop width.
+    const lastTab = await page.getByRole('tab').last().boundingBox();
+    expect(lastTab.x + lastTab.width).toBeLessThanOrEqual(page.viewportSize().width);
 
     await page.getByRole('tab', { name: 'Gemeenten', exact: true }).click();
     await expect(page.locator('main table')).toHaveCount(1);
@@ -328,6 +339,16 @@ const ADMIN_SPACES = Array.from({ length: 6 }, (_, i) => ({
   readable: i !== 3,
   found: true,
   classificationStatus: i !== 3 ? { set: 2, designated: 4 } : null,
+  visibility: i !== 3 ? { contentPublic: i % 2 === 0, status: i === 5 ? 'ARCHIVED' : 'ACTIVE' } : null,
+  classifications:
+    i !== 3
+      ? [
+          { key: 'nds', present: true, values: ['Centrale (digitale) dienstverlening', 'Data'] },
+          { key: 'vng2030', present: true, values: ['Bestaanszekerheid'] },
+          { key: 'phase', present: true, values: ['Pre-intake'] },
+          { key: 'trl', present: false, values: [] },
+        ]
+      : null,
 }));
 
 async function bootAdmin(page) {
@@ -347,6 +368,12 @@ async function bootAdmin(page) {
   await page.route('**/api/vng/admin/included-spaces', (r) =>
     json(r, {
       revision: 1,
+      designations: [
+        { key: 'nds', label: 'NDS-prioriteit' },
+        { key: 'vng2030', label: 'VNG 2030 thema' },
+        { key: 'phase', label: 'Fase' },
+        { key: 'trl', label: 'TRL' },
+      ],
       spaces: ADMIN_SPACES,
       lastChange: { revision: 1, kind: 'seed', at: '2026-11-14T08:00:00Z', actorName: null, added: [], removed: [], note: 'from starting set v1' },
     }),

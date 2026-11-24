@@ -1,5 +1,5 @@
 import { getLogger } from '../logging/logger.js';
-import type { MonitorScope, SettingsChangeKind, SettingsChangeView } from '../types/admin.js';
+import type { AuditEntry, MonitorScope, SettingsChangeKind, SettingsChangeView } from '../types/admin.js';
 import { getSettingsDatabase } from './db.js';
 
 /**
@@ -96,8 +96,8 @@ export function lastChange(): SettingsChangeView | null {
 }
 
 /**
- * The Included Spaces history, newest first. `before` pages by revision: pass the
- * previous page's `next`.
+ * The Included Spaces changes alone, newest first (the admin area shows the merged
+ * {@link auditLog}). `before` pages by revision: pass the previous page's `next`.
  */
 export function history(
   limit = 50,
@@ -118,6 +118,136 @@ export function history(
     changes: page.map(toView),
     next: rows.length > size ? page[page.length - 1].revision : null,
   };
+}
+
+interface AuditRow {
+  source: 'access' | 'spaces' | 'classification';
+  id: number;
+  at: string;
+  actor_name: string | null;
+  revision: number | null;
+  kind: SettingsChangeKind | null;
+  added_json: string | null;
+  removed_json: string | null;
+  note: string | null;
+  space_name_id: string | null;
+  entry_label: string | null;
+  from_json: string | null;
+  to_json: string | null;
+}
+
+/** A position in the audit log: the last entry of the previous page. */
+const cursorOf = (r: AuditRow) => `${r.at}|${r.source}|${r.id}`;
+function parseCursor(cursor: string | undefined): { at: string; source: string; id: number } | null {
+  if (!cursor) return null;
+  const [at, source, id] = cursor.split('|');
+  const n = Number(id);
+  return at && (source === 'access' || source === 'spaces' || source === 'classification') && Number.isInteger(n)
+    ? { at, source, id: n }
+    : null;
+}
+
+/**
+ * ONE audit log of every edit to the monitor, newest first: changes to the Included
+ * Spaces (incl. the seed and renames detected on Alkemio), classification changes
+ * written to Alkemio from the admin area, and changes to who may view or manage —
+ * merged from their three tables by time. Pages by
+ * an opaque cursor — pass the previous page's `next`.
+ */
+export function auditLog(
+  limit = 50,
+  before?: string,
+): { entries: AuditEntry[]; next: string | null } {
+  const size = Math.min(Math.max(1, Math.floor(limit) || 50), 200);
+  const c = parseCursor(before);
+  // Ordered by time, then by source, then newest row first: a total order, so the
+  // keyset cursor neither skips nor repeats an entry that shares a timestamp.
+  const rows = getSettingsDatabase()
+    .prepare(
+      `SELECT * FROM (
+         SELECT 'spaces' AS source, id, at, actor_name, revision, kind, added_json, removed_json, note,
+                NULL AS space_name_id, NULL AS entry_label, NULL AS from_json, NULL AS to_json
+         FROM settings_changes
+         UNION ALL
+         SELECT 'classification' AS source, id, at, actor_name, NULL, NULL, NULL, NULL, NULL,
+                space_name_id, entry_label, from_json, to_json
+         FROM classification_changes
+         UNION ALL
+         SELECT 'access' AS source, id, at, actor_name, NULL, NULL, NULL, NULL, NULL,
+                NULL, NULL, from_json, to_json
+         FROM access_changes
+       )
+       WHERE (? IS NULL)
+          OR at < ?
+          OR (at = ? AND (source > ? OR (source = ? AND id < ?)))
+       ORDER BY at DESC, source ASC, id DESC
+       LIMIT ?`,
+    )
+    .all(
+      c ? 1 : null,
+      c?.at ?? null,
+      c?.at ?? null,
+      c?.source ?? null,
+      c?.source ?? null,
+      c?.id ?? null,
+      size + 1,
+    ) as AuditRow[];
+  const page = rows.slice(0, size);
+  const entries = page.map((r): AuditEntry =>
+    r.source === 'access'
+      ? {
+          type: 'access',
+          at: r.at,
+          actorName: r.actor_name,
+          from: JSON.parse(r.from_json ?? '{"viewers":[],"admins":[]}'),
+          to: JSON.parse(r.to_json ?? '{"viewers":[],"admins":[]}'),
+        }
+      : r.source === 'spaces'
+      ? {
+          type: 'spaces',
+          at: r.at,
+          actorName: r.actor_name,
+          revision: r.revision!,
+          kind: r.kind!,
+          added: JSON.parse(r.added_json ?? '[]') as string[],
+          removed: JSON.parse(r.removed_json ?? '[]') as string[],
+          note: r.note,
+        }
+      : {
+          type: 'classification',
+          at: r.at,
+          actorName: r.actor_name,
+          spaceNameId: r.space_name_id!,
+          entryLabel: r.entry_label!,
+          from: (JSON.parse(r.from_json ?? '[]') as Array<{ label: string }>).map((v) => v.label),
+          to: (JSON.parse(r.to_json ?? '[]') as Array<{ label: string }>).map((v) => v.label),
+        },
+  );
+  return { entries, next: rows.length > size ? cursorOf(page[page.length - 1]) : null };
+}
+
+/**
+ * Rows recorded before the person's display name was known carry their id as the name;
+ * put the name in once it is known. Touches only that person's own rows.
+ */
+export function repairActorName(userId: string, displayName: string): void {
+  if (!displayName || displayName === userId) return;
+  const db = getSettingsDatabase();
+  db.prepare(
+    'UPDATE settings_changes SET actor_name = ? WHERE actor_user_id = ? AND actor_name = actor_user_id',
+  ).run(displayName, userId);
+  db.prepare(
+    'UPDATE classification_changes SET actor_name = ? WHERE actor_user_id = ? AND actor_name = actor_user_id',
+  ).run(displayName, userId);
+  db.prepare(
+    'UPDATE access_changes SET actor_name = ? WHERE actor_user_id = ? AND actor_name = actor_user_id',
+  ).run(displayName, userId);
+  db.prepare(
+    'UPDATE access_state SET updated_by_name = ? WHERE updated_by_user_id = ? AND updated_by_name = updated_by_user_id',
+  ).run(displayName, userId);
+  db.prepare(
+    'UPDATE settings_state SET updated_by_name = ? WHERE updated_by_user_id = ? AND updated_by_name = updated_by_user_id',
+  ).run(displayName, userId);
 }
 
 export type SaveResult =

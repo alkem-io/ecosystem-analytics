@@ -104,3 +104,43 @@ body {
 .no-scrollbar::-webkit-scrollbar {
   display: none;
 }
+
+/* MapLibre's "Ctrl/⌘ + scroll to zoom" hint for maps with cooperative gestures (the
+   Usage Explorer). MapLibre's own stylesheet is deliberately NOT loaded — the overlay
+   alignment (feature 021, §VII) is built without it — so only these rules are copied,
+   from maplibre-gl 5.x. Without them the hint text would show permanently. */
+.maplibregl-cooperative-gesture-screen {
+  align-items: center;
+  background: rgba(0, 0, 0, 0.4);
+  color: #fff;
+  display: flex;
+  font-size: 1.1em;
+  inset: 0;
+  justify-content: center;
+  line-height: 1.2;
+  opacity: 0;
+  padding: 1rem;
+  pointer-events: none;
+  position: absolute;
+  text-align: center;
+  transition: opacity 1s ease 1s;
+  z-index: 99999;
+}
+.maplibregl-cooperative-gesture-screen.maplibregl-show {
+  opacity: 1;
+  transition: opacity 0.05s;
+}
+.maplibregl-cooperative-gesture-screen .maplibregl-mobile-message {
+  display: none;
+}
+@media (hover: none), (pointer: coarse) {
+  .maplibregl-cooperative-gesture-screen .maplibregl-desktop-message {
+    display: none;
+  }
+  .maplibregl-cooperative-gesture-screen .maplibregl-mobile-message {
+    display: block;
+  }
+}
+.maplibregl-cooperative-gestures {
+  touch-action: pan-x pan-y;
+}

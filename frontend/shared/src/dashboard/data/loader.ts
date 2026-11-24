@@ -136,6 +136,8 @@ export class DashboardLoader {
       {
         app: sel.app,
         spaceIds: this.allSpaceIds,
+        // Widened Spaces are context for the Ecosystem map — never counted (feature 027).
+        contextSpaceIds: sel.widenedSpaceIds,
         includeInitiatives: sel.includeInitiatives,
         forceRefresh: force,
       },
@@ -163,6 +165,13 @@ export class DashboardLoader {
     if (!decl || decl.inFlight) return;
     const loaded = snap.data.extras[key as keyof LoadedExtras] !== undefined;
     if (!force && decl.requestedFor === loadKey && loaded) return;
+    // Carried over from the previous data (`carriedExtras`: same Spaces, only the
+    // GemeenteDelers switch changed) — still valid, so no request and no strip entry.
+    // Organisations still run: their fetcher asks only for profiles not yet loaded.
+    if (!force && loaded && key !== 'organizations') {
+      decl.requestedFor = loadKey;
+      return;
+    }
 
     const fetch = this.extraFetchers[key];
     if (!fetch) return;

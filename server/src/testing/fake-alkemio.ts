@@ -12,6 +12,8 @@ export interface FakeSpace {
   displayName?: string;
   privileges?: string[];
   forbidden?: boolean;
+  isContentPublic?: boolean;
+  visibility?: 'ACTIVE' | 'ARCHIVED' | 'DEMO' | 'INACTIVE';
   classifications?: Array<{
     id: string;
     displayLabel: string;
@@ -43,7 +45,9 @@ export class FakeAlkemio {
       id: space.id,
       nameID: space.nameID,
       level: space.level ?? 'L0',
+      visibility: space.visibility ?? 'ACTIVE',
       about: {
+        isContentPublic: space.isContentPublic ?? true,
         authorization: { myPrivileges: space.privileges ?? [] },
         profile: { displayName: space.displayName ?? space.nameID, url: `https://alkem.io/${space.nameID}` },
         classifications: (space.classifications ?? []).map((c, i) => ({ ...c, sortOrder: i })),

@@ -31,14 +31,64 @@ const space = (nameId, displayName, over = {}) => ({
   readable: true,
   found: true,
   classificationStatus: { set: 2, designated: 4 },
+  visibility: { contentPublic: true, status: 'ACTIVE' },
+  classifications: [
+    { key: 'nds', present: true, values: ['Data'] },
+    { key: 'vng2030', present: true, values: [] },
+    { key: 'phase', present: true, values: ['Idee'] },
+    { key: 'trl', present: false, values: [] },
+  ],
   ...over,
 });
 
+const DESIGNATIONS = [
+  { key: 'nds', label: 'NDS-prioriteit' },
+  { key: 'vng2030', label: 'VNG 2030 thema' },
+  { key: 'phase', label: 'Fase' },
+  { key: 'trl', label: 'TRL' },
+];
+
+const ACCESS = {
+  viewers: [PG],
+  admins: [PG],
+  me: { displayName: 'Mia Manager', viewer: true, manager: true },
+  editable: true,
+  source: 'config',
+  revision: 0,
+  updatedAt: null,
+  updatedByName: null,
+};
+const IM = { key: 'innovatiemonitor', displayName: 'Innovatiemonitor', url: 'https://alkem.io/innovatiemonitor', exists: 'yes' };
+/** One change of each kind, newest first — the ONE audit log. */
+const HISTORY = {
+  entries: [
+    {
+      type: 'access',
+      at: '2026-11-12T09:00:00Z',
+      actorName: 'Mia Manager',
+      from: { viewers: [{ key: 'programmagroei', displayName: 'Kenniscentrum Innovatie' }], admins: [{ key: 'programmagroei', displayName: 'Kenniscentrum Innovatie' }] },
+      to: { viewers: [{ key: 'programmagroei', displayName: 'Kenniscentrum Innovatie' }, { key: 'innovatiemonitor', displayName: 'Innovatiemonitor' }], admins: [{ key: 'programmagroei', displayName: 'Kenniscentrum Innovatie' }] },
+    },
+    { type: 'classification', at: '2026-11-11T09:00:00Z', actorName: 'Sam', spaceNameId: 'signalen', entryLabel: 'Fase', from: ['Idee'], to: ['Pilot'] },
+    { type: 'spaces', revision: 3, kind: 'update', at: '2026-11-10T09:00:00Z', actorName: 'Mia Manager', added: ['signalen'], removed: [], note: null },
+  ],
+  next: null,
+  names: { signalen: 'Signalen' },
+};
 const INCLUDED = {
   revision: 3,
+  designations: DESIGNATIONS,
   spaces: [
     space('signalen', 'Signalen', { position: 0 }),
-    space('geheim', null, { position: 1, displayName: null, url: null, readable: false, classificationStatus: null }),
+    space('geheim', null, {
+      position: 1,
+      displayName: null,
+      url: null,
+      readable: false,
+      classificationStatus: null,
+      visibility: null,
+      classifications: null,
+    }),
   ],
   lastChange: { revision: 3, kind: 'update', at: '2026-11-10T09:00:00Z', actorName: 'Mia Manager', added: ['signalen'], removed: [], note: null },
 };
@@ -71,7 +121,10 @@ const GD = {
   total: 5,
   viaSubspaces: 3,
   viaPosts: 2,
-  initiatives: [],
+  initiatives: [
+    { nameId: 'gd-sub', displayName: 'Slim parkeren', source: 'subspace', url: 'https://alkem.io/gemeentedelers/challenges/gd-sub', nds: ['Data'], vng2030: ['Wonen'] },
+    { nameId: 'gd-post', displayName: 'Oud bericht', source: 'post', url: null, nds: ['Data'], vng2030: ['Bestaanszekerheid'] },
+  ],
   superseded: [],
   ambiguous: [],
   readAt: '2026-11-14T08:00:00Z',
@@ -118,10 +171,9 @@ async function boot(page, { level, path = '/', admin = {}, scope }) {
     const handler = admin[key];
     if (handler) return handler(route, req);
     const defaults = {
-      'GET /access': () => json(route, { viewers: [PG], admins: [PG], me: { displayName: 'Mia Manager', viewer: true, manager: true } }),
+      'GET /access': () => json(route, ACCESS),
       'GET /included-spaces': () => json(route, INCLUDED),
-      'GET /included-spaces/history': () => json(route, { changes: [INCLUDED.lastChange], next: null }),
-      'GET /initiatives': () => json(route, { initiatives: [{ nameId: 'signalen', displayName: 'Signalen', kind: 'included' }] }),
+      'GET /history': () => json(route, HISTORY),
       'GET /initiatives/signalen/classifications': () => json(route, CLASSIFICATIONS(true)),
       'GET /gd-source': () => json(route, GD),
     };
@@ -148,7 +200,9 @@ test('a viewer has no Space selection at all, and sees where their access comes 
   await expect(page.getByRole('combobox', { name: /hub/i })).toHaveCount(0);
   await expect(page.getByTestId('gd-switch')).toBeVisible();
   await expect(page.getByTestId('auth-access-via')).toContainText('Kenniscentrum Innovatie');
-  await expect(page.getByTestId('auth-access-via')).toContainText(/leden van|Members of/);
+  await expect(page.getByTestId('auth-access-via')).toContainText(/als lid van|as a member of/);
+  await expect(page.getByTestId('auth-access-via').getByRole('link', { name: 'Kenniscentrum Innovatie' })).toHaveAttribute('href', PG.url);
+  await expect(page.getByTestId('prototype-notice').getByRole('link')).toHaveAttribute('href', 'https://alkem.io/innovatiemonitor');
   await page.getByRole('button', { name: /Gebruikersmenu|User menu/ }).click();
   const box = page.getByTestId('user-access');
   await expect(box).toContainText(/Gebruiker|User/);
@@ -164,23 +218,85 @@ test('the GemeenteDelers switch in the header reloads the data with the historic
   await expect(page.getByRole('tablist')).toBeVisible({ timeout: 20_000 });
   await expect.poll(() => bodies.length).toBeGreaterThan(0);
   expect(bodies.at(-1).includeInitiatives).toBe(false);
+  await expect(page.getByTestId('gd-switch')).toHaveAttribute('aria-checked', 'false');
+  await expect(page.getByTestId('load-strip')).toHaveCount(0, { timeout: 20_000 });
+  // The notice's "member of …" line arrives with the access report and can add a line;
+  // let the page settle before measuring, so only the switch is under test.
+  await expect(page.getByTestId('auth-access-via')).toBeVisible();
+
+  // Nothing on the page moves when the switch is used: not the controls row, not the
+  // tabs, not the content (the load strip floats; the chip keeps its width).
+  const layout = () =>
+    page.evaluate(() =>
+      ['gd-switch', 'gd-info', 'header-refresh'].map((id) => {
+        const r = document.querySelector(`[data-testid="${id}"]`).getBoundingClientRect();
+        return [id, Math.round(r.x), Math.round(r.y), Math.round(r.width)];
+      }).concat(
+        [document.querySelector('[role="tablist"]'), document.querySelector('main')].map((el) => {
+          const r = el.getBoundingClientRect();
+          return [el.tagName, Math.round(r.x), Math.round(r.y), Math.round(r.width)];
+        }),
+      ),
+    );
+  // The knob stays inside its track in both states.
+  const knobInside = () =>
+    page.evaluate(() => {
+      const t = document.querySelector('[data-testid="gd-track"]').getBoundingClientRect();
+      const k = document.querySelector('[data-testid="gd-knob"]').getBoundingClientRect();
+      return k.left >= t.left && k.right <= t.right && k.top >= t.top && k.bottom <= t.bottom;
+    });
+  expect(await knobInside()).toBe(true);
+  const before = await layout();
+
   await page.getByTestId('gd-switch').click();
+  expect(await layout()).toEqual(before); // while loading
   await expect.poll(() => bodies.at(-1)?.includeInitiatives).toBe(true);
+  await expect(page.getByTestId('gd-switch')).toHaveAttribute('aria-checked', 'true');
+  await expect(page.getByTestId('load-strip')).toHaveCount(0, { timeout: 20_000 });
+  await page.waitForTimeout(300); // the knob's slide
+  expect(await layout()).toEqual(before); // and after
+  expect(await knobInside()).toBe(true);
+  // What GemeenteDelers is lives beside the switch, not on a tab.
+  await page.getByTestId('gd-info').click();
+  await expect(page.getByTestId('gd-panel')).toContainText('vng.nl/praktijkvoorbeelden');
+  const box = await page.getByTestId('gd-panel').boundingBox();
+  const vw = page.viewportSize().width;
+  expect(box.x).toBeGreaterThanOrEqual(0);
+  expect(box.x + box.width).toBeLessThanOrEqual(vw);
 });
 
 test('a manager reaches every section from the header and can go back', async ({ page }) => {
   await boot(page, { level: 'manage' });
   await page.getByTestId('admin-entry').click();
   await expect(page).toHaveURL(/\/admin$/);
-  for (const id of ['access', 'included', 'classifications', 'gd']) {
+  // Four tabs — Spaces in the monitor, GemeenteDelers, Access, and the change log last.
+  await expect(page.getByTestId('admin-section-included')).toBeVisible({ timeout: 15_000 });
+  await expect(page.getByTestId('admin-section-audit')).toHaveCount(0); // only on its own tab
+  for (const id of ['gd', 'audit', 'access']) {
+    await page.getByTestId(`admin-tab-${id}`).click();
+    await expect(page.getByTestId(`admin-tab-${id}`)).toHaveAttribute('aria-selected', 'true');
     await expect(page.getByTestId(`admin-section-${id}`)).toBeVisible({ timeout: 15_000 });
   }
+  await expect(page.getByRole('tab')).toHaveText([/Spaces/, /GemeenteDelers/, /Toegang|Access/, /Wijzigingslog|Change log/]);
+  await expect(page).toHaveURL(/\/admin#access$/);
+  // The same header as the dashboard, with the user menu, naming the settings area.
+  await expect(page.getByTestId('header-area')).toBeVisible();
+  await expect(page.getByRole('button', { name: /Gebruikersmenu|User menu/ })).toBeVisible();
+  await expect(page.getByTestId('admin-me')).toContainText('Mia Manager');
   await expect(page.getByTestId('admin-viewer-spaces')).toContainText('Kenniscentrum Innovatie');
+  await page.getByTestId('admin-tab-included').click();
+  // The table shows the actual values and the visibility on Alkemio.
+  const first = page.getByTestId('included-row').first();
+  await expect(first).toContainText('Data');
+  await expect(first).toContainText('Idee');
+  await expect(first.getByTestId('included-visibility')).toContainText(/Openbaar|Public/);
+  await expect(page.getByTestId('included-designations')).toContainText('NDS-prioriteit');
   await expect(page.getByTestId('included-row')).toHaveCount(2);
   await expect(page.getByTestId('included-unreadable')).toBeVisible();
-  await expect(page.getByTestId('included-last-change')).toContainText('Mia Manager');
+  // Who changed it and when lives in the change log, not here.
+  await expect(page.getByTestId('included-count')).toHaveText(/^2 Spaces$/);
 
-  await page.getByTestId('admin-back').first().click();
+  await page.getByTestId('admin-back').click();
   await expect(page.getByRole('tablist')).toBeVisible({ timeout: 20_000 });
 });
 
@@ -191,8 +307,9 @@ test('one failing section does not take down the others, and can be retried', as
     path: '/admin',
     admin: { 'GET /gd-source': (route) => (fail ? json(route, { error: 'X' }, 502) : json(route, GD)) },
   });
-  await expect(page.getByTestId('admin-section-gd-error')).toBeVisible({ timeout: 15_000 });
   await expect(page.getByTestId('included-row')).toHaveCount(2);
+  await page.getByTestId('admin-tab-gd').click();
+  await expect(page.getByTestId('admin-section-gd-error')).toBeVisible({ timeout: 15_000 });
   fail = false;
   await page.getByTestId('admin-section-gd').getByRole('button').click();
   await expect(page.getByTestId('gd-total')).toHaveText('5');
@@ -215,7 +332,7 @@ test('editing the Included Spaces shows the pending change before saving, then s
     },
   });
   await page.getByTestId('included-edit').click();
-  await page.getByLabel(/Find a Space by name|Zoek een Space op naam/).fill('open');
+  await page.getByLabel(/^(Add a Space|Space toevoegen)$/).fill('open');
   await page.getByRole('button', { name: /Add OpenStad|OpenStad toevoegen/ }).click();
   await page.getByRole('button', { name: /Remove geheim|geheim verwijderen/ }).click();
   const pending = page.getByTestId('included-pending');
@@ -262,8 +379,8 @@ test('a pasted link to a Space the manager cannot see is refused with the reason
     admin: { 'GET /space-resolve': (route) => json(route, { error: 'NOT_READABLE' }, 404) },
   });
   await page.getByTestId('included-edit').click();
-  await page.getByLabel(/Or paste a Space link|Of plak een link/).fill('https://alkem.io/geheim2');
-  await page.getByTestId('included-editor').getByRole('button', { name: /^(Add|Toevoegen)$/ }).last().click();
+  await page.getByLabel(/^(Add a Space|Space toevoegen)$/).fill('https://alkem.io/geheim2');
+  await page.getByTestId('included-add-link').click();
   await expect(page.getByTestId('included-link-error')).toContainText(/only add Spaces you can see|alleen Spaces toevoegen/);
 });
 
@@ -284,29 +401,43 @@ test('classifications: an editable initiative saves; a read-only one shows why',
         }),
     },
   });
-  await page.getByTestId('classification-picker-list').getByRole('button', { name: /Signalen/ }).click();
+  await page.getByRole('button', { name: /Classificaties van Signalen bewerken|Edit the classifications of Signalen/ }).click();
   const phase = page.getByTestId('classification-phase');
   await expect(phase).toBeVisible();
-  await expect(page.getByTestId('classification-trl')).toContainText(/Not set|Niet ingesteld/);
-  await phase.getByLabel('Pilot').check();
+  await expect(page.getByTestId('classification-trl')).toContainText(/does not have|heeft deze classificatie niet/);
+  await phase.getByRole('combobox').selectOption({ label: 'Pilot' });
   await page.getByTestId('classification-save').click();
   await expect(page.getByTestId('classification-phase-result')).toContainText(/Saved|Opgeslagen/);
   const put = calls.find((c) => c.key === 'PUT /initiatives/signalen/classifications');
   expect(put.body).toEqual({ changes: [{ entryId: 'fase', expectedSelectedValueIds: ['f1'], selectedValueIds: ['f2'] }] });
 
+  // The table row now shows the saved value.
+  await page.keyboard.press('Escape');
+  await expect(page.getByTestId('classification-editor')).toHaveCount(0);
+  await expect(page.getByTestId('included-row').first()).toContainText('Pilot');
+
   editable = false;
   await page.reload({ waitUntil: 'domcontentloaded' });
-  await page.getByTestId('classification-picker-list').getByRole('button', { name: /Signalen/ }).click();
+  await page.getByRole('button', { name: /Classificaties van Signalen bewerken|Edit the classifications of Signalen/ }).click();
   await expect(page.getByTestId('classification-readonly')).toContainText(/may not change|niet wijzigen/);
   await expect(page.getByTestId('classification-save')).toHaveCount(0);
 });
 
 test('the GemeenteDelers section shows the counts and when the data was read', async ({ page }) => {
-  await boot(page, { level: 'manage', path: '/admin' });
+  await boot(page, { level: 'manage', path: '/admin#gd' });
   await expect(page.getByTestId('gd-total')).toHaveText('5');
   await expect(page.getByTestId('gd-subspaces')).toHaveText('3');
   await expect(page.getByTestId('gd-posts')).toHaveText('2');
   await expect(page.getByTestId('gd-migration-complete')).toHaveCount(0);
+  // Its own initiatives, apart from the Groei ones: a subspace can be edited, a post not.
+  const rows = page.getByTestId('gd-row');
+  await expect(rows).toHaveCount(2);
+  await expect(rows.filter({ hasText: 'Slim parkeren' }).getByRole('button')).toBeVisible();
+  await expect(rows.filter({ hasText: 'Oud bericht' }).getByRole('button')).toHaveCount(0);
+  // A post shows the values read from its tags (as the dashboard places it) — just not editable.
+  await expect(rows.filter({ hasText: 'Oud bericht' })).toContainText('Data');
+  await expect(rows.filter({ hasText: 'Oud bericht' })).toContainText('Bestaanszekerheid');
+  await expect(page.getByTestId('admin-section-included')).toHaveCount(0); // its own tab
 });
 
 test('a failed scope load says so and can be retried — it never asks the viewer to "select"', async ({ page }) => {
@@ -343,6 +474,18 @@ test('"In deze monitor" lists the monitor’s Spaces and flags one missing from 
   await expect(page.getByTestId('scope-access')).toContainText('Kenniscentrum Innovatie');
   await page.keyboard.press('Escape');
   await expect(panel).toHaveCount(0);
+
+  // Beside the list, an ⓘ says what the Groei initiatives are — like the GemeenteDelers one.
+  await page.getByTestId('scope-info').click();
+  const info = page.getByTestId('scope-info-panel');
+  await expect(info).toContainText(/Groei/);
+  await expect(info).toContainText(/1 van deze Spaces|1 of these Spaces/);
+  await expect(info.getByRole('link')).toHaveAttribute('href', 'https://alkem.io/innovatiemonitor');
+  const box = await info.boundingBox();
+  expect(box.x).toBeGreaterThanOrEqual(0);
+  expect(box.x + box.width).toBeLessThanOrEqual(page.viewportSize().width);
+  await page.keyboard.press('Escape');
+  await expect(info).toHaveCount(0);
 });
 
 test('a manager returns from the settings to the same tab, without reloading the data', async ({ page }) => {
@@ -356,12 +499,81 @@ test('a manager returns from the settings to the same tab, without reloading the
   const before = loads;
 
   await page.getByTestId('admin-entry').click();
-  await expect(page.getByTestId('admin-section-access')).toBeVisible({ timeout: 15_000 });
-  await page.getByTestId('admin-back').first().click();
+  await expect(page.getByTestId('admin-section-included')).toBeVisible({ timeout: 15_000 });
+  await page.getByTestId('admin-back').click();
 
   await expect(page).toHaveURL(/\/$/);
   await expect(page.getByRole('tab', { name: 'Gemeenten', exact: true })).toHaveAttribute('aria-selected', 'true');
   expect(loads).toBe(before);
   // Back went back in history: one more Back leaves the dashboard rather than reopening admin.
   expect(await page.evaluate(() => window.history.state?.fromDashboard ?? false)).toBe(false);
+});
+
+test('the change log is ONE list of every kind of edit, on its own tab', async ({ page }) => {
+  await boot(page, { level: 'manage', path: '/admin#audit' });
+  const log = page.getByTestId('audit-log');
+  await expect(log.getByTestId('audit-entry')).toHaveCount(3, { timeout: 15_000 });
+  await expect(log.getByTestId('audit-entry').nth(0)).toHaveAttribute('data-type', 'access');
+  await expect(log.getByTestId('audit-entry').nth(0)).toContainText('Innovatiemonitor');
+  await expect(log.getByTestId('audit-entry').nth(1)).toContainText(/Sam .*Fase.*Signalen/);
+  await expect(log.getByTestId('audit-entry').nth(1)).toContainText('Idee → Pilot');
+  await expect(log.getByTestId('audit-entry').nth(2)).toContainText('Signalen');
+  // Not repeated inside a section.
+  await expect(page.getByTestId('included-history')).toHaveCount(0);
+});
+
+test('access: a manager changes who may view and manage; a lockout is refused with the reason', async ({ page }) => {
+  let refuse = false;
+  const calls = await boot(page, {
+    level: 'manage',
+    path: '/admin#access',
+    admin: {
+      'GET /space-search': (route) => json(route, { results: [{ nameId: 'innovatiemonitor', displayName: 'Innovatiemonitor', url: IM.url, included: false }] }),
+      'PUT /access': (route, req) =>
+        refuse
+          ? json(route, { error: 'WOULD_LOCK_OUT' }, 409)
+          : json(route, {
+              ...ACCESS,
+              viewers: [PG, IM],
+              source: 'settings',
+              revision: 1,
+              updatedAt: '2026-11-24T10:00:00Z',
+              updatedByName: 'Mia Manager',
+            }),
+    },
+  });
+  await expect(page.getByTestId('admin-section-access')).toBeVisible({ timeout: 15_000 });
+  await expect(page.getByTestId('access-source')).toContainText(/configuratie|configuration/);
+  await page.getByTestId('access-edit').click();
+  const viewers = page.getByTestId('access-edit-viewers');
+  await viewers.getByRole('textbox').fill('innovatie');
+  await viewers.getByRole('button', { name: /Innovatiemonitor/ }).click();
+  await expect(viewers).toContainText('Innovatiemonitor');
+
+  // Removing every admin Space is caught before saving.
+  const admins = page.getByTestId('access-edit-admins');
+  await admins.getByRole('button', { name: /Kenniscentrum Innovatie (verwijderen)|Remove Kenniscentrum Innovatie/ }).click();
+  await expect(page.getByTestId('access-save')).toBeDisabled();
+  await admins.getByRole('textbox').fill('https://alkem.io/programmagroei');
+  await admins.getByRole('button', { name: /Toevoegen|^Add$/ }).click();
+
+  // The server refuses a lockout: the reason is shown, nothing changes.
+  refuse = true;
+  await page.getByTestId('access-save').click();
+  await expect(page.getByTestId('access-error')).toContainText(/zelf niet meer kunnen beheren|no longer be able to manage/);
+  refuse = false;
+  await page.getByTestId('access-save').click();
+  await expect(page.getByTestId('access-editor')).toHaveCount(0);
+  const put = calls.filter((c) => c.key === 'PUT /access').at(-1);
+  expect(put.body).toEqual({
+    baseRevision: 0,
+    viewers: ['programmagroei', 'innovatiemonitor'],
+    admins: ['https://alkem.io/programmagroei'],
+  });
+  await expect(page.getByTestId('admin-viewer-spaces')).toContainText('Innovatiemonitor');
+  await expect(page.getByTestId('access-source')).toContainText(/Wijzigingslog|change log/);
+  // Who did it, and when, is in the change log.
+  await page.getByTestId('admin-tab-audit').click();
+  await expect(page.getByTestId('audit-entry').first()).toHaveAttribute('data-type', 'access');
+  expect(calls.some((c) => c.key === 'GET /history')).toBe(true);
 });

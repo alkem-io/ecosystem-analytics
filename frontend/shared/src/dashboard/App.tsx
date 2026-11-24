@@ -24,6 +24,7 @@ import { SelectionProvider, useSelectionContext } from './hooks/SelectionContext
 import { DashboardDataProvider } from './data/DashboardDataProvider.js';
 import { useLoadedData } from './data/hooks.js';
 import { AccessReportContext } from './hooks/AccessLevelContext.js';
+import { HeaderDataControls } from './components/HeaderDataControls.js';
 import { isAdminPath, usePathname } from '../admin/navigation.js';
 
 // Feature 027: the admin area is its own chunk — viewers never download it.
@@ -231,17 +232,29 @@ function AppShell() {
 
         {/* Right-hand area: the tab bar sits over the content, not the selection panel. */}
         <div className="flex min-h-0 min-w-0 flex-1 flex-col">
-          <TabBar
-            tabs={TABS}
-            active={active}
-            onSelect={(tab) => {
-              setActive(tab);
-              setNavOpen(false);
-            }}
-          />
+          {/* Feature 027: on a managed-scope dashboard (VNG) the data controls — what the
+              monitor covers, GemeenteDelers, refresh — have their own row above the tabs,
+              so the header can be the same on every screen (settings included) and the
+              tabs keep the full width. */}
+          {cfg.flags?.managedScope && (
+            <HeaderDataControls className="border-b border-border px-3 py-2 sm:px-6" />
+          )}
+          <div className="min-w-0 border-b border-border">
+            <TabBar
+              tabs={TABS}
+              active={active}
+              onSelect={(tab) => {
+                setActive(tab);
+                setNavOpen(false);
+              }}
+            />
+          </div>
 
           {/* Feature 025: the one progress strip, outside the tab switch so it is the
-              same on every tab and never restarts when the viewer moves (FR-007/009). */}
+              same on every tab and never restarts when the viewer moves (FR-007/009).
+              It floats over the bottom of the content rather than taking a row, so a
+              reload (GemeenteDelers switch, refresh) never shifts the page. */}
+          <div className="relative flex min-h-0 min-w-0 flex-1 flex-col">
           <LoadStrip />
 
           <main className="min-h-0 min-w-0 flex-1">
@@ -277,6 +290,7 @@ function AppShell() {
             </ErrorBoundary>
             )}
           </main>
+          </div>
         </div>
       </div>
     </div>
@@ -367,7 +381,7 @@ function TabBar<T extends string>({
 
   return (
     <nav
-      className="relative border-b border-border"
+      className="relative min-w-0 flex-1"
       role="tablist"
       aria-label={t('tabs.label')}
     >
@@ -541,9 +555,11 @@ function AccessGate({ me }: { me: MeResponse }) {
       )}
       {onAdmin && (
         <div className="relative z-10">
-          <Suspense fallback={<LoadingScreen message={t('states.connecting')} />}>
-            <AdminApp canManage={access?.level === 'manage'} />
-          </Suspense>
+          <AccessReportContext.Provider value={access ?? null}>
+            <Suspense fallback={<LoadingScreen message={t('states.connecting')} />}>
+              <AdminApp canManage={access?.level === 'manage'} />
+            </Suspense>
+          </AccessReportContext.Provider>
         </div>
       )}
     </>

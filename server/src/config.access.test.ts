@@ -121,7 +121,7 @@ describe('access defaults in analytics.yml (the production policy)', () => {
     }
   });
 
-  it('gates only the VNG dashboard: viewers and admins by the Programmagroei Space', async () => {
+  it('gates only the VNG dashboard: viewers and admins by Programmagroei and the Innovatiemonitor Space', async () => {
     for (const k of keys) {
       saved[k] = process.env[k];
       delete process.env[k];
@@ -132,8 +132,10 @@ describe('access defaults in analytics.yml (the production policy)', () => {
     expect(apps.explorer.sets).toBeNull();
     expect(apps.govtech.sets).toBeNull();
     expect(apps.explorer.sets?.admins ?? []).toEqual([]);
-    expect(apps.vng.sets?.viewers).toEqual([PG]);
-    expect(apps.vng.sets?.admins).toEqual([PG]);
-    expect(apps.vng.displayNames).toEqual(['Kenniscentrum Innovatie']);
+    // The Innovatiemonitor Space is the one the monitor's prototype notice links to.
+    const IM = { path: ['innovatiemonitor'], key: 'innovatiemonitor' };
+    expect(apps.vng.sets?.viewers).toEqual([PG, IM]);
+    expect(apps.vng.sets?.admins).toEqual([PG, IM]);
+    expect(apps.vng.displayNames).toEqual(['Kenniscentrum Innovatie', 'Innovatiemonitor']);
   });
 });

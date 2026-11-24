@@ -177,6 +177,43 @@ test('the NDS and VNG-2030 filters narrow the funnel to one classification', asy
   expect(await countsNow()).toEqual(before);
 });
 
+test('the dots can be coloured by NDS or VNG 2030, with a legend that highlights one value', async ({ page }) => {
+  await boot(page);
+  const colours = () =>
+    page.evaluate(() => [...document.querySelectorAll('[data-funnel-dot]')].map((c) => c.getAttribute('data-funnel-colors')));
+  const bySource = await colours();
+  expect(bySource.length).toBeGreaterThan(0);
+  await expect(page.getByTestId('funnel-category-legend')).toHaveCount(0);
+
+  const colorBy = page.getByTestId('funnel-color-by');
+  await expect(colorBy).toHaveValue('source');
+  await colorBy.selectOption('nds');
+  const legend = page.getByTestId('funnel-category-legend');
+  await expect(legend).toBeVisible();
+  const items = legend.getByTestId('funnel-legend-item');
+  expect(await items.count()).toBeGreaterThan(0);
+  // Every dot now wears category colours (or the "other"/"none" greys), not the source hues.
+  const byNds = await colours();
+  expect(byNds).toHaveLength(bySource.length);
+  expect(byNds.every((c) => /var\(--cat-/.test(c))).toBe(true);
+  // The legend counts add up to at least one per dot (a dot with two values counts twice).
+  const counts = await items.evaluateAll((els) => els.map((e) => Number(e.lastElementChild.textContent)));
+  expect(counts.reduce((a, b) => a + b, 0)).toBeGreaterThanOrEqual(byNds.length);
+
+  // Clicking a value highlights it: its dots stay, the others fade.
+  await items.first().click();
+  await expect(items.first()).toHaveAttribute('aria-pressed', 'true');
+  const opacities = await page.evaluate(() =>
+    [...document.querySelectorAll('[data-funnel-dot]')].map((c) => Number(c.getAttribute('fill-opacity'))),
+  );
+  expect(opacities.some((o) => o > 0.5)).toBe(true);
+  await items.first().click();
+  await expect(items.first()).toHaveAttribute('aria-pressed', 'false');
+
+  await colorBy.selectOption('source');
+  expect(await colours()).toEqual(bySource);
+});
+
 test('one dot per initiative, and the unphased one is held outside the funnel', async ({ page }) => {
   await boot(page);
 

@@ -1,8 +1,9 @@
 # `settings/` — the monitor's own durable settings (feature 027)
 
 The VNG monitor's configuration that is **not** read from Alkemio: which Spaces it reports on
-(the Included Spaces), the ecosystem key the Ecosystem tab uses, and the change history of both
-the Included Spaces and the classifications managers edit through the admin area.
+(the Included Spaces), the ecosystem key the Ecosystem tab uses, **who may view and manage it**
+once a manager sets that in the admin area, and the change history of all of it — shown as ONE
+audit log (`auditLog`, `GET /api/vng/admin/history`).
 
 It is **global configuration, not a cache**. It holds Space nameIDs/UUIDs, the ecosystem key and
 change records (actor id and display name). It never holds tokens, session ids or Alkemio
@@ -21,6 +22,9 @@ own tables, beside the cache and the sessions:
 | `included_spaces` | the Included Spaces in order (nameID, UUID once known) |
 | `settings_changes` | append-only: seed / update / rename |
 | `classification_changes` | append-only: classification edits made through the admin area |
+| `access_state` | per app: revision and last update of the access sets saved in the admin area (schema v2) |
+| `access_sets` | per app: the viewer and admin Spaces in order (gate key + name when saved). No row = the deployment configuration applies |
+| `access_changes` | append-only: access-set edits (from → to, with names) |
 
 **Never touched by cache operations.** Cache clears, force-refresh, `purgeExpired` and every
 `CACHE_MAINTENANCE_VERSION` step only delete from `cache_entries` (`isolation.test.ts`).
@@ -32,7 +36,8 @@ Losing the whole file loses the settings too — that is what the daily backup i
 |---|---|
 | `db.ts` | creates/upgrades the tables via `settings_meta` (`initSettingsStore`) |
 | `seed.ts` | loads and validates the starting set; seeds empty tables once |
-| `store.ts` | `getScope`, `getIncludedSpaces`, `saveIncludedSpaces` (revision check), `history`, `setSpaceId`, `recordRename`, `recordClassificationChange` |
+| `store.ts` | `getScope`, `getIncludedSpaces`, `saveIncludedSpaces` (revision check), `history`, `auditLog` (all three change tables merged, newest first, keyset cursor), `setSpaceId`, `recordRename`, `recordClassificationChange` |
+| `access-store.ts` | `getStoredAccess`, `saveAccess` (revision check, records the change) — read through `access/effective-sets.ts` |
 | `backup.ts` | daily settings-only backup with retention; `restoreSettingsFrom` |
 
 Starting set: `src/data/vng/monitor-settings.seed.json` (copied to `dist/data/` by the build).

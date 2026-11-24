@@ -3,6 +3,7 @@ import { isAlkemioAuthError } from '../graphql/client.js';
 import { parseGateRef } from '../access/policy.js';
 import { loadConfig } from '../config.js';
 import { getScope } from '../settings/store.js';
+import { listUserSpacesCached } from '../services/space-service.js';
 import type { IncludedSpaceProblem, SpaceCandidate } from '../types/admin.js';
 import { adminSdkFor, lookupSpaceByName, mapLimit, type AdminSdk } from './space-lookup.js';
 
@@ -28,10 +29,51 @@ export async function searchSpaces(auth: AuthContext, q: string, sdk?: AdminSdk)
   if (text.length < 2) throw new AdminRequestError(422, 'QUERY_TOO_SHORT');
   const terms = text.split(/\s+/).filter(Boolean).slice(0, 5);
   const client = sdk ?? (await adminSdkFor(auth));
-  const res = await client.AdminSpaceSearch({ terms });
+  // Alkemio's search matches WHOLE words in names and descriptions (verified: "build"
+  // finds Spaces, "buil" finds none; no wildcards) and never a Space's short name. So:
+  //  1. one word that could be a nameID is also looked up directly — an exact hit first;
+  //  2. the manager's own Spaces are matched on any PART of their name or nameID, so
+  //     typing gives results before a whole word is complete;
+  //  3. then Alkemio's word search, for every other Space they can see.
+  const asNameId = terms.length === 1 && /^[a-z0-9][a-z0-9-]+$/i.test(text) ? text.toLowerCase() : null;
+  const needle = text.toLowerCase();
+  const [res, direct, own] = await Promise.all([
+    client.AdminSpaceSearch({ terms }),
+    asNameId
+      ? lookupSpaceByName(client, asNameId).catch((err: unknown) => {
+          if (isAlkemioAuthError(err)) throw err;
+          return null;
+        })
+      : Promise.resolve(null),
+    listUserSpacesCached(auth.userId, auth).catch((err: unknown) => {
+      if (isAlkemioAuthError(err)) throw err;
+      return [];
+    }),
+  ]);
+  const base = loadConfig().alkemioServerUrl.replace(/\/+$/, '');
   const included = includedSet();
   const seen = new Set<string>();
   const out: SpaceCandidate[] = [];
+  if (direct?.status === 'ok' && direct.space.level === 'L0') {
+    seen.add(direct.space.nameId);
+    out.push({
+      nameId: direct.space.nameId,
+      displayName: direct.space.displayName,
+      url: direct.space.url ?? '',
+      included: included.has(direct.space.nameId),
+    });
+  }
+  for (const space of own) {
+    if (seen.has(space.nameId)) continue;
+    if (!space.displayName.toLowerCase().includes(needle) && !space.nameId.toLowerCase().includes(needle)) continue;
+    seen.add(space.nameId);
+    out.push({
+      nameId: space.nameId,
+      displayName: space.displayName,
+      url: `${base}/${space.nameId}`,
+      included: included.has(space.nameId),
+    });
+  }
   for (const result of res.data.search.spaceResults.results) {
     const space = (result as { space?: { nameID: string; level: string; about?: { profile?: { displayName?: string; url?: string } } } }).space;
     if (!space || space.level !== 'L0' || seen.has(space.nameID)) continue;

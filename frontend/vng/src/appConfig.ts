@@ -24,4 +24,6 @@ export const appConfig: AppConfig = {
   ecosystem: true,
   // Feature 027 — the monitor's own Spaces (no hub picker) and the /admin area.
   flags: { managedScope: true },
+  // The monitor is a prototype for wider feedback; more information on this Space.
+  prototypeInfoUrl: 'https://alkem.io/innovatiemonitor',
 };

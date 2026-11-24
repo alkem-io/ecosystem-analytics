@@ -1,6 +1,7 @@
 # Feature 027 — one Space as the admin area shows it: name, link, level, the manager's own
 # privileges on its About (UPDATE ⇒ may edit classifications, research R12) and its
-# classification entries with their vocabularies. Run with the MANAGER's token, so a
+# classification entries with their vocabularies, and how visible it is on Alkemio
+# (`isContentPublic`: public/private; `visibility`: active/archived/demo). Run with the MANAGER's token, so a
 # Space they cannot read comes back null or refused.
 query AdminSpaceClassifications($nameId: NameID!) {
   lookupByName {
@@ -8,7 +9,9 @@ query AdminSpaceClassifications($nameId: NameID!) {
       id
       nameID
       level
+      visibility
       about {
+        isContentPublic
         authorization {
           myPrivileges
         }
@@ -39,7 +42,9 @@ query AdminSpaceClassificationsById($id: UUID!) {
       id
       nameID
       level
+      visibility
       about {
+        isContentPublic
         authorization {
           myPrivileges
         }

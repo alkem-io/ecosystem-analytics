@@ -90,6 +90,25 @@ export function selectionLoadKey(sel: Selection): string {
   return `${sel.app}|${ids.join(',')}|${sel.includeInitiatives ? 1 : 0}`;
 }
 
+/** The Spaces part of a load key: everything but the trailing GemeenteDelers flag. */
+function spacesPart(loadKey: string): string {
+  return loadKey.slice(0, loadKey.lastIndexOf('|'));
+}
+
+/**
+ * Which already-loaded extras stay valid for the data landing under `nextKey`, so a view
+ * that shows them (the Initiatives activity column, the Usage map) does not drop back to
+ * its loading state and jump. The gemeente locations never depend on the selection.
+ * Activity and organisation profiles depend on the Spaces only, so they survive a
+ * GemeenteDelers on/off switch; the loader still fetches any profile still missing.
+ */
+export function carriedExtras(prev: LoadedData | null, nextKey: string): LoadedExtras {
+  if (!prev) return {};
+  if (spacesPart(prev.loadKey) === spacesPart(nextKey)) return { ...prev.extras };
+  const locations = prev.extras['gemeente-locations'];
+  return locations ? { 'gemeente-locations': locations } : {};
+}
+
 function finalise(plan: LoadPlan): LoadPlan {
   const active = plan.items.some((i) => i.stage !== 'done' && i.stage !== 'failed');
   const core = plan.items.find((i) => i.key === 'spaces');
@@ -196,7 +215,12 @@ export class DashboardStore {
         : i,
     );
     this.set({
-      data: { loadKey, dataset: result.dataset, dashboard: result.dashboard, extras: {} },
+      data: {
+        loadKey,
+        dataset: result.dataset,
+        dashboard: result.dashboard,
+        extras: carriedExtras(this.state.data, loadKey),
+      },
       plan: finalise({ ...this.state.plan, items }),
     });
   }

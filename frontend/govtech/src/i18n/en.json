@@ -12,7 +12,11 @@
     "environment": "Environment",
     "envDetecting": "detecting…",
     "envUnknown": "not reported by server",
-    "disclaimer": "Prototype for exploration"
+    "disclaimer": "Prototype for exploration",
+    "errorCancelled": "Your sign-in was cancelled before it completed. You can try again below.",
+    "errorExpired": "That sign-in request is no longer valid — it took too long, or it was already completed in another tab. Please sign in again.",
+    "errorFailed": "We couldn't complete sign-in with Alkemio. This is usually a temporary problem with the sign-in service rather than your account. Please try again — if it keeps happening, contact your Alkemio administrator.",
+    "poweredBy": "Powered by"
   },
   "access": {
     "noAccessTitle": "You do not have access",
@@ -205,7 +209,9 @@
     "unclassifiedCount": "{{count}} not yet classified",
     "classificationsHeading": "Classifications",
     "driftUnexpected": "Unexpected in Alkemio and not reviewed for this dashboard: {{labels}}. They are still shown and still counted.",
-    "driftMissing": "Expected by this dashboard but no longer in Alkemio: {{labels}}. Possibly renamed."
+    "driftMissing": "Expected by this dashboard but no longer in Alkemio: {{labels}}. Possibly renamed.",
+    "ndsAxis": "NDS",
+    "vng2030Axis": "VNG 2030"
   },
   "categories": {
     "phase": {
@@ -214,8 +220,12 @@
   },
   "warning": {
     "authTitle": "Please note",
-    "authBody": "You only see data you are authorised to access. Seeing limited data? Check your authorisation on the underlying spaces.",
-    "accessVia": "Members of {{spaces}} on Alkemio have access to this monitor."
+    "authBody": "you only see data you yourself have access to on Alkemio.",
+    "accessVia": "Members of {{spaces}} on Alkemio have access to this monitor.",
+    "accessViaPrefix": "You have access to this monitor as a member of",
+    "or": "or",
+    "expand": "Show more",
+    "collapse": "Show less"
   },
   "provenance": {
     "gd": "GemeenteDelers was a VNG programme (2021–2025) with around 305 initiatives, originally published at vng.nl/praktijkvoorbeelden."
@@ -252,7 +262,19 @@
     "offMapSpacesL1": "Subspaces (L1) with no location ({{count}})",
     "offMapSpacesL2": "Subspaces (L2) with no location ({{count}})",
     "region": "Region",
-    "regionNetherlands": "Whole Netherlands"
+    "regionNetherlands": "Whole Netherlands",
+    "metrics": {
+      "avgDegree": "Avg. connections",
+      "density": "Density",
+      "edges": "Connections",
+      "initiatives": "Initiatives",
+      "nodes": "Nodes",
+      "orgs": "Organisations",
+      "spaces": "Spaces"
+    },
+    "noParticipatingGemeentes": "No participating municipalities in the current data.",
+    "participatingGemeentes": "Participating municipalities",
+    "showMap": "Show map"
   },
   "export": {
     "downloadXlsx": "Download XLSX",
@@ -360,7 +382,13 @@
       "noPhase": "No phase yet"
     },
     "showNames": "Show names",
-    "inFunnel": "Initiatives in the funnel"
+    "inFunnel": "Initiatives in the funnel",
+    "colorBy": "Colour by",
+    "colorBySource": "Source (Groei / GemeenteDelers)",
+    "legendNone": "No classification",
+    "legendOther": "Other",
+    "legendFocusHint": "Click a value to highlight its initiatives.",
+    "legendSplit": "A dot in several colours has several values."
   },
   "table": {
     "sortBy": "Sort",

@@ -2,12 +2,21 @@ import { Router, type Request, type RequestHandler, type Response } from 'expres
 import { authMiddleware, invalidateAndReject } from '../auth/middleware.js';
 import { resolveUser } from '../auth/resolve-user.js';
 import { requireAccess } from '../access/middleware.js';
-import { adminLinks, decide, viewerLinks } from '../access/access-service.js';
-import { isAlkemioAuthError } from '../graphql/client.js';
+import { decide } from '../access/access-service.js';
+import { createAlkemioSdk, isAlkemioAuthError } from '../graphql/client.js';
+import { updateSessionDisplayName } from '../cache/session-store.js';
 import { getLogger } from '../logging/logger.js';
-import { getScope, getState, history, lastChange, saveIncludedSpaces } from '../settings/store.js';
-import type { AdminAccessView, IncludedSpacesView } from '../types/admin.js';
-import { includedSpacesView, resolveIncludedSpaceViews } from './included-spaces-service.js';
+import {
+  getScope,
+  auditLog,
+  getState,
+  lastChange,
+  repairActorName,
+  saveIncludedSpaces,
+  type Actor,
+} from '../settings/store.js';
+import type { AdminAccessView, AuditLogView, IncludedSpacesView } from '../types/admin.js';
+import { includedSpacesView, resolveIncludedSpaceViews, vngDesignations } from './included-spaces-service.js';
 import {
   AdminRequestError,
   resolveSpaceRef,
@@ -16,11 +25,13 @@ import {
 } from './space-search-service.js';
 import {
   applyClassificationChanges,
+  initiativeName,
   listInitiatives,
   readInitiativeClassifications,
   type ClassificationChangeInput,
 } from './classifications-service.js';
 import { buildGdSourceSummary } from './gd-source-service.js';
+import { accessView, saveAccessSettings } from './access-settings-service.js';
 
 /**
  * `/api/vng/admin/*` — the monitor's administration API (feature 027,
@@ -59,26 +70,55 @@ const handle =
     });
   };
 
-const actorOf = (req: Request) => ({
-  userId: req.auth!.userId,
-  displayName: req.auth!.displayName ?? req.auth!.session.displayName ?? req.auth!.userId,
-});
+/**
+ * Who is making this request, by NAME: the session holds the Alkemio display name once
+ * `/api/auth/me` has run (Hydra's ID token carries none); otherwise it is read from
+ * Alkemio here and kept on the session. Only if that fails too is the id used — and such
+ * rows are repaired to the name on the person's next visit (`repairActorName`).
+ */
+async function actorOf(req: Request): Promise<Actor> {
+  const auth = req.auth!;
+  let displayName = auth.displayName || auth.session.displayName || null;
+  if (!displayName) {
+    try {
+      const sdk = await createAlkemioSdk(auth);
+      displayName = (await sdk.me()).data.me.user?.profile?.displayName || null;
+    } catch (err) {
+      if (isAlkemioAuthError(err)) throw err;
+    }
+    if (displayName) {
+      updateSessionDisplayName(auth.session.sessionId, displayName);
+      auth.displayName = displayName;
+    }
+  }
+  if (displayName) repairActorName(auth.userId, displayName);
+  return { userId: auth.userId, displayName: displayName ?? auth.userId };
+}
 
 // §2 — who may view, who may manage, and where the manager stands.
+const meOf = async (req: Request): Promise<AdminAccessView['me']> => {
+  const level = await decide(req.auth!, 'vng');
+  return {
+    displayName: (await actorOf(req)).displayName,
+    viewer: level === 'read' || level === 'manage',
+    manager: level === 'manage',
+  };
+};
+
 adminRouter.get(
   '/access',
   handle('access', async (req, res) => {
-    const level = await decide(req.auth!, 'vng');
-    const body: AdminAccessView = {
-      viewers: viewerLinks('vng'),
-      admins: adminLinks('vng'),
-      me: {
-        displayName: actorOf(req).displayName,
-        viewer: level === 'read' || level === 'manage',
-        manager: level === 'manage',
-      },
-    };
-    res.json(body);
+    res.json(accessView(await meOf(req)));
+  }),
+);
+
+// The "Toegang" tab: replace who may view and who may manage (lockout-guarded).
+adminRouter.put(
+  '/access',
+  freshManage,
+  handle('access-save', async (req, res) => {
+    await saveAccessSettings(req.auth!, await actorOf(req), req.body);
+    res.json(accessView(await meOf(req)));
   }),
 );
 
@@ -90,12 +130,28 @@ adminRouter.get(
   }),
 );
 
+// The audit log: every edit to the monitor, in one list.
 adminRouter.get(
-  '/included-spaces/history',
+  '/history',
   handle('history', async (req, res) => {
+    await actorOf(req); // repairs this manager's own older rows that carry their id
     const limit = Number(req.query.limit) || 50;
-    const before = req.query.before !== undefined ? Number(req.query.before) : undefined;
-    res.json(history(limit, Number.isFinite(before) ? before : undefined));
+    const before = typeof req.query.before === 'string' ? req.query.before : undefined;
+    const page = auditLog(limit, before);
+    // Name the Spaces with what this manager was recently shown (their own token's view)
+    // or their own GD data; anything else stays its nameID.
+    const names: Record<string, string> = {};
+    for (const e of page.entries) {
+      // Access entries carry their own names (recorded at the time of the change).
+      const ids =
+        e.type === 'spaces' ? [...e.added, ...e.removed] : e.type === 'classification' ? [e.spaceNameId] : [];
+      for (const nameId of ids) {
+        const name = initiativeName(req.auth!.userId, nameId);
+        if (name) names[nameId] = name;
+      }
+    }
+    const body: AuditLogView = { ...page, names };
+    res.json(body);
   }),
 );
 
@@ -130,10 +186,11 @@ adminRouter.put(
     const problems = await validateIncludedSpaces(req.auth!, getScope().spaceNameIds, next);
     if (problems.length) throw new AdminRequestError(422, 'INVALID_SPACES', { problems });
 
-    const result = saveIncludedSpaces({ baseRevision, nameIds: next, actor: actorOf(req) });
+    const result = saveIncludedSpaces({ baseRevision, nameIds: next, actor: await actorOf(req) });
     if (!result.ok) return conflict();
     const body: IncludedSpacesView = {
       revision: result.revision,
+      designations: vngDesignations(),
       spaces: await resolveIncludedSpaceViews(req.auth!),
       lastChange: lastChange(),
     };
@@ -177,7 +234,7 @@ adminRouter.put(
   handle('classifications', async (req, res) => {
     const changes = (req.body ?? {}).changes as ClassificationChangeInput[];
     res.json(
-      await applyClassificationChanges(req.auth!, actorOf(req), String(req.params.nameId), changes),
+      await applyClassificationChanges(req.auth!, await actorOf(req), String(req.params.nameId), changes),
     );
   }),
 );

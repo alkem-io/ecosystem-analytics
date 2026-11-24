@@ -1,7 +1,8 @@
 /**
  * Feature 025 — the ONE progress indicator of the dashboard (spec FR-007/FR-007a/FR-008).
  *
- * A persistent, non-blocking strip below the tab row that lists what is loading for
+ * A persistent, non-blocking strip floating over the bottom of the content area (so it
+ * never moves the page when it appears or goes) that lists what is loading for
  * the current selection: each item by name, who asked for it, its stage, a
  * done-of-total bar where the BFF reports one, the Space currently being fetched, and
  * a Retry for anything that failed. It reads the shared plan, so it is identical on
@@ -32,7 +33,7 @@ export function LoadStrip() {
       data-testid="load-strip"
       role="status"
       aria-live="polite"
-      className="flex flex-wrap items-center gap-x-6 gap-y-1 border-b border-[var(--border)] bg-[var(--surface-raised)] px-4 py-1.5 text-xs text-[var(--text-secondary)]"
+      className="absolute inset-x-0 bottom-0 z-30 flex flex-wrap items-center gap-x-6 gap-y-1 border-t border-[var(--border)] bg-[var(--surface-raised)] px-4 py-1.5 text-xs text-[var(--text-secondary)] shadow-[0_-2px_8px_rgb(0_0_0/0.08)]"
     >
       {visible.map((item) => (
         <LoadStripItem key={item.key} item={item} onRetry={() => retry(item.key)} spaceName={spaceName} t={t} />

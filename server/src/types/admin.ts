@@ -26,11 +26,76 @@ export interface IncludedSpaceView {
   readable: boolean;
   /** `false` when Alkemio has no Space by that nameID (or UUID). */
   found: boolean;
+  /**
+   * How visible the Space is on Alkemio: its content public or private, and its status
+   * (`ACTIVE`, `ARCHIVED`, `DEMO`, `INACTIVE`). `null` when unreadable.
+   */
+  visibility: { contentPublic: boolean | null; status: string | null } | null;
   /** How many of the designated classifications are set; `null` when unreadable. */
   classificationStatus: { set: number; designated: number } | null;
+  /**
+   * What each designated classification holds on this Space — the selected value labels,
+   * in designation order; `present: false` when the Space lacks that classification.
+   * `null` when unreadable.
+   */
+  classifications: DesignatedValues[] | null;
+}
+
+/** The selected values of one designated classification on one Space. */
+export interface DesignatedValues {
+  key: DesignatedKey;
+  present: boolean;
+  values: string[];
+}
+
+/** One classification the monitor reads, and the Alkemio label it is matched on. */
+export interface Designation {
+  key: DesignatedKey;
+  /** The configured `displayLabel` (analytics.yml `dashboards.vng.classifications`). */
+  label: string;
 }
 
 export type SettingsChangeKind = 'seed' | 'update' | 'rename';
+
+/**
+ * `GET /api/vng/admin/history` — ONE audit log of every edit to the monitor, newest
+ * first: the Included Spaces and classification changes made from the admin area.
+ */
+export interface AuditLogView {
+  entries: AuditEntry[];
+  /** Cursor for the next (older) page; `null` at the end. Opaque. */
+  next: string | null;
+  /** Display names for the nameIDs mentioned, where known. */
+  names: Record<string, string>;
+}
+
+export type AuditEntry =
+  | ({ type: 'spaces' } & SettingsChangeView)
+  | {
+      type: 'classification';
+      /** ISO timestamp. */
+      at: string;
+      actorName: string | null;
+      spaceNameId: string;
+      /** The classification's label, e.g. "NDS-prioriteit". */
+      entryLabel: string;
+      /** Value labels before and after. */
+      from: string[];
+      to: string[];
+    }
+  | {
+      type: 'access';
+      at: string;
+      actorName: string | null;
+      from: { viewers: AccessSpaceRef[]; admins: AccessSpaceRef[] };
+      to: { viewers: AccessSpaceRef[]; admins: AccessSpaceRef[] };
+    };
+
+/** A Space in an access set, as recorded in the audit log. */
+export interface AccessSpaceRef {
+  key: string;
+  displayName: string;
+}
 
 /** One row of the Included Spaces history. */
 export interface SettingsChangeView {
@@ -102,7 +167,15 @@ export interface GdSourceSummaryView {
   total: number;
   viaSubspaces: number;
   viaPosts: number;
-  initiatives: Array<{ nameId: string; displayName: string; source: GdInitiativeSource }>;
+  initiatives: Array<{
+    nameId: string;
+    displayName: string;
+    source: GdInitiativeSource;
+    url: string | null;
+    /** Selected NDS / VNG 2030 labels as the manager's cached data holds them. */
+    nds: string[];
+    vng2030: string[];
+  }>;
   superseded: Array<{
     postNameId: string;
     subspaceNameId: string;
@@ -123,11 +196,21 @@ export interface AdminAccessView {
   viewers: GateLink[];
   admins: GateLink[];
   me: { displayName: string; viewer: boolean; manager: boolean };
+  /** False when the deployment left the app ungated (`none`): nothing to set here. */
+  editable: boolean;
+  /** Whether the sets come from the deployment configuration or were saved here. */
+  source: 'config' | 'settings';
+  /** For `PUT /access`'s `baseRevision`; 0 while the configuration applies. */
+  revision: number;
+  updatedAt: string | null;
+  updatedByName: string | null;
 }
 
 /** `GET`/`PUT /api/vng/admin/included-spaces`. */
 export interface IncludedSpacesView {
   revision: number;
+  /** The classifications the monitor reads, in column order. */
+  designations: Designation[];
   spaces: IncludedSpaceView[];
   lastChange: SettingsChangeView | null;
 }

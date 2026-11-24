@@ -1,7 +1,7 @@
 import type { AuthContext } from '../auth/middleware.js';
 import { loadConfig } from '../config.js';
 import { resolveDesignated } from '../transform/classifications.js';
-import type { IncludedSpaceView, IncludedSpacesView } from '../types/admin.js';
+import type { DesignatedValues, IncludedSpaceView, IncludedSpacesView } from '../types/admin.js';
 import {
   getIncludedSpaces,
   getState,
@@ -39,6 +39,16 @@ export function classificationStatus(entries: readonly AdminEntry[]): { set: num
   return { set, designated: designations.length };
 }
 
+/** The selected value labels of each designated classification, in designation order. */
+export function designatedValues(entries: readonly AdminEntry[]): DesignatedValues[] {
+  return vngDesignations().map(({ key, label }) => {
+    const entry = resolveDesignated(entries, label) as AdminEntry | null;
+    if (!entry) return { key, present: false, values: [] };
+    const byId = new Map(entry.values.map((v) => [v.id, v.label]));
+    return { key, present: true, values: entry.selectedValueIDs.map((id) => byId.get(id) ?? id) };
+  });
+}
+
 const view = (row: IncludedSpaceRow, space: AdminSpace | null, found: boolean): IncludedSpaceView => ({
   nameId: space?.nameId ?? row.nameId,
   spaceId: space?.id ?? row.spaceId,
@@ -47,7 +57,9 @@ const view = (row: IncludedSpaceRow, space: AdminSpace | null, found: boolean): 
   url: space?.url ?? null,
   readable: !!space,
   found,
+  visibility: space ? { contentPublic: space.isContentPublic, status: space.visibility } : null,
   classificationStatus: space ? classificationStatus(space.classifications) : null,
+  classifications: space ? designatedValues(space.classifications) : null,
 });
 
 /**
@@ -85,5 +97,5 @@ export async function resolveIncludedSpaceViews(
 export async function includedSpacesView(auth: AuthContext, sdk?: AdminSdk): Promise<IncludedSpacesView> {
   const spaces = await resolveIncludedSpaceViews(auth, getIncludedSpaces(), sdk);
   // Read the revision AFTER resolving: a rename found just now bumps it.
-  return { revision: getState().revision, spaces, lastChange: lastChange() };
+  return { revision: getState().revision, designations: vngDesignations(), spaces, lastChange: lastChange() };
 }

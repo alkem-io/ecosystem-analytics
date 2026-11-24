@@ -53,6 +53,18 @@ function gdInitiativesOf(userId: string): GdRowInitiative[] {
 }
 
 /**
+ * An initiative's name as this manager knows it: what they were recently shown, else
+ * their own GD data. `null` when neither knows it (the caller shows the nameID).
+ */
+export function initiativeName(userId: string, nameId: string): string | null {
+  return (
+    recalledName(userId, nameId) ??
+    gdInitiativesOf(userId).find((i) => i.nameId === nameId)?.displayName ??
+    null
+  );
+}
+
+/**
  * `GET /api/vng/admin/initiatives?q=` — the Included Spaces plus the GD initiatives from
  * the manager's own cached data. Names come from what the manager was recently shown;
  * otherwise the nameID. With no `q`, the first 50 by display name.

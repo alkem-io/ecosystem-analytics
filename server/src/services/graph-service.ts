@@ -416,14 +416,20 @@ async function buildGraph(
   // computed from the classification entries collected above, never re-queried.
   const profile = request.app ? cfg.dashboards[request.app as DashboardAppId] : undefined;
   if (!profile) return { dataset };
-  const { buildDashboardBundle } = await import('./dashboard-bundle.js');
+  const { buildDashboardBundle, withoutContextSpaces } = await import('./dashboard-bundle.js');
+  // Context-only Spaces (the Ecosystem tab's orchestrator) are drawn, never counted.
+  const context = new Set((request.contextSpaceIds ?? []).filter((id) => spaceIds.includes(id)));
+  const counted = withoutContextSpaces(dataset, context);
+  const countedIds = new Set(
+    counted.nodes.filter((n) => n.type === NodeType.SPACE_L0).map((n) => n.id),
+  );
   const presentL0 = new Set(
     allNodes.filter((n) => n.type === NodeType.SPACE_L0 && n.nameId).map((n) => n.nameId as string),
   );
   const dashboard = buildDashboardBundle({
-    dataset,
-    snapshots,
-    unresolvedCount: spaceIds.filter((id) => !presentL0.has(id)).length,
+    dataset: counted,
+    snapshots: snapshots.filter((s) => countedIds.has(s.id)),
+    unresolvedCount: spaceIds.filter((id) => !context.has(id) && !presentL0.has(id)).length,
     gdCallouts,
     municipalities: registry.municipalities(),
     profile,
@@ -469,6 +475,7 @@ function datasetMemoKey(userId: string, request: GraphGenerationRequest): string
   return [
     userId,
     [...request.spaceIds].sort().join(','),
+    [...(request.contextSpaceIds ?? [])].sort().join(','),
     request.includeInitiatives ? 1 : 0,
     request.app ?? '',
     // Feature 025: the relational-only variant and the full variant are different objects.

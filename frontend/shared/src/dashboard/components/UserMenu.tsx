@@ -1,14 +1,13 @@
 import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import * as Avatar from '@radix-ui/react-avatar';
-import { ExternalLink, Info, LogOut, RefreshCw, Settings, ShieldCheck } from 'lucide-react';
+import { ExternalLink, Info, LogOut, Settings, ShieldCheck } from 'lucide-react';
 import { cn, fetchMe, logout, proxyImageUrl, type MeResponse } from '@ea/shared';
 import { LanguageSwitcher } from './LanguageSwitcher.js';
 import { AboutDialog } from './AboutDialog.js';
 import { initials } from '../../lib/initials.js';
 import { useAccessReport } from '../hooks/AccessLevelContext.js';
-import { useSelectionContext } from '../hooks/SelectionContext.js';
-import { openAdmin } from '../../admin/navigation.js';
+import { isAdminPath, openAdmin, usePathname } from '../../admin/navigation.js';
 import { useAppConfig } from '@ea/shared';
 
 /**
@@ -27,11 +26,12 @@ export function UserMenu() {
   const [aboutOpen, setAboutOpen] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
-  // Feature 027: where this person's access comes from, and (VNG) refresh on small screens.
+  // Feature 027: where this person's access comes from, and the way to the settings.
+  // Also rendered in the settings area, where there is no selection — so no data actions.
   const access = useAccessReport();
   const { flags } = useAppConfig();
   const managedScope = flags?.managedScope === true;
-  const { refresh } = useSelectionContext();
+  const inAdmin = isAdminPath(usePathname());
 
   useEffect(() => {
     let cancelled = false;
@@ -173,7 +173,7 @@ export function UserMenu() {
             </div>
           )}
 
-          {managedScope && access?.level === 'manage' && (
+          {managedScope && access?.level === 'manage' && !inAdmin && (
             <button
               type="button"
              
@@ -190,24 +190,6 @@ export function UserMenu() {
               {t('admin.entry', { defaultValue: 'Monitor settings' })}
             </button>
           )}
-          {managedScope && (
-            <button
-              type="button"
-             
-              onClick={() => {
-                setOpen(false);
-                refresh();
-              }}
-              className={cn(
-                'flex w-full items-center gap-2 px-4 py-2.5 text-left text-sm font-medium text-foreground transition-colors sm:hidden',
-                'hover:bg-muted focus:bg-muted focus:outline-none',
-              )}
-            >
-              <RefreshCw className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
-              {t('panel.refresh')}
-            </button>
-          )}
-
           <div className="h-px bg-border" role="separator" />
 
           <div className="flex items-center justify-between px-4 py-3">

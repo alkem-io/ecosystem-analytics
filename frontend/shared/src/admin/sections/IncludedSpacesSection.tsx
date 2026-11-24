@@ -1,7 +1,9 @@
-import { useEffect, useMemo, useState } from 'react';
+import { Fragment, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { ExternalLink, Loader2, Pencil, Plus, Tags, Undo2, X } from 'lucide-react';
+import { ExternalLink, Globe, Loader2, Lock, Pencil, Plus, Search, Undo2, X } from 'lucide-react';
 import type {
+  DesignatedValues,
+  Designation,
   IncludedSpaceView,
   IncludedSpacesView,
   SettingsChangeView,
@@ -11,6 +13,8 @@ import { cn } from '../../lib/cn.js';
 import { useIsCompact } from '../../hooks/useMediaQuery.js';
 import { markMonitorScopeStale } from '../../dashboard/hooks/useMonitorScope.js';
 import { AdminApiError, adminApi } from '../api.js';
+import { ClassificationDialog, toDesignatedValues } from '../ClassificationDialog.js';
+import { notifyAdminChange } from '../changes.js';
 import {
   Section,
   formatWhen,
@@ -74,92 +78,25 @@ function SpaceName({ space }: { space: IncludedSpaceView }) {
   );
 }
 
-function Status({ space }: { space: IncludedSpaceView }) {
+/** One designated classification on one Space: its selected values, or why there are none. */
+function ValuesCell({ value }: { value: DesignatedValues | undefined }) {
   const { t } = useTranslation();
-  const s = space.classificationStatus;
-  if (!s) return <span className="text-xs text-muted-foreground">—</span>;
-  const complete = s.set === s.designated;
+  if (!value || !value.present) {
+    return (
+      <span className="text-xs italic text-muted-foreground">
+        {t('admin.included.missing', { defaultValue: 'missing' })}
+      </span>
+    );
+  }
+  if (value.values.length === 0) return <span className="text-muted-foreground">—</span>;
   return (
-    <span
-      className={cn(
-        'whitespace-nowrap rounded-full px-2 py-0.5 text-xs',
-        complete ? 'bg-success/15 text-foreground' : 'bg-warning/15 text-foreground',
-      )}
-    >
-      {t('admin.included.status', {
-        defaultValue: '{{set}} of {{designated}} classifications set',
-        set: s.set,
-        designated: s.designated,
-      })}
+    <span className="flex flex-wrap gap-1">
+      {value.values.map((v) => (
+        <span key={v} className="rounded-full bg-muted px-2 py-0.5 text-xs text-foreground">
+          {v}
+        </span>
+      ))}
     </span>
-  );
-}
-
-function History() {
-  const { t, i18n } = useTranslation();
-  const [open, setOpen] = useState(false);
-  const [changes, setChanges] = useState<SettingsChangeView[]>([]);
-  const [next, setNext] = useState<number | null | undefined>(undefined);
-  const [loading, setLoading] = useState(false);
-  const [failed, setFailed] = useState(false);
-
-  const load = (before?: number) => {
-    setLoading(true);
-    setFailed(false);
-    adminApi
-      .history(before)
-      .then((page) => {
-        setChanges((prev) => (before === undefined ? page.changes : [...prev, ...page.changes]));
-        setNext(page.next);
-      })
-      .catch(() => setFailed(true))
-      .finally(() => setLoading(false));
-  };
-
-  return (
-    <details
-      className="mt-4 rounded-lg border border-border px-3 py-2"
-      onToggle={(e) => {
-        const isOpen = (e.target as HTMLDetailsElement).open;
-        setOpen(isOpen);
-        if (isOpen && next === undefined) load();
-      }}
-    >
-      <summary className="cursor-pointer text-sm font-medium text-foreground">
-        {t('admin.included.history', { defaultValue: 'History of changes' })}
-      </summary>
-      {open && (
-        <div className="mt-2">
-          <ul className="divide-y divide-border" data-testid="included-history">
-            {changes.map((c) => (
-              <li key={`${c.revision}-${c.kind}`} className="py-2 text-sm">
-                <p className="text-foreground">
-                  <span className="font-medium">#{c.revision}</span> · {changeLine(t, i18n.language, c)}
-                </p>
-                {(c.added.length > 0 || c.removed.length > 0) && c.kind !== 'seed' && (
-                  <p className="mt-0.5 break-words text-xs text-muted-foreground">
-                    {c.added.length > 0 && `+ ${c.added.join(', ')}`}
-                    {c.added.length > 0 && c.removed.length > 0 && ' · '}
-                    {c.removed.length > 0 && `− ${c.removed.join(', ')}`}
-                  </p>
-                )}
-              </li>
-            ))}
-          </ul>
-          {failed && (
-            <p role="alert" className="text-sm text-destructive">
-              {t('admin.sectionError', { defaultValue: 'This section could not be loaded.' })}
-            </p>
-          )}
-          {loading && <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" aria-hidden />}
-          {next != null && !loading && (
-            <button type="button" className={cn(smallButton, 'mt-2')} onClick={() => load(next)}>
-              {t('admin.included.olderChanges', { defaultValue: 'Older changes' })}
-            </button>
-          )}
-        </div>
-      )}
-    </details>
   );
 }
 
@@ -196,8 +133,9 @@ function Editor({
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<SpaceCandidate[] | null>(null);
   const [searching, setSearching] = useState(false);
-  const [link, setLink] = useState('');
+  const [searchFailed, setSearchFailed] = useState(false);
   const [linkError, setLinkError] = useState<string | null>(null);
+  const [linkBusy, setLinkBusy] = useState(false);
   const [saving, setSaving] = useState(false);
   const [problems, setProblems] = useState<Array<{ nameId: string; problem: string }>>([]);
   const [saveError, setSaveError] = useState(false);
@@ -210,20 +148,29 @@ function Editor({
   const nameOf = (nameId: string) =>
     names[nameId] ?? base.spaces.find((s) => s.nameId === nameId)?.displayName ?? nameId;
 
-  // Debounced search (≥ 2 characters).
+  // One box for both: a pasted link (or anything with a slash) is resolved on "Add";
+  // anything else is searched as you type (≥ 2 characters).
+  const isLink = /[/.]/.test(query.trim());
   useEffect(() => {
     const q = query.trim();
-    if (q.length < 2) {
+    setLinkError(null);
+    if (q.length < 2 || /[/.]/.test(q)) {
       setResults(null);
       return;
     }
     let cancelled = false;
     const timer = setTimeout(() => {
       setSearching(true);
+      setSearchFailed(false);
       adminApi
         .searchSpaces(q)
         .then((r) => !cancelled && setResults(r.results))
-        .catch(() => !cancelled && setResults([]))
+        // A failed search is NOT "nothing found" — say so.
+        .catch(() => {
+          if (cancelled) return;
+          setResults(null);
+          setSearchFailed(true);
+        })
         .finally(() => !cancelled && setSearching(false));
     }, 300);
     return () => {
@@ -239,15 +186,17 @@ function Editor({
 
   const addLink = () => {
     setLinkError(null);
+    setLinkBusy(true);
     adminApi
-      .resolveSpace(link.trim())
+      .resolveSpace(query.trim())
       .then(({ space }) => {
         add(space);
-        setLink('');
+        setQuery('');
       })
       .catch((err: unknown) =>
         setLinkError(problemText(t, err instanceof AdminApiError ? String(err.body.error) : 'UNPARSEABLE')),
-      );
+      )
+      .finally(() => setLinkBusy(false));
   };
 
   const save = (confirmed = false) => {
@@ -263,6 +212,7 @@ function Editor({
       .saveIncludedSpaces({ baseRevision: base.revision, spaceNameIds: list, confirmEmpty: confirmed })
       .then((next) => {
         markMonitorScopeStale();
+        notifyAdminChange();
         onSaved(next);
       })
       .catch((err: unknown) => {
@@ -279,71 +229,92 @@ function Editor({
 
   return (
     <div className="space-y-5" data-testid="included-editor">
-      <div className="grid gap-4 lg:grid-cols-2">
-        <div className="min-w-0">
-          <label className="text-sm font-medium text-foreground" htmlFor="included-search">
-            {t('admin.included.edit.search', { defaultValue: 'Find a Space by name' })}
-          </label>
-          <input
-            id="included-search"
-            className={cn(textInput, 'mt-1')}
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            placeholder={t('admin.included.edit.searchPlaceholder', { defaultValue: 'At least 2 letters' })}
-          />
-          {searching && <Loader2 className="mt-2 h-4 w-4 animate-spin text-muted-foreground" aria-hidden />}
-          {results && !searching && (
-            <ul className="mt-2 max-h-56 space-y-1 overflow-auto" data-testid="included-search-results">
-              {results.length === 0 && (
-                <li className="text-sm text-muted-foreground">
-                  {t('admin.included.edit.noResults', { defaultValue: 'No Spaces found' })}
-                </li>
-              )}
-              {results.map((r) => {
-                const inList = list.includes(r.nameId);
-                return (
-                  <li key={r.nameId} className="flex min-w-0 items-center justify-between gap-2 text-sm">
-                    <span className="min-w-0 truncate">{r.displayName}</span>
-                    <button
-                      type="button"
-                      className={smallButton}
-                      disabled={inList}
-                      onClick={() => add(r)}
-                      aria-label={t('admin.included.edit.addNamed', { defaultValue: 'Add {{name}}', name: r.displayName })}
-                    >
-                      <Plus className="h-3.5 w-3.5" aria-hidden />
-                      {inList
-                        ? t('admin.included.edit.inList', { defaultValue: 'In the list' })
-                        : t('admin.included.edit.add', { defaultValue: 'Add' })}
-                    </button>
-                  </li>
-                );
-              })}
-            </ul>
-          )}
-        </div>
-        <div className="min-w-0">
-          <label className="text-sm font-medium text-foreground" htmlFor="included-link">
-            {t('admin.included.edit.link', { defaultValue: 'Or paste a Space link' })}
-          </label>
-          <div className="mt-1 flex gap-2">
+      <div className="rounded-lg border border-border bg-muted/30 p-4" data-testid="included-add">
+        <h3 className="flex items-center gap-2 text-sm font-semibold text-foreground">
+          <Plus className="h-4 w-4" aria-hidden />
+          {t('admin.included.edit.addTitle', { defaultValue: 'Add a Space' })}
+        </h3>
+        <p className="mt-1 text-xs text-muted-foreground">
+          {t('admin.included.edit.addHelp', {
+            defaultValue:
+              'Your own Spaces are found on any part of their name. Other Spaces you can see on Alkemio are found on a whole word from their name, or on their exact short name. Or paste the link of the Space.',
+          })}
+        </p>
+        <form
+          className="mt-2 flex gap-2"
+          onSubmit={(e) => {
+            e.preventDefault();
+            if (isLink) addLink();
+          }}
+        >
+          <div className="relative min-w-0 flex-1">
+            <Search className="pointer-events-none absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" aria-hidden />
             <input
-              id="included-link"
-              className={textInput}
-              value={link}
-              onChange={(e) => setLink(e.target.value)}
-              placeholder="https://alkem.io/…"
+              id="included-search"
+              className={cn(textInput, 'pl-8')}
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              aria-label={t('admin.included.edit.addTitle', { defaultValue: 'Add a Space' })}
+              placeholder={t('admin.included.edit.searchPlaceholder', {
+                defaultValue: 'Name of a Space, or https://alkem.io/…',
+              })}
             />
-            <button type="button" className={smallButton} disabled={!link.trim()} onClick={addLink}>
+          </div>
+          {isLink && (
+            <button type="submit" className={primarySmallButton} disabled={linkBusy} data-testid="included-add-link">
+              {linkBusy && <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden />}
               {t('admin.included.edit.add', { defaultValue: 'Add' })}
             </button>
-          </div>
-          {linkError && (
-            <p role="alert" className="mt-1 text-sm text-destructive" data-testid="included-link-error">
-              {linkError}
-            </p>
           )}
-        </div>
+        </form>
+        {linkError && (
+          <p role="alert" className="mt-2 text-sm text-destructive" data-testid="included-link-error">
+            {linkError}
+          </p>
+        )}
+        {searching && <Loader2 className="mt-2 h-4 w-4 animate-spin text-muted-foreground" aria-hidden />}
+        {searchFailed && !searching && (
+          <p role="alert" className="mt-2 text-sm text-destructive" data-testid="included-search-error">
+            {t('admin.included.edit.searchFailed', {
+              defaultValue: 'Searching Alkemio failed just now. Try again, or paste the link of the Space.',
+            })}
+          </p>
+        )}
+        {results && !searching && (
+          <ul className="mt-2 max-h-56 divide-y divide-border overflow-auto rounded-md border border-border bg-card" data-testid="included-search-results">
+            {results.length === 0 && (
+              <li className="px-3 py-2 text-sm text-muted-foreground">
+                {t('admin.included.edit.noResults', {
+                  defaultValue:
+                    'No Spaces found. Try a whole word from the name — or paste the link of the Space.',
+                })}
+              </li>
+            )}
+            {results.map((r) => {
+              const inList = list.includes(r.nameId);
+              return (
+                <li key={r.nameId} className="flex min-w-0 items-center justify-between gap-2 px-3 py-2 text-sm">
+                  <span className="min-w-0">
+                    <span className="block truncate font-medium text-foreground">{r.displayName}</span>
+                    <span className="block truncate text-xs text-muted-foreground">{r.nameId}</span>
+                  </span>
+                  <button
+                    type="button"
+                    className={smallButton}
+                    disabled={inList}
+                    onClick={() => add(r)}
+                    aria-label={t('admin.included.edit.addNamed', { defaultValue: 'Add {{name}}', name: r.displayName })}
+                  >
+                    {!inList && <Plus className="h-3.5 w-3.5" aria-hidden />}
+                    {inList
+                      ? t('admin.included.edit.inList', { defaultValue: 'In the monitor' })
+                      : t('admin.included.edit.add', { defaultValue: 'Add' })}
+                  </button>
+                </li>
+              );
+            })}
+          </ul>
+        )}
       </div>
 
       <div>
@@ -494,20 +465,67 @@ function Editor({
   );
 }
 
+/** How visible the Space is on Alkemio: public / private, plus its status when not active. */
+function VisibilityCell({ space }: { space: IncludedSpaceView }) {
+  const { t } = useTranslation();
+  const v = space.visibility;
+  if (!v) return <span className="text-muted-foreground">—</span>;
+  const status =
+    v.status && v.status !== 'ACTIVE'
+      ? t(`admin.included.status${v.status.charAt(0)}${v.status.slice(1).toLowerCase()}`, {
+          defaultValue: v.status.toLowerCase(),
+        })
+      : null;
+  return (
+    <span className="flex flex-wrap items-center gap-1" data-testid="included-visibility">
+      {v.contentPublic === null ? (
+        <span className="text-muted-foreground">—</span>
+      ) : (
+        <span
+          className={cn(
+            'inline-flex items-center gap-1 whitespace-nowrap rounded-full px-2 py-0.5 text-xs',
+            v.contentPublic ? 'bg-success/15 text-foreground' : 'bg-muted text-foreground',
+          )}
+        >
+          {v.contentPublic ? (
+            <Globe className="h-3 w-3" aria-hidden />
+          ) : (
+            <Lock className="h-3 w-3" aria-hidden />
+          )}
+          {v.contentPublic
+            ? t('admin.included.public', { defaultValue: 'Public' })
+            : t('admin.included.private', { defaultValue: 'Private' })}
+        </span>
+      )}
+      {status && (
+        <span className="whitespace-nowrap rounded-full bg-warning/15 px-2 py-0.5 text-xs text-foreground">{status}</span>
+      )}
+    </span>
+  );
+}
+
+/** The Space column: its name linked to Alkemio, or why it cannot be shown. */
+function NameCell({ space }: { space: IncludedSpaceView }) {
+  return <SpaceName space={space} />;
+}
+
+/** The columns: one per classification the monitor reads, in the configured order. */
+function headers(designations: Designation[]) {
+  return designations.map((d) => ({ key: d.key, label: d.label }));
+}
+
 /**
- * The Spaces the monitor reports on (US3: view; US4: edit). Each one is resolved with the
- * manager's own token; one they cannot read shows its nameID only (FR-013).
+ * The Groei initiatives: the Spaces the monitor reports on (US3: view; US4: edit), each
+ * resolved with the manager's own token (FR-013), with the values of every classification
+ * the monitor reads. A row's "Edit" opens its classifications on Alkemio.
  */
-export function IncludedSpacesSection({
-  onOpenClassifications,
-}: {
-  onOpenClassifications?: (nameId: string) => void;
-}) {
+export function IncludedSpacesSection() {
   const { t, i18n } = useTranslation();
   const compact = useIsCompact();
   const { data, setData, error, loading, retry } = useSectionData(() => adminApi.includedSpaces());
   const [filter, setFilter] = useState('');
   const [editing, setEditing] = useState(false);
+  const [open, setOpen] = useState<{ nameId: string; name: string } | null>(null);
 
   const shown = useMemo(() => {
     const f = filter.trim().toLowerCase();
@@ -519,28 +537,32 @@ export function IncludedSpacesSection({
       : data.spaces;
   }, [data, filter]);
 
-  const classificationsButton = (s: IncludedSpaceView) =>
-    onOpenClassifications && s.readable ? (
+  const cols = headers(data?.designations ?? []);
+  const valueOf = (s: IncludedSpaceView, key: string) => s.classifications?.find((c) => c.key === key);
+
+  const editButton = (s: IncludedSpaceView) =>
+    s.readable ? (
       <button
         type="button"
         className={smallButton}
-        onClick={() => onOpenClassifications(s.nameId)}
+        onClick={() => setOpen({ nameId: s.nameId, name: s.displayName ?? s.nameId })}
         aria-label={t('admin.included.openClassificationsNamed', {
-          defaultValue: 'Classifications of {{name}}',
+          defaultValue: 'Edit the classifications of {{name}}',
           name: s.displayName ?? s.nameId,
         })}
+        data-testid="included-edit-classifications"
       >
-        <Tags className="h-3.5 w-3.5" aria-hidden />
-        {t('admin.included.openClassifications', { defaultValue: 'Classifications' })}
+        <Pencil className="h-3.5 w-3.5" aria-hidden />
+        {t('admin.included.openClassifications', { defaultValue: 'Edit' })}
       </button>
     ) : null;
 
   return (
     <Section
       id="included"
-      title={t('admin.included.title', { defaultValue: 'Spaces in the monitor' })}
+      title={t('admin.included.title', { defaultValue: 'Groei initiatives' })}
       description={t('admin.included.description', {
-        defaultValue: 'The monitor reports on exactly these Spaces, for every viewer.',
+        defaultValue: 'The Spaces the monitor reports on, for every viewer, with their classifications on Alkemio.',
       })}
       loading={loading}
       error={error}
@@ -549,7 +571,7 @@ export function IncludedSpacesSection({
         data && !editing ? (
           <button type="button" className={smallButton} onClick={() => setEditing(true)} data-testid="included-edit">
             <Pencil className="h-3.5 w-3.5" aria-hidden />
-            {t('admin.included.edit.start', { defaultValue: 'Change the list' })}
+            {t('admin.included.edit.start', { defaultValue: 'Add or remove Spaces' })}
           </button>
         ) : undefined
       }
@@ -567,16 +589,17 @@ export function IncludedSpacesSection({
         ) : (
           <>
             <div className="flex flex-wrap items-center justify-between gap-3">
-              <p className="text-sm text-muted-foreground" data-testid="included-last-change">
-                {changeLine(t, i18n.language, data.lastChange)}
+              {/* Who changed it and when is in the Wijzigingslog tab. */}
+              <p className="text-sm text-muted-foreground" data-testid="included-count">
+                {t('admin.included.count', { defaultValue: '{{count}} Spaces', count: data.spaces.length })}
               </p>
               {data.spaces.length > 8 && (
                 <input
                   className={cn(textInput, 'max-w-xs')}
                   value={filter}
                   onChange={(e) => setFilter(e.target.value)}
-                  placeholder={t('admin.included.filter', { defaultValue: 'Filter' })}
-                  aria-label={t('admin.included.filter', { defaultValue: 'Filter' })}
+                  placeholder={t('admin.included.filter', { defaultValue: 'Filter this list' })}
+                  aria-label={t('admin.included.filter', { defaultValue: 'Filter this list' })}
                 />
               )}
             </div>
@@ -588,47 +611,99 @@ export function IncludedSpacesSection({
               <ul className="mt-3 space-y-2" data-testid="included-cards">
                 {shown.map((s) => (
                   <li key={s.nameId} className="space-y-2 rounded-lg border border-border p-3" data-testid="included-row">
-                    <SpaceName space={s} />
-                    <div className="flex flex-wrap items-center justify-between gap-2">
-                      <Status space={s} />
-                      {classificationsButton(s)}
+                    <div className="flex items-start justify-between gap-2">
+                      <NameCell space={s} />
+                      {editButton(s)}
                     </div>
+                    {s.readable && (
+                      <dl className="grid grid-cols-[auto_minmax(0,1fr)] gap-x-3 gap-y-1.5 text-sm">
+                        <dt className="text-xs text-muted-foreground">
+                          {t('admin.included.colVisibility', { defaultValue: 'Visibility on Alkemio' })}
+                        </dt>
+                        <dd className="min-w-0">
+                          <VisibilityCell space={s} />
+                        </dd>
+                        {cols.map((c) => (
+                          <Fragment key={c.key}>
+                            <dt className="text-xs text-muted-foreground">{c.label}</dt>
+                            <dd className="min-w-0">
+                              <ValuesCell value={valueOf(s, c.key)} />
+                            </dd>
+                          </Fragment>
+                        ))}
+                      </dl>
+                    )}
                   </li>
                 ))}
               </ul>
             ) : (
               <div className="mt-3 overflow-x-auto">
                 <table className="w-full text-left text-sm" data-testid="included-table">
-                  <thead className="text-xs uppercase tracking-wide text-muted-foreground">
-                    <tr>
-                      <th className="py-2 pr-3 font-medium">#</th>
+                  <thead className="text-xs text-muted-foreground">
+                    <tr className="border-b border-border">
                       <th className="py-2 pr-3 font-medium">{t('admin.included.colSpace', { defaultValue: 'Space' })}</th>
                       <th className="py-2 pr-3 font-medium">
-                        {t('admin.included.colStatus', { defaultValue: 'Classifications' })}
+                        {t('admin.included.colVisibility', { defaultValue: 'Visibility on Alkemio' })}
                       </th>
-                      <th className="py-2" />
+                      {cols.map((c) => (
+                        <th key={c.key} className="py-2 pr-3 font-medium">
+                          {c.label}
+                        </th>
+                      ))}
+                      <th className="py-2">
+                        <span className="sr-only">{t('admin.included.colActions', { defaultValue: 'Actions' })}</span>
+                      </th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-border">
                     {shown.map((s) => (
-                      <tr key={s.nameId} data-testid="included-row">
-                        <td className="py-2 pr-3 text-muted-foreground">{s.position + 1}</td>
-                        <td className="py-2 pr-3">
-                          <SpaceName space={s} />
+                      <tr key={s.nameId} data-testid="included-row" className="align-top">
+                        <td className="max-w-[16rem] py-2.5 pr-3">
+                          <NameCell space={s} />
                         </td>
-                        <td className="py-2 pr-3">
-                          <Status space={s} />
+                        <td className="py-2.5 pr-3">
+                          <VisibilityCell space={s} />
                         </td>
-                        <td className="py-2 text-right">{classificationsButton(s)}</td>
+                        {cols.map((c) => (
+                          <td key={c.key} className="py-2.5 pr-3">
+                            {s.readable ? <ValuesCell value={valueOf(s, c.key)} /> : <span className="text-muted-foreground">—</span>}
+                          </td>
+                        ))}
+                        <td className="py-2 text-right">{editButton(s)}</td>
                       </tr>
                     ))}
                   </tbody>
                 </table>
               </div>
             )}
-            <History />
+            <p className="mt-3 text-xs text-muted-foreground" data-testid="included-designations">
+              {t('admin.included.designations', {
+                defaultValue:
+                  'The columns are the classifications the monitor reads ({{list}}), fixed in its configuration. Their values come from Alkemio.',
+                list: (data.designations ?? []).map((d) => d.label).join(', '),
+              })}
+            </p>
           </>
         ))}
+      {open && (
+        <ClassificationDialog
+          nameId={open.nameId}
+          name={open.name}
+          onClose={() => setOpen(null)}
+          onSaved={(view) =>
+            setData((prev) =>
+              prev
+                ? {
+                    ...prev,
+                    spaces: prev.spaces.map((s) =>
+                      s.nameId === open.nameId ? { ...s, classifications: toDesignatedValues(view) } : s,
+                    ),
+                  }
+                : prev,
+            )
+          }
+        />
+      )}
     </Section>
   );
 }

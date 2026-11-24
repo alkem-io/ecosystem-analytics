@@ -61,6 +61,13 @@ export interface BasemapOptions {
   onSync: (transform: OverlayTransform) => void;
   /** Called when the basemap cannot draw, so the consumer can show the outline fallback. */
   onFallback: (reason: string) => void;
+  /**
+   * For a map inside a scrolling PAGE: the wheel scrolls the page and Ctrl/⌘ + wheel
+   * zooms; on touch, two fingers pan. Without it the map swallows every scroll over it.
+   */
+  cooperativeGestures?: boolean;
+  /** MapLibre UI strings in the reader's language (e.g. the cooperative-gesture hint). */
+  locale?: Record<string, string>;
 }
 
 export interface BasemapHandle {
@@ -132,7 +139,7 @@ function referencePoints(
 }
 
 export async function createBasemap(options: BasemapOptions): Promise<BasemapHandle> {
-  const { container, projection, center, scale, width, height, onSync, onFallback } = options;
+  const { container, projection, center, scale, width, height, onSync, onFallback, cooperativeGestures, locale } = options;
 
   const fallback = (reason: string): BasemapHandle => {
     onFallback(reason);
@@ -169,6 +176,8 @@ export async function createBasemap(options: BasemapOptions): Promise<BasemapHan
       // Attribution is rendered by the consumer BELOW the map, outside the map area, so
       // nothing is drawn over the plain background outside the region (§VII, R-009).
       attributionControl: false,
+      cooperativeGestures: cooperativeGestures === true,
+      ...(locale ? { locale } : {}),
     });
   } catch (err) {
     return fallback(`map construction failed: ${(err as Error).message}`);

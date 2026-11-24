@@ -183,6 +183,38 @@ export interface BuildBundleInput {
   profile: VngConfig;
 }
 
+/**
+ * The dataset without its CONTEXT-only L0 Spaces (`GraphGenerationRequest.contextSpaceIds`),
+ * their subspaces, and every edge touching them — what the counts are computed from.
+ * Organisations stay (they count only through edges). Same object when nothing is dropped.
+ */
+export function withoutContextSpaces(dataset: GraphDataset, contextNameIds: ReadonlySet<string>): GraphDataset {
+  if (contextNameIds.size === 0) return dataset;
+  const dropped = new Set(
+    dataset.nodes
+      .filter((n) => n.type === NodeType.SPACE_L0 && n.nameId && contextNameIds.has(n.nameId))
+      .map((n) => n.id),
+  );
+  if (dropped.size === 0) return dataset;
+  // Subspaces hang off their parent; walk until stable (L1 → L2).
+  let grew = true;
+  while (grew) {
+    grew = false;
+    for (const n of dataset.nodes) {
+      if (!dropped.has(n.id) && n.parentSpaceId && dropped.has(n.parentSpaceId)) {
+        dropped.add(n.id);
+        grew = true;
+      }
+    }
+  }
+  return {
+    ...dataset,
+    spaces: dataset.spaces.filter((s) => !contextNameIds.has(s)),
+    nodes: dataset.nodes.filter((n) => !dropped.has(n.id)),
+    edges: dataset.edges.filter((e) => !dropped.has(e.sourceId) && !dropped.has(e.targetId)),
+  };
+}
+
 /** Assemble both variants of every dashboard panel from one dataset. */
 export function buildDashboardBundle(input: BuildBundleInput): DashboardCountsBundle {
   const { dataset, snapshots, unresolvedCount, gdCallouts, municipalities, profile } = input;

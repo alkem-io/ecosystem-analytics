@@ -16,10 +16,13 @@ export const SETTINGS_TABLES = [
   'included_spaces',
   'settings_changes',
   'classification_changes',
+  'access_state',
+  'access_sets',
+  'access_changes',
 ] as const;
 
 /** The latest schema version; each step below brings the tables one version further. */
-export const SETTINGS_SCHEMA_VERSION = 1;
+export const SETTINGS_SCHEMA_VERSION = 2;
 
 const MIGRATIONS: Record<number, string> = {
   1: `
@@ -56,6 +59,35 @@ const MIGRATIONS: Record<number, string> = {
       space_name_id TEXT NOT NULL,
       entry_id      TEXT NOT NULL,
       entry_label   TEXT NOT NULL,
+      from_json     TEXT NOT NULL,
+      to_json       TEXT NOT NULL
+    );
+  `,
+  // Access Spaces set by Monitor Managers in the admin area. No row for an app = the
+  // deployment configuration (`access.<app>` / `access.<app>_admin`) applies.
+  2: `
+    CREATE TABLE access_state (
+      app                TEXT    PRIMARY KEY,
+      revision           INTEGER NOT NULL,
+      updated_at         TEXT    NOT NULL,
+      updated_by_user_id TEXT    NOT NULL,
+      updated_by_name    TEXT    NOT NULL
+    );
+    CREATE TABLE access_sets (
+      app          TEXT    NOT NULL,
+      role         TEXT    NOT NULL CHECK (role IN ('viewer', 'admin')),
+      position     INTEGER NOT NULL,
+      space_key    TEXT    NOT NULL,
+      display_name TEXT    NOT NULL,
+      PRIMARY KEY (app, role, position),
+      UNIQUE (app, role, space_key)
+    );
+    CREATE TABLE access_changes (
+      id            INTEGER PRIMARY KEY AUTOINCREMENT,
+      at            TEXT NOT NULL,
+      actor_user_id TEXT NOT NULL,
+      actor_name    TEXT NOT NULL,
+      app           TEXT NOT NULL,
       from_json     TEXT NOT NULL,
       to_json       TEXT NOT NULL
     );

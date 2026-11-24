@@ -26,6 +26,11 @@ import { throwIfAccessDenied } from '../access/access-signal.js';
 export interface LoadGraphRequest {
   app: string;
   spaceIds: string[];
+  /**
+   * Of `spaceIds`, the ones loaded only as context (the Ecosystem tab's orchestrator
+   * candidates): in the dataset, never in the dashboard counts.
+   */
+  contextSpaceIds?: string[];
   includeInitiatives: boolean;
   forceRefresh: boolean;
 }
@@ -44,6 +49,7 @@ export type LoadGraphFn = (
 function toBody(request: LoadGraphRequest): GraphGenerationRequest {
   return {
     spaceIds: request.spaceIds,
+    ...(request.contextSpaceIds?.length ? { contextSpaceIds: request.contextSpaceIds } : {}),
     app: request.app,
     includeInitiatives: request.includeInitiatives,
     forceRefresh: request.forceRefresh,

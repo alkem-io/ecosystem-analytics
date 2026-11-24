@@ -163,6 +163,17 @@ export function touchSession(sessionId: string, lastSeenAt: number): void {
     .run(lastSeenAt, sessionId);
 }
 
+/**
+ * Remember the person's Alkemio display name on their session (Hydra's ID token carries
+ * none). Set from `/api/auth/me`, so later requests — e.g. an admin change being
+ * recorded — can name the person without another Alkemio round-trip.
+ */
+export function updateSessionDisplayName(sessionId: string, displayName: string): void {
+  getDatabase()
+    .prepare('UPDATE oidc_sessions SET display_name = ? WHERE session_id = ?')
+    .run(displayName, sessionId);
+}
+
 /** Persist rotated tokens after a successful refresh (always overwrite with the newest). */
 export function updateSessionTokens(
   sessionId: string,

@@ -21,7 +21,7 @@ import { exportDashboardXlsx, exportSingleChartXlsx, type ChartTable } from '../
  */
 export function DashboardTab() {
   const { t } = useTranslation();
-  const { exportCreator, exportFilenameStem } = useAppConfig();
+  const { exportCreator, exportFilenameStem, flags } = useAppConfig();
   const { effectiveSpaceIds, selectedSpaces, state } = useSelectionContext();
 
   // Feature 025: the counts arrive WITH the dataset (FR-015) — both GD variants — so
@@ -291,7 +291,9 @@ export function DashboardTab() {
   return (
     <div className="relative h-full">
       <div className="h-full overflow-auto p-3 pb-[max(0.75rem,var(--safe-bottom))] sm:p-6">
-      {state.includeInitiatives && (
+      {/* A managed-scope dashboard (VNG) says this in its GemeenteDelers panel, with the
+          switch — not here (feature 027). */}
+      {state.includeInitiatives && !flags?.managedScope && (
         <div className="mb-4">
           <GdProvenanceNote />
         </div>

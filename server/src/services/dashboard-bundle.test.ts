@@ -20,7 +20,7 @@ vi.mock('../config.js', () => {
   return { loadConfig: () => ({ vng, dashboards: { vng }, features: {} }) };
 });
 
-import { buildDashboardBundle, stripGdLayer } from './dashboard-bundle.js';
+import { buildDashboardBundle, stripGdLayer, withoutContextSpaces } from './dashboard-bundle.js';
 import { NodeType, EdgeType, type GraphDataset, type GraphNode, type GraphEdge } from '../types/graph.js';
 import type { VngConfig } from '../config.js';
 
@@ -178,5 +178,24 @@ describe('buildDashboardBundle (feature 025, FR-015)', () => {
     const stripped = stripGdLayer(dataset(true));
     expect(stripped.nodes.some((n) => n.type === NodeType.INITIATIVE)).toBe(false);
     expect(stripped.edges.some((e) => e.sourceId === 'init-1')).toBe(false);
+  });
+});
+
+describe('withoutContextSpaces (feature 027: the orchestrator is drawn, never counted)', () => {
+  it('drops a context L0 Space, its subspaces and their edges; keeps the rest', () => {
+    const ds = dataset(false);
+    ds.nodes.push(
+      node({ id: 'kci', type: NodeType.SPACE_L0, displayName: 'Kenniscentrum Innovatie', nameId: 'programmagroei' }),
+      node({ id: 'kci-sub', type: NodeType.SPACE_L1, displayName: 'Deel', parentSpaceId: 'kci' }),
+    );
+    ds.edges.push(edge('kci', 'gem-1', EdgeType.LEAD), edge('kci-sub', 'gem-1', EdgeType.MEMBER));
+    ds.spaces.push('programmagroei');
+
+    const counted = withoutContextSpaces(ds, new Set(['programmagroei']));
+    expect(counted.nodes.map((n) => n.id)).toEqual(['space-a', 'space-b', 'gem-1']);
+    expect(counted.edges.map((e) => e.sourceId)).toEqual(['space-a']);
+    expect(counted.spaces).toEqual(['space-a', 'space-b']);
+    // Nothing to drop: the same object, so memos keep hitting.
+    expect(withoutContextSpaces(ds, new Set())).toBe(ds);
   });
 });

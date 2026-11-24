@@ -142,6 +142,39 @@ describe('DashboardLoader (feature 025)', () => {
     expect(loader.store.getSnapshot().data?.extras.activity).toBeDefined();
   });
 
+  it('the GemeenteDelers switch keeps loaded extras on screen and does not re-request them', async () => {
+    const g = fakeGraph();
+    const x = extras();
+    const loader = new DashboardLoader(new DashboardStore(), g.loadGraph, x);
+    const off = selection(['a']);
+    loader.setSelection(off, selectionLoadKey(off));
+    loader.declare('activity', 'tab:initiatives');
+    loader.declare('gemeente-locations', 'tab:usage');
+    g.calls[0].resolve(dataset('a'));
+    await tick();
+    const activity = loader.store.getSnapshot().data?.extras.activity;
+    expect(activity).toBeDefined();
+
+    const on = selection(['a'], true);
+    loader.setSelection(on, selectionLoadKey(on));
+    g.calls[1].resolve(dataset('a+gd'));
+    await tick();
+    const snap = loader.store.getSnapshot();
+    expect(snap.data?.dataset.spaces).toEqual(['a+gd']);
+    expect(snap.data?.extras.activity).toBe(activity); // same object: nothing flashed
+    expect(x.activityCalls).toBe(1);
+    expect(x.gemeenteLocations).toHaveBeenCalledTimes(1);
+    expect(snap.plan.items.some((i) => i.key === 'activity')).toBe(false); // no strip entry
+
+    // Other Spaces: activity is for different Spaces → fetched again; locations stay.
+    const ab = selection(['a', 'b'], true);
+    loader.setSelection(ab, selectionLoadKey(ab));
+    g.calls[2].resolve(dataset('ab+gd'));
+    await tick();
+    expect(x.activityCalls).toBe(2);
+    expect(x.gemeenteLocations).toHaveBeenCalledTimes(1);
+  });
+
   it('streams server stages into the plan and marks the core done on result', async () => {
     const g = fakeGraph();
     const loader = new DashboardLoader(new DashboardStore(), g.loadGraph, extras());

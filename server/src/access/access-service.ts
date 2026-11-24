@@ -6,6 +6,7 @@ import { determineLevel, type DetermineOutcome } from './determine.js';
 import { clearDecision, getDecision, putDecision } from './decision-store.js';
 import { gateUrlPath, type AccessPolicy, type AppId, type GateRef } from './policy.js';
 import { getGateInfo } from './probe.js';
+import { effectiveAccess } from './effective-sets.js';
 
 /**
  * The one place access is decided (FR-018a). Each application's base policy comes
@@ -14,7 +15,8 @@ import { getGateInfo } from './probe.js';
  * decision — a decision records the level, not a yes/no.
  */
 export function policyFor(app: AppId): AccessPolicy {
-  const sets = loadConfig().access.apps[app].sets;
+  // The configured sets, or the ones a Monitor Manager saved (effective-sets.ts).
+  const { sets } = effectiveAccess(app);
   return sets ? { app, gate: sets, required: 'read' } : { app, gate: null };
 }
 
@@ -33,19 +35,16 @@ export function gateLink(ref: GateRef, fallbackName = ''): GateLink {
   };
 }
 
-/** An application's viewer Spaces as links, with the configured names by position. */
+/** An application's viewer Spaces as links. */
 export function viewerLinks(app: AppId): GateLink[] {
-  const { sets, displayNames } = loadConfig().access.apps[app];
-  return (sets?.viewers ?? []).map((ref, i) => gateLink(ref, displayNames[i]));
+  const { sets, names } = effectiveAccess(app);
+  return (sets?.viewers ?? []).map((ref) => gateLink(ref, names.get(ref.key)));
 }
 
 /** An application's admin Spaces as links (only the admin API shows these). */
 export function adminLinks(app: AppId): GateLink[] {
-  const { sets, displayNames } = loadConfig().access.apps[app];
-  return (sets?.admins ?? []).map((ref) => {
-    const asViewer = sets?.viewers.findIndex((v) => v.key === ref.key) ?? -1;
-    return gateLink(ref, asViewer >= 0 ? displayNames[asViewer] : '');
-  });
+  const { sets, names } = effectiveAccess(app);
+  return (sets?.admins ?? []).map((ref) => gateLink(ref, names.get(ref.key)));
 }
 
 /** In-flight checks, so a burst of parallel first requests asks Alkemio once. */

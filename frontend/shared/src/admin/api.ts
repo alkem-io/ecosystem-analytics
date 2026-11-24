@@ -1,12 +1,11 @@
 import type {
   AdminAccessView,
+  AuditLogView,
   ClassificationChangeResult,
   GdSourceSummaryView,
   IncludedSpaceProblem,
   IncludedSpacesView,
   InitiativeClassificationsView,
-  InitiativeRef,
-  SettingsChangeView,
   SpaceCandidate,
 } from '@server/types/admin.js';
 import { redirectToLogin } from '../services/auth.js';
@@ -58,18 +57,17 @@ const put = <T>(path: string, body: unknown) =>
 export const adminApi = {
   access: () => get<AdminAccessView>('/access'),
   includedSpaces: () => get<IncludedSpacesView>('/included-spaces'),
-  history: (before?: number, limit = 20) =>
-    get<{ changes: SettingsChangeView[]; next: number | null }>(
-      `/included-spaces/history?limit=${limit}${before !== undefined ? `&before=${before}` : ''}`,
-    ),
+  saveAccess: (body: { baseRevision: number; viewers: string[]; admins: string[] }) =>
+    put<AdminAccessView>('/access', body),
+  /** The one audit log of every edit, newest first; `before` is the previous page's `next`. */
+  history: (before?: string, limit = 20) =>
+    get<AuditLogView>(`/history?limit=${limit}${before ? `&before=${encodeURIComponent(before)}` : ''}`),
   saveIncludedSpaces: (body: { baseRevision: number; spaceNameIds: string[]; confirmEmpty?: boolean }) =>
     put<IncludedSpacesView>('/included-spaces', body),
   searchSpaces: (q: string) =>
     get<{ results: SpaceCandidate[] }>(`/space-search?q=${encodeURIComponent(q)}`),
   resolveSpace: (ref: string) =>
     get<{ space: SpaceCandidate }>(`/space-resolve?ref=${encodeURIComponent(ref)}`),
-  initiatives: (q = '') =>
-    get<{ initiatives: InitiativeRef[] }>(`/initiatives?q=${encodeURIComponent(q)}`),
   classifications: (nameId: string) =>
     get<InitiativeClassificationsView>(`/initiatives/${encodeURIComponent(nameId)}/classifications`),
   saveClassifications: (

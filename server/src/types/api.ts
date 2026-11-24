@@ -15,6 +15,14 @@ export interface SpaceSelectionItem {
 /** Request body for graph generation */
 export interface GraphGenerationRequest {
   spaceIds: string[];
+  /**
+   * Of `spaceIds`, the Spaces loaded only as CONTEXT — the VNG Ecosystem tab's
+   * orchestrator candidates (e.g. `programmagroei`), which the monitor does not report
+   * on. They are in the dataset (the Ecosystem map draws them) but the dashboard counts
+   * bundle leaves them out: no phase / NDS / VNG-2030 bar, gemeente distribution or city
+   * series counts them. Feature 027 fix.
+   */
+  contextSpaceIds?: string[];
   forceRefresh?: boolean;
   /**
    * Which dashboard is asking (feature 020). Selects that app's classification

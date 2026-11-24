@@ -78,4 +78,37 @@ describe('summariseGdSubgraph', () => {
     expect(out.ambiguous).toBeNull();
     expect(out.superseded[0]).toMatchObject({ subspaceDisplayName: null, subspaceUrl: null });
   });
+
+  /**
+   * The cached row holds initiatives RAW (subspaces: classification entries; posts: tags).
+   * The dashboard labels them when it merges the layer in; the admin table must do the
+   * same, or every GemeenteDelers initiative shows "—" there while the charts place it.
+   */
+  it('labels NDS / VNG 2030 like the dashboard: subspaces by classification, posts by tag', () => {
+    const entries = (nds: string, vng: string) => [
+      {
+        displayLabel: 'NDS-prioriteit',
+        values: [{ id: 'n-data', label: 'Data' }, { id: 'n-ai', label: 'AI' }],
+        selectedValues: [{ id: nds, label: nds }],
+      },
+      {
+        displayLabel: 'VNG 2030 thema',
+        values: [{ id: 'v-wonen', label: 'Wonen en Ruimte' }],
+        selectedValues: [{ id: vng, label: vng }],
+      },
+    ];
+    const sub = { ...initiative('sub', 'subspace'), classificationEntries: entries('n-ai', 'v-wonen') } as GraphNode;
+    const post = { ...initiative('post', 'post'), tags: { default: ['data', 'Wonen en Ruimte', '2022'] } } as GraphNode;
+    const sg = subgraph([sub, post]);
+    const out = summariseGdSubgraph(sg, { readAt: 1, expiresAt: 2 }, space, {
+      nds: 'NDS-prioriteit',
+      vng2030: 'VNG 2030 thema',
+    });
+    const byId = Object.fromEntries(out.initiatives.map((i) => [i.nameId, i]));
+    expect(byId.sub).toMatchObject({ nds: ['AI'], vng2030: ['Wonen en Ruimte'] });
+    expect(byId.post).toMatchObject({ nds: ['Data'], vng2030: ['Wonen en Ruimte'] });
+    // The cached subgraph object itself is untouched.
+    expect(sub.classificationEntries).toBeDefined();
+    expect(sub.ndsCategories).toBeUndefined();
+  });
 });

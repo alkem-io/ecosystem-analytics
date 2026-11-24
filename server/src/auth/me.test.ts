@@ -27,6 +27,13 @@ const VIEWER_SPACES = [
     url: 'https://alkem.io/programmagroei',
     exists: 'unknown',
   },
+  // The production default also admits members of the Innovatiemonitor Space.
+  {
+    key: 'innovatiemonitor',
+    displayName: 'Innovatiemonitor',
+    url: 'https://alkem.io/innovatiemonitor',
+    exists: 'unknown',
+  },
 ];
 
 beforeEach(() => {

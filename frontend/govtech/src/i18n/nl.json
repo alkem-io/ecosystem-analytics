@@ -12,7 +12,11 @@
     "environment": "Omgeving",
     "envDetecting": "detecteren…",
     "envUnknown": "niet gemeld door server",
-    "disclaimer": "Prototype ter verkenning"
+    "disclaimer": "Prototype ter verkenning",
+    "errorCancelled": "Je inlogpoging is afgebroken voordat die klaar was. Je kunt het hieronder opnieuw proberen.",
+    "errorExpired": "Die inlogpoging is niet meer geldig: het duurde te lang, of je bent al ingelogd in een ander tabblad. Log opnieuw in.",
+    "errorFailed": "Inloggen via Alkemio is niet gelukt. Meestal is dat een tijdelijk probleem met de inlogdienst, niet met je account. Probeer het opnieuw; blijft het gebeuren, neem dan contact op met je Alkemio-beheerder.",
+    "poweredBy": "Mogelijk gemaakt door"
   },
   "access": {
     "noAccessTitle": "Je hebt geen toegang",
@@ -205,7 +209,9 @@
     "unclassifiedCount": "{{count}} nog niet geclassificeerd",
     "classificationsHeading": "Classificaties",
     "driftUnexpected": "Onverwacht in Alkemio en niet beoordeeld voor dit dashboard: {{labels}}. Ze worden wel getoond en meegeteld.",
-    "driftMissing": "Door dit dashboard verwacht, maar niet meer aanwezig in Alkemio: {{labels}}. Mogelijk hernoemd."
+    "driftMissing": "Door dit dashboard verwacht, maar niet meer aanwezig in Alkemio: {{labels}}. Mogelijk hernoemd.",
+    "ndsAxis": "NDS",
+    "vng2030Axis": "VNG 2030"
   },
   "categories": {
     "phase": {
@@ -214,8 +220,12 @@
   },
   "warning": {
     "authTitle": "Let op",
-    "authBody": "Je ziet alleen gegevens waartoe je toegang hebt. Zie je beperkte gegevens? Controleer dan je rechten op de onderliggende Spaces.",
-    "accessVia": "Toegang tot deze monitor hebben leden van {{spaces}} op Alkemio."
+    "authBody": "je ziet alleen gegevens waartoe je zelf toegang hebt op Alkemio.",
+    "accessVia": "Toegang tot deze monitor hebben leden van {{spaces}} op Alkemio.",
+    "accessViaPrefix": "Je hebt toegang tot deze monitor als lid van",
+    "or": "of",
+    "expand": "Meer tonen",
+    "collapse": "Minder tonen"
   },
   "provenance": {
     "gd": "GemeenteDelers was een VNG-programma (2021–2025) met circa 305 initiatieven, oorspronkelijk gepubliceerd op vng.nl/praktijkvoorbeelden."
@@ -252,7 +262,19 @@
     "offMapSpacesL1": "Subspaces (L1) zonder locatie ({{count}})",
     "offMapSpacesL2": "Subspaces (L2) zonder locatie ({{count}})",
     "region": "Regio",
-    "regionNetherlands": "Heel Nederland"
+    "regionNetherlands": "Heel Nederland",
+    "metrics": {
+      "avgDegree": "Gem. aantal verbindingen",
+      "density": "Dichtheid",
+      "edges": "Verbindingen",
+      "initiatives": "Initiatieven",
+      "nodes": "Knooppunten",
+      "orgs": "Organisaties",
+      "spaces": "Spaces"
+    },
+    "noParticipatingGemeentes": "Geen deelnemende gemeenten in de huidige gegevens.",
+    "participatingGemeentes": "Deelnemende gemeenten",
+    "showMap": "Kaart tonen"
   },
   "export": {
     "downloadXlsx": "Download XLSX",
@@ -360,7 +382,13 @@
       "noPhase": "Nog geen fase"
     },
     "showNames": "Namen tonen",
-    "inFunnel": "Initiatieven in de funnel"
+    "inFunnel": "Initiatieven in de funnel",
+    "colorBy": "Kleur op",
+    "colorBySource": "Bron (Groei / GemeenteDelers)",
+    "legendNone": "Geen classificatie",
+    "legendOther": "Overig",
+    "legendFocusHint": "Klik op een waarde om de initiatieven ervan te markeren.",
+    "legendSplit": "Een stip in meerdere kleuren heeft meerdere waarden."
   },
   "table": {
     "sortBy": "Sorteer",

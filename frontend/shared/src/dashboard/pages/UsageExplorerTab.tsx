@@ -56,9 +56,13 @@ const MAP_HEIGHT = 1560;
  */
 const MAP_ASPECT = 1.25;
 const MIN_MAP_HEIGHT = 420;
-function mapHeightFor(width: number): number {
+/** Never taller than most of the window: the country should fill the box, and the
+ *  legend and ranking below should be one scroll away, not a screen and a half. */
+const MAX_VIEWPORT_SHARE = 0.75;
+function mapHeightFor(width: number, viewportHeight: number): number {
   if (width <= 0) return MAP_HEIGHT;
-  return Math.round(Math.min(MAP_HEIGHT, Math.max(MIN_MAP_HEIGHT, width * MAP_ASPECT)));
+  const cap = viewportHeight > 0 ? Math.min(MAP_HEIGHT, viewportHeight * MAX_VIEWPORT_SHARE) : MAP_HEIGHT;
+  return Math.round(Math.max(MIN_MAP_HEIGHT, Math.min(cap, width * MAP_ASPECT)));
 }
 
 export function UsageExplorerTab() {
@@ -103,7 +107,7 @@ export function UsageExplorerTab() {
     observerRef.current = null;
     if (!el) return;
     const observer = new ResizeObserver(([entry]) => {
-      const next = mapHeightFor(Math.floor(entry.contentRect.width));
+      const next = mapHeightFor(Math.floor(entry.contentRect.width), window.innerHeight);
       setMapHeight((prev) => (prev === next ? prev : next));
     });
     observer.observe(el);

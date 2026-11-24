@@ -8,6 +8,7 @@ import { useSelectionContext } from '../hooks/SelectionContext.js';
 import { useCoreLoadState, useCounts, useGraphDataset, useInitiativeRows } from '../data/derive/index.js';
 import { layoutFunnel } from '../utils/funnel.js';
 import { FILTER_ALL } from '../components/TableFilterBar.js';
+import type { FunnelColorBy } from '../utils/funnel-colors.js';
 
 /** Vertical space the funnel gets, clamped so it stays whole on short windows. */
 const MIN_FUNNEL_HEIGHT = 220;
@@ -87,6 +88,8 @@ export function FunnelTab() {
   // Names beside the dots. Off by default — see the prop's note in FunnelChart — but the
   // natural next move after narrowing with the filters above, so it sits beside them.
   const [showLabels, setShowLabels] = useState(false);
+  // What the dots are coloured by: source (Groei / GemeenteDelers) or one classification.
+  const [colorBy, setColorBy] = useState<FunnelColorBy>('source');
 
   /** Distinct values actually present on the rows, so no option can select nothing. */
   const optionsFor = (pick: (r: (typeof allRows)[number]) => string[]): string[] => {
@@ -134,6 +137,20 @@ export function FunnelTab() {
 
   const phaseDrift = data?.vocabularyDrift?.find((d) => d.dimension === 'phase');
 
+  // The chosen classification's values in AUTHORED order (the dashboard dimensions carry
+  // the vocabulary in that order) — this is what fixes each value's colour. A value an
+  // initiative carries that the vocabulary does not list (e.g. a GemeenteDelers post's
+  // label from another template version) is appended, sorted, rather than lumped into
+  // "other". Read from ALL rows, not the filtered ones, so a filter never repaints.
+  const vocabulary = useMemo(() => {
+    if (colorBy === 'source') return [];
+    const dim = data?.dimensions.find((d) => d.key === colorBy);
+    const authored = (dim?.categories ?? []).flatMap((c) => (c.label ? [c.label] : []));
+    const known = new Set(authored);
+    const extra = (colorBy === 'nds' ? ndsOptions : vngOptions).filter((v) => !known.has(v));
+    return [...authored, ...extra];
+  }, [data, colorBy, ndsOptions, vngOptions]);
+
   const body = () => {
     if (effectiveSpaceIds.length === 0) {
       return (
@@ -175,7 +192,7 @@ export function FunnelTab() {
         </Centered>
       );
     }
-    return <FunnelChart layout={layout} showLabels={showLabels} />;
+    return <FunnelChart layout={layout} showLabels={showLabels} colorBy={colorBy} vocabulary={vocabulary} />;
   };
 
   return (
@@ -233,6 +250,24 @@ export function FunnelTab() {
                 </select>
               </label>
             ))}
+
+          <label className="flex min-w-0 flex-1 items-center gap-1.5 text-sm text-muted-foreground sm:flex-none">
+            {t('funnel.colorBy', { defaultValue: 'Colour by' })}
+            <select
+              value={colorBy}
+              onChange={(e) => setColorBy(e.target.value as FunnelColorBy)}
+              data-testid="funnel-color-by"
+              className={cn(
+                'min-w-0 flex-1 rounded-md border border-border bg-card px-2.5 py-1.5 text-sm text-foreground',
+                'sm:max-w-56 sm:flex-none',
+                'focus:outline-none focus-visible:ring-2 focus-visible:ring-primary',
+              )}
+            >
+              <option value="source">{t('funnel.colorBySource', { defaultValue: 'Source (Groei / GemeenteDelers)' })}</option>
+              {ndsOptions.length > 0 && <option value="nds">{t('citiesTab.filterNds')}</option>}
+              {vngOptions.length > 0 && <option value="vng2030">{t('citiesTab.filterVng2030')}</option>}
+            </select>
+          </label>
 
           <label className="flex cursor-pointer items-center gap-2 text-sm text-muted-foreground">
             <input

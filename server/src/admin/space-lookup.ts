@@ -35,6 +35,10 @@ export interface AdminSpace {
   url: string | null;
   privileges: string[];
   classifications: AdminEntry[];
+  /** `about.isContentPublic` — `null` when Alkemio did not say. */
+  isContentPublic: boolean | null;
+  /** Space `visibility` (ACTIVE / ARCHIVED / DEMO / INACTIVE) — `null` when not given. */
+  visibility: string | null;
 }
 
 export type SpaceLookup =
@@ -46,7 +50,9 @@ interface RawSpace {
   id: string;
   nameID: string;
   level: string;
+  visibility?: string | null;
   about?: {
+    isContentPublic?: boolean | null;
     authorization?: { myPrivileges?: string[] | null } | null;
     profile?: { displayName?: string | null; url?: string | null } | null;
     classifications?: Array<{
@@ -68,6 +74,8 @@ function toAdminSpace(raw: RawSpace): AdminSpace {
     displayName: raw.about?.profile?.displayName || raw.nameID,
     url: raw.about?.profile?.url ?? null,
     privileges: raw.about?.authorization?.myPrivileges ?? [],
+    isContentPublic: raw.about?.isContentPublic ?? null,
+    visibility: raw.visibility ?? null,
     classifications: (raw.about?.classifications ?? []).map((c) => ({
       id: c.id,
       displayLabel: c.displayLabel,

@@ -6,6 +6,7 @@ import { purgeExpired, runDeploymentCacheMaintenance } from './cache/cache-servi
 import { LEGACY_GD_POSTS_NOTICE } from './transform/gd-initiative-sources.js';
 import { APP_IDS, type GateRef } from './access/policy.js';
 import { startGateProbes } from './access/probe.js';
+import { effectiveAccess } from './access/effective-sets.js';
 import { initSettingsStore, settingsCreatedNow } from './settings/db.js';
 import { loadStartingSet, seedIfEmpty } from './settings/seed.js';
 import { getScope } from './settings/store.js';
@@ -24,31 +25,6 @@ logger.info(
 // A standing reminder to whoever runs this server that the GD posts path must go.
 // LEGACY-GD-POSTS: delete with the posts path.
 logger.warn(LEGACY_GD_POSTS_NOTICE, { context: 'Bootstrap' });
-
-// Features 026 + 027 — each application's access: its viewer Spaces (MEMBER → read) and
-// admin Spaces (ADMIN → manage). `loadConfig()` has already refused to start if any app
-// is undeclared or misconfigured (FR-003); state each one plainly, then probe every
-// distinct Space anonymously in the background (names/links for the sign-in and
-// "no access" pages). Listeners do not wait.
-const gateProbes: Array<{ gate: GateRef; displayNameFallback: string }> = [];
-for (const appId of APP_IDS) {
-  const { sets, displayNames } = config.access.apps[appId];
-  const keys = (refs: GateRef[]) => refs.map((r) => r.key).join(', ') || '(none)';
-  logger.info(
-    sets
-      ? `[Access] ${appId}: viewers ${keys(sets.viewers)}; admins ${keys(sets.admins)}`
-      : `[Access] ${appId}: UNGATED (explicit)`,
-    { context: 'Bootstrap' },
-  );
-  sets?.viewers.forEach((gate, i) =>
-    gateProbes.push({ gate, displayNameFallback: displayNames[i] ?? '' }),
-  );
-  sets?.admins.forEach((gate) => gateProbes.push({ gate, displayNameFallback: '' }));
-}
-startGateProbes(gateProbes, {
-  alkemioServerUrl: config.alkemioServerUrl,
-  timeoutMs: config.access.checkTimeoutMs,
-});
 
 // Three apps sharing the same /api routes + SQLite session/cache store:
 //  - the Explorer SPA on `config.port`
@@ -94,6 +70,34 @@ scheduleDailyBackup();
       `last backup ${lastBackup() ?? '(none)'}`,
     { context: 'Bootstrap' },
   );
+}
+
+// Features 026 + 027 — each application's access: its viewer Spaces (MEMBER → read) and
+// admin Spaces (ADMIN → manage). `loadConfig()` has already refused to start if any app
+// is undeclared or misconfigured (FR-003). The sets IN FORCE are the configured ones or
+// those a Monitor Manager saved in the admin area (access/effective-sets.ts) — so this
+// runs after the settings tables exist. State each plainly, then probe every distinct
+// Space anonymously in the background (names/links for the sign-in and "no access"
+// pages). Listeners do not wait.
+{
+  const gateProbes: Array<{ gate: GateRef; displayNameFallback: string }> = [];
+  for (const appId of APP_IDS) {
+    const { sets, names, source } = effectiveAccess(appId);
+    const keys = (refs: GateRef[]) => refs.map((r) => r.key).join(', ') || '(none)';
+    logger.info(
+      sets
+        ? `[Access] ${appId}: viewers ${keys(sets.viewers)}; admins ${keys(sets.admins)} (${source === 'settings' ? 'set in the admin area' : 'configuration'})`
+        : `[Access] ${appId}: UNGATED (explicit)`,
+      { context: 'Bootstrap' },
+    );
+    for (const gate of [...(sets?.viewers ?? []), ...(sets?.admins ?? [])]) {
+      gateProbes.push({ gate, displayNameFallback: names.get(gate.key) ?? '' });
+    }
+  }
+  startGateProbes(gateProbes, {
+    alkemioServerUrl: config.alkemioServerUrl,
+    timeoutMs: config.access.checkTimeoutMs,
+  });
 }
 
 // Housekeeping: sweep expired cache entries, spent pre-auth records, and

@@ -88,6 +88,10 @@ export interface NlBasemapOptions {
    * is unaffected: it is a RATIO to the configured scale, so it tracks any base.
    */
   scale?: number;
+  /** See {@link BasemapOptions.cooperativeGestures}: for a map inside a scrolling page. */
+  cooperativeGestures?: boolean;
+  /** MapLibre UI strings in the reader's language. */
+  locale?: Record<string, string>;
 }
 
 export interface NlBasemap {
@@ -142,6 +146,8 @@ export function renderNlBasemap({
   onBasemapFallback,
   onCameraChange,
   scale,
+  cooperativeGestures,
+  locale,
 }: NlBasemapOptions): NlBasemap {
   const mapCfg = resolveMapConfig(region);
   // The caller's fitted scale wins over the region's constant when supplied.
@@ -176,6 +182,8 @@ export function renderNlBasemap({
         onCameraChange?.(t);
       },
       onFallback: (reason) => onBasemapFallback?.(reason),
+      cooperativeGestures,
+      locale,
     }).then((created) => {
       // Unmounting before this resolves would otherwise orphan the map: its render
       // listener keeps painting into a detached container and retains the whole graph

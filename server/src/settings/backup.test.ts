@@ -74,6 +74,9 @@ describe('runBackupIfDue', () => {
       .sort();
     backup.close();
     expect(tables).toEqual([
+      'access_changes',
+      'access_sets',
+      'access_state',
       'classification_changes',
       'included_spaces',
       'settings_changes',

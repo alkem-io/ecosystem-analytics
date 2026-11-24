@@ -37,7 +37,16 @@ optionally lists the admin Spaces (empty: nobody can manage). `<app>_display_nam
 first viewer Space for the screens when the probe cannot, `<app>_display_names` the others by
 position. Start-up **stops** on a missing or empty viewer value, an unparseable item, a Space
 listed twice within a set, or an admin set on an app that is `none`; nothing is ever ungated
-by accident. Production: `vng` viewers and admins are both `programmagroei`. See
+by accident. Production: `vng` viewers and admins are both `programmagroei,innovatiemonitor`.
+
+**Managers can change the sets** in the admin area's "Toegang" tab (`PUT /api/vng/admin/access`,
+`admin/access-settings-service.ts`). The sets in force come from `effective-sets.ts`: a stored
+set (settings tables `access_*`) wins over the configuration; an app configured `none` stays
+ungated and is not editable. A save requires every Space to exist (anonymous probe, which also
+records its name), both sets non-empty, and the saving manager to still be `manage` under the
+NEW sets (checked with their own roles) — so nobody can lock every manager out. The set key
+changes with the sets, so every held decision is re-made on the next request. Start-up probes
+the sets in force, so it runs after the settings tables exist. See
 `specs/027-vng-admin-area/contracts/api-access-sets.md`.
 
 ## Which application a request is for

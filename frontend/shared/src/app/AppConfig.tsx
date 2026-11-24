@@ -50,12 +50,16 @@ export interface AppConfig {
   flags?: {
     /**
      * The dashboard reports on the Spaces its managers chose (`GET /api/vng/scope`, the
-     * monitor's own settings store) instead of an innovation hub. No hub picker, no "add
-     * Space" for viewers — they can only narrow the set. Also enables the `/admin` area
-     * for Monitor Managers.
+     * monitor's own settings store) instead of an innovation hub. No Space selection
+     * at all for viewers. Also enables the `/admin` area for Monitor Managers.
      */
     managedScope?: boolean;
   };
+  /**
+   * The dashboard is a prototype shared for feedback: the notice under the header says
+   * so and links here for more information. Absent: no prototype line.
+   */
+  prototypeInfoUrl?: string;
 }
 
 const AppConfigContext = createContext<AppConfig | null>(null);
