@@ -5,7 +5,8 @@
  * only modules allowed to talk to the BFF are the provider, its loader, the read hooks
  * and the graph loader. If a tab grows a `useState` of a dataset or an `api.` call, this
  * test fails before a reviewer has to notice. Two static fetches are allow-listed on
- * purpose: the graph tab's region boundary (a static asset, not data) and the login
+ * purpose: the graph tab's region boundary and layout A's gemeente outlines (static
+ * assets, not data) and the login
  * screen's feature flags and public viewer-Space list (feature 027) — both before any
  * data exists.
  */
@@ -20,6 +21,8 @@ const SOURCES = import.meta.glob(
 const rel = (path: string) => path.replace(/^.*\/shared\/src\/dashboard\//, '');
 const ALLOWED_FETCHES = new Map([
   ['pages/GraphTab.tsx', /fetch\(resolveMapConfig\(mapRegion\)\.url\)/],
+  // Layout A's flat gemeente map: the static outline files, not data (loaded once per page).
+  ['components/layout-a/GemeenteMap.tsx', /fetch\('\/maps\/(gemeenten\.json|netherlands\.geojson)'\)/g],
   ['components/LoginScreen.tsx', /fetch\('\/api\/(features|auth\/access\/spaces)'\)/g],
 ]);
 const FORBIDDEN = [
