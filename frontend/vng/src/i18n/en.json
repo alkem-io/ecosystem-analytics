@@ -214,7 +214,32 @@
     "driftUnexpected": "Unexpected in Alkemio and not reviewed for this dashboard: {{labels}}. They are still shown and still counted.",
     "driftMissing": "Expected by this dashboard but no longer in Alkemio: {{labels}}. Possibly renamed.",
     "ndsAxis": "NDS",
-    "vng2030Axis": "VNG 2030"
+    "vng2030Axis": "VNG 2030",
+    "a": {
+      "bubbleSize": "Bubble size = participating municipalities",
+      "cityPie": "Circle = Groei / GemeenteDelers split",
+      "citySub": "Every municipality by population and number of initiatives",
+      "colorBy": "Colour by",
+      "counted": "{{count}} counted",
+      "distSub": "Grouped by number of participating municipalities",
+      "dotMeaning": "Dot = municipality, size = inhabitants",
+      "gemeenten": "Municipalities",
+      "inhabitants": "Inhabitants",
+      "kpiCities": "Participating municipalities",
+      "kpiCounted": "Counted",
+      "kpiPopulation": "Inhabitants of these municipalities",
+      "kpiUncategorised": "Without a category",
+      "kpiUncategorisedDetail": "No NDS and no VNG 2030",
+      "matrixSize": "Size = number of initiatives",
+      "matrixSub": "Initiatives by primary NDS and VNG-2030 category",
+      "ndsTitle": "Initiatives by NDS",
+      "noInitiatives": "No initiatives",
+      "ofCities": "of the municipalities",
+      "phase": "Phase",
+      "phasesSub": "Groei initiatives across the growth phases",
+      "populationRange": "Population range",
+      "uncategorised": "{{count}} without a category"
+    }
   },
   "categories": {
     "phase": {

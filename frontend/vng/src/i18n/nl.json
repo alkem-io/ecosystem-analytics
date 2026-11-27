@@ -214,7 +214,32 @@
     "driftUnexpected": "Onverwacht in Alkemio en niet beoordeeld voor dit dashboard: {{labels}}. Ze worden wel getoond en meegeteld.",
     "driftMissing": "Door dit dashboard verwacht, maar niet meer aanwezig in Alkemio: {{labels}}. Mogelijk hernoemd.",
     "ndsAxis": "NDS",
-    "vng2030Axis": "VNG 2030"
+    "vng2030Axis": "VNG 2030",
+    "a": {
+      "bubbleSize": "Puntgrootte = aantal deelnemende gemeenten",
+      "cityPie": "Cirkel = verdeling Groei / GemeenteDelers",
+      "citySub": "Elke gemeente naar inwonertal en aantal initiatieven",
+      "colorBy": "Kleur op",
+      "counted": "{{count}} geteld",
+      "distSub": "Gegroepeerd op aantal deelnemende gemeenten",
+      "dotMeaning": "Stip = gemeente, grootte = inwoners",
+      "gemeenten": "Gemeenten",
+      "inhabitants": "Inwoners",
+      "kpiCities": "Gemeenten die meedoen",
+      "kpiCounted": "Geteld",
+      "kpiPopulation": "Inwoners in deze gemeenten",
+      "kpiUncategorised": "Zonder categorie",
+      "kpiUncategorisedDetail": "Geen NDS en geen VNG 2030",
+      "matrixSize": "Grootte = aantal initiatieven",
+      "matrixSub": "Initiatieven volgens primaire NDS- en VNG-2030-categorie",
+      "ndsTitle": "Initiatieven volgens NDS",
+      "noInitiatives": "Geen initiatieven",
+      "ofCities": "van de gemeenten",
+      "phase": "Fase",
+      "phasesSub": "Groei-initiatieven, verdeeld over de groeifases",
+      "populationRange": "Inwonersbereik",
+      "uncategorised": "{{count}} zonder categorie"
+    }
   },
   "categories": {
     "phase": {

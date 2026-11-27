@@ -14,6 +14,8 @@ import { CityPopulationChart } from '../components/charts/CityPopulationChart.js
 import { PhaseDistributionChart } from '../components/charts/PhaseDistributionChart.js';
 import { GdProvenanceNote } from '../components/GdProvenanceNote.js';
 import { LoadingOverlay } from '../components/LoadingOverlay.js';
+import { DashboardA, type ChartId } from '../components/layout-a/DashboardA.js';
+import type { PhaseColorBy } from '../components/layout-a/PhaseBubbles.js';
 import { exportDashboardXlsx, exportSingleChartXlsx, type ChartTable } from '../utils/exportDashboard.js';
 
 /**
@@ -23,7 +25,10 @@ import { exportDashboardXlsx, exportSingleChartXlsx, type ChartTable } from '../
  */
 export function DashboardTab() {
   const { t } = useTranslation();
-  const { exportCreator, exportFilenameStem, flags } = useAppConfig();
+  const { exportCreator, exportFilenameStem, flags, layout } = useAppConfig();
+  const layoutA = layout === 'sidebar';
+  // Layout A colours the phase chart by a choice that includes handelen (default NDS).
+  const [colorBy, setColorBy] = useState<PhaseColorBy>('nds');
   const { effectiveSpaceIds, selectedSpaces, state } = useSelectionContext();
 
   // Feature 025: the counts arrive WITH the dataset (FR-015) — both GD variants — so
@@ -46,12 +51,13 @@ export function DashboardTab() {
 
   // The phase chart's handelen split: off by default, and only then asked for.
   const [showHandelen, setShowHandelen] = useState(false);
-  const handelen = useExtraItem('activity', 'tab:dashboard', undefined, showHandelen);
+  const handelenOn = layoutA ? colorBy === 'handelen' : showHandelen;
+  const handelen = useExtraItem('activity', 'tab:dashboard', undefined, handelenOn);
   const initiativeRows = useInitiativeRows();
   const phases = data?.phaseDistribution?.phases;
   const phaseSplit = useMemo(
-    () => (showHandelen && phases ? phaseHandelen(phases, initiativeRows) : null),
-    [showHandelen, phases, initiativeRows],
+    () => (handelenOn && phases ? phaseHandelen(phases, initiativeRows) : null),
+    [handelenOn, phases, initiativeRows],
   );
 
   const phaseRef = useRef<HTMLDivElement>(null);
@@ -305,6 +311,64 @@ export function DashboardTab() {
     return (
       <div className="flex h-full items-center justify-center text-muted-foreground">
         {t('selection.empty')}
+      </div>
+    );
+  }
+
+  const loadingOverlay = loading && (
+    <LoadingOverlay
+      progress={progress}
+      currentSpace={currentSpaceLabel}
+      dim
+      labels={{
+        loading: t('states.loadingData', { defaultValue: t('states.loading') }),
+        transforming: t('states.graphTransforming', { defaultValue: 'Netwerk opbouwen…' }),
+        acquiring: t('states.graphAcquiring', { defaultValue: 'Initiatieven ophalen' }),
+        building: t('states.graphBuilding', { defaultValue: 'Netwerk' }),
+        hint: t('states.loadingGraphHint', { defaultValue: 'Dit kan even duren' }),
+      }}
+    />
+  );
+
+  if (layoutA) {
+    const refs = { phase: phaseRef, nds: ndsRef, vng2030: vngRef, dist: distRef, matrix: matrixRef, city: cityPopRef };
+    const charts: Record<ChartId, [string, () => ChartTable | null]> = {
+      phase: [t('dashboard.phases', { defaultValue: 'Initiatieven per groeifase' }), phaseTable],
+      nds: [t('dashboard.nds'), () => dimTable('nds')],
+      vng2030: [t('dashboard.vng2030'), () => dimTable('vng2030')],
+      dist: [t('dashboard.gemeenteDistribution', { defaultValue: 'Initiatieven per aantal gemeenten' }), distTable],
+      matrix: [t('dashboard.categoryMatrix', { defaultValue: 'NDS × VNG-2030' }), matrixTable],
+      city: [t('dashboard.cityPopulation', { defaultValue: 'Inwoners versus deelname' }), cityTable],
+    };
+    return (
+      <div className="relative h-full">
+        <div className="load-strip-clearance h-full overflow-auto px-4 pt-4 pb-[max(1rem,var(--safe-bottom))] lg:px-7 lg:pt-[22px]">
+          {error && (
+            <div className="mb-4 rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm text-destructive">
+              {t('states.error')}: {error}
+            </div>
+          )}
+          <DashboardA
+            data={data}
+            rows={initiativeRows}
+            cityRows={cityRows}
+            colorBy={colorBy}
+            onColorBy={setColorBy}
+            handelenStatus={
+              colorBy !== 'handelen' || phaseSplit
+                ? null
+                : handelen.failed
+                  ? t('handelen.failed', { defaultValue: 'Activity is not available.' })
+                  : t('handelen.loading', { defaultValue: 'Loading activity…' })
+            }
+            refs={refs}
+            busyChart={busyChart}
+            exporting={exporting}
+            onChartExport={(id) => runChartExport(id, charts[id][0], refs[id].current, charts[id][1]())}
+            onExport={onExport}
+          />
+        </div>
+        {loadingOverlay}
       </div>
     );
   }
