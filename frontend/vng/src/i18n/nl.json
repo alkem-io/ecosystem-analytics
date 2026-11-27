@@ -651,9 +651,7 @@
       "empty": "— niet ingevuld —",
       "missingOnSpace": "Deze Space heeft deze classificatie niet.",
       "multi": "meer dan één mogelijk",
-      "savesOnAlkemio": "Wordt op Alkemio opgeslagen, onder jouw naam. Elk dashboard leest het daar.",
-      "apply": "Toepassen",
-      "stagedHint": "Nog niets opgeslagen: druk onder de tabel op Opslaan om het naar Alkemio te schrijven."
+      "savesOnAlkemio": "Wordt op Alkemio opgeslagen, onder jouw naam. Elk dashboard leest het daar."
     },
     "entry": "Instellingen van de monitor",
     "gd": {
@@ -774,8 +772,6 @@
     },
     "a": {
       "empty": "Nog leeg",
-      "conflict": "Iemand anders heeft de lijst intussen gewijzigd. Laad de pagina opnieuw en doe je wijzigingen nog eens.",
-      "partlySaved": "Niet alles kon worden opgeslagen. Wat overblijft staat nog klaar — bekijk de gemarkeerde rijen.",
       "groeiSub": "{{shown}} van {{total}} zichtbaar, {{open}} met een lege indeling",
       "groeiTitle": "Groei-initiatieven in de monitor",
       "search": "Zoek initiatief",
@@ -784,20 +780,8 @@
       "colAlkemio": "Alkemio",
       "colActions": "Acties",
       "showNamed": "{{name}} tonen in de monitor",
-      "notSaved": "Niet opgeslagen — open om te bekijken",
-      "pending_one": "{{count}} wijziging nog niet opgeslagen",
-      "pending_other": "{{count}} wijzigingen nog niet opgeslagen",
-      "undo": "Maak ongedaan",
-      "save": "Opslaan",
       "addTitle": "Space toevoegen",
-      "pressEnter": "Druk op Enter om deze link toe te voegen.",
-      "addHint": "Toegevoegde Spaces komen in de tabel; Opslaan zet ze in de monitor.",
-      "done": "Klaar",
       "notEmpty": "De monitor moet minstens één Space houden.",
-      "undoAddNamed": "{{name}} niet toevoegen",
-      "newHint": "Indeling verschijnt na Opslaan",
-      "keepNamed": "{{name}} toch houden",
-      "willRemove": "Wordt verwijderd bij Opslaan",
       "tabIncluded": "Groei-initiatieven",
       "sub": "Wat de monitor toont en hoe initiatieven zijn ingedeeld",
       "grantBoth": "Bekijken en beheren",
@@ -808,7 +792,17 @@
       "accessSub": "Lidmaatschap van deze Spaces op Alkemio bepaalt de toegang",
       "accessEdit": "Toegang wijzigen",
       "showMore": "Toon {{count}} meer",
-      "migrated": "{{pct}}% omgezet naar subspaces"
+      "migrated": "{{pct}}% omgezet naar subspaces",
+      "conflict": "Iemand anders heeft de lijst intussen gewijzigd. De huidige lijst staat er nu; probeer het opnieuw.",
+      "addNote": "Komt direct in de monitor, voor iedereen die hem bekijkt.",
+      "addCount_one": "{{count}} toevoegen",
+      "addCount_other": "{{count}} toevoegen",
+      "pressEnter": "Druk op Enter om deze link op te zoeken.",
+      "picked": "Gekozen",
+      "toAdd": "Toe te voegen",
+      "removeTitle": "{{name}} uit de monitor halen?",
+      "removeYes": "Verwijderen",
+      "removeBody": "Het initiatief verdwijnt direct uit de monitor, voor iedereen. Op Alkemio blijft de Space gewoon bestaan, en je kunt hem later opnieuw toevoegen. Wil je hem alleen even niet tonen? Zet dan de schakelaar Zichtbaar uit."
     }
   },
   "header": {

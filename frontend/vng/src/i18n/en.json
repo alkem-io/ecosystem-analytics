@@ -651,9 +651,7 @@
       "empty": "— not filled in —",
       "missingOnSpace": "This Space does not have this classification.",
       "multi": "more than one possible",
-      "savesOnAlkemio": "Saved on Alkemio, as you. Every dashboard reads it from there.",
-      "apply": "Apply",
-      "stagedHint": "Nothing is saved yet: press Save under the table to write it to Alkemio."
+      "savesOnAlkemio": "Saved on Alkemio, as you. Every dashboard reads it from there."
     },
     "entry": "Monitor settings",
     "gd": {
@@ -774,8 +772,6 @@
     },
     "a": {
       "empty": "Not set",
-      "conflict": "Someone else changed the list meanwhile. Reload the page and make your changes again.",
-      "partlySaved": "Not everything could be saved. What is left is still staged — check the highlighted rows.",
       "groeiSub": "{{shown}} of {{total}} visible, {{open}} with an empty classification",
       "groeiTitle": "Groei initiatives in the monitor",
       "search": "Search initiative",
@@ -784,20 +780,8 @@
       "colAlkemio": "Alkemio",
       "colActions": "Actions",
       "showNamed": "Show {{name}} in the monitor",
-      "notSaved": "Not saved — open to check",
-      "pending_one": "{{count}} change not saved yet",
-      "pending_other": "{{count}} changes not saved yet",
-      "undo": "Undo",
-      "save": "Save",
       "addTitle": "Add a Space",
-      "pressEnter": "Press Enter to add this link.",
-      "addHint": "Added Spaces appear in the table; Save puts them in the monitor.",
-      "done": "Done",
       "notEmpty": "The monitor must keep at least one Space.",
-      "undoAddNamed": "Don't add {{name}}",
-      "newHint": "Classification appears after saving",
-      "keepNamed": "Keep {{name}}",
-      "willRemove": "Will be removed when you save",
       "tabIncluded": "Groei initiatives",
       "sub": "What the monitor shows and how initiatives are classified",
       "grantBoth": "View and manage",
@@ -808,7 +792,17 @@
       "accessSub": "Membership of these Spaces on Alkemio decides access",
       "accessEdit": "Change access",
       "showMore": "Show {{count}} more",
-      "migrated": "{{pct}}% moved to subspaces"
+      "migrated": "{{pct}}% moved to subspaces",
+      "conflict": "Someone else changed the list meanwhile. The current list is shown now; try again.",
+      "addNote": "Goes into the monitor straight away, for everyone who views it.",
+      "addCount_one": "Add {{count}}",
+      "addCount_other": "Add {{count}}",
+      "pressEnter": "Press Enter to look up this link.",
+      "picked": "Picked",
+      "toAdd": "To add",
+      "removeTitle": "Take {{name}} out of the monitor?",
+      "removeYes": "Remove",
+      "removeBody": "The initiative disappears from the monitor straight away, for everyone. The Space stays on Alkemio, and you can add it again later. Only want to hide it for now? Switch Zichtbaar off instead."
     }
   },
   "header": {
