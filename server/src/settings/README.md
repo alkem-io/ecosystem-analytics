@@ -19,7 +19,7 @@ own tables, beside the cache and the sessions:
 |---|---|
 | `settings_meta` | the schema version of these tables (never `PRAGMA user_version`, which the cache's run-once maintenance uses) |
 | `settings_state` | one row: revision, ecosystem key, last update |
-| `included_spaces` | the Included Spaces in order (nameID, UUID once known, and `hidden` — kept but left out of the viewers' scope by the admin area's *Zichtbaar* switch, schema v3) |
+| `included_spaces` | the Included Spaces in order (nameID, UUID once known, and `hidden` — kept but left out of the viewers' scope by the admin area's *Zichtbaar* switch, schema v3; at least one Space stays visible — `ALL_HIDDEN`). Hiding is presentation, not access control: the graph routes still serve any Space the viewer may read on Alkemio |
 | `settings_changes` | append-only: seed / update / rename, with the Spaces hidden or shown again by an update (schema v3) |
 | `classification_changes` | append-only: classification edits made through the admin area |
 | `access_state` | per app: revision and last update of the access sets saved in the admin area (schema v2) |

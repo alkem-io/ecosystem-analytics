@@ -1,4 +1,4 @@
-import { useEffect, useRef, type ReactNode } from 'react';
+import { useEffect, useId, useRef, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { X } from 'lucide-react';
 import { containTab } from '../../lib/focus.js';
@@ -27,14 +27,18 @@ export function Modal({
 }) {
   const { t } = useTranslation();
   const ref = useRef<HTMLDivElement>(null);
+  const titleId = useId();
+  // Read during the first render, before any autoFocus inside moves focus.
+  const openerRef = useRef(typeof document === 'undefined' ? null : (document.activeElement as HTMLElement | null));
   const busyRef = useRef(busy);
   busyRef.current = busy;
   const closeRef = useRef(onClose);
   closeRef.current = onClose;
 
   useEffect(() => {
-    const opener = document.activeElement as HTMLElement | null;
-    ref.current?.focus();
+    const opener = openerRef.current;
+    // A control marked autoFocus inside (e.g. Cancel on a destructive window) keeps focus.
+    if (!ref.current?.contains(document.activeElement)) ref.current?.focus();
     const prev = document.body.style.overflow;
     document.body.style.overflow = 'hidden';
     const onKey = (e: KeyboardEvent) => {
@@ -60,14 +64,14 @@ export function Modal({
         ref={ref}
         role="dialog"
         aria-modal="true"
-        aria-labelledby="a-modal-title"
+        aria-labelledby={titleId}
         tabIndex={-1}
         data-testid={testId}
         className="relative flex max-h-[90dvh] w-full flex-col rounded-t-xl border border-border bg-card shadow-xl focus:outline-none sm:max-w-2xl sm:rounded-xl"
       >
         <div className="flex items-start justify-between gap-3 border-b border-border px-5 py-4">
           <div className="min-w-0">
-            <h2 id="a-modal-title" className="text-base font-semibold text-foreground">
+            <h2 id={titleId} className="text-base font-semibold text-foreground">
               {title}
             </h2>
             {subtitle && <p className="mt-0.5 text-[13px] text-muted-foreground">{subtitle}</p>}

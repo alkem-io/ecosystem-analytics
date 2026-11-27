@@ -40,8 +40,8 @@ let geoPromise: Promise<Geo> | null = null;
 /** Loaded once per page; every map shares it. */
 function loadGeo(): Promise<Geo> {
   geoPromise ??= Promise.all([
-    fetch('/maps/gemeenten.json').then((r) => r.json()),
-    fetch('/maps/netherlands.geojson').then((r) => r.json()),
+    fetch('/maps/gemeenten.json').then(json),
+    fetch('/maps/netherlands.geojson').then(json),
   ]).then(([gem, nl]: [GeoJSON.FeatureCollection, GeoJSON.FeatureCollection]) => {
     const projection = d3.geoMercator().fitWidth(W, gem);
     const path = d3.geoPath(projection);
@@ -59,14 +59,27 @@ function loadGeo(): Promise<Geo> {
       provinceOutline: path(nl) ?? '',
     };
   });
+  // A failed load is not kept: the next map to mount tries again.
+  geoPromise.catch(() => {
+    geoPromise = null;
+  });
   return geoPromise;
 }
 
-export function useGemeenteGeo(): Geo | null {
-  const [geo, setGeo] = useState<Geo | null>(null);
+const json = (r: Response) => {
+  if (!r.ok) throw new Error(`map outline ${r.status}`);
+  return r.json();
+};
+
+/** The outlines, `null` while loading, or `'failed'` when they could not be read. */
+export function useGemeenteGeo(): Geo | null | 'failed' {
+  const [geo, setGeo] = useState<Geo | null | 'failed'>(null);
   useEffect(() => {
     let live = true;
-    void loadGeo().then((g) => live && setGeo(g));
+    loadGeo().then(
+      (g) => live && setGeo(g),
+      () => live && setGeo('failed'),
+    );
     return () => {
       live = false;
     };
@@ -90,7 +103,8 @@ const ALIAS: Record<string, string> = { 'den haag': 's gravenhage', 'den bosch':
  * gemeente's name. Gemeenten reached only through GemeenteDelers often have no code.
  */
 export function useCodeOf<T extends { cbsCode: string | null; name: string }>(rows: T[]): (row: T) => string | null {
-  const geo = useGemeenteGeo();
+  const loaded = useGemeenteGeo();
+  const geo = loaded === 'failed' ? null : loaded;
   return useMemo(() => {
     const byName = new Map<string, string>();
     for (const s of geo?.shapes ?? []) {
@@ -156,7 +170,8 @@ export function GemeenteMap({
   onView?: (codes: Set<string>) => void;
 }) {
   const { t } = useTranslation();
-  const geo = useGemeenteGeo();
+  const loaded = useGemeenteGeo();
+  const geo = loaded === 'failed' ? null : loaded;
   const tipOf = useTip();
   const svgRef = useRef<SVGSVGElement>(null);
   const gRef = useRef<SVGGElement>(null);
@@ -292,7 +307,9 @@ export function GemeenteMap({
     <div ref={boxRef} className={cn('relative min-h-0', className)}>
       {!geo ? (
         <div className="absolute inset-0 grid place-items-center text-sm text-muted-foreground">
-          {t('states.loading', { defaultValue: 'Laden…' })}
+          {loaded === 'failed'
+            ? t('dashboard.a.mapFailed', { defaultValue: 'De kaart kon niet worden geladen. Ververs de pagina om het opnieuw te proberen.' })
+            : t('states.loading', { defaultValue: 'Laden…' })}
         </div>
       ) : (
         <svg

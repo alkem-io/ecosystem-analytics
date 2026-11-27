@@ -88,7 +88,12 @@ function AppShell() {
   // monitor reports on the Spaces its managers chose, and its data controls sit in the
   // header — so it has neither the selection column nor its drawer.
   const hasSelectionPanel = !cfg.flags?.managedScope;
-  const [active, setActive] = useState<TabKey>('dashboard');
+  // Layout A's Beheer can name the view to open when the dashboard was not mounted yet.
+  const [active, setActive] = useState<TabKey>(() => {
+    const wanted = (typeof window !== 'undefined' && (window.history.state as { openTab?: TabKey } | null)?.openTab) || null;
+    const known: TabKey[] = [...BASE_TABS, 'usage', 'funnel', 'ecosystem', 'graph'];
+    return wanted && known.includes(wanted) ? wanted : 'dashboard';
+  });
   const [navOpen, setNavOpen] = useState(false);
 
   // The Usage Explorer is VNG-only for now (feature 019, FR-003). Dashboards opt in via

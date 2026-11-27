@@ -61,11 +61,12 @@ export function parseSelectionState(
 }
 
 function loadState(storageKey: string, opts: { managedScope?: boolean; gemeenteDelersDefault?: boolean }): SelectionState {
-  if (typeof localStorage === 'undefined') return { ...DEFAULT_STATE };
+  // Without storage (private mode, blocked site data) the dashboard's defaults still apply.
+  if (typeof localStorage === 'undefined') return parseSelectionState(null, opts);
   try {
     return parseSelectionState(localStorage.getItem(storageKey), opts);
   } catch {
-    return { ...DEFAULT_STATE };
+    return parseSelectionState(null, opts);
   }
 }
 

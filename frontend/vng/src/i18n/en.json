@@ -257,7 +257,8 @@
       "perGemeente": "Initiatives per municipality",
       "zoomHint": "Use ⌘ + scroll to zoom",
       "zoomIn": "Zoom in",
-      "zoomOut": "Zoom out"
+      "zoomOut": "Zoom out",
+      "mapFailed": "The map could not be loaded. Refresh the page to try again."
     }
   },
   "categories": {
@@ -388,11 +389,12 @@
     "colVng2030": "VNG 2030",
     "colNds": "NDS",
     "colThemes": "Themes",
-    "count": "{{count}} cities",
     "loading": "Loading cities…",
     "noResults": "No cities found",
     "unknown": "unknown",
-    "wordFrequency": "{{word}} — {{count}} initiative(s)"
+    "wordFrequency": "{{word}} — {{count}} initiative(s)",
+    "count_one": "{{count}} city",
+    "count_other": "{{count}} cities"
   },
   "cityDetailsTab": {
     "pickCity": "City",
@@ -791,7 +793,6 @@
       "accessTitle": "Who has access",
       "accessSub": "Membership of these Spaces on Alkemio decides access",
       "accessEdit": "Change access",
-      "showMore": "Show {{count}} more",
       "migrated": "{{pct}}% moved to subspaces",
       "conflict": "Someone else changed the list meanwhile. The current list is shown now; try again.",
       "addNote": "Goes into the monitor straight away, for everyone who views it.",
@@ -802,7 +803,10 @@
       "toAdd": "To add",
       "removeTitle": "Take {{name}} out of the monitor?",
       "removeYes": "Remove",
-      "removeBody": "The initiative disappears from the monitor straight away, for everyone. The Space stays on Alkemio, and you can add it again later. Only want to hide it for now? Switch Zichtbaar off instead."
+      "removeBody": "The initiative disappears from the monitor straight away, for everyone. The Space stays on Alkemio, and you can add it again later. Only want to hide it for now? Switch Zichtbaar off instead.",
+      "keepOneVisible": "At least one initiative must stay visible.",
+      "showMore_one": "Show {{count}} more",
+      "showMore_other": "Show {{count}} more"
     }
   },
   "header": {

@@ -257,7 +257,8 @@
       "perGemeente": "Initiatieven per gemeente",
       "zoomHint": "Gebruik ⌘ + scrollen om in te zoomen",
       "zoomIn": "Inzoomen",
-      "zoomOut": "Uitzoomen"
+      "zoomOut": "Uitzoomen",
+      "mapFailed": "De kaart kon niet worden geladen. Ververs de pagina om het opnieuw te proberen."
     }
   },
   "categories": {
@@ -388,11 +389,12 @@
     "colVng2030": "VNG 2030",
     "colNds": "NDS",
     "colThemes": "Thema's",
-    "count": "{{count}} gemeenten",
     "loading": "Gemeenten laden…",
     "noResults": "Geen gemeenten gevonden",
     "unknown": "onbekend",
-    "wordFrequency": "{{word}} — {{count}} initiatief/initiatieven"
+    "wordFrequency": "{{word}} — {{count}} initiatief/initiatieven",
+    "count_one": "{{count}} gemeente",
+    "count_other": "{{count}} gemeenten"
   },
   "cityDetailsTab": {
     "pickCity": "Gemeente",
@@ -791,7 +793,6 @@
       "accessTitle": "Wie toegang heeft",
       "accessSub": "Lidmaatschap van deze Spaces op Alkemio bepaalt de toegang",
       "accessEdit": "Toegang wijzigen",
-      "showMore": "Toon {{count}} meer",
       "migrated": "{{pct}}% omgezet naar subspaces",
       "conflict": "Iemand anders heeft de lijst intussen gewijzigd. De huidige lijst staat er nu; probeer het opnieuw.",
       "addNote": "Komt direct in de monitor, voor iedereen die hem bekijkt.",
@@ -802,7 +803,10 @@
       "toAdd": "Toe te voegen",
       "removeTitle": "{{name}} uit de monitor halen?",
       "removeYes": "Verwijderen",
-      "removeBody": "Het initiatief verdwijnt direct uit de monitor, voor iedereen. Op Alkemio blijft de Space gewoon bestaan, en je kunt hem later opnieuw toevoegen. Wil je hem alleen even niet tonen? Zet dan de schakelaar Zichtbaar uit."
+      "removeBody": "Het initiatief verdwijnt direct uit de monitor, voor iedereen. Op Alkemio blijft de Space gewoon bestaan, en je kunt hem later opnieuw toevoegen. Wil je hem alleen even niet tonen? Zet dan de schakelaar Zichtbaar uit.",
+      "keepOneVisible": "Er moet minstens één initiatief zichtbaar blijven.",
+      "showMore_one": "Toon {{count}} meer",
+      "showMore_other": "Toon {{count}} meer"
     }
   },
   "header": {

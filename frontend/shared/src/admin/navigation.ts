@@ -25,12 +25,22 @@ export function openAdmin(): void {
  * the dashboard is exactly where it was, and Back/Forward stay natural), otherwise go to
  * the dashboard.
  */
+/** Leave for a named dashboard view (layout A's sidebar inside Beheer). */
+export function leaveAdminTo(openTab: string): void {
+  leaveAdminWith(openTab);
+}
+
 export function leaveAdmin(): void {
+  leaveAdminWith();
+}
+
+function leaveAdminWith(openTab?: string): void {
   if (typeof window !== 'undefined' && (window.history.state as { fromDashboard?: boolean })?.fromDashboard) {
     window.history.back();
     return;
   }
-  navigate('/');
+  // Opened directly: the dashboard mounts fresh, so it reads the view to open from here.
+  navigate('/', openTab ? { openTab } : {});
 }
 
 /** The current pathname, kept in step with pushState navigation and Back/Forward. */

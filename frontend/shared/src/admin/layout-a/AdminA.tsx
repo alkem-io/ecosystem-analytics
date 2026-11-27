@@ -7,7 +7,7 @@ import { useIsCompact } from '../../hooks/useMediaQuery.js';
 import { BrandingHeader } from '../../dashboard/components/BrandingHeader.js';
 import { BottomNav, SideNav } from '../../dashboard/components/SideNav.js';
 import { UserMenu } from '../../dashboard/components/UserMenu.js';
-import { leaveAdmin } from '../navigation.js';
+import { leaveAdminTo } from '../navigation.js';
 import { GdA } from './GdA.js';
 import { IntakeSection } from '../sections/IntakeSection.js';
 import { AccessSection } from '../sections/AccessSection.js';
@@ -62,7 +62,7 @@ export function AdminA({ canManage, noAccess }: { canManage: boolean; noAccess: 
   ];
   const goToView = (view: string) => {
     window.dispatchEvent(new CustomEvent(`${cfg.eventPrefix}:openTab`, { detail: { tab: view } }));
-    leaveAdmin();
+    leaveAdminTo(view);
   };
 
   const select = (next: AdminTab) => {
@@ -102,7 +102,7 @@ export function AdminA({ canManage, noAccess }: { canManage: boolean; noAccess: 
               role="tab"
               id={`admin-tab-${id}`}
               aria-selected={on}
-              aria-controls={`admin-panel-${id}`}
+              aria-controls={on ? `admin-panel-${id}` : undefined}
               onClick={() => select(id)}
               data-testid={`admin-tab-${id}`}
               className={cn(

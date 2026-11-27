@@ -90,6 +90,8 @@ function saveErrorText(t: T, err: unknown, nameOf: (id: string) => string): stri
     return (err.body.problems as Array<{ nameId: string; problem: string }>)
       .map((x) => `${nameOf(x.nameId)}: ${problemText(t, x.problem)}`)
       .join(' · ');
+  if (err instanceof AdminApiError && err.body.error === 'ALL_HIDDEN')
+    return t('admin.a.keepOneVisible', { defaultValue: 'Er moet minstens één initiatief zichtbaar blijven.' });
   if (err instanceof AdminApiError && err.status === 409)
     return t('admin.a.conflict', {
       defaultValue: 'Iemand anders heeft de lijst intussen gewijzigd. De huidige lijst staat er nu; probeer het opnieuw.',
@@ -107,10 +109,13 @@ const ghostBtn =
 function AddDialog({
   data,
   onSaved,
+  onStale,
   onClose,
 }: {
   data: IncludedSpacesView;
   onSaved: (next: IncludedSpacesView) => void;
+  /** The list changed elsewhere (409): reload it so a retry is made on the current one. */
+  onStale: () => void;
   onClose: () => void;
 }) {
   const { t } = useTranslation();
@@ -182,9 +187,10 @@ function AddDialog({
         spaceNameIds: [...data.spaces.map((s) => s.nameId), ...picked.map((p) => p.nameId)],
       })
       .then(onSaved)
-      .catch((err: unknown) =>
-        setError(saveErrorText(t, err, (id) => picked.find((p) => p.nameId === id)?.displayName ?? id)),
-      )
+      .catch((err: unknown) => {
+        setError(saveErrorText(t, err, (id) => picked.find((p) => p.nameId === id)?.displayName ?? id));
+        if (err instanceof AdminApiError && err.status === 409) onStale();
+      })
       .finally(() => setSaving(false));
   };
 
@@ -331,11 +337,13 @@ function RemoveDialog({
   data,
   space,
   onSaved,
+  onStale,
   onClose,
 }: {
   data: IncludedSpacesView;
   space: IncludedSpaceView;
   onSaved: (next: IncludedSpacesView) => void;
+  onStale: () => void;
   onClose: () => void;
 }) {
   const { t } = useTranslation();
@@ -352,7 +360,10 @@ function RemoveDialog({
         spaceNameIds: data.spaces.filter((s) => s.nameId !== space.nameId).map((s) => s.nameId),
       })
       .then(onSaved)
-      .catch((err: unknown) => setError(saveErrorText(t, err, () => name)))
+      .catch((err: unknown) => {
+        setError(saveErrorText(t, err, () => name));
+        if (err instanceof AdminApiError && err.status === 409) onStale();
+      })
       .finally(() => setSaving(false));
   };
   return (
@@ -428,9 +439,14 @@ export function GroeiA() {
   // The switch saves as it is flipped.
   const toggle = (s: IncludedSpaceView) => {
     if (!data || switching) return;
+    const hide = !s.hidden;
+    // Hiding every Space would leave viewers an empty monitor that reads as "nothing chosen yet".
+    if (hide && data.spaces.filter((x) => !x.hidden).length <= 1) {
+      setNotice(t('admin.a.keepOneVisible', { defaultValue: 'Er moet minstens één initiatief zichtbaar blijven.' }));
+      return;
+    }
     setSwitching(s.nameId);
     setNotice(null);
-    const hide = !s.hidden;
     adminApi
       .saveIncludedSpaces({
         baseRevision: data.revision,
@@ -500,7 +516,8 @@ export function GroeiA() {
       id="included"
       title={t('admin.a.groeiTitle', { defaultValue: 'Groei-initiatieven in de monitor' })}
       subtitle={subtitle}
-      loading={loading}
+      // A reload (after a 409) keeps the table and any open window on screen.
+      loading={loading && !data}
       error={error}
       onRetry={retry}
       tools={
@@ -638,6 +655,7 @@ export function GroeiA() {
         <AddDialog
           data={data}
           onClose={() => setAddOpen(false)}
+          onStale={retry}
           onSaved={(next) => {
             listSaved(next);
             setAddOpen(false);
@@ -649,6 +667,7 @@ export function GroeiA() {
           data={data}
           space={removing}
           onClose={() => setRemoving(null)}
+          onStale={retry}
           onSaved={(next) => {
             listSaved(next);
             setRemoving(null);

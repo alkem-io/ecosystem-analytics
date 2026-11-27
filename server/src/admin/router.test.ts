@@ -346,6 +346,18 @@ describe('Included Spaces — write (US4)', () => {
     expect(bad.json).toEqual({ error: 'INVALID_REQUEST' });
   });
 
+  it('refuses to hide every Space, also when the last visible one is removed', async () => {
+    const cookie = asManager();
+    const all = await put(cookie, { baseRevision: 1, spaceNameIds: ['signalen', 'gdc'], hiddenNameIds: ['signalen', 'gdc'] });
+    expect(all.status).toBe(422);
+    expect(all.json).toEqual({ error: 'ALL_HIDDEN' });
+    expect((await put(cookie, { baseRevision: 1, spaceNameIds: ['signalen', 'gdc'], hiddenNameIds: ['gdc'] })).status).toBe(200);
+    // Removing the one visible Space, switches omitted: only the hidden one would remain.
+    const removeVisible = await put(cookie, { baseRevision: 2, spaceNameIds: ['gdc'] });
+    expect(removeVisible.status).toBe(422);
+    expect(removeVisible.json).toEqual({ error: 'ALL_HIDDEN' });
+  });
+
   it('asks for confirmation before emptying the set', async () => {
     const cookie = asManager();
     expect((await put(cookie, { baseRevision: 1, spaceNameIds: [] })).json).toEqual({ error: 'EMPTY_NOT_CONFIRMED' });

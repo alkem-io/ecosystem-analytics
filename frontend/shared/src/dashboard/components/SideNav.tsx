@@ -200,7 +200,6 @@ export function BottomNav<T extends string>({
     <>
       <nav
         className="grid shrink-0 grid-cols-5 border-t border-border bg-card px-1.5 pt-1.5 pb-[max(0.5rem,var(--safe-bottom))]"
-        role="tablist"
         aria-label={t('tabs.label')}
         data-testid="bottom-nav"
       >
@@ -211,8 +210,7 @@ export function BottomNav<T extends string>({
             <button
               key={tab}
               type="button"
-              role="tab"
-              aria-selected={active === tab}
+              aria-current={on ? 'page' : undefined}
               onClick={() => pick(tab)}
               data-touch-target
               className={cn(
@@ -230,6 +228,7 @@ export function BottomNav<T extends string>({
           onClick={() => setMoreOpen(true)}
           aria-haspopup="dialog"
           aria-expanded={moreOpen}
+          aria-current={moreOn ? 'page' : undefined}
           data-touch-target
           className={cn(
             'flex min-h-12 flex-col items-center justify-center gap-0.5 rounded-md text-[11px] font-medium',
@@ -274,6 +273,7 @@ export function BottomNav<T extends string>({
                     key={tab}
                     type="button"
                     onClick={() => pick(tab)}
+                    aria-current={active === tab ? 'page' : undefined}
                     className={cn(
                       'flex min-h-12 items-center gap-3 rounded-md px-3 text-[15px] font-medium',
                       active === tab ? 'bg-muted text-foreground' : 'text-foreground hover:bg-muted',

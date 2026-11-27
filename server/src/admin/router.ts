@@ -186,6 +186,14 @@ adminRouter.put(
     if (next.length === 0 && confirmEmpty !== true) {
       throw new AdminRequestError(422, 'EMPTY_NOT_CONFIRMED');
     }
+    // A list where every Space is hidden would show viewers an empty monitor that reads as
+    // "nothing chosen yet". Omitted hiddenNameIds keep the stored switches; new Spaces are visible.
+    const visibleNow = new Set(getScope().spaceNameIds);
+    const storedHidden = new Set(getIncludedNameIds().filter((n) => !visibleNow.has(n)));
+    const isHidden = (n: string) => (hidden ? hidden.includes(n) : storedHidden.has(n));
+    if (next.length > 0 && next.every(isHidden)) {
+      throw new AdminRequestError(422, 'ALL_HIDDEN');
+    }
 
     const conflict = async (): Promise<void> => {
       const current: IncludedSpacesView = await includedSpacesView(req.auth!);

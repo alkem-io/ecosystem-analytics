@@ -209,7 +209,7 @@ export function DashboardA({
                       onChange={(e) => onColorBy(e.target.value as PhaseColorBy)}
                       data-testid="phase-color-by"
                     >
-                      <option value="source">{t('funnel.colorBy.source', { defaultValue: 'Bron (Groei / GemeenteDelers)' })}</option>
+                      <option value="source">{t('funnel.colorBySource', { defaultValue: 'Bron (Groei / GemeenteDelers)' })}</option>
                       <option value="handelen">{t('handelen.title', { defaultValue: 'Handelen' })}</option>
                       <option value="nds">NDS</option>
                       <option value="vng2030">VNG 2030</option>
