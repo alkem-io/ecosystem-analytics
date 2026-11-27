@@ -6,7 +6,9 @@ import type { AdminAccessView, SpaceCandidate } from '@server/types/admin.js';
 import { cn } from '../../lib/cn.js';
 import { AdminApiError, adminApi } from '../api.js';
 import { notifyAdminChange } from '../changes.js';
-import { Section, primarySmallButton, smallButton, textInput, useSectionData } from '../Section.js';
+import { Section, primarySmallButton, smallButton, textInput, toolButton, useSectionData } from '../Section.js';
+import { useAppConfig } from '../../app/AppConfig.js';
+import { Modal } from '../layout-a/Modal.js';
 
 type T = ReturnType<typeof useTranslation>['t'];
 
@@ -369,6 +371,69 @@ function Editor({
 }
 
 /**
+ * Layout A: the Spaces of both sets in ONE list, each with what membership of it grants —
+ * the reader asks "which Spaces matter, and for what", not "which set holds which".
+ */
+function AccessListA({ viewers, admins }: { viewers: GateLink[]; admins: GateLink[] }) {
+  const { t } = useTranslation();
+  const all = [...viewers, ...admins.filter((a) => !viewers.some((v) => v.key === a.key))];
+  const grant = (key: string) => {
+    const v = viewers.some((s) => s.key === key);
+    const a = admins.some((s) => s.key === key);
+    return v && a
+      ? t('admin.a.grantBoth', { defaultValue: 'Bekijken en beheren' })
+      : a
+        ? t('admin.a.grantManage', { defaultValue: 'Beheren (als admin)' })
+        : t('admin.a.grantView', { defaultValue: 'Bekijken' });
+  };
+  const initials = (name: string) =>
+    name
+      .split(/\s+/)
+      .filter(Boolean)
+      .slice(0, 2)
+      .map((w) => w[0])
+      .join('')
+      .toUpperCase();
+  return (
+    <ul className="-mx-5 divide-y divide-border border-t border-border max-lg:-mx-4" data-testid="admin-access-spaces">
+      {all.map((space) => (
+        <li key={space.key} className="flex min-w-0 flex-wrap items-center gap-3 px-5 py-3 max-lg:px-4">
+          <span aria-hidden className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-[#E1F4F9] text-xs font-semibold text-[#0B6178]">
+            {initials(space.displayName)}
+          </span>
+          <span className="min-w-0 flex-1 basis-[160px]">
+            <b className={cn('block truncate text-sm font-semibold', space.exists === 'no' ? 'text-destructive' : 'text-foreground')}>
+              {space.exists === 'no' ? space.key : space.displayName}
+            </b>
+            <span className="block truncate text-xs text-muted-foreground">
+              {space.exists === 'no'
+                ? t('admin.access.notFound', { defaultValue: 'not found on Alkemio' })
+                : space.url.replace(/^https?:\/\//, '')}
+            </span>
+          </span>
+          <span className="shrink-0 rounded-full bg-muted px-2.5 py-0.5 text-xs font-medium text-foreground">{grant(space.key)}</span>
+          {space.exists !== 'no' && (
+            <a
+              href={space.url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex h-8 shrink-0 items-center gap-1.5 rounded-lg border border-border bg-card px-3 text-[13px] font-medium text-foreground hover:bg-muted max-lg:h-10"
+              aria-label={t('admin.access.open', { defaultValue: 'Open {{name}} on Alkemio', name: space.displayName })}
+            >
+              {t('admin.a.open', { defaultValue: 'Open' })}
+              <ExternalLink className="h-3.5 w-3.5" aria-hidden />
+            </a>
+          )}
+        </li>
+      ))}
+      {all.length === 0 && (
+        <li className="px-5 py-3 text-sm text-muted-foreground">{t('admin.access.none', { defaultValue: 'no Space configured' })}</li>
+      )}
+    </ul>
+  );
+}
+
+/**
  * Who may use the monitor and who may manage it (FR-005, FR-010), where the signed-in
  * manager stands — and, on a gated deployment, the place to change both. The sets start
  * as the deployment configuration; once saved here, the saved sets apply. Membership
@@ -378,6 +443,7 @@ export function AccessSection() {
   const { t } = useTranslation();
   const { data, setData, error, loading, retry } = useSectionData(() => adminApi.access());
   const [editing, setEditing] = useState(false);
+  const a = useAppConfig().layout === 'sidebar';
 
   const you = data
     ? data.me.manager
@@ -390,14 +456,15 @@ export function AccessSection() {
   return (
     <Section
       id="access"
-      title={t('admin.access.title', { defaultValue: 'Access' })}
+      title={a ? t('admin.a.accessTitle', { defaultValue: 'Wie toegang heeft' }) : t('admin.access.title', { defaultValue: 'Access' })}
+      description={a ? t('admin.a.accessSub', { defaultValue: 'Lidmaatschap van deze Spaces op Alkemio bepaalt de toegang' }) : undefined}
       loading={loading}
       error={error}
       onRetry={retry}
       actions={
-        data?.editable && !editing ? (
-          <button type="button" className={smallButton} onClick={() => setEditing(true)} data-testid="access-edit">
-            <Pencil className="h-3.5 w-3.5" aria-hidden />
+        data?.editable && (a || !editing) ? (
+          <button type="button" className={a ? toolButton : smallButton} onClick={() => setEditing(true)} data-testid="access-edit">
+            <Pencil className={a ? 'h-4 w-4' : 'h-3.5 w-3.5'} aria-hidden />
             {t('admin.access.edit', { defaultValue: 'Change' })}
           </button>
         ) : undefined
@@ -405,7 +472,7 @@ export function AccessSection() {
     >
       {data && (
         <div className="space-y-4">
-          <div className="flex items-center gap-3 rounded-lg bg-muted/50 px-4 py-3" data-testid="admin-me">
+          <div className={cn('flex items-center gap-3 rounded-lg px-4 py-3', a ? 'border border-border bg-background' : 'bg-muted/50')} data-testid="admin-me">
             <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-card text-muted-foreground ring-1 ring-border">
               <UserRound className="h-4 w-4" aria-hidden />
             </span>
@@ -421,7 +488,45 @@ export function AccessSection() {
               </span>
             )}
           </div>
-          {editing ? (
+          {a ? (
+            <>
+              <AccessListA viewers={data.viewers} admins={data.admins} />
+              <p className="text-xs text-muted-foreground" data-testid="access-source">
+                {!data.editable
+                  ? t('admin.access.notEditable', {
+                      defaultValue: 'This deployment leaves the monitor open to everyone; that cannot be changed here.',
+                    })
+                  : data.source === 'settings'
+                    ? t('admin.access.fromSettings', {
+                        defaultValue:
+                          'Set here in the settings (who and when: see the change log). Who is a member or admin of these Spaces is managed on Alkemio.',
+                      })
+                    : t('admin.access.fromConfig', {
+                        defaultValue:
+                          'From the deployment configuration until changed here. Who is a member or admin of these Spaces is managed on Alkemio.',
+                      })}
+              </p>
+              {editing && (
+                <Modal
+                  title={t('admin.a.accessEdit', { defaultValue: 'Toegang wijzigen' })}
+                  onClose={() => setEditing(false)}
+                  testId="access-dialog"
+                >
+                  <Editor
+                    data={data}
+                    onSaved={(next) => {
+                      setData(next);
+                      setEditing(false);
+                    }}
+                    onCancel={() => {
+                      setEditing(false);
+                      retry();
+                    }}
+                  />
+                </Modal>
+              )}
+            </>
+          ) : editing ? (
             <Editor
               data={data}
               onSaved={(next) => {

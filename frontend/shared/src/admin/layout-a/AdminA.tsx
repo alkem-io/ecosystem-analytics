@@ -8,7 +8,7 @@ import { BrandingHeader } from '../../dashboard/components/BrandingHeader.js';
 import { BottomNav, SideNav } from '../../dashboard/components/SideNav.js';
 import { UserMenu } from '../../dashboard/components/UserMenu.js';
 import { leaveAdmin } from '../navigation.js';
-import { GdSourceSection } from '../sections/GdSourceSection.js';
+import { GdA } from './GdA.js';
 import { IntakeSection } from '../sections/IntakeSection.js';
 import { AccessSection } from '../sections/AccessSection.js';
 import { AuditLogSection } from '../sections/AuditLogSection.js';
@@ -122,7 +122,7 @@ export function AdminA({ canManage, noAccess }: { canManage: boolean; noAccess: 
       </div>
       <div role="tabpanel" id={`admin-panel-${tab}`} aria-labelledby={`admin-tab-${tab}`} className="flex min-w-0 flex-col gap-4">
         {tab === 'included' && <GroeiA />}
-        {tab === 'gd' && <GdSourceSection />}
+        {tab === 'gd' && <GdA />}
         {tab === 'intake' && <IntakeSection />}
         {tab === 'access' && <AccessSection />}
         {tab === 'audit' && <AuditLogSection />}

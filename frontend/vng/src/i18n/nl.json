@@ -799,7 +799,16 @@
       "keepNamed": "{{name}} toch houden",
       "willRemove": "Wordt verwijderd bij Opslaan",
       "tabIncluded": "Groei-initiatieven",
-      "sub": "Wat de monitor toont en hoe initiatieven zijn ingedeeld"
+      "sub": "Wat de monitor toont en hoe initiatieven zijn ingedeeld",
+      "grantBoth": "Bekijken en beheren",
+      "grantManage": "Beheren (als admin)",
+      "grantView": "Bekijken",
+      "open": "Open",
+      "accessTitle": "Wie toegang heeft",
+      "accessSub": "Lidmaatschap van deze Spaces op Alkemio bepaalt de toegang",
+      "accessEdit": "Toegang wijzigen",
+      "showMore": "Toon {{count}} meer",
+      "migrated": "{{pct}}% omgezet naar subspaces"
     }
   },
   "header": {

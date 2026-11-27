@@ -799,7 +799,16 @@
       "keepNamed": "Keep {{name}}",
       "willRemove": "Will be removed when you save",
       "tabIncluded": "Groei initiatives",
-      "sub": "What the monitor shows and how initiatives are classified"
+      "sub": "What the monitor shows and how initiatives are classified",
+      "grantBoth": "View and manage",
+      "grantManage": "Manage (as admin)",
+      "grantView": "View",
+      "open": "Open",
+      "accessTitle": "Who has access",
+      "accessSub": "Membership of these Spaces on Alkemio decides access",
+      "accessEdit": "Change access",
+      "showMore": "Show {{count}} more",
+      "migrated": "{{pct}}% moved to subspaces"
     }
   },
   "header": {

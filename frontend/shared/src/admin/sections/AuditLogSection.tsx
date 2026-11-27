@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { KeyRound, Layers, Loader2, Tags } from 'lucide-react';
 import type { AccessSpaceRef, AuditEntry } from '@server/types/admin.js';
 import { cn } from '../../lib/cn.js';
+import { useAppConfig } from '../../app/AppConfig.js';
 import { adminApi } from '../api.js';
 import { useAdminChangeCount } from '../changes.js';
 import { Section, formatWhen, smallButton } from '../Section.js';
@@ -126,6 +127,7 @@ export function AuditLogSection() {
   }, [refreshKey, nonce]);
 
   const name = (nameId: string) => names[nameId] ?? nameId;
+  const a = useAppConfig().layout === 'sidebar';
 
   return (
     <Section
@@ -141,14 +143,25 @@ export function AuditLogSection() {
       {entries.length === 0 && !loading ? (
         <p className="text-sm text-muted-foreground">{t('admin.audit.empty', { defaultValue: 'No changes yet.' })}</p>
       ) : (
-        <ol className="divide-y divide-border" data-testid="audit-log">
+        <ol className={cn('divide-y divide-border', a && '-mx-5 border-t border-border max-lg:-mx-4')} data-testid="audit-log">
           {entries.map((e, i) => {
             const { icon: Icon, what, detail } = describe(t, e, name);
             return (
-              <li key={`${e.type}-${e.at}-${i}`} className="flex gap-3 py-2.5 text-sm" data-testid="audit-entry" data-type={e.type}>
-                <Icon className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" aria-hidden />
+              <li
+                key={`${e.type}-${e.at}-${i}`}
+                className={cn('flex gap-3 text-sm', a ? 'items-start px-5 py-3 max-lg:flex-wrap max-lg:px-4' : 'py-2.5')}
+                data-testid="audit-entry"
+                data-type={e.type}
+              >
+                {a ? (
+                  <span className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-muted text-muted-foreground">
+                    <Icon className="h-4 w-4" aria-hidden />
+                  </span>
+                ) : (
+                  <Icon className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" aria-hidden />
+                )}
                 <div className="min-w-0 flex-1">
-                  <p className="text-foreground">{what}</p>
+                  <p className={cn('text-foreground', a && 'font-medium')}>{what}</p>
                   {detail && <p className="mt-0.5 break-words text-xs text-muted-foreground">{detail}</p>}
                 </div>
                 <time dateTime={e.at} className="shrink-0 whitespace-nowrap text-xs text-muted-foreground">

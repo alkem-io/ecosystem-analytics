@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
 import { useTranslation } from 'react-i18next';
 import { Loader2, RefreshCw } from 'lucide-react';
 import { cn } from '../lib/cn.js';
+import { useAppConfig } from '../app/AppConfig.js';
 
 /**
  * One admin section's data: loads on mount, keeps its own loading / error / retry state,
@@ -54,18 +55,30 @@ export function Section({
   children: ReactNode;
 }) {
   const { t } = useTranslation();
+  // Layout A: the same card as the dashboard's (flat, 10px radius, 14.5px title).
+  const a = useAppConfig().layout === 'sidebar';
   return (
     <section
       aria-labelledby={`admin-${id}-title`}
       data-testid={`admin-section-${id}`}
-      className="min-w-0 rounded-xl border border-border bg-card p-4 shadow-sm sm:p-6"
+      className={cn(
+        'min-w-0 border border-border bg-card',
+        a ? 'rounded-[10px] px-5 py-[18px] max-lg:px-4' : 'rounded-xl p-4 shadow-sm sm:p-6',
+      )}
     >
-      <div className="flex flex-wrap items-start justify-between gap-3">
+      <div className={cn('flex flex-wrap justify-between gap-3', a ? 'items-center' : 'items-start')}>
         <div className="min-w-0">
-          <h2 id={`admin-${id}-title`} className="text-base font-semibold text-foreground sm:text-lg">
+          <h2
+            id={`admin-${id}-title`}
+            className={cn('font-semibold text-foreground', a ? 'text-[14.5px]' : 'text-base sm:text-lg')}
+          >
             {title}
           </h2>
-          {description && <p className="mt-1 text-sm text-muted-foreground">{description}</p>}
+          {description && (
+            <p className={cn('text-muted-foreground', a ? 'mt-0.5 text-[13px] leading-snug' : 'mt-1 text-sm')}>
+              {description}
+            </p>
+          )}
         </div>
         {actions && <div className="flex shrink-0 flex-wrap gap-2">{actions}</div>}
       </div>
@@ -108,6 +121,12 @@ export const smallButton = cn(
   'inline-flex items-center justify-center gap-1.5 rounded-md border border-border bg-card px-3 py-1.5 text-xs font-medium text-foreground',
   'transition-colors hover:bg-muted disabled:cursor-not-allowed disabled:opacity-60',
   'focus:outline-none focus-visible:ring-2 focus-visible:ring-primary',
+);
+
+/** Layout A: a card's tool button (the Groei table's "Space toevoegen" style). */
+export const toolButton = cn(
+  'inline-flex h-9 items-center justify-center gap-2 rounded-lg border border-border bg-card px-3.5 text-sm font-medium text-foreground',
+  'hover:bg-muted disabled:opacity-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary max-lg:h-11',
 );
 
 export const primarySmallButton = cn(
