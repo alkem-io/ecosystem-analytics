@@ -2,7 +2,7 @@ import type { AuthContext } from '../auth/middleware.js';
 import { isAlkemioAuthError } from '../graphql/client.js';
 import { parseGateRef } from '../access/policy.js';
 import { loadConfig } from '../config.js';
-import { getScope } from '../settings/store.js';
+import { getIncludedNameIds } from '../settings/store.js';
 import { listUserSpacesCached } from '../services/space-service.js';
 import type { IncludedSpaceProblem, SpaceCandidate } from '../types/admin.js';
 import { adminSdkFor, lookupSpaceByName, mapLimit, type AdminSdk } from './space-lookup.js';
@@ -18,7 +18,7 @@ export class AdminRequestError extends Error {
   }
 }
 
-const includedSet = () => new Set(getScope().spaceNameIds);
+const includedSet = () => new Set(getIncludedNameIds());
 
 /**
  * `GET /api/vng/admin/space-search?q=` (research R14): Alkemio search with the manager's

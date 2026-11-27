@@ -7,6 +7,7 @@ import { createAlkemioSdk, isAlkemioAuthError } from '../graphql/client.js';
 import { updateSessionDisplayName } from '../cache/session-store.js';
 import { getLogger } from '../logging/logger.js';
 import {
+  getIncludedNameIds,
   getScope,
   auditLog,
   getState,
@@ -144,7 +145,7 @@ adminRouter.get(
     for (const e of page.entries) {
       // Access entries carry their own names (recorded at the time of the change).
       const ids =
-        e.type === 'spaces' ? [...e.added, ...e.removed] : e.type === 'classification' ? [e.spaceNameId] : [];
+        e.type === 'spaces' ? [...e.added, ...e.removed, ...e.hidden, ...e.shown] : e.type === 'classification' ? [e.spaceNameId] : [];
       for (const nameId of ids) {
         const name = initiativeName(req.auth!.userId, nameId);
         if (name) names[nameId] = name;
@@ -159,10 +160,11 @@ adminRouter.put(
   '/included-spaces',
   freshManage,
   handle('included-spaces', async (req, res) => {
-    const { baseRevision, spaceNameIds, confirmEmpty } = (req.body ?? {}) as {
+    const { baseRevision, spaceNameIds, confirmEmpty, hiddenNameIds } = (req.body ?? {}) as {
       baseRevision?: unknown;
       spaceNameIds?: unknown;
       confirmEmpty?: unknown;
+      hiddenNameIds?: unknown;
     };
     if (
       typeof baseRevision !== 'number' ||
@@ -172,6 +174,15 @@ adminRouter.put(
       throw new AdminRequestError(422, 'INVALID_REQUEST');
     }
     const next = (spaceNameIds as string[]).map((n) => n.trim());
+    // Optional: which of them stay in the monitor but are hidden from viewers.
+    if (
+      hiddenNameIds !== undefined &&
+      (!Array.isArray(hiddenNameIds) ||
+        !hiddenNameIds.every((n) => typeof n === 'string' && next.includes(n.trim())))
+    ) {
+      throw new AdminRequestError(422, 'INVALID_REQUEST');
+    }
+    const hidden = hiddenNameIds === undefined ? undefined : (hiddenNameIds as string[]).map((n) => n.trim());
     if (next.length === 0 && confirmEmpty !== true) {
       throw new AdminRequestError(422, 'EMPTY_NOT_CONFIRMED');
     }
@@ -183,10 +194,15 @@ adminRouter.put(
     // Cheap first check: a stale editor is told before any Alkemio lookup.
     if (getState().revision !== baseRevision) return conflict();
 
-    const problems = await validateIncludedSpaces(req.auth!, getScope().spaceNameIds, next);
+    const problems = await validateIncludedSpaces(req.auth!, getIncludedNameIds(), next);
     if (problems.length) throw new AdminRequestError(422, 'INVALID_SPACES', { problems });
 
-    const result = saveIncludedSpaces({ baseRevision, nameIds: next, actor: await actorOf(req) });
+    const result = saveIncludedSpaces({
+      baseRevision,
+      nameIds: next,
+      hiddenNameIds: hidden,
+      actor: await actorOf(req),
+    });
     if (!result.ok) return conflict();
     // Not `result.revision`: resolving may find a rename, which moves the revision on.
     res.json(await includedSpacesView(req.auth!));

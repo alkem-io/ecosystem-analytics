@@ -195,6 +195,7 @@ describe('Included Spaces — read (US3)', () => {
       visibility: null,
       classificationStatus: null,
       classifications: null,
+      hidden: false,
     });
     expect(r.json.spaces[1]).toMatchObject({ nameId: 'gdc', readable: false, found: false });
   });
@@ -332,6 +333,17 @@ describe('Included Spaces — write (US4)', () => {
     expect(sub.json.problems).toEqual([{ nameId: 'deelruimte', problem: 'NOT_TOP_LEVEL' }]);
     const dup = await put(asManager(), { baseRevision: 1, spaceNameIds: ['signalen', 'signalen'] });
     expect(dup.json.problems).toEqual([{ nameId: 'signalen', problem: 'DUPLICATE' }]);
+  });
+
+  it('hides a Space from viewers with the Zichtbaar switch, and refuses a hidden one not in the set', async () => {
+    const cookie = asManager();
+    const ok = await put(cookie, { baseRevision: 1, spaceNameIds: ['signalen', 'gdc'], hiddenNameIds: ['gdc'] });
+    expect(ok.status).toBe(200);
+    expect(ok.json.spaces.find((x: { nameId: string }) => x.nameId === 'gdc').hidden).toBe(true);
+    expect(getScope().spaceNameIds).toEqual(['signalen']);
+    const bad = await put(cookie, { baseRevision: 2, spaceNameIds: ['signalen'], hiddenNameIds: ['gdc'] });
+    expect(bad.status).toBe(422);
+    expect(bad.json).toEqual({ error: 'INVALID_REQUEST' });
   });
 
   it('asks for confirmation before emptying the set', async () => {

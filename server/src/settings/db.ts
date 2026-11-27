@@ -22,7 +22,7 @@ export const SETTINGS_TABLES = [
 ] as const;
 
 /** The latest schema version; each step below brings the tables one version further. */
-export const SETTINGS_SCHEMA_VERSION = 2;
+export const SETTINGS_SCHEMA_VERSION = 3;
 
 const MIGRATIONS: Record<number, string> = {
   1: `
@@ -91,6 +91,13 @@ const MIGRATIONS: Record<number, string> = {
       from_json     TEXT NOT NULL,
       to_json       TEXT NOT NULL
     );
+  `,
+  // Layout A's "Zichtbaar" switch: an Included Space can be kept but hidden from viewers.
+  // Additive only — every existing row stays visible (DEFAULT 0) and keeps its history.
+  3: `
+    ALTER TABLE included_spaces ADD COLUMN hidden INTEGER NOT NULL DEFAULT 0;
+    ALTER TABLE settings_changes ADD COLUMN hidden_json TEXT NOT NULL DEFAULT '[]';
+    ALTER TABLE settings_changes ADD COLUMN shown_json TEXT NOT NULL DEFAULT '[]';
   `,
 };
 

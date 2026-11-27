@@ -42,7 +42,7 @@ describe('the settings tables vs. the cache', () => {
     initSettingsStore();
     expect(Number(getDatabase().pragma('user_version', { simple: true }))).toBe(0);
     expect(getDatabase().prepare('SELECT schema_version FROM settings_meta').get()).toEqual({
-      schema_version: 2,
+      schema_version: 3,
     });
   });
 });

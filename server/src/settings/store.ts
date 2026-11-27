@@ -13,6 +13,8 @@ export interface IncludedSpaceRow {
   position: number;
   nameId: string;
   spaceId: string | null;
+  /** Kept in the monitor's settings but not reported to viewers. */
+  hidden: boolean;
 }
 
 export interface SettingsState {
@@ -35,6 +37,8 @@ interface ChangeRow {
   actor_name: string | null;
   added_json: string;
   removed_json: string;
+  hidden_json: string;
+  shown_json: string;
   note: string | null;
 }
 
@@ -45,6 +49,8 @@ const toView = (r: ChangeRow): SettingsChangeView => ({
   actorName: r.actor_name,
   added: JSON.parse(r.added_json) as string[],
   removed: JSON.parse(r.removed_json) as string[],
+  hidden: JSON.parse(r.hidden_json ?? '[]') as string[],
+  shown: JSON.parse(r.shown_json ?? '[]') as string[],
   note: r.note,
 });
 
@@ -73,22 +79,36 @@ export function getState(): SettingsState {
 export function getIncludedSpaces(): IncludedSpaceRow[] {
   return (
     getSettingsDatabase()
-      .prepare('SELECT position, name_id, space_id FROM included_spaces ORDER BY position')
-      .all() as Array<{ position: number; name_id: string; space_id: string | null }>
-  ).map((r) => ({ position: r.position, nameId: r.name_id, spaceId: r.space_id }));
+      .prepare('SELECT position, name_id, space_id, hidden FROM included_spaces ORDER BY position')
+      .all() as Array<{ position: number; name_id: string; space_id: string | null; hidden: number }>
+  ).map((r) => ({ position: r.position, nameId: r.name_id, spaceId: r.space_id, hidden: r.hidden === 1 }));
 }
 
-/** What every viewer's dashboard reports on (`GET /api/vng/scope`). SQLite only. */
+/** Every Included Space's nameID, hidden ones too — what the admin area manages. */
+export function getIncludedNameIds(): string[] {
+  return getIncludedSpaces().map((r) => r.nameId);
+}
+
+/**
+ * What every viewer's dashboard reports on (`GET /api/vng/scope`). SQLite only. A Space
+ * whose "Zichtbaar" switch is off stays in the settings but is left out here.
+ */
 export function getScope(): MonitorScope {
   const { revision, ecosystemKey } = readState();
-  return { revision, ecosystemKey, spaceNameIds: getIncludedSpaces().map((r) => r.nameId) };
+  return {
+    revision,
+    ecosystemKey,
+    spaceNameIds: getIncludedSpaces()
+      .filter((r) => !r.hidden)
+      .map((r) => r.nameId),
+  };
 }
 
 /** The newest change, or `null` (never, for a seeded store). */
 export function lastChange(): SettingsChangeView | null {
   const row = getSettingsDatabase()
     .prepare(
-      `SELECT revision, kind, at, actor_name, added_json, removed_json, note
+      `SELECT revision, kind, at, actor_name, added_json, removed_json, hidden_json, shown_json, note
        FROM settings_changes ORDER BY id DESC LIMIT 1`,
     )
     .get() as ChangeRow | undefined;
@@ -106,7 +126,7 @@ export function history(
   const size = Math.min(Math.max(1, Math.floor(limit) || 50), 200);
   const rows = getSettingsDatabase()
     .prepare(
-      `SELECT revision, kind, at, actor_name, added_json, removed_json, note
+      `SELECT revision, kind, at, actor_name, added_json, removed_json, hidden_json, shown_json, note
        FROM settings_changes
        WHERE (? IS NULL OR revision < ?)
        ORDER BY revision DESC, id DESC
@@ -129,6 +149,8 @@ interface AuditRow {
   kind: SettingsChangeKind | null;
   added_json: string | null;
   removed_json: string | null;
+  hidden_json: string | null;
+  shown_json: string | null;
   note: string | null;
   space_name_id: string | null;
   entry_label: string | null;
@@ -165,15 +187,16 @@ export function auditLog(
   const rows = getSettingsDatabase()
     .prepare(
       `SELECT * FROM (
-         SELECT 'spaces' AS source, id, at, actor_name, revision, kind, added_json, removed_json, note,
+         SELECT 'spaces' AS source, id, at, actor_name, revision, kind, added_json, removed_json,
+                hidden_json, shown_json, note,
                 NULL AS space_name_id, NULL AS entry_label, NULL AS from_json, NULL AS to_json
          FROM settings_changes
          UNION ALL
-         SELECT 'classification' AS source, id, at, actor_name, NULL, NULL, NULL, NULL, NULL,
+         SELECT 'classification' AS source, id, at, actor_name, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
                 space_name_id, entry_label, from_json, to_json
          FROM classification_changes
          UNION ALL
-         SELECT 'access' AS source, id, at, actor_name, NULL, NULL, NULL, NULL, NULL,
+         SELECT 'access' AS source, id, at, actor_name, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
                 NULL, NULL, from_json, to_json
          FROM access_changes
        )
@@ -211,6 +234,8 @@ export function auditLog(
           kind: r.kind!,
           added: JSON.parse(r.added_json ?? '[]') as string[],
           removed: JSON.parse(r.removed_json ?? '[]') as string[],
+          hidden: JSON.parse(r.hidden_json ?? '[]') as string[],
+          shown: JSON.parse(r.shown_json ?? '[]') as string[],
           note: r.note,
         }
       : {
@@ -263,6 +288,11 @@ export type SaveResult =
 export function saveIncludedSpaces(input: {
   baseRevision: number;
   nameIds: string[];
+  /**
+   * The Spaces to keep but hide from viewers. Omitted: every Space that stays keeps its
+   * current switch and new ones are visible. Must be a subset of `nameIds`.
+   */
+  hiddenNameIds?: string[];
   actor: Actor;
   now?: Date;
 }): SaveResult {
@@ -283,20 +313,28 @@ export function saveIncludedSpaces(input: {
       const added = input.nameIds.filter((n) => !before.has(n));
       const removed = current.map((r) => r.nameId).filter((n) => !after.has(n));
       const knownIds = new Map(current.map((r) => [r.nameId, r.spaceId]));
+      const wasHidden = new Set(current.filter((r) => r.hidden).map((r) => r.nameId));
+      const isHidden = new Set(input.hiddenNameIds ?? input.nameIds.filter((n) => wasHidden.has(n)));
+      // Only Spaces that stay count as hidden/shown; adding or removing says enough.
+      const hidden = input.nameIds.filter((n) => before.has(n) && isHidden.has(n) && !wasHidden.has(n));
+      const shown = input.nameIds.filter((n) => before.has(n) && !isHidden.has(n) && wasHidden.has(n));
       const revision = state.revision + 1;
 
       db.prepare('DELETE FROM included_spaces').run();
       const insert = db.prepare(
-        'INSERT INTO included_spaces (position, name_id, space_id) VALUES (?, ?, ?)',
+        'INSERT INTO included_spaces (position, name_id, space_id, hidden) VALUES (?, ?, ?, ?)',
       );
-      input.nameIds.forEach((nameId, i) => insert.run(i, nameId, knownIds.get(nameId) ?? null));
+      input.nameIds.forEach((nameId, i) =>
+        insert.run(i, nameId, knownIds.get(nameId) ?? null, isHidden.has(nameId) ? 1 : 0),
+      );
       db.prepare(
         `UPDATE settings_state SET revision = ?, updated_at = ?, updated_by_user_id = ?, updated_by_name = ?
          WHERE id = 1`,
       ).run(revision, at, input.actor.userId, input.actor.displayName);
       db.prepare(
-        `INSERT INTO settings_changes (revision, kind, at, actor_user_id, actor_name, added_json, removed_json, note)
-         VALUES (?, 'update', ?, ?, ?, ?, ?, NULL)`,
+        `INSERT INTO settings_changes
+           (revision, kind, at, actor_user_id, actor_name, added_json, removed_json, hidden_json, shown_json, note)
+         VALUES (?, 'update', ?, ?, ?, ?, ?, ?, ?, NULL)`,
       ).run(
         revision,
         at,
@@ -304,6 +342,8 @@ export function saveIncludedSpaces(input: {
         input.actor.displayName,
         JSON.stringify(added),
         JSON.stringify(removed),
+        JSON.stringify(hidden),
+        JSON.stringify(shown),
       );
       return {
         ok: true,
@@ -315,6 +355,8 @@ export function saveIncludedSpaces(input: {
           actorName: input.actor.displayName,
           added,
           removed,
+          hidden,
+          shown,
           note: null,
         },
       };
@@ -325,7 +367,10 @@ export function saveIncludedSpaces(input: {
     // FR-035 / R15: who and what — never the display name or anything secret in the log.
     getLogger().info(
       `Included Spaces revision ${result.revision} by user ${input.actor.userId}: ` +
-        `+[${result.change.added.join(', ')}] -[${result.change.removed.join(', ')}]`,
+        `+[${result.change.added.join(', ')}] -[${result.change.removed.join(', ')}]` +
+        (result.change.hidden.length || result.change.shown.length
+          ? ` hidden[${result.change.hidden.join(', ')}] shown[${result.change.shown.join(', ')}]`
+          : ''),
       { context: 'Settings' },
     );
   }

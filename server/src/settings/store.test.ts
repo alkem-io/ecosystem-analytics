@@ -23,6 +23,36 @@ beforeEach(() => {
   seedIfEmpty(db, { version: 1, ecosystemKey: 'vih-test', includedSpaces: ['a', 'b', 'c'] });
 });
 
+describe('the Zichtbaar switch (schema v3)', () => {
+  it('keeps a hidden Space in the settings but leaves it out of the viewers\' scope', () => {
+    const result = saveIncludedSpaces({ baseRevision: 1, nameIds: ['a', 'b', 'c'], hiddenNameIds: ['b'], actor });
+    expect(result).toMatchObject({ ok: true, revision: 2 });
+    expect(getIncludedSpaces().map((r) => [r.nameId, r.hidden])).toEqual([
+      ['a', false],
+      ['b', true],
+      ['c', false],
+    ]);
+    expect(getScope().spaceNameIds).toEqual(['a', 'c']);
+    expect(lastChange()).toMatchObject({ added: [], removed: [], hidden: ['b'], shown: [] });
+  });
+
+  it('keeps each Space\'s switch when a save leaves it out, and logs showing it again', () => {
+    saveIncludedSpaces({ baseRevision: 1, nameIds: ['a', 'b', 'c'], hiddenNameIds: ['b'], actor });
+    saveIncludedSpaces({ baseRevision: 2, nameIds: ['a', 'b', 'c', 'd'], actor });
+    expect(getScope().spaceNameIds).toEqual(['a', 'c', 'd']);
+    saveIncludedSpaces({ baseRevision: 3, nameIds: ['a', 'b', 'c', 'd'], hiddenNameIds: [], actor });
+    expect(getScope().spaceNameIds).toEqual(['a', 'b', 'c', 'd']);
+    expect(lastChange()).toMatchObject({ hidden: [], shown: ['b'] });
+  });
+
+  it('records neither hidden nor shown for a Space that is added or removed', () => {
+    const result = saveIncludedSpaces({ baseRevision: 1, nameIds: ['a', 'd'], hiddenNameIds: ['d'], actor });
+    expect(result).toMatchObject({ ok: true });
+    expect(lastChange()).toMatchObject({ added: ['d'], removed: ['b', 'c'], hidden: [], shown: [] });
+    expect(getScope().spaceNameIds).toEqual(['a']);
+  });
+});
+
 describe('saveIncludedSpaces', () => {
   it('replaces the rows in order, bumps the revision by 1 and records the diff', () => {
     const result = saveIncludedSpaces({ baseRevision: 1, nameIds: ['c', 'a', 'd'], actor });
@@ -42,7 +72,7 @@ describe('saveIncludedSpaces', () => {
     const stale = saveIncludedSpaces({ baseRevision: 1, nameIds: ['b'], actor });
     expect(stale).toEqual({
       ok: false,
-      conflict: { revision: 2, spaces: [{ position: 0, nameId: 'a', spaceId: null }] },
+      conflict: { revision: 2, spaces: [{ position: 0, nameId: 'a', spaceId: null, hidden: false }] },
     });
     expect(getScope().spaceNameIds).toEqual(['a']);
   });
@@ -51,8 +81,8 @@ describe('saveIncludedSpaces', () => {
     setSpaceId('a', 'uuid-a');
     saveIncludedSpaces({ baseRevision: 1, nameIds: ['b', 'a'], actor });
     expect(getIncludedSpaces()).toEqual([
-      { position: 0, nameId: 'b', spaceId: null },
-      { position: 1, nameId: 'a', spaceId: 'uuid-a' },
+      { position: 0, nameId: 'b', spaceId: null, hidden: false },
+      { position: 1, nameId: 'a', spaceId: 'uuid-a', hidden: false },
     ]);
   });
 

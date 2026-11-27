@@ -39,6 +39,8 @@ export interface IncludedSpaceView {
    * `null` when unreadable.
    */
   classifications: DesignatedValues[] | null;
+  /** Kept in the monitor but hidden from viewers (the "Zichtbaar" switch is off). */
+  hidden: boolean;
 }
 
 /** The selected values of one designated classification on one Space. */
@@ -112,6 +114,9 @@ export interface SettingsChangeView {
   actorName: string | null;
   added: string[];
   removed: string[];
+  /** Included Spaces hidden from viewers / made visible again by this change (schema v3). */
+  hidden: string[];
+  shown: string[];
   note: string | null;
 }
 

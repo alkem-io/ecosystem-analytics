@@ -71,6 +71,7 @@ const view = (row: IncludedSpaceRow, space: AdminSpace | null, found: boolean): 
   visibility: space ? { contentPublic: space.isContentPublic, status: space.visibility } : null,
   classificationStatus: space ? classificationStatus(space.classifications) : null,
   classifications: space ? designatedValues(space.classifications) : null,
+  hidden: row.hidden,
 });
 
 /**

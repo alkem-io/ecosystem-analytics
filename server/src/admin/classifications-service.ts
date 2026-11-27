@@ -3,7 +3,7 @@ import { GD_CACHE_SPACE_ID, getCacheEntry, invalidateCache } from '../cache/cach
 import { isAlkemioAuthError } from '../graphql/client.js';
 import { invalidateDatasetMemo } from '../services/graph-service.js';
 import { resolveDesignated } from '../transform/classifications.js';
-import { getScope, recordClassificationChange, type Actor } from '../settings/store.js';
+import { getIncludedNameIds, recordClassificationChange, type Actor } from '../settings/store.js';
 import type {
   ClassificationChangeResult,
   DesignatedClassificationView,
@@ -70,7 +70,7 @@ export function initiativeName(userId: string, nameId: string): string | null {
  * otherwise the nameID. With no `q`, the first 50 by display name.
  */
 export function listInitiatives(auth: AuthContext, q = ''): InitiativeRef[] {
-  const included: InitiativeRef[] = getScope().spaceNameIds.map((nameId) => ({
+  const included: InitiativeRef[] = getIncludedNameIds().map((nameId) => ({
     nameId,
     displayName: recalledName(auth.userId, nameId) ?? nameId,
     kind: 'included',
@@ -116,7 +116,7 @@ interface Resolved {
 
 /** Find the initiative: an Included Space (L0, by nameID), else a GD subspace (by UUID). */
 async function resolveInitiative(auth: AuthContext, nameId: string, sdk: AdminSdk): Promise<Resolved> {
-  if (getScope().spaceNameIds.includes(nameId)) {
+  if (getIncludedNameIds().includes(nameId)) {
     const lookup = await lookupSpaceByName(sdk, nameId);
     return { ref: { nameId, displayName: nameId, kind: 'included' }, lookup };
   }
