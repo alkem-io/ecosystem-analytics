@@ -53,6 +53,12 @@ function describe(
         e.removed.length
           ? `${t('admin.included.removed', { defaultValue: 'removed' })}: ${e.removed.map(name).join(', ')}`
           : '',
+        e.hidden?.length
+          ? `${t('admin.audit.hidden', { defaultValue: 'hidden' })}: ${e.hidden.map(name).join(', ')}`
+          : '',
+        e.shown?.length
+          ? `${t('admin.audit.shown', { defaultValue: 'shown again' })}: ${e.shown.map(name).join(', ')}`
+          : '',
       ]
         .filter(Boolean)
         .join(' · '),

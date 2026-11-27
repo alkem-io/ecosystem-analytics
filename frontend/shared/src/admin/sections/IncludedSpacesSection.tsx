@@ -111,7 +111,7 @@ function ValuesCell({ value }: { value: DesignatedValues | undefined }) {
   );
 }
 
-const problemText = (t: T, problem: string) =>
+export const problemText = (t: T, problem: string) =>
   ({
     NOT_READABLE: t('admin.included.edit.notReadable', {
       defaultValue: 'You can only add Spaces you can see on Alkemio',
@@ -127,7 +127,7 @@ const problemText = (t: T, problem: string) =>
   })[problem] ?? problem;
 
 /** Editing: pending additions and removals, shown before anything is saved (FR-016–FR-019). */
-function Editor({
+export function Editor({
   data,
   onSaved,
   onCancel,
@@ -482,7 +482,7 @@ function Editor({
 }
 
 /** How visible the Space is on Alkemio: public / private, plus its status when not active. */
-function VisibilityCell({ space }: { space: IncludedSpaceView }) {
+export function VisibilityCell({ space }: { space: IncludedSpaceView }) {
   const { t } = useTranslation();
   const v = space.visibility;
   if (!v) return <span className="text-muted-foreground">—</span>;

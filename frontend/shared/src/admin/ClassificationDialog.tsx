@@ -172,17 +172,26 @@ export function ClassificationDialog({
   name,
   onClose,
   onSaved,
+  stage,
 }: {
   nameId: string;
   name: string;
   onClose: () => void;
   onSaved?: (view: InitiativeClassificationsView) => void;
+  /**
+   * Layout A: the window does not write to Alkemio itself. "Apply" hands the changed
+   * entries back to the page, which keeps them until the manager presses Opslaan.
+   */
+  stage?: {
+    edits: Record<string, string[]>;
+    onApply: (view: InitiativeClassificationsView, edits: Record<string, string[]>) => void;
+  };
 }) {
   const { t } = useTranslation();
   const [data, setData] = useState<InitiativeClassificationsView | null>(null);
   const [loadError, setLoadError] = useState(false);
   const [nonce, setNonce] = useState(0);
-  const [edits, setEdits] = useState<Record<string, string[]>>({});
+  const [edits, setEdits] = useState<Record<string, string[]>>(() => stage?.edits ?? {});
   const [results, setResults] = useState<Record<string, ClassificationChangeResult>>({});
   const [saving, setSaving] = useState(false);
   const [saveFailed, setSaveFailed] = useState(false);
@@ -356,7 +365,7 @@ export function ClassificationDialog({
         </div>
 
         <div className="flex flex-wrap items-center justify-between gap-2 border-t border-border px-5 py-3">
-          <p className="min-w-0 text-xs text-muted-foreground">
+          <p className="min-w-0 flex-1 basis-[220px] text-xs text-muted-foreground">
             {saveFailed ? (
               <span role="alert" className="text-destructive">
                 {t('admin.classifications.saveFailed', {
@@ -365,18 +374,38 @@ export function ClassificationDialog({
               </span>
             ) : (
               !readOnly &&
-              t('admin.classifications.savesOnAlkemio', {
-                defaultValue: 'Saved on Alkemio, as you. Every dashboard reads them from there.',
-              })
+              (stage
+                ? t('admin.classifications.stagedHint', {
+                    defaultValue: 'Nothing is saved yet: press Save under the table to write it to Alkemio.',
+                  })
+                : t('admin.classifications.savesOnAlkemio', {
+                    defaultValue: 'Saved on Alkemio, as you. Every dashboard reads them from there.',
+                  }))
             )}
           </p>
           <div className="flex shrink-0 gap-2">
             <button type="button" className={smallButton} onClick={onClose} disabled={saving}>
-              {readOnly || changed.length === 0
+              {readOnly || (changed.length === 0 && !stage)
                 ? t('admin.included.edit.close', { defaultValue: 'Close' })
                 : t('admin.classifications.cancel', { defaultValue: 'Cancel' })}
             </button>
-            {!readOnly && data && (
+            {!readOnly && data && stage && (
+              <button
+                type="button"
+                className={primarySmallButton}
+                onClick={() => {
+                  stage.onApply(
+                    data,
+                    Object.fromEntries(changed.map((c) => [c.entryId as string, edits[c.entryId as string]])),
+                  );
+                  onClose();
+                }}
+                data-testid="classification-apply"
+              >
+                {t('admin.classifications.apply', { defaultValue: 'Apply' })}
+              </button>
+            )}
+            {!readOnly && data && !stage && (
               <button
                 type="button"
                 className={primarySmallButton}

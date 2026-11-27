@@ -10,6 +10,8 @@ import { GdSourceSection } from './sections/GdSourceSection.js';
 import { IntakeSection } from './sections/IntakeSection.js';
 import { AuditLogSection } from './sections/AuditLogSection.js';
 import { smallButton } from './Section.js';
+import { useAppConfig } from '../app/AppConfig.js';
+import { AdminA } from './layout-a/AdminA.js';
 
 // The change log stays last.
 const TABS = ['included', 'gd', 'intake', 'access', 'audit'] as const;
@@ -124,6 +126,7 @@ function AdminTabs() {
  */
 export default function AdminApp({ canManage }: { canManage: boolean }) {
   const { t } = useTranslation();
+  const { layout } = useAppConfig();
 
   const back = (
     <button type="button" className={smallButton} onClick={leaveAdmin}>
@@ -131,6 +134,26 @@ export default function AdminApp({ canManage }: { canManage: boolean }) {
       {t('admin.back', { defaultValue: 'Back to the monitor' })}
     </button>
   );
+
+  const noAccess = (
+    <section
+      className="mx-auto mt-10 max-w-lg rounded-xl border border-border bg-card p-6 text-center"
+      data-testid="admin-no-access"
+    >
+      <ShieldX className="mx-auto h-8 w-8 text-muted-foreground" aria-hidden />
+      <h2 className="mt-3 text-lg font-semibold text-foreground">
+        {t('admin.noAccess.title', { defaultValue: 'No access to the settings' })}
+      </h2>
+      <p className="mt-2 text-sm text-muted-foreground">
+        {t('admin.noAccess.body', {
+          defaultValue: 'Only admins of the monitor’s admin Spaces on Alkemio can change its settings.',
+        })}
+      </p>
+      <div className="mt-4 flex justify-center">{back}</div>
+    </section>
+  );
+  // Layout A: Beheer lives inside the dashboard's sidebar shell.
+  if (layout === 'sidebar') return <AdminA canManage={canManage} noAccess={noAccess} />;
 
   return (
     <div className="min-h-screen bg-background">

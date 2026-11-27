@@ -62,7 +62,13 @@ export const adminApi = {
   /** The one audit log of every edit, newest first; `before` is the previous page's `next`. */
   history: (before?: string, limit = 20) =>
     get<AuditLogView>(`/history?limit=${limit}${before ? `&before=${encodeURIComponent(before)}` : ''}`),
-  saveIncludedSpaces: (body: { baseRevision: number; spaceNameIds: string[]; confirmEmpty?: boolean }) =>
+  saveIncludedSpaces: (body: {
+    baseRevision: number;
+    spaceNameIds: string[];
+    confirmEmpty?: boolean;
+    /** Which of them stay in the monitor but are hidden from viewers; omitted keeps them. */
+    hiddenNameIds?: string[];
+  }) =>
     put<IncludedSpacesView>('/included-spaces', body),
   searchSpaces: (q: string) =>
     get<{ results: SpaceCandidate[] }>(`/space-search?q=${encodeURIComponent(q)}`),

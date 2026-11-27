@@ -651,7 +651,9 @@
       "empty": "— niet ingevuld —",
       "missingOnSpace": "Deze Space heeft deze classificatie niet.",
       "multi": "meer dan één mogelijk",
-      "savesOnAlkemio": "Wordt op Alkemio opgeslagen, onder jouw naam. Elk dashboard leest het daar."
+      "savesOnAlkemio": "Wordt op Alkemio opgeslagen, onder jouw naam. Elk dashboard leest het daar.",
+      "apply": "Toepassen",
+      "stagedHint": "Nog niets opgeslagen: druk onder de tabel op Opslaan om het naar Alkemio te schrijven."
     },
     "entry": "Instellingen van de monitor",
     "gd": {
@@ -766,7 +768,38 @@
       "spaces": "{{who}} wijzigde de initiatieven in de monitor",
       "classification": "{{who}} wijzigde {{label}} van {{space}}",
       "none": "(geen)",
-      "access": "{{who}} wijzigde wie toegang heeft"
+      "access": "{{who}} wijzigde wie toegang heeft",
+      "hidden": "verborgen",
+      "shown": "weer getoond"
+    },
+    "a": {
+      "empty": "Nog leeg",
+      "conflict": "Iemand anders heeft de lijst intussen gewijzigd. Laad de pagina opnieuw en doe je wijzigingen nog eens.",
+      "partlySaved": "Niet alles kon worden opgeslagen. Wat overblijft staat nog klaar — bekijk de gemarkeerde rijen.",
+      "groeiSub": "{{shown}} van {{total}} zichtbaar, {{open}} met een lege indeling",
+      "groeiTitle": "Groei-initiatieven in de monitor",
+      "search": "Zoek initiatief",
+      "colShown": "Zichtbaar",
+      "colInitiative": "Initiatief",
+      "colAlkemio": "Alkemio",
+      "colActions": "Acties",
+      "showNamed": "{{name}} tonen in de monitor",
+      "notSaved": "Niet opgeslagen — open om te bekijken",
+      "pending_one": "{{count}} wijziging nog niet opgeslagen",
+      "pending_other": "{{count}} wijzigingen nog niet opgeslagen",
+      "undo": "Maak ongedaan",
+      "save": "Opslaan",
+      "addTitle": "Space toevoegen",
+      "pressEnter": "Druk op Enter om deze link toe te voegen.",
+      "addHint": "Toegevoegde Spaces komen in de tabel; Opslaan zet ze in de monitor.",
+      "done": "Klaar",
+      "notEmpty": "De monitor moet minstens één Space houden.",
+      "undoAddNamed": "{{name}} niet toevoegen",
+      "newHint": "Indeling verschijnt na Opslaan",
+      "keepNamed": "{{name}} toch houden",
+      "willRemove": "Wordt verwijderd bij Opslaan",
+      "tabIncluded": "Groei-initiatieven",
+      "sub": "Wat de monitor toont en hoe initiatieven zijn ingedeeld"
     }
   },
   "header": {

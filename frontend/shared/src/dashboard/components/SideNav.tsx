@@ -16,7 +16,7 @@ import {
   type LucideIcon,
 } from 'lucide-react';
 import { cn, useAppConfig } from '@ea/shared';
-import { AlkemioLogo } from './AlkemioLogo.js';
+import { AlkemioSymbol } from './AlkemioSymbol.js';
 import { useAccessLevel } from '../hooks/AccessLevelContext.js';
 import { openAdmin } from '../../admin/navigation.js';
 
@@ -54,10 +54,13 @@ export function SideNav<T extends string>({
   tabs,
   active,
   onSelect,
+  admin = false,
 }: {
   tabs: T[];
-  active: T;
+  active: T | null;
   onSelect: (tab: T) => void;
+  /** The admin area is open: no view is current, Beheer is. */
+  admin?: boolean;
 }) {
   const { t } = useTranslation();
   const { Logo } = useAppConfig();
@@ -106,24 +109,31 @@ export function SideNav<T extends string>({
           );
         })}
       </nav>
+      <div className="flex-1" />
       {canManage && (
-        <>
+        <div className="flex flex-col gap-2">
           <hr className="mx-2 border-border" />
           <button
             type="button"
-            onClick={() => openAdmin()}
+            onClick={() => !admin && openAdmin()}
+            aria-current={admin ? 'page' : undefined}
             data-testid="admin-entry"
             className={cn(
-              '-mt-2 flex w-full items-center gap-2.5 rounded-md px-2.5 py-2 text-left text-sm font-medium text-muted-foreground transition-colors',
-              'hover:bg-muted hover:text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-primary',
+              'flex w-full items-center gap-2.5 rounded-md px-2.5 py-2 text-left text-sm font-medium transition-colors',
+              'focus:outline-none focus-visible:ring-2 focus-visible:ring-primary',
+              admin
+                ? 'bg-primary text-primary-foreground'
+                : 'text-muted-foreground hover:bg-muted hover:text-foreground',
             )}
           >
-            <SlidersHorizontal className="h-[18px] w-[18px] shrink-0 opacity-80" aria-hidden />
+            <SlidersHorizontal
+              className={cn('h-[18px] w-[18px] shrink-0', admin ? 'text-[#8fd3f2]' : 'opacity-80')}
+              aria-hidden
+            />
             {t('nav.manage', { defaultValue: 'Beheer' })}
           </button>
-        </>
+        </div>
       )}
-      <div className="flex-1" />
       <PoweredBy />
     </aside>
   );
@@ -141,7 +151,7 @@ export function PoweredBy({ className }: { className?: string }) {
         className,
       )}
     >
-      <AlkemioLogo className="h-5 w-5 shrink-0" aria-hidden />
+      <AlkemioSymbol className="h-auto w-7 shrink-0" />
       <span className="leading-snug">
         {t('nav.poweredBy', { defaultValue: 'Mogelijk gemaakt door' })} Alkemio
       </span>
@@ -158,18 +168,21 @@ export function BottomNav<T extends string>({
   tabs,
   active,
   onSelect,
+  admin = false,
 }: {
   tabs: T[];
-  active: T;
+  active: T | null;
   onSelect: (tab: T) => void;
+  /** The admin area is open: "Meer" (where Beheer lives) is current. */
+  admin?: boolean;
 }) {
   const { t } = useTranslation();
   const canManage = useCanManage();
   const [moreOpen, setMoreOpen] = useState(false);
   const primary = tabs.filter((tab) => PRIMARY.includes(tab));
   const rest = tabs.filter((tab) => !PRIMARY.includes(tab));
-  const slot = SLOT_OF[active] ?? active;
-  const moreOn = !PRIMARY.includes(slot);
+  const slot = active ? (SLOT_OF[active] ?? active) : '';
+  const moreOn = admin || !PRIMARY.includes(slot);
 
   useEffect(() => {
     if (!moreOpen) return;
@@ -278,7 +291,7 @@ export function BottomNav<T extends string>({
                     type="button"
                     onClick={() => {
                       setMoreOpen(false);
-                      openAdmin();
+                      if (!admin) openAdmin();
                     }}
                     className="flex min-h-12 items-center gap-3 rounded-md px-3 text-[15px] font-medium text-foreground hover:bg-muted"
                   >
