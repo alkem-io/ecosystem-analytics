@@ -12,7 +12,8 @@ import {
 } from '@ea/shared';
 import type { GraphNode } from '@server/types/graph.js';
 import { useSelectionContext } from '../hooks/SelectionContext.js';
-import { useCoreLoadState, useGraphDataset } from '../data/derive/index.js';
+import { useCityRows, useCoreLoadState, useGraphDataset, useInitiativeRows } from '../data/derive/index.js';
+import { InitiativeA } from '../components/layout-a/InitiativeA.js';
 import { InitiativeMap } from '../components/InitiativeMap.js';
 import { LoadingOverlay } from '../components/LoadingOverlay.js';
 
@@ -154,6 +155,9 @@ export function SpaceDetailsTab({ openSpaceId, openSpaceSeq }: SpaceDetailsTabPr
     return m;
   }, [dataset]);
 
+  const initiativeRows = useInitiativeRows();
+  const cityRows = useCityRows();
+
   // Collapsible "participating gemeentes" section.
   const [gemeentesCollapsed, setGemeentesCollapsed] = useState(false);
 
@@ -161,6 +165,25 @@ export function SpaceDetailsTab({ openSpaceId, openSpaceSeq }: SpaceDetailsTabPr
     return (
       <div className="flex h-full items-center justify-center text-muted-foreground">
         {t('selection.empty')}
+      </div>
+    );
+  }
+
+  // Layout A: the switcher page (hero, 75/25 logo map + classifications, gemeente grid).
+  if (cfg.layout === 'sidebar') {
+    return (
+      <div className="load-strip-clearance h-full overflow-auto px-4 pt-4 pb-[max(1rem,var(--safe-bottom))] lg:px-7 lg:pt-[22px]">
+        <InitiativeA
+          spaces={selectedSpaces}
+          selected={selected}
+          onSelect={setSelected}
+          dataset={dataset}
+          node={initiativeNode}
+          gemeentes={gemeentes}
+          rows={initiativeRows}
+          cityRows={cityRows}
+          loading={graphFirstLoading}
+        />
       </div>
     );
   }

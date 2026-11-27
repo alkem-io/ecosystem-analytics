@@ -163,6 +163,18 @@ function AppShell() {
     return () => window.removeEventListener(evt, onOpenCity as EventListener);
   }, [cfg.eventPrefix]);
 
+  // Layout A pages link back to their list (breadcrumb): `<app>:openTab` switches tab.
+  useEffect(() => {
+    const onOpenTab = (e: Event) => {
+      const tab = (e as CustomEvent<{ tab?: TabKey }>).detail?.tab;
+      if (tab && TABS.includes(tab)) setActive(tab);
+    };
+    const evt = `${cfg.eventPrefix}:openTab`;
+    window.addEventListener(evt, onOpenTab as EventListener);
+    return () => window.removeEventListener(evt, onOpenTab as EventListener);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [cfg.eventPrefix]);
+
   // Growing past `lg` turns the drawer back into a static column; leaving it
   // "open" would then also leave the backdrop armed over a perfectly good layout.
   useEffect(() => {
