@@ -34,8 +34,8 @@ interface CategoryBarChartProps {
   drift?: VocabularyDrift;
 }
 
-const SPACES_COLOR = 'var(--primary)';
-const GD_COLOR = '#16a34a'; // GemeenteDelers green (matches the gemeente-distribution chart)
+const SPACES_COLOR = 'var(--series-groei)';
+const GD_COLOR = 'var(--series-gd)'; // GemeenteDelers green (matches the gemeente-distribution chart)
 
 /** Tooltip listing the category total plus the names of the initiatives, split by source. */
 function NamesTooltip({ active, payload }: TooltipProps<number, string>) {

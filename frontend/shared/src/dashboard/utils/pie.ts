@@ -9,8 +9,8 @@
  */
 
 /** Groei = brand hue, GemeenteDelers = green — the split language shared by all charts. */
-export const GROEI_COLOR = 'var(--primary)';
-export const GD_COLOR = '#16a34a';
+export const GROEI_COLOR = 'var(--series-groei)';
+export const GD_COLOR = 'var(--series-gd)';
 
 /** SVG path for a pie slice (angles in degrees, 0° at the top, clockwise). */
 export function slicePath(

@@ -732,5 +732,11 @@
     "infoBody": "The Groei initiatives are the Spaces this monitor reports on: initiatives of the Groei programme of Kenniscentrum Innovatie. The managers of the monitor choose which Spaces count, in the monitor settings.",
     "infoOwnData": "The figures are built from what you yourself may see.",
     "infoMore": "More information:"
+  },
+  "nav": {
+    "manage": "Manage",
+    "more": "More",
+    "close": "Close",
+    "poweredBy": "Powered by"
   }
 }

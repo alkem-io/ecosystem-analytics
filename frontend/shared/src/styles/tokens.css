@@ -80,6 +80,11 @@
   --view-color-high: #1e3a5f;
   --view-color-inactive: #cbd5e1;
 
+  /* Source series — Groei (the monitor's own Spaces) and GemeenteDelers. Defaults are
+     the values the charts always used; a dashboard can restyle them in its own stylesheet. */
+  --series-groei: var(--primary);
+  --series-gd: #16a34a;
+
   /* Categorical series (funnel "colour by" NDS / VNG 2030). Assigned in this FIXED
      order by the value's position in the Alkemio vocabulary, never cycled; values past
      the eighth fold into --cat-other. Validated (dataviz validate_palette.js) against

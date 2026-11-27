@@ -20,8 +20,8 @@ interface Props {
   emptyLabel: string;
 }
 
-const SPACES_COLOR = 'var(--primary)';
-const GD_COLOR = '#16a34a'; // GemeenteDelers green (matches the other dashboard charts)
+const SPACES_COLOR = 'var(--series-groei)';
+const GD_COLOR = 'var(--series-gd)'; // GemeenteDelers green (matches the other dashboard charts)
 
 /** A plotted bubble: category indices on each axis plus its source-split names/counts. */
 interface Point {

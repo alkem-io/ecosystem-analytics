@@ -30,6 +30,8 @@ import { isAdminPath, usePathname } from '../admin/navigation.js';
 // Feature 027: the admin area is its own chunk — viewers never download it.
 const AdminApp = lazy(() => import('../admin/AdminApp.js'));
 import { LoadStrip } from './components/LoadStrip.js';
+import { SideNav, BottomNav } from './components/SideNav.js';
+import { UserMenu } from './components/UserMenu.js';
 import { GraphTab } from './pages/GraphTab.js';
 import { SpaceDetailsTab } from './pages/SpaceDetailsTab.js';
 import { DashboardTab } from './pages/DashboardTab.js';
@@ -183,6 +185,83 @@ function AppShell() {
     };
   }, [navOpen]);
 
+  const content = (
+    <>
+      {/* Feature 025: the one progress strip, outside the tab switch so it is the
+          same on every tab and never restarts when the viewer moves (FR-007/009).
+          It floats over the bottom of the content rather than taking a row, so a
+          reload (GemeenteDelers switch, refresh) never shifts the page. */}
+      <div className="relative flex min-h-0 min-w-0 flex-1 flex-col">
+      <LoadStrip />
+
+      <main className="min-h-0 min-w-0 flex-1">
+        {/* Feature 027: a managed-scope dashboard has no selection to fall back on, so
+            its scope's loading, failure and emptiness are said once, here, instead of
+            every tab asking the viewer to "select" something they cannot select. */}
+        {!hasSelectionPanel && scopeNotice ? (
+          scopeNotice
+        ) : (
+        <ErrorBoundary key={active} label={t(`tabs.${active}`)}>
+          {active === 'graph' && (
+            <GraphTab
+              spaceIds={effectiveSpaceIds}
+              includeInitiatives={state.includeInitiatives}
+              showGemeentes={state.showGemeentes}
+              onShowGemeentesChange={setShowGemeentes}
+              refreshNonce={refreshNonce}
+            />
+          )}
+          {active === 'details' && (
+            <SpaceDetailsTab openSpaceId={openSpaceId} openSpaceSeq={openSpaceSeq} />
+          )}
+          {active === 'initiatives' && <InitiativesTab />}
+          {active === 'cityDetails' && (
+            <CityDetailsTab openCityId={openCityId} openCitySeq={openCitySeq} />
+          )}
+          {active === 'cities' && <CitiesTab />}
+          {active === 'usage' && <UsageExplorerTab />}
+          {active === 'funnel' && <FunnelTab />}
+          {active === 'ecosystem' && <EcosystemTab />}
+          {active === 'dashboard' && <DashboardTab />}
+        </ErrorBoundary>
+        )}
+      </main>
+      </div>
+    </>
+  );
+
+  const selectTab = (tab: TabKey) => {
+    setActive(tab);
+    setNavOpen(false);
+  };
+
+  // Layout A (AppConfig.layout = 'sidebar'): a persistent navigation column at `lg`+,
+  // a bottom bar below it. Same tabs, same content, same bridges — only the chrome moves.
+  if (cfg.layout === 'sidebar') {
+    return (
+      <div className="flex h-dvh overflow-hidden bg-background text-foreground" data-layout="sidebar">
+        {!compact && <SideNav tabs={TABS} active={active} onSelect={selectTab} />}
+        <div className="flex min-h-0 min-w-0 flex-1 flex-col">
+          {compact ? (
+            <BrandingHeader />
+          ) : (
+            <div className="flex h-[57px] shrink-0 items-center gap-2 border-b border-border bg-card px-7">
+              {cfg.flags?.managedScope && <HeaderDataControls />}
+              <span className="flex-1" />
+              <UserMenu />
+            </div>
+          )}
+          <AuthorizationWarning />
+          {compact && cfg.flags?.managedScope && (
+            <HeaderDataControls className="no-scrollbar flex-nowrap overflow-x-auto border-b border-border bg-card px-3 py-2" />
+          )}
+          {content}
+          {compact && <BottomNav tabs={TABS} active={active} onSelect={selectTab} />}
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="flex h-dvh flex-col overflow-hidden bg-background text-foreground">
       <BrandingHeader
@@ -247,46 +326,7 @@ function AppShell() {
             />
           </div>
 
-          {/* Feature 025: the one progress strip, outside the tab switch so it is the
-              same on every tab and never restarts when the viewer moves (FR-007/009).
-              It floats over the bottom of the content rather than taking a row, so a
-              reload (GemeenteDelers switch, refresh) never shifts the page. */}
-          <div className="relative flex min-h-0 min-w-0 flex-1 flex-col">
-          <LoadStrip />
-
-          <main className="min-h-0 min-w-0 flex-1">
-            {/* Feature 027: a managed-scope dashboard has no selection to fall back on, so
-                its scope's loading, failure and emptiness are said once, here, instead of
-                every tab asking the viewer to "select" something they cannot select. */}
-            {!hasSelectionPanel && scopeNotice ? (
-              scopeNotice
-            ) : (
-            <ErrorBoundary key={active} label={t(`tabs.${active}`)}>
-              {active === 'graph' && (
-                <GraphTab
-                  spaceIds={effectiveSpaceIds}
-                  includeInitiatives={state.includeInitiatives}
-                  showGemeentes={state.showGemeentes}
-                  onShowGemeentesChange={setShowGemeentes}
-                  refreshNonce={refreshNonce}
-                />
-              )}
-              {active === 'details' && (
-                <SpaceDetailsTab openSpaceId={openSpaceId} openSpaceSeq={openSpaceSeq} />
-              )}
-              {active === 'initiatives' && <InitiativesTab />}
-              {active === 'cityDetails' && (
-                <CityDetailsTab openCityId={openCityId} openCitySeq={openCitySeq} />
-              )}
-              {active === 'cities' && <CitiesTab />}
-              {active === 'usage' && <UsageExplorerTab />}
-              {active === 'funnel' && <FunnelTab />}
-              {active === 'ecosystem' && <EcosystemTab />}
-              {active === 'dashboard' && <DashboardTab />}
-            </ErrorBoundary>
-            )}
-          </main>
-          </div>
+          {content}
         </div>
       </div>
     </div>

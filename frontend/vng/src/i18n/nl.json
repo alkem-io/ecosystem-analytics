@@ -732,5 +732,11 @@
     "infoBody": "De Groei-initiatieven zijn de Spaces waarover deze monitor rapporteert: initiatieven van het programma Groei van Kenniscentrum Innovatie. De beheerders van de monitor kiezen welke Spaces meetellen, in de instellingen van de monitor.",
     "infoOwnData": "De cijfers zijn opgebouwd uit wat je zelf mag zien.",
     "infoMore": "Meer informatie:"
+  },
+  "nav": {
+    "manage": "Beheer",
+    "more": "Meer",
+    "close": "Sluiten",
+    "poweredBy": "Mogelijk gemaakt door"
   }
 }

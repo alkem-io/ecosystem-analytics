@@ -51,6 +51,13 @@ export interface AppConfig {
     managedScope?: boolean;
   };
   /**
+   * Shell layout. `tabs` (default) is the header + horizontal tab strip; `sidebar` is
+   * layout A — a persistent left navigation column at `lg`+, and a bottom bar with a
+   * "Meer" sheet below it. Opt-in per dashboard, like the tabs above: VNG uses it,
+   * GovTech keeps the tab strip until it opts in.
+   */
+  layout?: 'tabs' | 'sidebar';
+  /**
    * The dashboard is a prototype shared for feedback: the notice under the header says
    * so and links here for more information. Absent: no prototype line.
    */

@@ -32,3 +32,32 @@
   --radius-sm: 2px; /* was 4px (CRD sm) */
   --radius-lg: 6px; /* was 12px (CRD lg) */
 }
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   Layout A palette (VNG only). Calm shades rather than bright hues: the page sits on a
+   faint blue-grey, cards stay white, Groei is a quiet blue and GemeenteDelers a light
+   blue-teal. The six categorical slots are the muted NDS set from the agreed concepts,
+   in vocabulary order (never cycled); they keep ≥ 8 ΔE adjacent CVD separation.
+   ───────────────────────────────────────────────────────────────────────────── */
+:root {
+  --background: #f4f7fa;
+  --surface-raised: #ffffff;
+
+  --series-groei: #3b64a8;
+  --series-gd: #7db5cc;
+
+  --cat-1: #4a70b5;
+  --cat-2: #be8445;
+  --cat-3: #1f998c;
+  --cat-4: #8870bf;
+  --cat-5: #7f9a4b;
+  --cat-6: #b9688a;
+  --cat-none: #bcc5d0;
+
+  --handelen-active: #27467a;
+  --handelen-quiet: #5e82bc;
+  --handelen-dormant: #a6bedd;
+
+  --radius: 8px;
+  --radius-lg: 10px;
+}

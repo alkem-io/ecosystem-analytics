@@ -16,8 +16,8 @@ interface Props {
   emptyLabel: string;
 }
 
-const GROEI_COLOR = 'var(--primary)';
-const GD_COLOR = '#16a34a'; // GemeenteDelers green (matches the dashboard GD charts)
+const GROEI_COLOR = 'var(--series-groei)';
+const GD_COLOR = 'var(--series-gd)'; // GemeenteDelers green (matches the dashboard GD charts)
 
 /** Tooltip showing per-source counts, the bucket total, and the initiative NAMES. */
 function StackTooltip({ active, payload, label }: TooltipProps<number, string>) {

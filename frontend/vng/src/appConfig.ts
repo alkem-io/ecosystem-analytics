@@ -24,4 +24,6 @@ export const appConfig: AppConfig = {
   flags: { managedScope: true },
   // The monitor is a prototype for wider feedback; more information on this Space.
   prototypeInfoUrl: 'https://alkem.io/innovatiemonitor',
+  // Layout A — the sidebar shell. VNG-only for now; GovTech keeps the tab strip.
+  layout: 'sidebar',
 };
