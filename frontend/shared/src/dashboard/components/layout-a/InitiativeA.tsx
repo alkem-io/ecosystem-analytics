@@ -6,7 +6,7 @@ import type { GraphDataset, GraphNode } from '@server/types/graph.js';
 import type { InitiativeRow } from '../../utils/initiatives.js';
 import type { CityRow } from '../../utils/cities.js';
 import { Card, Legend, TipProvider } from './primitives.js';
-import { GemeenteMap, type MapLabel } from './GemeenteMap.js';
+import { GemeenteMap, useCodeOf, type MapLabel } from './GemeenteMap.js';
 import { Switcher } from './Switcher.js';
 
 const SPACE_TYPES = new Set(['SPACE_L0', 'SPACE_L1', 'SPACE_L2']);
@@ -139,7 +139,11 @@ export function InitiativeA({
   const inh = shown.reduce((s, g) => s + (cityById.get(g.id)?.population ?? 0), 0);
 
   // Map: which CBS code is which gemeente node.
-  const codeOf = (g: GraphNode) => cityById.get(g.id)?.cbsCode ?? null;
+  const cityCode = useCodeOf(cityRows);
+  const codeOf = (g: GraphNode) => {
+    const c = cityById.get(g.id);
+    return c ? cityCode(c) : null;
+  };
   const participants = new Map<string, GraphNode>();
   for (const g of gemeentes) {
     const c = codeOf(g);
@@ -147,10 +151,10 @@ export function InitiativeA({
   }
   const groeiFill = 'var(--series-groei)';
   const labels: MapLabel[] = cityRows
-    .filter((c) => c.cbsCode)
+    .filter((c) => cityCode(c))
     .map((c) => {
       const text = c.name.replace(/^gemeente\s+/i, '');
-      return { code: c.cbsCode!, text, always: CITY_LABELS.includes(text), population: c.population ?? 0 };
+      return { code: cityCode(c)!, text, always: CITY_LABELS.includes(text), population: c.population ?? 0 };
     });
 
   const groups = [
@@ -268,7 +272,7 @@ export function InitiativeA({
                   const g = participants.get(code);
                   if (g) openCity(g.id);
                   else {
-                    const c = cityRows.find((x) => x.cbsCode === code);
+                    const c = cityRows.find((x) => cityCode(x) === code);
                     if (c) openCity(c.id);
                   }
                 }}

@@ -436,7 +436,23 @@
     "moreInitiatives": "+{{count}} meer",
     "zoomHintWindows": "Gebruik Ctrl + scrollen om in te zoomen op de kaart",
     "zoomHintMac": "Gebruik ⌘ + scrollen om in te zoomen op de kaart",
-    "zoomHintMobile": "Gebruik twee vingers om de kaart te verschuiven"
+    "zoomHintMobile": "Gebruik twee vingers om de kaart te verschuiven",
+    "a": {
+      "clear": "Wissen",
+      "openProfile": "Gemeenteprofiel openen",
+      "none": "Deze gemeente doet in de huidige selectie aan geen enkel initiatief mee.",
+      "inUse": "Initiatieven in gebruik in dit gebied",
+      "inUseSub": "Zoom of verschuif de kaart om het gebied te wijzigen.",
+      "empty": "In het zichtbare gebied zijn geen initiatieven in gebruik.",
+      "inView": "gemeenten in beeld",
+      "participate": "doen mee",
+      "show": "Toon",
+      "all": "Alle initiatieven",
+      "province": "Provincie",
+      "allProvinces": "Heel Nederland",
+      "reset": "Weergave herstellen",
+      "mapTitle": "Initiatieven per gemeente"
+    }
   },
   "handelen": {
     "name": "Handelen",

@@ -7,7 +7,7 @@ import type { CityRow } from '../../utils/cities.js';
 import type { InitiativeRow } from '../../utils/initiatives.js';
 import { Card, TipProvider, useTip } from './primitives.js';
 import { shortCat } from './charts.js';
-import { BinLegend, binColor, GemeenteMap, type MapLabel } from './GemeenteMap.js';
+import { BinLegend, binColor, GemeenteMap, useCodeOf, type MapLabel } from './GemeenteMap.js';
 import { Switcher } from './Switcher.js';
 import { GemeenteMark, InitiativeMark, provinceSlug } from './InitiativeA.js';
 
@@ -239,7 +239,8 @@ export function GemeenteA({
   const cur = cities.find((c) => c.id === selected) ?? cities[0];
   const rowById = useMemo(() => new Map(rows.map((r) => [r.id, r])), [rows]);
   const nodeById = useMemo(() => new Map((dataset?.nodes ?? []).map((n) => [n.id, n])), [dataset]);
-  const byCode = useMemo(() => new Map(cities.filter((c) => c.cbsCode).map((c) => [c.cbsCode!, c])), [cities]);
+  const codeOf = useCodeOf(cities);
+  const byCode = useMemo(() => new Map(cities.map((c) => [codeOf(c), c] as const).filter((e): e is [string, CityRow] => !!e[0])), [cities, codeOf]);
 
   const openSpace = (spaceId: string) => window.dispatchEvent(new CustomEvent(`${eventPrefix}:openSpace`, { detail: { spaceId } }));
   const goTab = (tab: string) => window.dispatchEvent(new CustomEvent(`${eventPrefix}:openTab`, { detail: { tab } }));
@@ -267,7 +268,7 @@ export function GemeenteA({
   const groei = cur.initiatives.filter((i) => i.kind === 'groei');
   const gd = cur.initiatives.filter((i) => i.kind === 'gd');
   const slug = provinceSlug(cur.provinceName);
-  const labels: MapLabel[] = cities.filter((c) => c.cbsCode).map((c) => ({ code: c.cbsCode!, text: plain(c.name), population: c.population ?? 0 }));
+  const labels: MapLabel[] = cities.filter((c) => codeOf(c)).map((c) => ({ code: codeOf(c)!, text: plain(c.name), population: c.population ?? 0 }));
 
   const groups = [
     {
@@ -351,7 +352,7 @@ export function GemeenteA({
                   className="min-h-0 flex-1"
                   ariaLabel={t('cityDetailsTab.mapTitle', { defaultValue: 'Locatie' })}
                   province={slug}
-                  highlight={cur.cbsCode}
+                  highlight={codeOf(cur)}
                   zoomable={false}
                   fill={(code) => binColor(byCode.get(code)?.initiativeCount)}
                   tip={(code, n) => {

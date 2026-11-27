@@ -74,6 +74,40 @@ export function useGemeenteGeo(): Geo | null {
   return geo;
 }
 
+/** Folded gemeente name, for matching a row without a CBS code to its outline. */
+const fold = (n: string) =>
+  n
+    .replace(/^gemeente\s+/i, '')
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-z0-9]+/g, ' ')
+    .trim();
+const ALIAS: Record<string, string> = { 'den haag': 's gravenhage', 'den bosch': 's hertogenbosch' };
+
+/**
+ * The CBS code of each row: its own when the data carries one, else matched on the
+ * gemeente's name. Gemeenten reached only through GemeenteDelers often have no code.
+ */
+export function useCodeOf<T extends { cbsCode: string | null; name: string }>(rows: T[]): (row: T) => string | null {
+  const geo = useGemeenteGeo();
+  return useMemo(() => {
+    const byName = new Map<string, string>();
+    for (const s of geo?.shapes ?? []) {
+      byName.set(fold(s.name), s.code);
+      // CBS disambiguates a few names with a province suffix: "Rijswijk (ZH.)", "Hengelo (O.)".
+      const bare = fold(s.name.replace(/\s*\(.*\)\s*$/, ''));
+      if (!byName.has(bare)) byName.set(bare, s.code);
+    }
+    return (row: T) => {
+      if (row.cbsCode) return row.cbsCode;
+      const f = fold(row.name);
+      return byName.get(ALIAS[f] ?? f) ?? null;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [geo, rows]);
+}
+
 export interface MapMarker {
   code: string;
   image?: string | null;
@@ -104,6 +138,7 @@ export function GemeenteMap({
   className,
   ariaLabel,
   overlay,
+  onView,
 }: {
   fill: (code: string) => string;
   tip?: (code: string, name: string) => TipContent | null;
@@ -117,6 +152,8 @@ export function GemeenteMap({
   className?: string;
   ariaLabel: string;
   overlay?: ReactNode;
+  /** Called with the gemeenten whose centre is on screen, whenever the view settles. */
+  onView?: (codes: Set<string>) => void;
 }) {
   const { t } = useTranslation();
   const geo = useGemeenteGeo();
@@ -152,6 +189,28 @@ export function GemeenteMap({
   // svg units per screen pixel (the map is fitted with xMidYMid meet)
   const unit = Math.max(view[2] / box.w, view[3] / box.h);
 
+  // Which gemeenten are in view: their centre, through the zoom, inside the visible area
+  // (the whole box — the map is letterboxed with xMidYMid meet, so that is wider than the viewBox).
+  const onViewRef = useRef(onView);
+  onViewRef.current = onView;
+  const report = (tr: d3.ZoomTransform) => {
+    if (!geo || !onViewRef.current) return;
+    const u = Math.max(view[2] / box.w, view[3] / box.h);
+    const cx = view[0] + view[2] / 2;
+    const cy = view[1] + view[3] / 2;
+    const hw = (box.w * u) / 2;
+    const hh = (box.h * u) / 2;
+    const codes = new Set<string>();
+    for (const s of geo.shapes) {
+      if (province && s.province !== province) continue;
+      const [x, y] = tr.apply([s.cx, s.cy]);
+      if (Math.abs(x - cx) <= hw && Math.abs(y - cy) <= hh) codes.add(s.code);
+    }
+    onViewRef.current(codes);
+  };
+  const reportRef = useRef(report);
+  reportRef.current = report;
+
   // Zoom & pan: drag, the buttons, or ⌘/Ctrl + scroll (a plain scroll keeps scrolling the page).
   useEffect(() => {
     const svg = svgRef.current;
@@ -173,15 +232,22 @@ export function GemeenteMap({
       .on('zoom', (e) => {
         gRef.current?.setAttribute('transform', e.transform.toString());
         setK(e.transform.k);
-      });
+      })
+      .on('end', (e) => reportRef.current(e.transform));
     zoomRef.current = z;
     const sel = d3.select(svg);
     sel.call(z).on('dblclick.zoom', null);
     sel.call(z.transform, d3.zoomIdentity);
+    reportRef.current(d3.zoomIdentity);
     return () => {
       sel.on('.zoom', null);
     };
   }, [geo, zoomable, view]);
+
+  // Re-report when the box is measured or resized, or the frame changes.
+  useEffect(() => {
+    if (svgRef.current) reportRef.current(d3.zoomTransform(svgRef.current));
+  }, [box.w, box.h, geo, province]);
 
   const zoomBy = (f: number) => {
     if (svgRef.current && zoomRef.current) d3.select(svgRef.current).call(zoomRef.current.scaleBy, f);

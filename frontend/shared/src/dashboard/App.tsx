@@ -39,6 +39,7 @@ import { InitiativesTab } from './pages/InitiativesTab.js';
 import { CitiesTab } from './pages/CitiesTab.js';
 import { CityDetailsTab } from './pages/CityDetailsTab.js';
 import { UsageExplorerTab } from './pages/UsageExplorerTab.js';
+import { UsageA } from './components/layout-a/Usage.js';
 import { FunnelTab } from './pages/FunnelTab.js';
 import { EcosystemTab } from './pages/EcosystemTab.js';
 
@@ -231,7 +232,14 @@ function AppShell() {
             <CityDetailsTab openCityId={openCityId} openCitySeq={openCitySeq} />
           )}
           {active === 'cities' && <CitiesTab />}
-          {active === 'usage' && <UsageExplorerTab />}
+          {active === 'usage' &&
+            (cfg.layout === 'sidebar' ? (
+              <div className="load-strip-clearance h-full overflow-auto px-4 pt-4 pb-[max(1rem,var(--safe-bottom))] lg:px-7 lg:pt-[22px]">
+                <UsageA />
+              </div>
+            ) : (
+              <UsageExplorerTab />
+            ))}
           {active === 'funnel' && <FunnelTab />}
           {active === 'ecosystem' && <EcosystemTab />}
           {active === 'dashboard' && <DashboardTab />}

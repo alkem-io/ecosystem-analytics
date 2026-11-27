@@ -436,7 +436,23 @@
     "moreInitiatives": "+{{count}} more",
     "zoomHintWindows": "Use Ctrl + scroll to zoom the map",
     "zoomHintMac": "Use ⌘ + scroll to zoom the map",
-    "zoomHintMobile": "Use two fingers to move the map"
+    "zoomHintMobile": "Use two fingers to move the map",
+    "a": {
+      "clear": "Clear",
+      "openProfile": "Open municipality profile",
+      "none": "This municipality takes part in no initiative in the current selection.",
+      "inUse": "Initiatives in use in this area",
+      "inUseSub": "Zoom or pan the map to change the area.",
+      "empty": "No initiatives are in use in the visible area.",
+      "inView": "municipalities in view",
+      "participate": "take part",
+      "show": "Show",
+      "all": "All initiatives",
+      "province": "Province",
+      "allProvinces": "All of the Netherlands",
+      "reset": "Reset view",
+      "mapTitle": "Initiatives per municipality"
+    }
   },
   "handelen": {
     "name": "Activity",
