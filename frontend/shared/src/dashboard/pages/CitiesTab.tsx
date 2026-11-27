@@ -15,6 +15,7 @@ import { TableFilterBar, FILTER_ALL } from '../components/TableFilterBar.js';
 import type { CityRow } from '../utils/cities.js';
 import { useSelectionContext } from '../hooks/SelectionContext.js';
 import { useCityRows, useCoreLoadState, useGraphDataset } from '../data/derive/index.js';
+import { CitiesTableA } from '../components/layout-a/Cities.js';
 
 const ALL = FILTER_ALL;
 
@@ -324,6 +325,12 @@ export function CitiesTab() {
   return (
     <TooltipProvider delayDuration={120}>
       <div className="flex h-full min-h-0 flex-col">
+        {cfg.layout === 'sidebar' && (
+          <div className="px-4 pt-4 lg:px-7 lg:pt-[22px]">
+            <h1 className="text-2xl font-semibold tracking-[-0.015em] text-foreground">{t('tabs.cities', { defaultValue: 'Gemeenten' })}</h1>
+            <p className="mt-0.5 text-[14px] text-muted-foreground">{t('citiesTab.count', { count: rows.length })}</p>
+          </div>
+        )}
         {/* Filter bar — search + a dropdown per categorical column. Below `lg` the
             dropdowns move behind a disclosure and the card view's sort joins them. */}
         <TableFilterBar
@@ -373,7 +380,43 @@ export function CitiesTab() {
               {t('citiesTab.noResults')}
             </div>
           ) : (
-            compact ? (
+            cfg.layout === 'sidebar' ? (
+              <div className={cn(compact ? 'px-4 pt-1' : 'mx-7 mb-4 overflow-x-auto rounded-[10px] border border-border bg-card')}>
+                <CitiesTableA
+                  rows={rows}
+                  onOpen={openCity}
+                  unknown={unknown}
+                  fmt={(n) => numberFormat.format(n)}
+                  header={
+                    <thead className="sticky top-0 z-10 bg-card">
+                      <tr className="border-b border-[#e8eef5]">
+                        <th />
+                        <th className="border-l border-border px-3 pt-[7px] pb-[5px] text-center text-[11.5px] font-semibold text-muted-foreground" colSpan={2}>
+                          {t('citiesTab.groupCity')}
+                        </th>
+                        <th className="border-l border-border px-3 pt-[7px] pb-[5px] text-center text-[11.5px] font-semibold text-muted-foreground" colSpan={3}>
+                          {t('citiesTab.groupParticipation')}
+                        </th>
+                        <th className="border-l border-border px-3 pt-[7px] pb-[5px] text-center text-[11.5px] font-semibold text-muted-foreground" colSpan={3}>
+                          {t('citiesTab.groupClassification')}
+                        </th>
+                      </tr>
+                      <tr className="border-b border-border text-left text-[12.5px] font-medium text-muted-foreground [&_button]:font-medium [&_button]:text-muted-foreground">
+                        <th className="px-5 py-2">{headerBtn('name', t('citiesTab.colName'))}</th>
+                        <th className="border-l border-border px-3 py-2">{headerBtn('province', t('citiesTab.colProvince'))}</th>
+                        <th className="px-3 py-2 text-right">{headerBtn('population', t('citiesTab.colPopulation'))}</th>
+                        <th className="border-l border-border px-3 py-2">{headerBtn('initiatives', t('citiesTab.colInitiatives'))}</th>
+                        <th className="px-3 py-2 text-right">{headerBtn('groei', t('citiesTab.colGroei'))}</th>
+                        <th className="px-3 py-2 text-right">{headerBtn('gd', t('citiesTab.colGd'))}</th>
+                        <th className="border-l border-border px-3 py-2">{headerBtn('vng2030', t('citiesTab.colVng2030'))}</th>
+                        <th className="px-3 py-2">{headerBtn('nds', t('citiesTab.colNds'))}</th>
+                        <th className="px-3 py-2 pr-5">{headerBtn('themes', t('citiesTab.colThemes'))}</th>
+                      </tr>
+                    </thead>
+                  }
+                />
+              </div>
+            ) : compact ? (
             <RecordCardList>
               {rows.map((r) => (
                 <RecordCard

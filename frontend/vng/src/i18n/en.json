@@ -160,7 +160,14 @@
     "gemeentesTitle": "Participating municipalities",
     "count": "Count",
     "filterProvince": "Province",
-    "allProvinces": "All provinces"
+    "allProvinces": "All provinces",
+    "classifications": "Classifications",
+    "factGemeenten": "Participating municipalities",
+    "factMembers": "Members",
+    "lead": "Lead",
+    "noClassifications": "Not classified yet",
+    "openOnAlkemio": "Open on Alkemio",
+    "participant": "Participant"
   },
   "toggles": {
     "showGemeentes": "Show gemeentes",
@@ -242,7 +249,15 @@
       "sourceSpaces": "Based on the Spaces in the monitor",
       "sourceGd": "GemeenteDelers initiatives",
       "distBoth": "Groei + GemeenteDelers initiatives",
-      "distGroei": "Groei initiatives"
+      "distGroei": "Groei initiatives",
+      "also": "Also",
+      "groeiInitiative": "Groei initiative",
+      "initiatives": "Initiatives",
+      "ndsPriority": "NDS priority",
+      "perGemeente": "Initiatives per municipality",
+      "zoomHint": "Use ⌘ + scroll to zoom",
+      "zoomIn": "Zoom in",
+      "zoomOut": "Zoom out"
     }
   },
   "categories": {
@@ -388,7 +403,10 @@
     "initiativesTitle": "Initiatives",
     "noInitiatives": "This city does not take part in any selected initiative",
     "noCities": "No cities in the current selection",
-    "loading": "Loading cities…"
+    "loading": "Loading cities…",
+    "cloudEmpty": "No initiatives yet, so nothing to show.",
+    "cloudSub": "The themes and categories of this municipality’s {{count}} initiatives. The bigger, the more often.",
+    "cloudTitle": "What {{name}} works on"
   },
   "usageExplorer": {
     "loading": "Loading map…",
@@ -434,7 +452,8 @@
       "dormant": "Dormant (> {{quiet}} days)",
       "none": "No activity recorded",
       "unknown": "Activity not visible"
-    }
+    },
+    "title": "Activity"
   },
   "funnel": {
     "title": "Innovation funnel",
@@ -767,5 +786,24 @@
     "more": "More",
     "close": "Close",
     "poweredBy": "Powered by"
+  },
+  "switcher": {
+    "breadcrumb": "Breadcrumb",
+    "choose": "choose",
+    "close": "close",
+    "gemeenten": "Municipalities",
+    "gemeentenNoun": "municipalities",
+    "groei": "Groei initiatives",
+    "initiatives": "initiatives",
+    "more": "{{n}} more results. Keep typing to narrow down.",
+    "next": "Next",
+    "noPhase": "No phase",
+    "none": "Nothing found for “{{q}}”.",
+    "of": "of",
+    "open": "open",
+    "prev": "Previous",
+    "searchGemeente": "Search a municipality",
+    "searchInitiative": "Search an initiative",
+    "typeToSearch": "Type to search all {{n}}"
   }
 }

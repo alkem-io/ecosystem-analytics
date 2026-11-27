@@ -160,7 +160,14 @@
     "gemeentesTitle": "Deelnemende gemeenten",
     "count": "Aantal",
     "filterProvince": "Provincie",
-    "allProvinces": "Alle provincies"
+    "allProvinces": "Alle provincies",
+    "classifications": "Classificaties",
+    "factGemeenten": "Deelnemende gemeenten",
+    "factMembers": "Leden",
+    "lead": "Trekker",
+    "noClassifications": "Nog niet ingedeeld",
+    "openOnAlkemio": "Open op Alkemio",
+    "participant": "Deelnemer"
   },
   "toggles": {
     "showGemeentes": "Gemeentes tonen",
@@ -242,7 +249,15 @@
       "sourceSpaces": "Op basis van de Spaces in de monitor",
       "sourceGd": "GemeenteDelers-initiatieven",
       "distBoth": "Groei + GemeenteDelers initiatieven",
-      "distGroei": "Groei initiatieven"
+      "distGroei": "Groei initiatieven",
+      "also": "Ook",
+      "groeiInitiative": "Groei-initiatief",
+      "initiatives": "Initiatieven",
+      "ndsPriority": "NDS-prioriteit",
+      "perGemeente": "Initiatieven per gemeente",
+      "zoomHint": "Gebruik ⌘ + scrollen om in te zoomen",
+      "zoomIn": "Inzoomen",
+      "zoomOut": "Uitzoomen"
     }
   },
   "categories": {
@@ -388,7 +403,10 @@
     "initiativesTitle": "Initiatieven",
     "noInitiatives": "Deze gemeente neemt niet deel aan een geselecteerd initiatief",
     "noCities": "Geen gemeenten in de huidige selectie",
-    "loading": "Gemeenten laden…"
+    "loading": "Gemeenten laden…",
+    "cloudEmpty": "Nog geen initiatieven, dus nog niets om te tonen.",
+    "cloudSub": "De thema’s en categorieën van de {{count}} initiatieven van deze gemeente. Hoe groter, hoe vaker.",
+    "cloudTitle": "Waar werkt {{name}} aan"
   },
   "usageExplorer": {
     "loading": "Kaart laden…",
@@ -434,7 +452,8 @@
       "dormant": "Slapend (> {{quiet}} dagen)",
       "none": "Geen handelen bekend",
       "unknown": "Handelen niet zichtbaar"
-    }
+    },
+    "title": "Handelen"
   },
   "funnel": {
     "title": "Innovatiefunnel",
@@ -767,5 +786,24 @@
     "more": "Meer",
     "close": "Sluiten",
     "poweredBy": "Mogelijk gemaakt door"
+  },
+  "switcher": {
+    "breadcrumb": "Kruimelpad",
+    "choose": "kiezen",
+    "close": "sluiten",
+    "gemeenten": "Gemeenten",
+    "gemeentenNoun": "gemeenten",
+    "groei": "Groei-initiatieven",
+    "initiatives": "initiatieven",
+    "more": "Nog {{n}} resultaten. Typ verder om te verfijnen.",
+    "next": "Volgende",
+    "noPhase": "Geen fase",
+    "none": "Niets gevonden voor “{{q}}”.",
+    "of": "van",
+    "open": "openen",
+    "prev": "Vorige",
+    "searchGemeente": "Zoek een gemeente",
+    "searchInitiative": "Zoek een initiatief",
+    "typeToSearch": "Typ om alle {{n}} te doorzoeken"
   }
 }

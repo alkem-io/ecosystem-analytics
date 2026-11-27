@@ -67,9 +67,14 @@ export function SpaceDetailsTab({ openSpaceId, openSpaceSeq }: SpaceDetailsTabPr
 
   useEffect(() => {
     if (!openSpaceId) return;
-    if (selectedSpaces.some((s) => s.nameId === openSpaceId)) setSelected(openSpaceId);
+    // Callers send either the Space's nameID (Graph tab) or its node id (rows built from
+    // the dataset — Usage Explorer, layout A); resolve the latter through the dataset.
+    const nameId = selectedSpaces.some((s) => s.nameId === openSpaceId)
+      ? openSpaceId
+      : (dataset?.nodes.find((n) => n.id === openSpaceId)?.nameId ?? null);
+    if (nameId && selectedSpaces.some((s) => s.nameId === nameId)) setSelected(nameId);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [openSpaceSeq, openSpaceId, selectedSpaces]);
+  }, [openSpaceSeq, openSpaceId, selectedSpaces, dataset]);
 
   // The update MUST be functional. This effect and the `openSpace` one above both run in
   // the same commit on the mount that a graph-node click triggers (the tab is only

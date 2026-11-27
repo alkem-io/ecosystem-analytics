@@ -2,10 +2,11 @@ import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import * as Select from '@radix-ui/react-select';
 import { Check, ChevronDown } from 'lucide-react';
-import { cn, proxyImageUrl, SafeImage } from '@ea/shared';
+import { cn, proxyImageUrl, SafeImage, useAppConfig } from '@ea/shared';
 import type { CityRow } from '../utils/cities.js';
 import { useSelectionContext } from '../hooks/SelectionContext.js';
-import { useCityRows, useCoreLoadState, useGraphDataset } from '../data/derive/index.js';
+import { useCityRows, useCoreLoadState, useGraphDataset, useInitiativeRows } from '../data/derive/index.js';
+import { GemeenteA } from '../components/layout-a/Cities.js';
 import { InitiativeMap } from '../components/InitiativeMap.js';
 import { LoadingOverlay } from '../components/LoadingOverlay.js';
 
@@ -43,6 +44,8 @@ export function CityDetailsTab({ openCityId, openCitySeq }: CityDetailsTabProps 
   const dataset = useGraphDataset();
   const { loading, error, progress } = useCoreLoadState();
   const cities: CityRow[] = useCityRows();
+  const initiativeRows = useInitiativeRows();
+  const { layout } = useAppConfig();
   const [selected, setSelected] = useState<string | null>(null);
 
   // Live server-side progress while the (heavy) first generation is in flight, so the
@@ -102,6 +105,14 @@ export function CityDetailsTab({ openCityId, openCitySeq }: CityDetailsTabProps 
     return (
       <div className="flex h-full items-center justify-center text-sm text-destructive">
         {t('states.error')}: {error}
+      </div>
+    );
+  }
+
+  if (layout === 'sidebar' && !firstLoading && cities.length > 0) {
+    return (
+      <div className="load-strip-clearance h-full overflow-auto px-4 pt-4 pb-[max(1rem,var(--safe-bottom))] lg:px-7 lg:pt-[22px]">
+        <GemeenteA cities={cities} selected={selected} onSelect={setSelected} rows={initiativeRows} dataset={dataset} />
       </div>
     );
   }

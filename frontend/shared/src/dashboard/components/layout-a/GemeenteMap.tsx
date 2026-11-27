@@ -125,6 +125,16 @@ export function GemeenteMap({
   const gRef = useRef<SVGGElement>(null);
   const zoomRef = useRef<d3.ZoomBehavior<SVGSVGElement, unknown> | null>(null);
   const [k, setK] = useState(1);
+  // On-screen size of the map, so labels and logos stay a readable pixel size at any frame.
+  const boxRef = useRef<HTMLDivElement>(null);
+  const [box, setBox] = useState({ w: 600, h: 700 });
+  useEffect(() => {
+    const el = boxRef.current;
+    if (!el) return;
+    const ro = new ResizeObserver(([e]) => setBox({ w: e.contentRect.width || 600, h: e.contentRect.height || 700 }));
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
 
   // The framed area: the whole country, or one province with a margin.
   const view = useMemo(() => {
@@ -139,7 +149,8 @@ export function GemeenteMap({
     const m = 16;
     return [x0 - m, y0 - m, x1 - x0 + m * 2, y1 - y0 + m * 2];
   }, [geo, province]);
-  const unit = Math.max(view[2] / W, view[3] / 700); // svg units per "national" unit
+  // svg units per screen pixel (the map is fitted with xMidYMid meet)
+  const unit = Math.max(view[2] / box.w, view[3] / box.h);
 
   // Zoom & pan: drag, the buttons, or ⌘/Ctrl + scroll (a plain scroll keeps scrolling the page).
   useEffect(() => {
@@ -179,7 +190,7 @@ export function GemeenteMap({
   // Which labels fit at this zoom without colliding.
   const shownLabels = useMemo(() => {
     if (!geo) return [];
-    const fs = (11.5 * unit) / Math.pow(k, 0.85);
+    const fs = (11.5 * unit) / k;
     const placed: number[][] = [];
     const out: { x: number; y: number; text: string; fs: number }[] = [];
     // Framed on one province: its eight largest gemeenten are labelled from the start.
@@ -209,10 +220,10 @@ export function GemeenteMap({
     return out;
   }, [geo, labels, k, unit, province]);
 
-  const markerR = (10 * unit) / Math.pow(k, 0.85);
+  const markerR = (11 * unit) / Math.pow(k, 0.85);
 
   return (
-    <div className={cn('relative min-h-0', className)}>
+    <div ref={boxRef} className={cn('relative min-h-0', className)}>
       {!geo ? (
         <div className="absolute inset-0 grid place-items-center text-sm text-muted-foreground">
           {t('states.loading', { defaultValue: 'Laden…' })}
