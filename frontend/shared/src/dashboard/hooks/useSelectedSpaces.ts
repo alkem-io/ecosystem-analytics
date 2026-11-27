@@ -38,13 +38,16 @@ const DEFAULT_STATE: SelectionState = {
  */
 export function parseSelectionState(
   raw: string | null,
-  opts: { managedScope?: boolean } = {},
+  opts: { managedScope?: boolean; gemeenteDelersDefault?: boolean } = {},
 ): SelectionState {
-  if (!raw) return { ...DEFAULT_STATE };
+  // The GemeenteDelers switch starts where the dashboard says (AppConfig); a viewer's own
+  // saved choice always wins over it.
+  const base = { ...DEFAULT_STATE, includeInitiatives: opts.gemeenteDelersDefault ?? DEFAULT_STATE.includeInitiatives };
+  if (!raw) return base;
   try {
     const parsed = JSON.parse(raw) as Partial<SelectionState>;
     return {
-      ...DEFAULT_STATE,
+      ...base,
       ...parsed,
       // The scope supplies both; a saved one must not load while it is away or has failed.
       ...(opts.managedScope ? { activeHubNameId: null } : {}),
@@ -53,11 +56,11 @@ export function parseSelectionState(
       directRemoved: opts.managedScope ? [] : (parsed.directRemoved ?? []),
     };
   } catch {
-    return { ...DEFAULT_STATE };
+    return base;
   }
 }
 
-function loadState(storageKey: string, opts: { managedScope?: boolean }): SelectionState {
+function loadState(storageKey: string, opts: { managedScope?: boolean; gemeenteDelersDefault?: boolean }): SelectionState {
   if (typeof localStorage === 'undefined') return { ...DEFAULT_STATE };
   try {
     return parseSelectionState(localStorage.getItem(storageKey), opts);
@@ -143,7 +146,7 @@ export interface UseSelectedSpacesResult {
  * (FR-012, US2 scenario 3). State persists to localStorage.
  */
 export function useSelectedSpaces(): UseSelectedSpacesResult {
-  const { storagePrefix, eventPrefix, flags } = useAppConfig();
+  const { storagePrefix, eventPrefix, flags, gemeenteDelersDefault } = useAppConfig();
   const managedScope = flags?.managedScope === true;
   const storageKey = `${storagePrefix}_selection`;
   const selectionEvent = `${eventPrefix}:selection`;
@@ -156,7 +159,7 @@ export function useSelectedSpaces(): UseSelectedSpacesResult {
   const hubsLoading = managedScope ? false : hubsResult.loading;
   const hubsError = managedScope ? null : hubsResult.error;
 
-  const [state, setState] = useState<SelectionState>(() => loadState(storageKey, { managedScope }));
+  const [state, setState] = useState<SelectionState>(() => loadState(storageKey, { managedScope, gemeenteDelersDefault: gemeenteDelersDefault === true }));
   const [resolvingHub, setResolvingHub] = useState(false);
   const [hubResolveError, setHubResolveError] = useState<string | null>(null);
 

@@ -57,6 +57,8 @@ export interface AppConfig {
    * GovTech keeps the tab strip until it opts in.
    */
   layout?: 'tabs' | 'sidebar';
+  /** The GemeenteDelers switch starts ON for a first-time viewer (their own later choice is kept). */
+  gemeenteDelersDefault?: boolean;
   /**
    * The dashboard is a prototype shared for feedback: the notice under the header says
    * so and links here for more information. Absent: no prototype line.

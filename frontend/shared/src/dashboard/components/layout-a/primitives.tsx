@@ -187,6 +187,7 @@ export function Card({
   bodyRef,
   children,
   testId,
+  source,
 }: {
   title: string;
   subtitle?: ReactNode;
@@ -196,6 +197,8 @@ export function Card({
   bodyRef?: React.Ref<HTMLDivElement>;
   children: ReactNode;
   testId?: string;
+  /** Where the numbers come from, right-aligned in the footer. */
+  source?: string;
 }) {
   return (
     <section
@@ -215,9 +218,15 @@ export function Card({
         {tools && <div className="flex shrink-0 flex-wrap items-center justify-end gap-2">{tools}</div>}
       </div>
       {children}
-      {footer && (
+      {(footer || source) && (
         <div className="mt-auto flex flex-wrap items-center gap-x-3.5 gap-y-1.5 pt-3 text-xs text-muted-foreground">
           {footer}
+          {source && (
+            <>
+              <span className="flex-1" />
+              <span className="text-right max-lg:text-left">{source}</span>
+            </>
+          )}
         </div>
       )}
     </section>

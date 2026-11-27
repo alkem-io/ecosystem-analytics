@@ -143,12 +143,14 @@ function GemeenteDots({
   r,
   color,
   cities,
+  leads,
   onOpenCity,
 }: {
   row: InitiativeRow;
   r: number;
   color: string;
   cities: Map<string, CityRow>;
+  leads: Set<string> | undefined;
   onOpenCity: (cityId: string) => void;
 }) {
   const tip = useTip();
@@ -193,7 +195,7 @@ function GemeenteDots({
           cy={d.y * k + cy}
           r={Math.min(cap, d.r * k * 0.8)}
           fill={color}
-          fillOpacity={0.3}
+          fillOpacity={leads?.has(d.name) ? 0.9 : 0.3}
           onClick={(e) => {
             e.stopPropagation();
             if (d.city) onOpenCity(d.city.id);
@@ -202,7 +204,7 @@ function GemeenteDots({
             title: d.name,
             image: proxyImageUrl(d.city?.node.avatarUrl),
             initial: d.name[0],
-            lines: [d.city?.provinceName ?? ''].filter(Boolean),
+            lines: [d.city?.provinceName ?? '', leads?.has(d.name) ? `Trekker van ${row.name.replace(/\s*\(.*\)/, '')}` : `Doet mee aan ${row.name.replace(/\s*\(.*\)/, '')}`].filter(Boolean),
             rows: d.city?.population
               ? [[t('dashboard.a.inhabitants', { defaultValue: 'Inwoners' }), d.city.population.toLocaleString('nl-NL')]]
               : [],
@@ -217,6 +219,7 @@ export function PhaseBubbles({
   phases,
   rows,
   cities,
+  leads,
   colorBy,
   ndsOrder,
   vngOrder,
@@ -227,6 +230,7 @@ export function PhaseBubbles({
   phases: PhaseDistribution['phases'];
   rows: InitiativeRow[];
   cities: Map<string, CityRow>;
+  leads: Map<string, Set<string>>;
   colorBy: PhaseColorBy;
   ndsOrder: string[];
   vngOrder: string[];
@@ -280,7 +284,7 @@ export function PhaseBubbles({
                   >
                     <circle r={r} fill={tint(color)} stroke={color} strokeWidth={1.6} />
                     {b.row && (
-                      <GemeenteDots row={b.row} r={r} color={color} cities={cities} onOpenCity={onOpenCity} />
+                      <GemeenteDots row={b.row} r={r} color={color} cities={cities} leads={leads.get(b.row.id)} onOpenCity={onOpenCity} />
                     )}
                     <g style={{ paintOrder: 'stroke', stroke: tint(color, 0.8), strokeWidth: 4, strokeLinejoin: 'round' }}>
                       {r > 13 && <Label name={b.name} r={r} />}

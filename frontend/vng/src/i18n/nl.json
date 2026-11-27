@@ -221,8 +221,8 @@
       "citySub": "Elke gemeente naar inwonertal en aantal initiatieven",
       "colorBy": "Kleur op",
       "counted": "{{count}} geteld",
-      "distSub": "Gegroepeerd op aantal deelnemende gemeenten",
-      "dotMeaning": "Stip = gemeente, grootte = inwoners",
+      "distSub": "Gegroepeerd op aantal gemeenten",
+      "dotMeaning": "Stip = gemeente, grootte = inwoners, donker = trekker",
       "gemeenten": "Gemeenten",
       "inhabitants": "Inwoners",
       "kpiCities": "Gemeenten die meedoen",
@@ -238,7 +238,11 @@
       "phase": "Fase",
       "phasesSub": "Groei-initiatieven, verdeeld over de groeifases",
       "populationRange": "Inwonersbereik",
-      "uncategorised": "{{count}} zonder categorie"
+      "uncategorised": "{{count}} zonder categorie",
+      "sourceSpaces": "Op basis van de Spaces in de monitor",
+      "sourceGd": "GemeenteDelers-initiatieven",
+      "distBoth": "Groei + GemeenteDelers initiatieven",
+      "distGroei": "Groei initiatieven"
     }
   },
   "categories": {

@@ -12,6 +12,16 @@ import { cn, proxyImageUrl } from '@ea/shared';
 import { useTip, type TipNames } from './primitives.js';
 
 /** A short axis/legend label for a long Alkemio category name (the full name stays in tooltips). */
+/** Column heads for the matrix: a little longer than shortCat, wrapping over two lines. */
+const VNG_HEAD: Record<string, string> = {
+  'Bedrijfsvoering & gemeentediensten': 'Bedrijfs\u00advoering',
+  'Wonen en Ruimte': 'Wonen en Ruimte',
+  Bestaanszekerheid: 'Bestaans\u00adzekerheid',
+  'Klimaat en energie': 'Klimaat en energie',
+  'Kansengelijkheid/jeugd': 'Kansen\u00adgelijkheid',
+  'Vergrijzing/gezond leven': 'Gezond leven',
+};
+
 export const shortCat = (l: string) =>
   ({
     'Artificiële Intelligentie': 'AI',
@@ -194,7 +204,7 @@ export function PieMatrix({
             <th className="w-[20%]" />
             {cols.map((c) => (
               <th key={c.key} className="px-0.5 pb-1.5 align-bottom text-[12px] font-medium leading-tight text-muted-foreground">
-                {c.key === 'uncategorised' ? 'Geen' : shorten(c.label)}
+                {c.key === 'uncategorised' ? 'Geen' : (VNG_HEAD[c.label ?? ''] ?? shorten(c.label))}
               </th>
             ))}
           </tr>
@@ -284,11 +294,17 @@ export function PopulationScatter({
   const xt = (log ? [1e3, 3e3, 1e4, 3e4, 1e5, 3e5, 1e6] : x.ticks(compact ? 3 : 5)).filter((v) => v >= x.domain()[0] && v <= x.domain()[1]);
   const fmtK = (v: number) => (v >= 1e6 ? `${v / 1e6}M` : v >= 1e3 ? `${Math.round(v / 1e3)}k` : String(v));
   // A few direct labels on the largest participants, placed without collisions.
-  const placed: number[][] = [];
-  const labels = pts
+  const top = pts
     .filter((p) => p.initiativeCount > 0)
     .sort((a, b) => b.initiativeCount - a.initiativeCount)
-    .slice(0, compact ? 3 : 6)
+    .slice(0, compact ? 3 : 6);
+  // Labels keep clear of each other AND of the labelled dots themselves.
+  const placed: number[][] = top.map((p) => {
+    const px = x(p.population);
+    const py = y(p.initiativeCount);
+    return [px - 7, py - 7, px + 7, py + 7];
+  });
+  const labels = top
     .map((p) => {
       const px = x(p.population);
       const py = y(p.initiativeCount);

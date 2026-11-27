@@ -221,8 +221,8 @@
       "citySub": "Every municipality by population and number of initiatives",
       "colorBy": "Colour by",
       "counted": "{{count}} counted",
-      "distSub": "Grouped by number of participating municipalities",
-      "dotMeaning": "Dot = municipality, size = inhabitants",
+      "distSub": "Grouped by number of municipalities",
+      "dotMeaning": "Dot = municipality, size = inhabitants, dark = lead",
       "gemeenten": "Municipalities",
       "inhabitants": "Inhabitants",
       "kpiCities": "Participating municipalities",
@@ -238,7 +238,11 @@
       "phase": "Phase",
       "phasesSub": "Groei initiatives across the growth phases",
       "populationRange": "Population range",
-      "uncategorised": "{{count}} without a category"
+      "uncategorised": "{{count}} without a category",
+      "sourceSpaces": "Based on the Spaces in the monitor",
+      "sourceGd": "GemeenteDelers initiatives",
+      "distBoth": "Groei + GemeenteDelers initiatives",
+      "distGroei": "Groei initiatives"
     }
   },
   "categories": {

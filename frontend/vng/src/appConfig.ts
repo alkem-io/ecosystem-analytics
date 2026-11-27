@@ -26,4 +26,6 @@ export const appConfig: AppConfig = {
   prototypeInfoUrl: 'https://alkem.io/innovatiemonitor',
   // Layout A — the sidebar shell. VNG-only for now; GovTech keeps the tab strip.
   layout: 'sidebar',
+  // Layout A shows Groei and GemeenteDelers together by default (the agreed design).
+  gemeenteDelersDefault: true,
 };

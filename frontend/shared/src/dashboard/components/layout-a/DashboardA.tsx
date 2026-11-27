@@ -32,6 +32,7 @@ export function DashboardA({
   data,
   rows,
   cityRows,
+  leads,
   colorBy,
   onColorBy,
   handelenStatus,
@@ -45,6 +46,7 @@ export function DashboardA({
   data: VngDashboardResponse | null;
   rows: InitiativeRow[];
   cityRows: CityRow[];
+  leads: Map<string, Set<string>>;
   colorBy: PhaseColorBy;
   onColorBy: (c: PhaseColorBy) => void;
   handelenStatus: string | null;
@@ -125,6 +127,8 @@ export function DashboardA({
     );
   };
 
+  const srcSpaces = t('dashboard.a.sourceSpaces', { defaultValue: 'Op basis van de Spaces in de monitor' });
+  const srcBoth = gdIncluded ? `${srcSpaces} + ${t('dashboard.a.sourceGd', { defaultValue: 'GemeenteDelers-initiatieven' })}` : srcSpaces;
   const range = RANGES.find((r) => r.key === rangeKey)?.range ?? RANGES[0].range;
   const selectCls =
     'h-[30px] rounded-md border border-border bg-card px-2 text-[13px] text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-primary';
@@ -192,6 +196,7 @@ export function DashboardA({
             <Card
               className="col-span-12"
               bodyRef={refs.phase}
+              source={srcSpaces}
               title={t('dashboard.phases', { defaultValue: 'Initiatieven per groeifase' })}
               subtitle={t('dashboard.a.phasesSub', { defaultValue: 'Groei-initiatieven, verdeeld over de groeifases' })}
               tools={
@@ -219,7 +224,13 @@ export function DashboardA({
                   {!compact && (
                     <>
                       <span>{t('dashboard.a.bubbleSize', { defaultValue: 'Puntgrootte = aantal deelnemende gemeenten' })}</span>
-                      <span>{t('dashboard.a.dotMeaning', { defaultValue: 'Stip = gemeente, grootte = inwoners' })}</span>
+                      <span className="inline-flex items-center gap-1.5">
+                        <svg width="16" height="10" aria-hidden>
+                          <circle cx="4" cy="5" r="3.2" fill="#7c90a4" fillOpacity=".45" />
+                          <circle cx="12" cy="5" r="3.2" fill="#7c90a4" />
+                        </svg>
+                        {t('dashboard.a.dotMeaning', { defaultValue: 'Stip = gemeente, grootte = inwoners, donker = trekker' })}
+                      </span>
                     </>
                   )}
                   {handelenStatus && <span className="text-warning">{handelenStatus}</span>}
@@ -233,6 +244,7 @@ export function DashboardA({
                   phases={data.phaseDistribution.phases}
                   rows={rows}
                   cities={cities}
+                  leads={leads}
                   colorBy={colorBy}
                   ndsOrder={ndsOrder}
                   vngOrder={vngOrder}
@@ -243,10 +255,10 @@ export function DashboardA({
             </Card>
           )}
 
-          <Card className="col-span-12 lg:col-span-6" bodyRef={refs.nds} title={t('dashboard.a.ndsTitle', { defaultValue: 'Initiatieven volgens NDS' })} tools={dl('nds')} footer={<Legend items={sourceLegend} />}>
+          <Card className="col-span-12 lg:col-span-6" bodyRef={refs.nds} source={srcBoth} title={t('dashboard.a.ndsTitle', { defaultValue: 'Initiatieven volgens NDS' })} tools={dl('nds')} footer={<Legend items={sourceLegend} />}>
             <CategoryBars dimension={ndsDim} gdIncluded={gdIncluded} />
           </Card>
-          <Card className="col-span-12 lg:col-span-6" bodyRef={refs.vng2030} title={t('dashboard.vng2030', { defaultValue: 'Aantal initiatieven volgens VNG-2030' })} tools={dl('vng2030')} footer={<Legend items={sourceLegend} />}>
+          <Card className="col-span-12 lg:col-span-6" bodyRef={refs.vng2030} source={srcBoth} title={t('dashboard.vng2030', { defaultValue: 'Aantal initiatieven volgens VNG-2030' })} tools={dl('vng2030')} footer={<Legend items={sourceLegend} />}>
             <CategoryBars dimension={vngDim} gdIncluded={gdIncluded} />
           </Card>
 
@@ -254,7 +266,7 @@ export function DashboardA({
             className="col-span-12 lg:col-span-5"
             bodyRef={refs.dist}
             title={t('dashboard.gemeenteDistribution', { defaultValue: 'Initiatieven per aantal gemeenten' })}
-            subtitle={t('dashboard.a.distSub', { defaultValue: 'Gegroepeerd op aantal deelnemende gemeenten' })}
+            subtitle={`${t('dashboard.a.distSub', { defaultValue: 'Gegroepeerd op aantal gemeenten' })} · ${gdIncluded ? t('dashboard.a.distBoth', { defaultValue: 'Groei + GemeenteDelers initiatieven' }) : t('dashboard.a.distGroei', { defaultValue: 'Groei initiatieven' })}`}
             tools={dl('dist')}
             footer={<Legend items={sourceLegend} />}
           >

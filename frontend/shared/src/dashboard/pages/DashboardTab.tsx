@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { Download, Loader2 } from 'lucide-react';
 import { cn, useAppConfig } from '@ea/shared';
 import { useSelectionContext } from '../hooks/SelectionContext.js';
-import { useCoreLoadState, useCounts, useCityRows, useInitiativeRows } from '../data/derive/index.js';
+import { useCoreLoadState, useCounts, useCityRows, useGraphDataset, useInitiativeRows } from '../data/derive/index.js';
 import { useExtraItem } from '../data/hooks.js';
 import { HANDELEN_ORDER, handelenLabel, phaseHandelen } from '../utils/handelen.js';
 import { NdsChart } from '../components/charts/NdsChart.js';
@@ -54,6 +54,23 @@ export function DashboardTab() {
   const handelenOn = layoutA ? colorBy === 'handelen' : showHandelen;
   const handelen = useExtraItem('activity', 'tab:dashboard', undefined, handelenOn);
   const initiativeRows = useInitiativeRows();
+  // Layout A darkens a bubble's trekker dots: the gemeenten holding the LEAD role.
+  const graph = useGraphDataset();
+  const leadsByInitiative = useMemo(() => {
+    const m = new Map<string, Set<string>>();
+    if (!graph) return m;
+    const names = new Map(graph.nodes.map((n) => [n.id, n.displayName]));
+    const gemeente = new Set(graph.nodes.filter((n) => n.isGemeente).map((n) => n.id));
+    for (const e of graph.edges) {
+      if (e.type !== 'LEAD') continue;
+      const [org, space] = gemeente.has(e.sourceId) ? [e.sourceId, e.targetId] : gemeente.has(e.targetId) ? [e.targetId, e.sourceId] : [null, null];
+      if (!org || !space) continue;
+      const set = m.get(space) ?? new Set<string>();
+      set.add(names.get(org) ?? '');
+      m.set(space, set);
+    }
+    return m;
+  }, [graph]);
   const phases = data?.phaseDistribution?.phases;
   const phaseSplit = useMemo(
     () => (handelenOn && phases ? phaseHandelen(phases, initiativeRows) : null),
@@ -352,6 +369,7 @@ export function DashboardTab() {
             data={data}
             rows={initiativeRows}
             cityRows={cityRows}
+            leads={leadsByInitiative}
             colorBy={colorBy}
             onColorBy={setColorBy}
             handelenStatus={
